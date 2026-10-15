@@ -95,11 +95,11 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '1100px',
-          background: '#0c0818',
-          border: '1px solid rgba(255, 26, 140, 0.45)',
+          background: '#030e26',
+          border: '1px solid rgba(0, 140, 255, 0.45)',
           borderRadius: '20px',
           overflow: 'hidden',
-          boxShadow: '0 0 60px rgba(255, 26, 140, 0.35), 0 0 80px rgba(255, 0, 110, 0.25)',
+          boxShadow: '0 0 60px rgba(0, 140, 255, 0.35), 0 0 80px rgba(0, 210, 255, 0.25)',
           position: 'relative'
         }}
       >
@@ -110,8 +110,8 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '14px 22px',
-            borderBottom: '1px solid rgba(255, 26, 140, 0.25)',
-            background: 'rgba(14, 10, 24, 0.85)'
+            borderBottom: '1px solid rgba(0, 140, 255, 0.25)',
+            background: 'rgba(3, 14, 38, 0.92)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -120,11 +120,11 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                 width: '10px',
                 height: '10px',
                 borderRadius: '50%',
-                backgroundColor: '#FF1A8C',
-                boxShadow: '0 0 10px #FF1A8C'
+                backgroundColor: '#00D2FF',
+                boxShadow: '0 0 10px #00D2FF'
               }}
             />
-            <span className="font-display" style={{ fontSize: '0.88rem', color: '#FF4D94', letterSpacing: '0.08em' }}>
+            <span className="font-display" style={{ fontSize: '0.88rem', color: '#00D2FF', letterSpacing: '0.08em' }}>
               FESTRONIX 2026 // OFFICIAL CINEMATIC INTRO
             </span>
             <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '6px' }}>
@@ -177,7 +177,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
               left: 0,
               right: 0,
               padding: '24px 20px 16px',
-              background: 'linear-gradient(to top, rgba(5,7,17,0.95) 0%, rgba(5,7,17,0.4) 70%, transparent 100%)',
+              background: 'linear-gradient(to top, rgba(2,7,20,0.95) 0%, rgba(2,7,20,0.4) 70%, transparent 100%)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
@@ -198,8 +198,8 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                 style={{
                   width: `${progress}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, #FF1A8C, #FF66B2)',
-                  boxShadow: '0 0 10px #FF1A8C'
+                  background: 'linear-gradient(90deg, #00D2FF, #0077FF)',
+                  boxShadow: '0 0 10px #00D2FF'
                 }}
               />
             </div>
@@ -211,7 +211,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                   onClick={togglePlay}
                   style={{
                     background: 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(255, 26, 140, 0.35)',
+                    border: '1px solid rgba(0, 140, 255, 0.4)',
                     color: '#fff',
                     borderRadius: '8px',
                     padding: '8px 12px',
@@ -221,16 +221,16 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                     gap: '6px'
                   }}
                 >
-                  <Play size={16} fill={isPlaying ? '#FF1A8C' : 'none'} color="#FF1A8C" />
+                  <Play size={16} fill={isPlaying ? '#00D2FF' : 'none'} color="#00D2FF" />
                   <span style={{ fontSize: '0.8rem' }}>{isPlaying ? 'Pause' : 'Play'}</span>
                 </button>
 
                 <button
                   onClick={toggleMute}
                   style={{
-                    background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 26, 140, 0.15)',
-                    border: `1px solid ${isMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 26, 140, 0.4)'}`,
-                    color: isMuted ? '#f87171' : '#FF4D94',
+                    background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 140, 255, 0.15)',
+                    border: `1px solid ${isMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(0, 210, 255, 0.4)'}`,
+                    color: isMuted ? '#f87171' : '#38BDF8',
                     borderRadius: '8px',
                     padding: '8px 14px',
                     cursor: 'pointer',

@@ -76,8 +76,8 @@ export const Festronix3DTitle: React.FC = () => {
           width: isHovered ? '95%' : '80%',
           height: isHovered ? '240px' : '150px',
           background: isHovered
-            ? `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(0, 240, 208, 0.45) 0%, rgba(192, 38, 211, 0.35) 30%, rgba(124, 58, 237, 0.25) 55%, rgba(255, 215, 0, 0.15) 75%, transparent 85%)`
-            : 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(0, 240, 208, 0.2) 0%, rgba(192, 38, 211, 0.2) 40%, transparent 75%)',
+            ? `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(0, 210, 255, 0.45) 0%, rgba(0, 119, 255, 0.35) 30%, rgba(0, 81, 255, 0.25) 55%, rgba(56, 189, 248, 0.15) 75%, transparent 85%)`
+            : 'radial-gradient(ellipse 70% 50% at 50% 50%, rgba(0, 210, 255, 0.2) 0%, rgba(0, 119, 255, 0.2) 40%, transparent 75%)',
           filter: isHovered ? 'blur(35px)' : 'blur(25px)',
           transition: 'width 0.4s ease, height 0.4s ease, filter 0.4s ease',
           pointerEvents: 'none',
@@ -114,8 +114,8 @@ export const Festronix3DTitle: React.FC = () => {
               display: 'block',
               margin: '0 auto',
               filter: isHovered
-                ? 'drop-shadow(0 0 25px rgba(0, 240, 208, 0.9)) drop-shadow(0 0 50px rgba(192, 38, 211, 0.75)) drop-shadow(0 0 75px rgba(255, 215, 0, 0.45)) drop-shadow(0 15px 30px rgba(0, 0, 0, 0.9))'
-                : 'drop-shadow(0 0 16px rgba(0, 240, 208, 0.4)) drop-shadow(0 0 24px rgba(192, 38, 211, 0.35)) drop-shadow(0 10px 25px rgba(0, 0, 0, 0.75))',
+                ? 'drop-shadow(0 0 25px rgba(0, 210, 255, 0.9)) drop-shadow(0 0 50px rgba(0, 119, 255, 0.75)) drop-shadow(0 0 75px rgba(56, 189, 248, 0.45)) drop-shadow(0 15px 30px rgba(0, 0, 0, 0.9))'
+                : 'drop-shadow(0 0 16px rgba(0, 210, 255, 0.45)) drop-shadow(0 0 24px rgba(0, 119, 255, 0.35)) drop-shadow(0 10px 25px rgba(0, 0, 0, 0.75))',
               transition: 'filter 0.35s ease',
               pointerEvents: 'none'
             }}
@@ -128,7 +128,7 @@ export const Festronix3DTitle: React.FC = () => {
                 position: 'absolute',
                 inset: 0,
                 background:
-                  'linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.7) 45%, rgba(0, 240, 208, 0.85) 50%, rgba(217, 70, 239, 0.7) 55%, transparent 75%)',
+                  'linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.7) 45%, rgba(0, 210, 255, 0.85) 50%, rgba(56, 189, 248, 0.7) 55%, transparent 75%)',
                 backgroundSize: '200% 100%',
                 animation: 'gleamSweep 1.6s infinite',
                 pointerEvents: 'none',
@@ -164,7 +164,7 @@ export const Festronix3DTitle: React.FC = () => {
             style={{
               height: '2px',
               width: 'clamp(12px, 3.5vw, 45px)',
-              background: 'linear-gradient(90deg, transparent, #FF1A8C)',
+              background: 'linear-gradient(90deg, transparent, #00D2FF)',
               flexShrink: 0
             }}
           />
@@ -178,7 +178,7 @@ export const Festronix3DTitle: React.FC = () => {
               fontFamily: "'Space Grotesk', sans-serif",
               textAlign: 'center',
               textShadow: isHovered
-                ? '0 0 15px rgba(255, 26, 140, 0.8), 0 0 30px rgba(255, 0, 110, 0.6)'
+                ? '0 0 15px rgba(0, 210, 255, 0.8), 0 0 30px rgba(0, 119, 255, 0.6)'
                 : '0 2px 10px rgba(0, 0, 0, 0.8)',
               transition: 'all 0.3s ease'
             }}
@@ -189,7 +189,7 @@ export const Festronix3DTitle: React.FC = () => {
             style={{
               height: '2px',
               width: 'clamp(12px, 3.5vw, 45px)',
-              background: 'linear-gradient(90deg, #FF1A8C, transparent)',
+              background: 'linear-gradient(90deg, #00D2FF, transparent)',
               flexShrink: 0
             }}
           />

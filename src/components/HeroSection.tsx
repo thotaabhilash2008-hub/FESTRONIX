@@ -115,15 +115,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             gap: '8px',
             padding: '6px 16px',
             borderRadius: '9999px',
-            background: 'rgba(10, 7, 22, 0.78)',
-            border: '1px solid rgba(0, 240, 208, 0.25)',
+            background: 'rgba(3, 14, 38, 0.85)',
+            border: '1px solid rgba(0, 210, 255, 0.35)',
             backdropFilter: 'blur(16px)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 240, 208, 0.1)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 210, 255, 0.15)',
             maxWidth: '100%'
           }}
         >
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <Star size={12} color="#FF1A8C" fill="#FF1A8C" />
+            <Star size={12} color="#00D2FF" fill="#00D2FF" />
             <span
               style={{
                 fontSize: 'clamp(0.68rem, 2.4vw, 0.78rem)',
@@ -139,9 +139,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <span
             style={{
               fontSize: '0.68rem',
-              background: 'linear-gradient(135deg, rgba(255, 26, 140, 0.2), rgba(216, 0, 90, 0.2))',
-              border: '1px solid rgba(255, 26, 140, 0.4)',
-              color: '#FF4D94',
+              background: 'rgba(0, 140, 255, 0.15)',
+              border: '1px solid rgba(0, 210, 255, 0.45)',
+              color: '#00D2FF',
               padding: '2px 9px',
               borderRadius: '9999px',
               fontWeight: 700,
@@ -166,19 +166,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               marginTop: '10px',
               padding: '4px 16px',
               borderRadius: '6px',
-              background: 'linear-gradient(135deg, rgba(255, 26, 140, 0.12), rgba(216, 0, 90, 0.12))',
-              border: '1px solid rgba(255, 26, 140, 0.35)',
-              boxShadow: '0 0 15px rgba(255, 26, 140, 0.2)'
+              background: 'linear-gradient(135deg, rgba(0, 140, 255, 0.15), rgba(0, 81, 255, 0.15))',
+              border: '1px solid rgba(0, 210, 255, 0.4)',
+              boxShadow: '0 0 15px rgba(0, 210, 255, 0.25)'
             }}
           >
-            <Flame size={14} color="#FF1A8C" />
+            <Flame size={14} color="#00D2FF" />
             <span
               style={{
                 fontFamily: "var(--font-heading)",
                 fontWeight: 700,
                 fontSize: '1.15rem',
                 letterSpacing: '0.15em',
-                background: 'linear-gradient(135deg, #FF1A8C, #FF66B2, #FFFFFF)',
+                background: 'linear-gradient(135deg, #00D2FF, #38BDF8, #FFFFFF)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}
@@ -229,7 +229,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             className="btn-cyber-secondary"
             style={{ padding: '12px 24px', fontSize: '0.9rem' }}
           >
-            <CirclePlay size={16} color="#FF1A8C" />
+            <CirclePlay size={16} color="#00D2FF" />
             <span>Watch Intro</span>
           </button>
 
@@ -254,17 +254,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             alignItems: 'center',
             gap: '16px',
             padding: '12px 28px',
-            background: 'rgba(10, 7, 22, 0.82)',
-            border: '1px solid rgba(255, 26, 140, 0.28)',
+            background: 'rgba(3, 14, 38, 0.88)',
+            border: '1px solid rgba(0, 140, 255, 0.35)',
             borderRadius: '14px',
             backdropFilter: 'blur(20px)',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 26, 140, 0.15)'
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 140, 255, 0.2)'
           }}
         >
           <span
             style={{
               fontSize: '0.72rem',
-              color: '#FF4D94',
+              color: '#00D2FF',
               fontWeight: 700,
               letterSpacing: '0.08em',
               fontFamily: "'Space Grotesk', sans-serif"
@@ -283,8 +283,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div
                   style={{
-                    background: 'rgba(255, 26, 140, 0.08)',
-                    border: '1px solid rgba(255, 26, 140, 0.2)',
+                    background: 'rgba(0, 140, 255, 0.1)',
+                    border: '1px solid rgba(0, 210, 255, 0.25)',
                     borderRadius: '8px',
                     padding: '6px 10px',
                     textAlign: 'center',
@@ -316,7 +316,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   </div>
                 </div>
                 {i < 3 && (
-                  <span style={{ color: 'rgba(255, 26, 140, 0.45)', fontSize: '1.1rem', fontWeight: 300 }}>:</span>
+                  <span style={{ color: 'rgba(0, 210, 255, 0.45)', fontSize: '1.1rem', fontWeight: 300 }}>:</span>
                 )}
               </div>
             ))}
@@ -335,16 +335,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           {[
-            { icon: <Crown size={20} color="#FF1A8C" />, value: '₹5,00,000+', label: 'Prize Pool', accent: '#FF1A8C' },
-            { icon: <Users size={20} color="#FF4D94" />, value: '3,500+', label: 'Participants', accent: '#FF4D94' },
-            { icon: <Sparkles size={20} color="#FF66B2" />, value: '30+ Events', label: '8 Branches', accent: '#FF66B2' },
-            { icon: <QrCode size={20} color="#FF006E" />, value: 'QR Pass', label: 'Instant Check-in', accent: '#FF006E' }
+            { icon: <Crown size={20} color="#FBBF24" />, value: '₹5,00,000+', label: 'Prize Pool', accent: '#FBBF24' },
+            { icon: <Users size={20} color="#00D2FF" />, value: '3,500+', label: 'Participants', accent: '#00D2FF' },
+            { icon: <Sparkles size={20} color="#38BDF8" />, value: '30+ Events', label: '8 Branches', accent: '#38BDF8' },
+            { icon: <QrCode size={20} color="#0077FF" />, value: 'QR Pass', label: 'Instant Check-in', accent: '#0077FF' }
           ].map((item, i) => (
             <div
               key={i}
               style={{
-                background: 'rgba(12, 9, 26, 0.68)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'rgba(3, 14, 38, 0.85)',
+                border: '1px solid rgba(0, 140, 255, 0.25)',
                 borderRadius: '12px',
                 padding: '16px',
                 textAlign: 'center',
@@ -357,7 +357,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.borderColor = 'rgba(0, 140, 255, 0.25)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}

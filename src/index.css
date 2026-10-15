@@ -1,53 +1,49 @@
 /* ======================================================
-   FESTRONIX 2026 — Official 3D Logo Color System
-   Palette: Electric Cyan, Cyber Violet, Liquid Chrome & Champagne Gold
+   FESTRONIX 2026 — Official Electric Cyan & Royal Azure Palette
+   Inspired by: Electric Cyan (#00D2FF), Royal Blue (#0077FF), Deep Azure (#0051FF), Midnight Navy Base
    ====================================================== */
 
 :root {
-  /* Core Obsidian Velvet Base */
-  --bg-deep: #080611;
-  --bg-surface: rgba(15, 11, 28, 0.82);
-  --bg-surface-hover: rgba(26, 18, 48, 0.92);
-  --bg-elevated: #120e24;
+  /* Core Deep Midnight Navy Obsidian Base */
+  --bg-deep: #020714;
+  --bg-surface: rgba(3, 14, 38, 0.88);
+  --bg-surface-hover: rgba(5, 22, 58, 0.95);
+  --bg-elevated: #04102c;
   
-  /* Cyber Teal / Radiant Electric Cyan (From Logo Bevels & Reflections) */
-  --neon-cyan: #00F0D0;
-  --neon-cyan-bright: #22D3EE;
-  --neon-cyan-dim: rgba(0, 240, 208, 0.12);
-  --neon-cyan-border: rgba(0, 240, 208, 0.35);
-  --neon-cyan-glow: rgba(0, 240, 208, 0.45);
+  /* Cyber Electric Cyan (Primary Neon & Accents) */
+  --neon-cyan: #00D2FF;
+  --neon-cyan-bright: #38BDF8;
+  --neon-cyan-dim: rgba(0, 210, 255, 0.12);
+  --neon-cyan-border: rgba(0, 210, 255, 0.4);
+  --neon-cyan-glow: rgba(0, 210, 255, 0.65);
   
-  /* Cyber Magenta & Electric Violet (From Logo Glow Aura & Neons) */
-  --neon-purple: #C026D3;
-  --neon-magenta: #D946EF;
-  --neon-pink: #FF1A8C;
-  --neon-pink-bright: #FF4D94;
-  --neon-pink-deep: #D8005A;
-  --neon-pink-glow: rgba(255, 26, 140, 0.55);
-  --neon-pink-border: rgba(255, 26, 140, 0.45);
-  --neon-pink-bg: rgba(255, 26, 140, 0.08);
-  --gradient-pink-radiant: linear-gradient(135deg, #FF1A8C 0%, #FF006E 50%, #D8005A 100%);
-  --gradient-pink-bar: linear-gradient(90deg, #FF1A8C 0%, #FF66B2 100%);
-  --violet: #7C3AED;
-  --violet-bright: #A855F7;
-  --violet-light: #C4B5FD;
-  --violet-dim: rgba(192, 38, 211, 0.15);
-  --violet-border: rgba(192, 38, 211, 0.35);
-  --violet-glow: rgba(192, 38, 211, 0.45);
+  /* Royal Azure & Deep Cobalt Blue (Gradients & Secondary Accents) */
+  --neon-blue: #0088FF;
+  --neon-azure: #0066FF;
+  --neon-cobalt: #0051FF;
+  --blue-dim: rgba(0, 136, 255, 0.15);
+  --blue-border: rgba(0, 136, 255, 0.35);
+  --blue-glow: rgba(0, 136, 255, 0.5);
+
+  /* Primary Gradients */
+  --gradient-cyan-radiant: linear-gradient(135deg, #00D2FF 0%, #0077FF 50%, #0051FF 100%);
+  --gradient-cyan-bar: linear-gradient(90deg, #00D2FF 0%, #0099FF 100%);
+  --gradient-card-box: rgba(2, 25, 60, 0.65);
+  --btn-contrast-text: #020C1E;
   
-  /* Liquid Chrome & Specular Silver (From 3D Letter Faces) */
+  /* Liquid Chrome & Specular Silver */
   --chrome-pure: #FFFFFF;
   --chrome-light: #F8FAFC;
   --chrome-silver: #CBD5E1;
   --chrome-muted: #94A3B8;
   --chrome-dark: #475569;
   
-  /* Champagne & Imperial Gold (Accents & Laurels) */
-  --gold: #FFD700;
-  --gold-light: #FFE55C;
-  --gold-warm: #F5A623;
-  --gold-dim: rgba(255, 215, 0, 0.14);
-  --gold-border: rgba(255, 215, 0, 0.35);
+  /* Champagne & Imperial Gold (Prizes & Trophies) */
+  --gold: #FBBF24;
+  --gold-light: #FDE68A;
+  --gold-warm: #F59E0B;
+  --gold-dim: rgba(251, 191, 36, 0.14);
+  --gold-border: rgba(251, 191, 36, 0.35);
   
   /* Status Colors */
   --emerald: #10B981;
@@ -56,11 +52,11 @@
   
   /* High-Contrast Luminous Text Neutrals */
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-neon: rgba(0, 240, 208, 0.25);
+  --border-neon: rgba(0, 210, 255, 0.35);
   --text-primary: #F8FAFC;
   --text-secondary: #CBD5E1;
   --text-muted: #94A3B8;
-  --text-cyber: #C4B5FD;
+  --text-cyber: #7DD3FC;
   
   /* Typography: Ultra-Refined Digital */
   --font-title: 'Clash Display', 'Space Grotesk', sans-serif;
@@ -94,11 +90,11 @@ body {
   min-height: 100vh;
   line-height: 1.6;
   background-image:
-    radial-gradient(ellipse 65% 45% at 50% 0%, rgba(192, 38, 211, 0.16), transparent),
-    radial-gradient(ellipse 50% 35% at 85% 20%, rgba(0, 240, 208, 0.08), transparent),
-    radial-gradient(ellipse 55% 40% at 15% 45%, rgba(124, 58, 237, 0.14), transparent),
-    radial-gradient(ellipse 60% 45% at 80% 75%, rgba(0, 240, 208, 0.07), transparent),
-    linear-gradient(to bottom, #080611 0%, #0d0a1a 50%, #08060f 100%);
+    radial-gradient(ellipse 65% 45% at 50% 0%, rgba(0, 140, 255, 0.2), transparent),
+    radial-gradient(ellipse 50% 35% at 85% 20%, rgba(0, 210, 255, 0.12), transparent),
+    radial-gradient(ellipse 55% 40% at 15% 45%, rgba(0, 80, 255, 0.15), transparent),
+    radial-gradient(ellipse 60% 45% at 80% 75%, rgba(0, 210, 255, 0.1), transparent),
+    linear-gradient(to bottom, #020714 0%, #040e24 50%, #020714 100%);
   background-attachment: fixed;
 }
 
@@ -107,8 +103,8 @@ body {
   position: fixed;
   inset: 0;
   background-image: 
-    radial-gradient(rgba(0, 240, 208, 0.05) 1px, transparent 1px),
-    radial-gradient(rgba(192, 38, 211, 0.04) 1px, transparent 1px);
+    radial-gradient(rgba(0, 210, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(rgba(0, 100, 255, 0.05) 1px, transparent 1px);
   background-size: 40px 40px, 80px 80px;
   background-position: 0 0, 20px 20px;
   pointer-events: none;
@@ -124,16 +120,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #080611;
+  background: #020714;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #00F0D0, #C026D3);
+  background: linear-gradient(to bottom, #00D2FF, #0051FF);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #00F0D0;
+  background: #00D2FF;
 }
 
 /* Typography Utility Classes */
@@ -159,17 +155,17 @@ body {
 
 /* Multi-Spectrum Festronix Title Gradients */
 .text-gradient-festronix {
-  background: linear-gradient(135deg, #00F0D0 0%, #FFFFFF 30%, #C026D3 70%, #FFD700 100%);
+  background: linear-gradient(135deg, #00D2FF 0%, #FFFFFF 35%, #0088FF 70%, #0051FF 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 20px rgba(0, 240, 208, 0.35));
+  filter: drop-shadow(0 0 20px rgba(0, 210, 255, 0.4));
 }
 
 .text-gradient-gold {
-  background: linear-gradient(180deg, #FFE55C 0%, #FFD700 35%, #F5A623 65%, #C68A0A 100%);
+  background: linear-gradient(180deg, #FDE68A 0%, #FBBF24 50%, #F59E0B 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 18px rgba(255, 215, 0, 0.4));
+  filter: drop-shadow(0 4px 18px rgba(251, 191, 36, 0.4));
 }
 
 .text-gradient-chrome {
@@ -180,42 +176,28 @@ body {
 }
 
 .text-gradient-cyan {
-  background: linear-gradient(135deg, #A5F3FC 0%, #00F0D0 60%, #0891B2 100%);
+  background: linear-gradient(135deg, #A5F3FC 0%, #00D2FF 60%, #0077FF 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 16px rgba(0, 240, 208, 0.4));
+  filter: drop-shadow(0 0 16px rgba(0, 210, 255, 0.5));
 }
 
 .text-gradient-neon {
-  background: linear-gradient(135deg, #F0ABFC 0%, #C026D3 55%, #7C3AED 100%);
+  background: linear-gradient(135deg, #7DD3FC 0%, #00D2FF 50%, #0051FF 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 16px rgba(192, 38, 211, 0.4));
+  filter: drop-shadow(0 0 16px rgba(0, 210, 255, 0.5));
 }
 
-/* Warm metallic gradient for section headings */
-.text-gradient-warm {
-  background: linear-gradient(180deg, #FFFFFF 10%, #E2E8F0 50%, #CBD5E1 90%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 20px rgba(0, 240, 208, 0.2)) drop-shadow(0 0 12px rgba(192, 38, 211, 0.25));
-}
-
-.text-gradient-violet {
-  background: linear-gradient(135deg, #E9D5FF 0%, #A855F7 50%, #C026D3 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Modern Glass Card with Cyan & Violet Edge Highlights */
+/* Modern Card matching reference card (Deep sapphire background with radiant cyan-blue borders) */
 .cyber-card {
   background: var(--bg-surface);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border: 1px solid rgba(0, 140, 255, 0.32);
+  border-radius: 20px;
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 8px 30px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 140, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   position: relative;
   overflow: hidden;
 }
@@ -224,9 +206,9 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(0, 240, 208, 0.35), transparent 45%, rgba(192, 38, 211, 0.35));
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.45), transparent 45%, rgba(0, 81, 255, 0.45));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -237,9 +219,9 @@ body {
 
 .cyber-card:hover {
   background: var(--bg-surface-hover);
-  border-color: rgba(0, 240, 208, 0.3);
+  border-color: rgba(0, 210, 255, 0.55);
   transform: translateY(-4px);
-  box-shadow: 0 20px 50px -15px rgba(0, 240, 208, 0.16), 0 0 28px -5px rgba(192, 38, 211, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.95), 0 0 35px rgba(0, 210, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .cyber-card:hover::before {
@@ -248,40 +230,14 @@ body {
 
 /* High-Voltage Festronix Buttons */
 .btn-cyber-primary {
-  background: linear-gradient(135deg, #FF1A8C 0%, #FF006E 50%, #D8005A 100%);
-  color: #FFFFFF;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 0.92rem;
-  letter-spacing: 0.03em;
-  padding: 12px 26px;
-  border-radius: 9999px;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 0 24px rgba(255, 26, 140, 0.45), 0 4px 14px rgba(0, 0, 0, 0.4);
-  text-decoration: none;
-}
-
-.btn-cyber-primary:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 0 38px rgba(255, 26, 140, 0.7), 0 0 25px rgba(255, 0, 110, 0.5), 0 8px 24px rgba(0, 0, 0, 0.5);
-  background: linear-gradient(135deg, #FF4D94 0%, #FF1A8C 50%, #FF006E 100%);
-}
-
-.btn-cyber-gold {
-  background: linear-gradient(135deg, #FF1A8C 0%, #FF66B2 100%);
-  color: #12000E;
+  background: linear-gradient(135deg, #00D2FF 0%, #0077FF 50%, #0051FF 100%);
+  color: #020C1E;
   font-family: var(--font-ui);
   font-weight: 800;
   font-size: 0.92rem;
   letter-spacing: 0.03em;
   padding: 12px 26px;
-  border-radius: 9999px;
+  border-radius: 12px;
   border: none;
   cursor: pointer;
   display: inline-flex;
@@ -289,26 +245,52 @@ body {
   justify-content: center;
   gap: 8px;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 0 22px rgba(255, 26, 140, 0.4), 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 25px rgba(0, 210, 255, 0.65), 0 4px 14px rgba(0, 0, 0, 0.4);
+  text-decoration: none;
+}
+
+.btn-cyber-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 38px rgba(0, 210, 255, 0.85), 0 0 25px rgba(0, 110, 255, 0.6), 0 8px 24px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #38BDF8 0%, #00D2FF 50%, #0077FF 100%);
+}
+
+.btn-cyber-gold {
+  background: linear-gradient(135deg, #00D2FF 0%, #0099FF 100%);
+  color: #020C1E;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: 0.92rem;
+  letter-spacing: 0.03em;
+  padding: 12px 26px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 24px rgba(0, 210, 255, 0.55), 0 4px 14px rgba(0, 0, 0, 0.4);
   text-decoration: none;
 }
 
 .btn-cyber-gold:hover {
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 0 36px rgba(255, 26, 140, 0.65), 0 8px 24px rgba(0, 0, 0, 0.5);
-  background: linear-gradient(135deg, #FF66B2 0%, #FF1A8C 100%);
+  box-shadow: 0 0 36px rgba(0, 210, 255, 0.75), 0 8px 24px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #38BDF8 0%, #00D2FF 100%);
 }
 
 .btn-cyber-secondary {
-  background: rgba(255, 255, 255, 0.04);
-  color: #CBD5E1;
+  background: rgba(3, 18, 48, 0.85);
+  color: #F8FAFC;
   font-family: var(--font-ui);
   font-weight: 600;
   font-size: 0.9rem;
   letter-spacing: 0.02em;
   padding: 11px 22px;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 26, 140, 0.35);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 150, 255, 0.38);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -320,10 +302,10 @@ body {
 }
 
 .btn-cyber-secondary:hover {
-  background: rgba(255, 26, 140, 0.12);
-  border-color: #FF1A8C;
+  background: rgba(0, 120, 255, 0.18);
+  border-color: #00D2FF;
   color: #FFFFFF;
-  box-shadow: 0 0 20px rgba(255, 26, 140, 0.35);
+  box-shadow: 0 0 22px rgba(0, 210, 255, 0.45);
   transform: translateY(-1px);
 }
 
