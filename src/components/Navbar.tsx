@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Clapperboard, Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Trophy, Compass, Layers, ShoppingBag, User as UserIcon, LogIn, LogOut, Shield } from 'lucide-react';
+import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Layers, ShoppingBag, LogIn, LogOut, Shield } from 'lucide-react';
 import { Announcement, User as UserType } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
 interface NavbarProps {
-  onOpenIntro: () => void;
+  onOpenIntro?: () => void;
   onOpenPasses: () => void;
   onOpenMultiPass: () => void;
   currentUser: UserType | null;
@@ -12,7 +12,7 @@ interface NavbarProps {
   onSignOut: () => void;
   announcements: Announcement[];
   passesCount: number;
-  onNavigateExplore: () => void;
+  onNavigateExplore?: () => void;
   onNavigateHyped: () => void;
   onSelectDepartment: (deptCode: string) => void;
   onSelectCategory: (categoryKey: string) => void;
@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         position: 'sticky',
         top: '12px',
         zIndex: 50,
-        maxWidth: '1240px',
+        maxWidth: '1300px',
         margin: '0 auto',
         padding: '0 16px',
         width: '100%'
@@ -88,15 +88,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         style={{
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          backgroundColor: 'rgba(20, 31, 62, 0.92)',
+          backgroundColor: 'rgba(16, 26, 53, 0.88)',
           border: '1px solid rgba(220, 227, 229, 0.22)',
           borderRadius: '9999px',
           height: '66px',
-          padding: '0 22px',
+          padding: '0 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(40, 59, 120, 0.25), inset 0 1px 0 rgba(220, 227, 229, 0.1)'
+          boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.75), 0 0 25px rgba(40, 59, 120, 0.22), inset 0 1px 0 rgba(220, 227, 229, 0.12)'
         }}
       >
         {/* Brand / Logo */}
@@ -190,101 +190,48 @@ export const Navbar: React.FC<NavbarProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '18px'
+            gap: '12px'
           }}
           className="desktop-nav"
         >
-          {/* 1. Explore Events */}
-          <button
-            onClick={() => {
-              setIsBrowseDropdownOpen(false);
-              onNavigateExplore();
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#DCE3E5',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'color 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif",
-              padding: '6px 10px'
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#BACEBB')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#DCE3E5')}
-          >
-            <Compass size={15} color="#789593" />
-            <span>Explore Events</span>
-          </button>
-
-          {/* 2. Hyped Events */}
-          <button
-            onClick={() => {
-              setIsBrowseDropdownOpen(false);
-              onNavigateHyped();
-            }}
-            style={{
-              background: 'rgba(40, 59, 120, 0.3)',
-              border: '1px solid rgba(120, 149, 147, 0.4)',
-              borderRadius: '9999px',
-              color: '#BACEBB',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif",
-              padding: '5px 12px'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.5)';
-              e.currentTarget.style.boxShadow = '0 0 18px rgba(120, 149, 147, 0.45)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.3)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            <Flame size={14} color="#BACEBB" />
-            <span>Hyped Events</span>
-          </button>
-
-          {/* 3. Browse Dropdown: Select by Department & Select by Event Category */}
+          {/* 1. Browse Dropdown: Select by Department & Select by Event Category */}
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
               style={{
-                background: isBrowseDropdownOpen ? 'rgba(40, 59, 120, 0.35)' : 'none',
-                border: isBrowseDropdownOpen ? '1px solid rgba(120, 149, 147, 0.45)' : '1px solid transparent',
-                borderRadius: '8px',
-                color: isBrowseDropdownOpen ? '#BACEBB' : '#DCE3E5',
-                fontSize: '0.85rem',
+                background: isBrowseDropdownOpen ? 'rgba(40, 59, 120, 0.45)' : 'rgba(40, 59, 120, 0.22)',
+                border: isBrowseDropdownOpen ? '1px solid rgba(120, 149, 147, 0.55)' : '1px solid rgba(220, 227, 229, 0.2)',
+                borderRadius: '9999px',
+                color: isBrowseDropdownOpen ? '#FFFFFF' : '#DCE3E5',
+                fontSize: '0.84rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                transition: 'all 0.2s',
+                gap: '7px',
+                padding: '7px 15px',
+                transition: 'all 0.2s ease',
                 fontFamily: "'Space Grotesk', sans-serif"
               }}
               onMouseEnter={e => {
-                if (!isBrowseDropdownOpen) e.currentTarget.style.color = '#BACEBB';
+                if (!isBrowseDropdownOpen) {
+                  e.currentTarget.style.color = '#FFFFFF';
+                  e.currentTarget.style.borderColor = '#789593';
+                  e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
+                }
               }}
               onMouseLeave={e => {
-                if (!isBrowseDropdownOpen) e.currentTarget.style.color = '#DCE3E5';
+                if (!isBrowseDropdownOpen) {
+                  e.currentTarget.style.color = '#DCE3E5';
+                  e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.2)';
+                  e.currentTarget.style.background = 'rgba(40, 59, 120, 0.22)';
+                }
               }}
             >
               <Layers size={14} color="#789593" />
               <span>Browse Events</span>
               <ChevronDown
-                size={14}
+                size={13}
                 style={{
                   transform: isBrowseDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                   transition: 'transform 0.2s'
@@ -464,22 +411,43 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* 4. Prizes */}
-          <a
-            href="#prizes"
-            style={{
-              color: '#A8B3C2',
-              textDecoration: 'none',
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              transition: 'color 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif"
+          {/* 2. Hyped Events */}
+          <button
+            onClick={() => {
+              setIsBrowseDropdownOpen(false);
+              onNavigateHyped();
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#BACEBB')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#A8B3C2')}
+            style={{
+              background: 'rgba(40, 59, 120, 0.22)',
+              border: '1px solid rgba(120, 149, 147, 0.35)',
+              borderRadius: '9999px',
+              color: '#BACEBB',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+              fontFamily: "'Space Grotesk', sans-serif",
+              padding: '7px 15px'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.45)';
+              e.currentTarget.style.borderColor = '#BACEBB';
+              e.currentTarget.style.boxShadow = '0 0 16px rgba(120, 149, 147, 0.35)';
+              e.currentTarget.style.color = '#FFFFFF';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.22)';
+              e.currentTarget.style.borderColor = 'rgba(120, 149, 147, 0.35)';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.color = '#BACEBB';
+            }}
           >
-            Prizes
-          </a>
+            <Flame size={14} color="#f59e0b" />
+            <span>Hyped Events</span>
+          </button>
         </div>
 
         {/* Right Action Icons & Passes */}
@@ -565,38 +533,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
-
-          {/* Replay Intro Button */}
-          <button
-            onClick={onOpenIntro}
-            className="desktop-only"
-            style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(220, 227, 229, 0.25)',
-              borderRadius: '9999px',
-              padding: '7px 13px',
-              color: '#DCE3E5',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = '#FFFFFF';
-              e.currentTarget.style.borderColor = '#789593';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = '#DCE3E5';
-              e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.25)';
-            }}
-          >
-            <Clapperboard size={13} color="#DCE3E5" />
-            <span>Intro</span>
-          </button>
 
           {/* Buy Multiple Passes Button */}
           <button
@@ -809,38 +745,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Replay Intro Button */}
-          <button
-            onClick={onOpenIntro}
-            className="desktop-only"
-            style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(220, 227, 229, 0.25)',
-              borderRadius: '9999px',
-              padding: '7px 13px',
-              color: '#DCE3E5',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = '#FFFFFF';
-              e.currentTarget.style.borderColor = '#789593';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = '#DCE3E5';
-              e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.25)';
-            }}
-          >
-            <Clapperboard size={13} color="#DCE3E5" />
-            <span>Intro</span>
-          </button>
-
           {/* View Our Registration Passes */}
           <button
             onClick={onOpenPasses}
@@ -962,28 +866,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
         >
           {/* Mobile Links */}
-          <button
-            onClick={() => {
-              setMobileMenuOpen(false);
-              onNavigateExplore();
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#FFFFFF',
-              fontSize: '1rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              textAlign: 'left',
-              cursor: 'pointer'
-            }}
-          >
-            <Compass size={18} color="#789593" />
-            <span>Explore Events</span>
-          </button>
-
           <button
             onClick={() => {
               setMobileMenuOpen(false);
@@ -1204,30 +1086,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Admin Portal (Dean SAC & HODs)</span>
               </button>
             )}
-
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenIntro();
-              }}
-              style={{
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(220, 227, 229, 0.25)',
-                color: '#DCE3E5',
-                borderRadius: '10px',
-                padding: '10px',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              <Clapperboard size={15} color="#DCE3E5" />
-              <span>Watch Fullscreen Intro</span>
-            </button>
           </div>
         </div>
       )}
