@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { Shield, Building2, User, Key, ArrowRight, ArrowLeft, Award, Lock, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
-import { AdminAuthService, AdminUser, PRESET_ADMINS } from '../../services/adminAuthService';
+import { 
+  Shield, Building2, User, Key, ArrowRight, ArrowLeft, Award, Lock, 
+  Sparkles, CheckCircle2, AlertCircle, FileText, CreditCard, QrCode 
+} from 'lucide-react';
+import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
 import { DEPARTMENTS } from '../../data/mockData';
+import { OrganisationalStructureModal } from './OrganisationalStructureModal';
 
 interface AdminLoginViewProps {
   onLoginSuccess: (user: AdminUser) => void;
@@ -9,17 +13,23 @@ interface AdminLoginViewProps {
 }
 
 export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, onBackToFest }) => {
-  const [activeTab, setActiveTab] = useState<'dean' | 'dept'>('dean');
+  const [activeTab, setActiveTab] = useState<'super_admin' | 'dept' | 'ops'>('super_admin');
+  const [isStructureOpen, setIsStructureOpen] = useState(false);
 
-  // Central Leadership Form (Dean SAC, Connect Club, Vencorpia)
-  const [deanUsername, setDeanUsername] = useState('');
-  const [deanPassword, setDeanPassword] = useState('');
+  // 1. 3 Super Admins Form (SAC DEAN, CONNECT CLUB, VENCORPIA)
+  const [superUsername, setSuperUsername] = useState('');
+  const [superPassword, setSuperPassword] = useState('');
 
-  // Department Form
+  // 2. Department Chief Coordinator & Event Coordinator Form
   const [selectedDept, setSelectedDept] = useState('CSE');
   const [deptUsername, setDeptUsername] = useState('');
   const [deptPassword, setDeptPassword] = useState('');
   const [coordName, setCoordName] = useState('');
+
+  // 3. Operational Staff Form (Finance Reviewer & Volunteer Check-in)
+  const [opsRole, setOpsRole] = useState<'finance' | 'volunteer'>('finance');
+  const [opsUsername, setOpsUsername] = useState('');
+  const [opsPassword, setOpsPassword] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,13 +39,14 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setErrorMessage('');
   };
 
-  const handleDeanSubmit = (e: React.FormEvent) => {
+  // Submit Handler: 3 Super Admins
+  const handleSuperSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setLoading(true);
 
     setTimeout(() => {
-      const res = AdminAuthService.loginCentral(deanUsername, deanPassword);
+      const res = AdminAuthService.loginCentral(superUsername, superPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
@@ -45,6 +56,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     }, 300);
   };
 
+  // Submit Handler: Department Chief & Event Coordinators
   const handleDeptSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -57,6 +69,23 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         onLoginSuccess(res.user);
       } else {
         setErrorMessage(res.error || 'Failed to authenticate Department credentials.');
+      }
+    }, 300);
+  };
+
+  // Submit Handler: Operational Roles (Finance & Volunteer)
+  const handleOpsSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setLoading(true);
+
+    setTimeout(() => {
+      const res = AdminAuthService.loginCentral(opsUsername, opsPassword);
+      setLoading(false);
+      if (res.success && res.user) {
+        onLoginSuccess(res.user);
+      } else {
+        setErrorMessage(res.error || 'Failed to authenticate staff credentials.');
       }
     }, 300);
   };
@@ -75,14 +104,16 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         position: 'relative'
       }}
     >
-      {/* Top Bar with Return link */}
+      {/* Top Bar with Return link & Organisational Structure Specification modal trigger */}
       <div
         style={{
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '620px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '10px',
           marginBottom: '20px'
         }}
       >
@@ -118,28 +149,45 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           <span>Return to Festronix 2026 Portal</span>
         </button>
 
-        <span
+        <button
+          onClick={() => setIsStructureOpen(true)}
           style={{
-            fontSize: '0.72rem',
-            color: '#789593',
+            background: 'rgba(40, 59, 120, 0.45)',
+            border: '1px solid rgba(120, 149, 147, 0.4)',
+            borderRadius: '9999px',
+            padding: '7px 14px',
+            color: '#BACEBB',
+            fontSize: '0.78rem',
             fontWeight: 700,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase'
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s'
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = '#FFFFFF';
+            e.currentTarget.style.background = 'rgba(40, 59, 120, 0.7)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = '#BACEBB';
+            e.currentTarget.style.background = 'rgba(40, 59, 120, 0.45)';
           }}
         >
-          SECURE SAC GATEWAY
-        </span>
+          <FileText size={14} />
+          <span>3. Users & Org Structure</span>
+        </button>
       </div>
 
       {/* Main Login Card */}
       <div
         style={{
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '620px',
           background: 'linear-gradient(145deg, rgba(20, 31, 62, 0.96) 0%, rgba(16, 26, 53, 0.98) 100%)',
           border: '1px solid rgba(220, 227, 229, 0.22)',
           borderRadius: '24px',
-          padding: '34px 30px',
+          padding: '32px 28px',
           boxShadow: '0 25px 70px rgba(0, 0, 0, 0.85), 0 0 35px rgba(40, 59, 120, 0.35)',
           backdropFilter: 'blur(20px)',
           position: 'relative',
@@ -159,27 +207,27 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         />
 
         {/* Portal Header */}
-        <div style={{ textAlign: 'center', marginBottom: '26px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '22px' }}>
           <div
             style={{
-              width: '56px',
-              height: '56px',
+              width: '54px',
+              height: '54px',
               borderRadius: '16px',
               background: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #789593 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 14px',
+              margin: '0 auto 12px',
               boxShadow: '0 0 25px rgba(120, 149, 147, 0.45)'
             }}
           >
-            <Shield size={28} color="#FFFFFF" />
+            <Shield size={26} color="#FFFFFF" />
           </div>
 
           <h2
             className="font-title"
             style={{
-              fontSize: '1.6rem',
+              fontSize: '1.5rem',
               fontWeight: 800,
               color: '#FFFFFF',
               margin: '0 0 4px',
@@ -188,52 +236,54 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           >
             FESTRONIX '26 ADMIN CONSOLE
           </h2>
-          <p style={{ color: '#A8B3C2', fontSize: '0.82rem', margin: 0 }}>
+          <p style={{ color: '#A8B3C2', fontSize: '0.8rem', margin: 0 }}>
             Vardhaman College of Engineering • Student Activity Council (SAC)
           </p>
         </div>
 
-        {/* Dual Tab Navigation */}
+        {/* 3-Tab Organisational Navigation */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '8px',
-            padding: '6px',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '6px',
+            padding: '5px',
             background: 'rgba(16, 26, 53, 0.8)',
             border: '1px solid rgba(220, 227, 229, 0.15)',
             borderRadius: '14px',
-            marginBottom: '26px'
+            marginBottom: '22px'
           }}
         >
+          {/* Tab 1: 3 Super Admins */}
           <button
             type="button"
             onClick={() => {
-              setActiveTab('dean');
+              setActiveTab('super_admin');
               setErrorMessage('');
             }}
             style={{
-              padding: '11px 12px',
+              padding: '10px 8px',
               borderRadius: '10px',
-              border: activeTab === 'dean' ? '1px solid rgba(120, 149, 147, 0.5)' : 'none',
-              background: activeTab === 'dean' ? 'linear-gradient(135deg, #283B78 0%, #1e2c5a 100%)' : 'transparent',
-              color: activeTab === 'dean' ? '#FFFFFF' : '#A8B3C2',
-              fontWeight: activeTab === 'dean' ? 700 : 500,
-              fontSize: '0.85rem',
+              border: activeTab === 'super_admin' ? '1px solid rgba(245, 158, 11, 0.5)' : 'none',
+              background: activeTab === 'super_admin' ? 'linear-gradient(135deg, #283B78 0%, #1e2c5a 100%)' : 'transparent',
+              color: activeTab === 'super_admin' ? '#FFFFFF' : '#A8B3C2',
+              fontWeight: activeTab === 'super_admin' ? 700 : 500,
+              fontSize: '0.76rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
+              gap: '6px',
               transition: 'all 0.2s',
-              boxShadow: activeTab === 'dean' ? '0 4px 15px rgba(40, 59, 120, 0.4)' : 'none',
+              boxShadow: activeTab === 'super_admin' ? '0 4px 15px rgba(40, 59, 120, 0.4)' : 'none',
               fontFamily: "'Space Grotesk', sans-serif"
             }}
           >
-            <Award size={16} color={activeTab === 'dean' ? '#BACEBB' : '#A8B3C2'} />
-            <span>1. DEAN SAC, CONNECT & VENCORPIA</span>
+            <Award size={14} color={activeTab === 'super_admin' ? '#fbbf24' : '#A8B3C2'} />
+            <span>1. 3 SUPER ADMINS</span>
           </button>
 
+          {/* Tab 2: Dept Chief & Event Coordinators */}
           <button
             type="button"
             onClick={() => {
@@ -241,25 +291,54 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               setErrorMessage('');
             }}
             style={{
-              padding: '11px 12px',
+              padding: '10px 8px',
               borderRadius: '10px',
               border: activeTab === 'dept' ? '1px solid rgba(120, 149, 147, 0.5)' : 'none',
               background: activeTab === 'dept' ? 'linear-gradient(135deg, #283B78 0%, #1e2c5a 100%)' : 'transparent',
               color: activeTab === 'dept' ? '#FFFFFF' : '#A8B3C2',
               fontWeight: activeTab === 'dept' ? 700 : 500,
-              fontSize: '0.85rem',
+              fontSize: '0.76rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
+              gap: '6px',
               transition: 'all 0.2s',
               boxShadow: activeTab === 'dept' ? '0 4px 15px rgba(40, 59, 120, 0.4)' : 'none',
               fontFamily: "'Space Grotesk', sans-serif"
             }}
           >
-            <Building2 size={16} color={activeTab === 'dept' ? '#BACEBB' : '#A8B3C2'} />
-            <span>2. DEPT HOD & COORD</span>
+            <Building2 size={14} color={activeTab === 'dept' ? '#BACEBB' : '#A8B3C2'} />
+            <span>2. DEPT & EVENT COORD</span>
+          </button>
+
+          {/* Tab 3: Finance & Volunteer Operations */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('ops');
+              setErrorMessage('');
+            }}
+            style={{
+              padding: '10px 8px',
+              borderRadius: '10px',
+              border: activeTab === 'ops' ? '1px solid rgba(52, 211, 153, 0.5)' : 'none',
+              background: activeTab === 'ops' ? 'linear-gradient(135deg, #283B78 0%, #1e2c5a 100%)' : 'transparent',
+              color: activeTab === 'ops' ? '#FFFFFF' : '#A8B3C2',
+              fontWeight: activeTab === 'ops' ? 700 : 500,
+              fontSize: '0.76rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.2s',
+              boxShadow: activeTab === 'ops' ? '0 4px 15px rgba(40, 59, 120, 0.4)' : 'none',
+              fontFamily: "'Space Grotesk', sans-serif"
+            }}
+          >
+            <CreditCard size={14} color={activeTab === 'ops' ? '#34d399' : '#A8B3C2'} />
+            <span>3. FINANCE & CHECK-IN</span>
           </button>
         </div>
 
@@ -276,7 +355,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              marginBottom: '20px'
+              marginBottom: '18px'
             }}
           >
             <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -284,42 +363,42 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           </div>
         )}
 
-        {/* TAB 1: DEAN SAC, CONNECT CLUB & VENCORPIA LOGIN FORM */}
-        {activeTab === 'dean' && (
-          <form onSubmit={handleDeanSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        {/* TAB 1: 3 SUPER ADMINS (SAC DEAN, CONNECT CLUB, VENCORPIA) */}
+        {activeTab === 'super_admin' && (
+          <form onSubmit={handleSuperSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div
               style={{
                 padding: '12px 14px',
                 borderRadius: '12px',
-                background: 'rgba(40, 59, 120, 0.22)',
-                border: '1px solid rgba(120, 149, 147, 0.3)',
+                background: 'rgba(40, 59, 120, 0.25)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px'
               }}
             >
-              <Award size={22} color="#BACEBB" style={{ flexShrink: 0 }} />
+              <Award size={22} color="#fbbf24" style={{ flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Dean SAC, Connect Club & Vencorpia Central Access
+                  👑 3 Super Admins • Fest-wide Administration
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
-                  Central festival administration for Dean SAC, Connect Club & Vencorpia organizers with separate secure credentials.
+                <div style={{ fontSize: '0.74rem', color: '#DCE3E5', marginTop: '2px' }}>
+                  Central governance for <strong>1. SAC DEAN</strong>, <strong>2. CONNECT CLUB</strong>, and <strong>3. VENCORPIA</strong>. Oversee fest, departments, assignments, accounts, roles, content and reports.
                 </div>
               </div>
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Dean SAC, Connect Club, or Vencorpia Username / Email
+                Super Admin Username / Email
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
                 <input
                   type="text"
-                  value={deanUsername}
-                  onChange={e => setDeanUsername(e.target.value)}
-                  placeholder="e.g. dean_sac, connect_club, or vencorpia"
+                  value={superUsername}
+                  onChange={e => setSuperUsername(e.target.value)}
+                  placeholder="Enter super admin username (dean_sac, connect_club, or vencorpia)"
                   required
                   style={{
                     width: '100%',
@@ -338,15 +417,15 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Access Password
+                Super Admin Access Passcode
               </label>
               <div style={{ position: 'relative' }}>
                 <Key size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
                 <input
                   type="password"
-                  value={deanPassword}
-                  onChange={e => setDeanPassword(e.target.value)}
-                  placeholder="Enter secret pass"
+                  value={superPassword}
+                  onChange={e => setSuperPassword(e.target.value)}
+                  placeholder="Enter secret passcode"
                   required
                   style={{
                     width: '100%',
@@ -376,15 +455,15 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                marginTop: '6px'
+                marginTop: '4px'
               }}
             >
               {loading ? (
-                <span>Authenticating Council Access...</span>
+                <span>Authenticating Super Admin Access...</span>
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Enter Central Council Console</span>
+                  <span>Enter Central Fest Console</span>
                   <ArrowRight size={16} />
                 </>
               )}
@@ -392,12 +471,25 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           </form>
         )}
 
-        {/* TAB 2: DEPT HOD & COORDINATOR LOGIN FORM */}
+        {/* TAB 2: DEPT CHIEF COORDINATOR & EVENT COORDINATOR */}
         {activeTab === 'dept' && (
           <form onSubmit={handleDeptSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: '10px',
+                background: 'rgba(40, 59, 120, 0.2)',
+                border: '1px solid rgba(120, 149, 147, 0.3)',
+                fontSize: '0.75rem',
+                color: '#DCE3E5'
+              }}
+            >
+              Access boundary: <strong>Their department's events & assigned event operations</strong>. Monitor capacity, registrations, and readiness.
+            </div>
+
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Select Department
+                Select Academic Department (9 Official Branches)
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
                 {DEPARTMENTS.map(dept => {
@@ -433,7 +525,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                HOD / Coordinator Username
+                Department Chief Coordinator or Event Coord Username
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
@@ -441,7 +533,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type="text"
                   value={deptUsername}
                   onChange={e => setDeptUsername(e.target.value)}
-                  placeholder={`e.g. hod_${selectedDept.toLowerCase().replace('&', '')}`}
+                  placeholder="Enter HOD or coordinator username"
                   required
                   style={{
                     width: '100%',
@@ -456,29 +548,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   }}
                 />
               </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Coordinator Name (Optional - For Gate Check-in logs)
-              </label>
-              <input
-                type="text"
-                value={coordName}
-                onChange={e => setCoordName(e.target.value)}
-                placeholder="e.g. Prof. Rajesh / Student Lead"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  background: 'rgba(16, 26, 53, 0.9)',
-                  border: '1px solid rgba(220, 227, 229, 0.25)',
-                  color: '#FFFFFF',
-                  fontSize: '0.84rem',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
             </div>
 
             <div>
@@ -521,7 +590,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                marginTop: '6px'
+                marginTop: '4px'
               }}
             >
               {loading ? (
@@ -536,7 +605,122 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             </button>
           </form>
         )}
+
+        {/* TAB 3: FINANCE & VOLUNTEER STAFF */}
+        {activeTab === 'ops' && (
+          <form onSubmit={handleOpsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: '12px',
+                background: 'rgba(52, 211, 153, 0.1)',
+                border: '1px solid rgba(52, 211, 153, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}
+            >
+              <CreditCard size={22} color="#34d399" style={{ flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>
+                  Operational Staff • Finance & Gate Entry Crew
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#DCE3E5', marginTop: '2px' }}>
+                  <strong>Finance Reviewer:</strong> Review payment evidence and collection reports. <br />
+                  <strong>Volunteer Staff:</strong> Scan tickets and support entry operations.
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
+                Operational Staff Username
+              </label>
+              <div style={{ position: 'relative' }}>
+                <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <input
+                  type="text"
+                  value={opsUsername}
+                  onChange={e => setOpsUsername(e.target.value)}
+                  placeholder="e.g. finance_reviewer or volunteer_staff"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px 12px 40px',
+                    borderRadius: '10px',
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    color: '#FFFFFF',
+                    fontSize: '0.88rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
+                Staff Access Passcode
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Key size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <input
+                  type="password"
+                  value={opsPassword}
+                  onChange={e => setOpsPassword(e.target.value)}
+                  placeholder="Enter staff passcode"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px 12px 40px',
+                    borderRadius: '10px',
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    color: '#FFFFFF',
+                    fontSize: '0.88rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-cyber-primary"
+              style={{
+                padding: '13px',
+                fontSize: '0.92rem',
+                fontWeight: 700,
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginTop: '4px'
+              }}
+            >
+              {loading ? (
+                <span>Verifying Staff Access...</span>
+              ) : (
+                <>
+                  <Lock size={16} />
+                  <span>Enter Operational Console</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
       </div>
+
+      {/* Organisational Structure Modal */}
+      <OrganisationalStructureModal
+        isOpen={isStructureOpen}
+        onClose={() => setIsStructureOpen(false)}
+      />
     </div>
   );
 };

@@ -8,7 +8,7 @@ import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
 import { FestEvent, Registration, Announcement, FestStats, PaymentStatus } from '../../types/festronix';
-import { DEPARTMENTS } from '../../data/mockData';
+import { DEPARTMENTS, ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
 
 interface DeanDashboardProps {
   adminUser: AdminUser;
@@ -17,7 +17,7 @@ interface DeanDashboardProps {
 }
 
 export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogout, onSwitchToFest }) => {
-  const [activeTab, setActiveTab] = useState<'leaderboard' | 'payments' | 'events' | 'bulletins' | 'roster'>('leaderboard');
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'payments' | 'events' | 'bulletins' | 'roster' | 'structure'>('leaderboard');
   
   const [stats, setStats] = useState<FestStats>(StorageService.getStats());
   const [events, setEvents] = useState<FestEvent[]>(StorageService.getEvents());
@@ -177,19 +177,16 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <span
                 style={{
                   fontSize: '0.68rem',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: 'rgba(120, 149, 147, 0.2)',
-                  border: '1px solid rgba(120, 149, 147, 0.4)',
-                  color: '#BACEBB',
-                  fontWeight: 700
+                  padding: '3px 9px',
+                  borderRadius: '9999px',
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                  color: '#fbbf24',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em'
                 }}
               >
-                {adminUser.role === 'vencorpia'
-                  ? 'VENCORPIA LEAD'
-                  : adminUser.role === 'connect_club'
-                  ? 'CONNECT CLUB CENTRAL LEAD'
-                  : 'CENTRAL OVERSIGHT'}
+                👑 SUPER ADMIN • FEST-WIDE ADMINISTRATION
               </span>
             </div>
             <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
@@ -375,7 +372,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             { id: 'payments', label: `Payment Approvals (${stats.pendingCount})`, icon: Clock },
             { id: 'events', label: `Fest Events (${events.length})`, icon: Layers },
             { id: 'bulletins', label: 'Campus Bulletins', icon: Bell },
-            { id: 'roster', label: 'Master Student Roster', icon: Users }
+            { id: 'roster', label: 'Master Student Roster', icon: Users },
+            { id: 'structure', label: '3. Users & Org Structure', icon: Award }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1118,6 +1116,151 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: 3. USERS AND ORGANISATIONAL STRUCTURE */}
+        {activeTab === 'structure' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                  <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
+                    3. Users and Organisational Structure
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      background: 'rgba(245, 158, 11, 0.2)',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      color: '#fbbf24',
+                      padding: '2px 8px',
+                      borderRadius: '9999px'
+                    }}
+                  >
+                    👑 3 SUPER ADMIN BODIES ACTIVE
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: 0 }}>
+                  Formal operational hierarchy, responsibilities, and access boundaries as specified in FESTRONIX 2026 Charter.
+                </p>
+              </div>
+            </div>
+
+            {/* 3 Super Admins Spotlight Box */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(40, 59, 120, 0.45) 0%, rgba(20, 31, 62, 0.8) 100%)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '16px',
+                padding: '20px 24px',
+                marginBottom: '24px',
+                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <Award size={22} color="#fbbf24" />
+                <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
+                  3 Super Admins • Fest-wide Administration
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#DCE3E5', lineHeight: 1.5, margin: '0 0 16px' }}>
+                As configured, there are exactly <strong>3 Super Admins</strong> governing the entire technical festival across all 9 academic departments, finance verification, participant registries, content, and gate operations:
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                <div style={{ background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 800, textTransform: 'uppercase' }}>Super Admin 1</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>SAC DEAN</div>
+                  <div style={{ fontSize: '0.76rem', color: '#A8B3C2' }}>Dr. J. V. R. Ravindra • Dean, SAC</div>
+                  <div style={{ fontSize: '0.72rem', color: '#789593', marginTop: '6px' }}>Fest-wide administration</div>
+                </div>
+
+                <div style={{ background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 800, textTransform: 'uppercase' }}>Super Admin 2</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>CONNECT CLUB</div>
+                  <div style={{ fontSize: '0.76rem', color: '#A8B3C2' }}>Aditya Varma & Core Team • Media & Organizing</div>
+                  <div style={{ fontSize: '0.72rem', color: '#789593', marginTop: '6px' }}>Fest-wide administration</div>
+                </div>
+
+                <div style={{ background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 800, textTransform: 'uppercase' }}>Super Admin 3</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>VENCORPIA</div>
+                  <div style={{ fontSize: '0.76rem', color: '#A8B3C2' }}>Executive Leadership Board • Tech & Innovation</div>
+                  <div style={{ fontSize: '0.72rem', color: '#789593', marginTop: '6px' }}>Fest-wide administration</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Complete Roles Matrix Table */}
+            <div style={{ background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(220, 227, 229, 0.18)', borderRadius: '16px', overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(220, 227, 229, 0.12)', background: 'rgba(40, 59, 120, 0.35)' }}>
+                <h4 style={{ margin: 0, fontSize: '0.92rem', color: '#FFFFFF', fontWeight: 700 }}>
+                  Official FESTRONIX Roles & Access Boundaries
+                </h4>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(120, 149, 147, 0.35)', color: '#DCE3E5' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 700, width: '22%' }}>Role</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 700, width: '45%' }}>Responsibilities</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 700, width: '33%' }}>Access boundary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ORGANISATIONAL_STRUCTURE.map((item, idx) => {
+                      const isSuper = item.scopeTag === 'super_admin';
+                      return (
+                        <tr
+                          key={idx}
+                          style={{
+                            borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
+                            background: isSuper ? 'rgba(245, 158, 11, 0.07)' : 'transparent'
+                          }}
+                        >
+                          <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
+                            <div style={{ fontWeight: 700, color: '#FFFFFF', fontSize: '0.88rem' }}>
+                              {item.role}
+                            </div>
+                            {isSuper && (
+                              <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginTop: '4px', fontWeight: 700 }}>
+                                (SAC DEAN, CONNECT CLUB, VENCORPIA)
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 16px', color: '#DCE3E5', lineHeight: 1.5, verticalAlign: 'top' }}>
+                            {item.responsibilities}
+                            {item.accounts && (
+                              <div style={{ marginTop: '8px', fontSize: '0.74rem', color: '#A8B3C2' }}>
+                                <strong style={{ color: '#789593' }}>Active Portals: </strong>
+                                {item.accounts.join(' • ')}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.76rem',
+                                fontWeight: 700,
+                                background: isSuper ? 'rgba(245, 158, 11, 0.2)' : 'rgba(40, 59, 120, 0.4)',
+                                color: isSuper ? '#fbbf24' : '#BACEBB',
+                                border: isSuper ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(120, 149, 147, 0.3)'
+                              }}
+                            >
+                              {item.accessBoundary}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

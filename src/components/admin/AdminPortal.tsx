@@ -3,6 +3,8 @@ import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
 import { AdminLoginView } from './AdminLoginView';
 import { DeanDashboard } from './DeanDashboard';
 import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
+import { FinanceReviewerDashboard } from './FinanceReviewerDashboard';
+import { VolunteerCheckinDashboard } from './VolunteerCheckinDashboard';
 import { GlitterBackground } from '../GlitterBackground';
 
 interface AdminPortalProps {
@@ -32,6 +34,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
           />
         ) : (adminUser.role === 'dean_sac' || adminUser.role === 'connect_club' || adminUser.role === 'vencorpia') ? (
           <DeanDashboard
+            adminUser={adminUser}
+            onLogout={handleLogout}
+            onSwitchToFest={onBackToFest}
+          />
+        ) : adminUser.role === 'finance_reviewer' ? (
+          <FinanceReviewerDashboard
+            adminUser={adminUser}
+            onLogout={handleLogout}
+            onSwitchToFest={onBackToFest}
+          />
+        ) : adminUser.role === 'volunteer_checkin' ? (
+          <VolunteerCheckinDashboard
             adminUser={adminUser}
             onLogout={handleLogout}
             onSwitchToFest={onBackToFest}

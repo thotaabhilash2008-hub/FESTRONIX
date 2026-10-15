@@ -1,4 +1,4 @@
-import { Department, FestEvent, Announcement, Registration } from '../types/festronix';
+import { Department, FestEvent, Announcement, Registration, OrganisationalRoleDefinition } from '../types/festronix';
 
 export const DEPARTMENTS: Department[] = [
   {
@@ -490,5 +490,71 @@ export const INITIAL_REGISTRATIONS: Registration[] = [
     checkedIn: true,
     checkedInAt: '2026-10-14 11:35',
     checkedInBy: 'Gate 2 Desk'
+  }
+];
+
+export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
+  {
+    role: 'Public visitor',
+    scopeTag: 'public',
+    responsibilities: 'Browse fest information, events, prizes, sponsors and rules.',
+    accessBoundary: 'Public content only.',
+    accounts: ['Open Public Web Browsing (No Login Required)']
+  },
+  {
+    role: 'Participant / team leader',
+    scopeTag: 'participant',
+    responsibilities: 'Profile, registrations, teammates, payment proof, passes and certificates.',
+    accessBoundary: 'Own profile and registrations; permitted team details.',
+    accounts: ['Student Roll No / Username & Password (Self Signup/Signin)']
+  },
+  {
+    role: 'Event Coordinator',
+    scopeTag: 'event_coordinator',
+    responsibilities: 'Manage assigned event details, registrations, spot registrations, payment evidence, check-in and reports.',
+    accessBoundary: 'Assigned event(s) only unless separately authorised.',
+    accounts: ['event_coord (eventcoord2026)', 'Universal Coordinator Passcode (festcoord2026)']
+  },
+  {
+    role: 'Department Chief Coordinator',
+    scopeTag: 'dept_chief_coordinator',
+    responsibilities: 'Monitor department events, capacity, registrations and readiness.',
+    accessBoundary: "Their department's events.",
+    accounts: [
+      'HOD CSE (hod_cse / cse2026)',
+      'HOD CSD (hod_csd / csd2026)',
+      'HOD CSM (hod_csm / csm2026)',
+      'HOD IT (hod_it / it2026)',
+      'HOD MECHANICAL (hod_mechanical / mechanical2026)',
+      'HOD CIVIL (hod_civil / civil2026)',
+      'HOD EEE (hod_eee / eee2026)',
+      'HOD ECE (hod_ece / ece2026)',
+      'HOD MBA (hod_mba / mba2026)'
+    ]
+  },
+  {
+    role: 'SAC / super-admin',
+    scopeTag: 'super_admin',
+    responsibilities: 'Oversee fest, departments, assignments, accounts, roles, content and reports.',
+    accessBoundary: 'Fest-wide administration.',
+    accounts: [
+      '1. SAC DEAN (dean_sac / deansac2026)',
+      '2. CONNECT CLUB (connect_club / connect2026)',
+      '3. VENCORPIA (vencorpia / vencorpia2026)'
+    ]
+  },
+  {
+    role: 'Finance / payment reviewer',
+    scopeTag: 'finance',
+    responsibilities: 'Review payment evidence and collection reports.',
+    accessBoundary: 'Payment data needed for assigned duties.',
+    accounts: ['finance_reviewer (finance2026 / finance)']
+  },
+  {
+    role: 'Volunteer / check-in staff',
+    scopeTag: 'volunteer',
+    responsibilities: 'Scan tickets and support entry operations.',
+    accessBoundary: 'Limited check-in access.',
+    accounts: ['volunteer_staff (volunteer2026 / volunteer)']
   }
 ];
