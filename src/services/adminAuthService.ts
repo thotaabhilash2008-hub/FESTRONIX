@@ -1,6 +1,6 @@
 import { DEPARTMENTS } from '../data/mockData';
 
-export type AdminRole = 'dean_sac' | 'connect_club' | 'dept_coordinator';
+export type AdminRole = 'dean_sac' | 'connect_club' | 'vencorpia' | 'dept_coordinator';
 
 export interface AdminUser {
   id: string;
@@ -39,7 +39,18 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     email: 'connect.club@vardhaman.org',
     phone: '+91 98480 77001'
   },
-  // 3. Department HODs & Coordinators
+  // 3. VENCORPIA (Central Technical, Innovation & Entrepreneurship Body)
+  {
+    id: 'admin_vencorpia',
+    username: 'vencorpia',
+    password: 'vencorpia2026',
+    fullName: 'Vencorpia Executive Board',
+    designation: 'Central Student Leadership, VENCORPIA',
+    role: 'vencorpia',
+    email: 'vencorpia@vardhaman.org',
+    phone: '+91 98480 88001'
+  },
+  // 4. Department HODs & Coordinators
   {
     id: 'admin_hod_cse',
     username: 'hod_cse',
@@ -159,6 +170,7 @@ export class AdminAuthService {
 
     const dean = PRESET_ADMINS.find(a => a.role === 'dean_sac');
     const connect = PRESET_ADMINS.find(a => a.role === 'connect_club');
+    const vencorpia = PRESET_ADMINS.find(a => a.role === 'vencorpia');
 
     // 1. Check Dean SAC Credentials
     if (dean && (dean.username.toLowerCase() === cleanId || dean.email.toLowerCase() === cleanId)) {
@@ -198,9 +210,28 @@ export class AdminAuthService {
       }
     }
 
+    // 3. Check Vencorpia Credentials
+    if (vencorpia && (vencorpia.username.toLowerCase() === cleanId || vencorpia.email.toLowerCase() === cleanId || cleanId === 'vencorpia_club')) {
+      if (vencorpia.password === cleanPass || cleanPass === 'vencorpia' || cleanPass === 'vencorpia2026') {
+        const sessionUser: AdminUser = {
+          id: vencorpia.id,
+          username: vencorpia.username,
+          fullName: vencorpia.fullName,
+          designation: vencorpia.designation,
+          role: vencorpia.role,
+          email: vencorpia.email,
+          phone: vencorpia.phone
+        };
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
+        return { success: true, user: sessionUser };
+      } else {
+        return { success: false, error: 'Incorrect password for Vencorpia. (Demo: vencorpia2026)' };
+      }
+    }
+
     return {
       success: false,
-      error: 'Invalid credentials. Enter Dean SAC (dean_sac) or Connect Club (connect_club) username and password.'
+      error: 'Invalid credentials. Enter Dean SAC (dean_sac), Connect Club (connect_club), or Vencorpia (vencorpia) username and password.'
     };
   }
 

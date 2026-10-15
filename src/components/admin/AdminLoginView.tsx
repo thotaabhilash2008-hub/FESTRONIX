@@ -235,7 +235,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             }}
           >
             <Award size={16} color={activeTab === 'dean' ? '#BACEBB' : '#A8B3C2'} />
-            <span>1. DEAN SAC & CONNECT CLUB</span>
+            <span>1. DEAN SAC, CONNECT & VENCORPIA</span>
           </button>
 
           <button
@@ -288,7 +288,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           </div>
         )}
 
-        {/* TAB 1: DEAN SAC & CONNECT CLUB LOGIN FORM */}
+        {/* TAB 1: DEAN SAC, CONNECT CLUB & VENCORPIA LOGIN FORM */}
         {activeTab === 'dean' && (
           <form onSubmit={handleDeanSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div
@@ -305,17 +305,17 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               <Award size={22} color="#BACEBB" style={{ flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Dean SAC & Connect Club Central Access
+                  Dean SAC, Connect Club & Vencorpia Central Access
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
-                  Central festival administration for Dean SAC & Connect Club organizers with separate secure credentials.
+                  Central festival administration for Dean SAC, Connect Club & Vencorpia organizers with separate secure credentials.
                 </div>
               </div>
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Dean SAC or Connect Club Username / Email
+                Dean SAC, Connect Club, or Vencorpia Username / Email
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
@@ -323,7 +323,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type="text"
                   value={deanUsername}
                   onChange={e => setDeanUsername(e.target.value)}
-                  placeholder="e.g. dean_sac or connect_club"
+                  placeholder="e.g. dean_sac, connect_club, or vencorpia"
                   required
                   style={{
                     width: '100%',
@@ -367,7 +367,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               </div>
             </div>
 
-            {/* Quick Demo Credentials Badges for Dean SAC and Connect Club */}
+            {/* Quick Demo Credentials Badges for Dean SAC, Connect Club, and Vencorpia */}
             <div
               style={{
                 display: 'flex',
@@ -426,6 +426,30 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   }}
                 >
                   Auto-Fill Connect Club
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(120, 149, 147, 0.2)', paddingTop: '6px' }}>
+                <span>3. Vencorpia: <strong>vencorpia</strong> / <strong>vencorpia2026</strong></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeanUsername('vencorpia');
+                    setDeanPassword('vencorpia2026');
+                    setErrorMessage('');
+                  }}
+                  style={{
+                    background: 'rgba(40, 59, 120, 0.45)',
+                    border: '1px solid rgba(120, 149, 147, 0.4)',
+                    borderRadius: '6px',
+                    color: '#FFFFFF',
+                    padding: '3px 8px',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Auto-Fill Vencorpia
                 </button>
               </div>
             </div>

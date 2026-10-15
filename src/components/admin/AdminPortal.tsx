@@ -30,7 +30,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
             onLoginSuccess={user => setAdminUser(user)}
             onBackToFest={onBackToFest}
           />
-        ) : (adminUser.role === 'dean_sac' || adminUser.role === 'connect_club') ? (
+        ) : (adminUser.role === 'dean_sac' || adminUser.role === 'connect_club' || adminUser.role === 'vencorpia') ? (
           <DeanDashboard
             adminUser={adminUser}
             onLogout={handleLogout}
