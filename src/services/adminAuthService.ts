@@ -187,7 +187,7 @@ export class AdminAuthService {
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
         return { success: true, user: sessionUser };
       } else {
-        return { success: false, error: 'Incorrect password for Dean SAC. (Demo: deansac2026)' };
+        return { success: false, error: 'Incorrect password for Dean SAC.' };
       }
     }
 
@@ -206,7 +206,7 @@ export class AdminAuthService {
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
         return { success: true, user: sessionUser };
       } else {
-        return { success: false, error: 'Incorrect password for Connect Club. (Demo: connect2026)' };
+        return { success: false, error: 'Incorrect password for Connect Club.' };
       }
     }
 
@@ -225,13 +225,13 @@ export class AdminAuthService {
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
         return { success: true, user: sessionUser };
       } else {
-        return { success: false, error: 'Incorrect password for Vencorpia. (Demo: vencorpia2026)' };
+        return { success: false, error: 'Incorrect password for Vencorpia.' };
       }
     }
 
     return {
       success: false,
-      error: 'Invalid credentials. Enter Dean SAC (dean_sac), Connect Club (connect_club), or Vencorpia (vencorpia) username and password.'
+      error: 'Invalid credentials. Please verify your username and password.'
     };
   }
 
@@ -280,7 +280,7 @@ export class AdminAuthService {
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
         return { success: true, user: sessionUser };
       } else {
-        return { success: false, error: `Invalid password for ${cleanDept}. (Demo: ${preset.password})` };
+        return { success: false, error: `Invalid password for ${cleanDept} department.` };
       }
     }
 
@@ -303,7 +303,7 @@ export class AdminAuthService {
 
     return {
       success: false,
-      error: `Invalid credentials for ${cleanDept}. (Demo username: hod_${cleanDept.toLowerCase().replace('&', '')}, password: ${cleanDept.toLowerCase().replace('&', '')}2026)`
+      error: `Invalid credentials for ${cleanDept} department.`
     };
   }
 

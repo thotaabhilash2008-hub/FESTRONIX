@@ -11,25 +11,21 @@ interface AdminLoginViewProps {
 export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, onBackToFest }) => {
   const [activeTab, setActiveTab] = useState<'dean' | 'dept'>('dean');
 
-  // Dean Form
-  const [deanUsername, setDeanUsername] = useState('dean_sac');
-  const [deanPassword, setDeanPassword] = useState('deansac2026');
+  // Central Leadership Form (Dean SAC, Connect Club, Vencorpia)
+  const [deanUsername, setDeanUsername] = useState('');
+  const [deanPassword, setDeanPassword] = useState('');
 
   // Department Form
   const [selectedDept, setSelectedDept] = useState('CSE');
-  const [deptUsername, setDeptUsername] = useState('hod_cse');
-  const [deptPassword, setDeptPassword] = useState('cse2026');
+  const [deptUsername, setDeptUsername] = useState('');
+  const [deptPassword, setDeptPassword] = useState('');
   const [coordName, setCoordName] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // When changing department, automatically suggest demo credentials
   const handleDeptSelect = (deptCode: string) => {
     setSelectedDept(deptCode);
-    const clean = deptCode.toLowerCase().replace('&', '');
-    setDeptUsername(`hod_${clean}`);
-    setDeptPassword(`${clean}2026`);
     setErrorMessage('');
   };
 
@@ -367,93 +363,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               </div>
             </div>
 
-            {/* Quick Demo Credentials Badges for Dean SAC, Connect Club, and Vencorpia */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                background: 'rgba(120, 149, 147, 0.1)',
-                border: '1px dashed rgba(120, 149, 147, 0.4)',
-                fontSize: '0.74rem',
-                color: '#BACEBB'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>1. Dean SAC: <strong>dean_sac</strong> / <strong>deansac2026</strong></span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeanUsername('dean_sac');
-                    setDeanPassword('deansac2026');
-                    setErrorMessage('');
-                  }}
-                  style={{
-                    background: 'rgba(40, 59, 120, 0.45)',
-                    border: '1px solid rgba(120, 149, 147, 0.4)',
-                    borderRadius: '6px',
-                    color: '#FFFFFF',
-                    padding: '3px 8px',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  Auto-Fill Dean
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(120, 149, 147, 0.2)', paddingTop: '6px' }}>
-                <span>2. Connect Club: <strong>connect_club</strong> / <strong>connect2026</strong></span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeanUsername('connect_club');
-                    setDeanPassword('connect2026');
-                    setErrorMessage('');
-                  }}
-                  style={{
-                    background: 'rgba(40, 59, 120, 0.45)',
-                    border: '1px solid rgba(120, 149, 147, 0.4)',
-                    borderRadius: '6px',
-                    color: '#FFFFFF',
-                    padding: '3px 8px',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  Auto-Fill Connect Club
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(120, 149, 147, 0.2)', paddingTop: '6px' }}>
-                <span>3. Vencorpia: <strong>vencorpia</strong> / <strong>vencorpia2026</strong></span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeanUsername('vencorpia');
-                    setDeanPassword('vencorpia2026');
-                    setErrorMessage('');
-                  }}
-                  style={{
-                    background: 'rgba(40, 59, 120, 0.45)',
-                    border: '1px solid rgba(120, 149, 147, 0.4)',
-                    borderRadius: '6px',
-                    color: '#FFFFFF',
-                    padding: '3px 8px',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  Auto-Fill Vencorpia
-                </button>
-              </div>
-            </div>
-
             <button
               type="submit"
               disabled={loading}
@@ -597,39 +506,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   }}
                 />
               </div>
-            </div>
-
-            {/* Quick Demo Credentials Badge */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                background: 'rgba(120, 149, 147, 0.1)',
-                border: '1px dashed rgba(120, 149, 147, 0.4)',
-                fontSize: '0.75rem',
-                color: '#BACEBB'
-              }}
-            >
-              <span>Demo for {selectedDept}: <strong>{deptUsername}</strong> / <strong>{deptPassword}</strong></span>
-              <button
-                type="button"
-                onClick={() => handleDeptSelect(selectedDept)}
-                style={{
-                  background: 'rgba(40, 59, 120, 0.4)',
-                  border: '1px solid rgba(120, 149, 147, 0.4)',
-                  borderRadius: '6px',
-                  color: '#FFFFFF',
-                  padding: '3px 8px',
-                  fontSize: '0.72rem',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Reset
-              </button>
             </div>
 
             <button
