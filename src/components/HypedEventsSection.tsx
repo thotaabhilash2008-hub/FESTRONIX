@@ -27,34 +27,34 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
       case 0:
         return {
           label: '#1 MOST HYPED',
-          bg: 'linear-gradient(135deg, #00F0D0 0%, #7C3AED 50%, #C026D3 100%)',
+          bg: 'linear-gradient(135deg, #FF1A8C 0%, #FF007F 50%, #D8005A 100%)',
           textColor: '#FFFFFF',
-          border: '1px solid #00F0D0',
-          glow: '0 0 20px rgba(0, 240, 208, 0.45)'
+          border: '1px solid #FF4D94',
+          glow: '0 0 22px rgba(255, 26, 140, 0.8)'
         };
       case 1:
         return {
           label: '#2 TRENDING',
-          bg: 'linear-gradient(135deg, #FFFFFF 0%, #CBD5E1 50%, #64748B 100%)',
-          textColor: '#080611',
-          border: '1px solid #FFFFFF',
-          glow: '0 0 16px rgba(255, 255, 255, 0.4)'
+          bg: 'linear-gradient(135deg, #FF1A8C 0%, #C026D3 100%)',
+          textColor: '#FFFFFF',
+          border: '1px solid #FF66B2',
+          glow: '0 0 18px rgba(255, 26, 140, 0.65)'
         };
       case 2:
         return {
           label: '#3 RAPID FILL',
-          bg: 'linear-gradient(135deg, #FFD700 0%, #F59E0B 100%)',
-          textColor: '#080611',
-          border: '1px solid #FFD700',
-          glow: '0 0 16px rgba(255, 215, 0, 0.4)'
+          bg: 'linear-gradient(135deg, #FF2E93 0%, #E11D48 100%)',
+          textColor: '#FFFFFF',
+          border: '1px solid #FF4D94',
+          glow: '0 0 18px rgba(255, 46, 147, 0.65)'
         };
       default:
         return {
           label: `#${index + 1} HIGH DEMAND`,
-          bg: 'linear-gradient(135deg, rgba(192, 38, 211, 0.25), rgba(124, 58, 237, 0.25))',
-          textColor: '#F0ABFC',
-          border: '1px solid #C026D3',
-          glow: '0 0 12px rgba(192, 38, 211, 0.3)'
+          bg: 'linear-gradient(135deg, #FF1A8C 0%, #D8005A 100%)',
+          textColor: '#FFFFFF',
+          border: '1px solid rgba(255, 120, 190, 0.6)',
+          glow: '0 0 20px rgba(255, 26, 140, 0.7)'
         };
     }
   };
@@ -164,13 +164,14 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                   flexDirection: 'column',
                   justifyContent: 'space-between',
                   padding: '24px',
-                  borderRadius: '18px',
-                  background: 'rgba(18, 14, 30, 0.75)',
+                  borderRadius: '20px',
+                  background: 'rgba(16, 7, 26, 0.82)',
                   backdropFilter: 'blur(16px)',
-                  border: idx === 0 ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid rgba(255, 215, 0, 0.15)',
-                  boxShadow: idx === 0 ? '0 12px 35px -8px rgba(255, 215, 0, 0.15)' : '0 10px 30px -10px rgba(0, 0, 0, 0.6)',
+                  border: '1.5px solid rgba(255, 26, 140, 0.45)',
+                  boxShadow: '0 0 25px -4px rgba(255, 26, 140, 0.35), 0 12px 32px rgba(0, 0, 0, 0.8)',
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  transition: 'all 0.3s ease'
                 }}
               >
                 {/* Top Rank Header */}
@@ -185,7 +186,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                   >
                     <span
                       style={{
-                        padding: '4px 10px',
+                        padding: '5px 12px',
                         borderRadius: '9999px',
                         fontSize: '0.72rem',
                         fontWeight: 800,
@@ -197,22 +198,22 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                         letterSpacing: '0.06em',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px'
+                        gap: '5px'
                       }}
                     >
-                      {idx === 0 ? <Zap size={12} fill="#0c0a14" /> : <Flame size={12} />}
+                      <Flame size={13} fill="#FFFFFF" color="#FFFFFF" />
                       {badge.label}
                     </span>
 
                     <span
                       style={{
-                        fontSize: '0.7rem',
+                        fontSize: '0.72rem',
                         fontWeight: 700,
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(255, 215, 0, 0.08)',
-                        border: '1px solid rgba(255, 215, 0, 0.2)',
-                        color: '#FFD700',
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        background: 'rgba(255, 26, 140, 0.08)',
+                        border: '1px solid rgba(255, 26, 140, 0.35)',
+                        color: '#FF66B2',
                         fontFamily: "'Space Grotesk', sans-serif"
                       }}
                     >
@@ -227,7 +228,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                       fontSize: '1.25rem',
                       fontWeight: 700,
                       letterSpacing: '0.02em',
-                      color: '#F5F0E8',
+                      color: '#FFFFFF',
                       margin: '0 0 10px 0',
                       lineHeight: 1.25
                     }}
@@ -242,16 +243,16 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                       flexWrap: 'wrap',
                       gap: '12px',
                       fontSize: '0.78rem',
-                      color: '#9B8E7B',
+                      color: '#CBD5E1',
                       marginBottom: '16px'
                     }}
                   >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Calendar size={13} color="#FFD700" />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <Calendar size={13} color="#FF4D94" />
                       {evt.date}
                     </span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={13} color="#A78BFA" />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <MapPin size={13} color="#FF4D94" />
                       {evt.venue.split(',')[0]}
                     </span>
                   </div>
@@ -260,20 +261,20 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                   {evt.prizes?.first && (
                     <div
                       style={{
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: 'rgba(255, 215, 0, 0.05)',
-                        border: '1px solid rgba(255, 215, 0, 0.15)',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: 'rgba(255, 26, 140, 0.08)',
+                        border: '1px solid rgba(255, 26, 140, 0.28)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
                         marginBottom: '18px'
                       }}
                     >
-                      <Trophy size={14} color="#FFD700" />
-                      <span style={{ fontSize: '0.78rem', color: '#D4C5A9' }}>
+                      <Trophy size={16} color="#FF1A8C" />
+                      <span style={{ fontSize: '0.8rem', color: '#F8FAFC' }}>
                         1st Prize:{' '}
-                        <strong style={{ color: '#FFD700', fontWeight: 700 }}>
+                        <strong style={{ color: '#FF4D94', fontWeight: 700 }}>
                           {evt.prizes.first}
                         </strong>
                       </span>
@@ -294,13 +295,13 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                         marginBottom: '6px'
                       }}
                     >
-                      <span style={{ color: '#FFD700', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Users size={13} />
+                      <span style={{ color: '#FF1A8C', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <Users size={13} color="#FF1A8C" />
                         {evt.registeredCount} Enrolled
                       </span>
                       <span
                         style={{
-                          color: isFull ? '#F43F5E' : spotsLeft <= 10 ? '#F59E0B' : '#9B8E7B',
+                          color: isFull ? '#F43F5E' : '#94A3B8',
                           fontWeight: 600
                         }}
                       >
@@ -311,7 +312,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                     <div
                       style={{
                         width: '100%',
-                        height: '6px',
+                        height: '8px',
                         borderRadius: '9999px',
                         background: 'rgba(255, 255, 255, 0.08)',
                         overflow: 'hidden'
@@ -323,9 +324,9 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                           height: '100%',
                           background: isFull
                             ? 'linear-gradient(90deg, #F43F5E, #E11D48)'
-                            : idx === 0
-                            ? 'linear-gradient(90deg, #FFD700, #F59E0B)'
-                            : 'linear-gradient(90deg, #7C3AED, #A78BFA)',
+                            : 'linear-gradient(90deg, #FF1A8C 0%, #FF66B2 100%)',
+                          boxShadow: '0 0 10px rgba(255, 26, 140, 0.7)',
+                          borderRadius: '9999px',
                           transition: 'width 0.4s ease'
                         }}
                       />
@@ -333,28 +334,28 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                   </div>
 
                   {/* Buttons */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <button
                       onClick={() => onSelectEvent(evt)}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                        color: '#F5F0E8',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
+                        background: 'rgba(18, 10, 26, 0.8)',
+                        border: '1px solid rgba(255, 26, 140, 0.28)',
+                        color: '#F8FAFC',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         fontFamily: "'Space Grotesk', sans-serif"
                       }}
                       onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = '#FFD700';
-                        e.currentTarget.style.color = '#FFD700';
+                        e.currentTarget.style.borderColor = '#FF1A8C';
+                        e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 26, 140, 0.3)';
                       }}
                       onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
-                        e.currentTarget.style.color = '#F5F0E8';
+                        e.currentTarget.style.borderColor = 'rgba(255, 26, 140, 0.28)';
+                        e.currentTarget.style.boxShadow = 'none';
                       }}
                     >
                       View Details
@@ -366,16 +367,29 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                       style={{
                         background: isFull
                           ? 'rgba(255, 255, 255, 0.05)'
-                          : 'linear-gradient(135deg, #FFD700 0%, #F5A623 100%)',
-                        color: isFull ? '#6B5E4E' : '#0c0a14',
+                          : 'linear-gradient(135deg, #FF1A8C 0%, #FF006E 50%, #D8005A 100%)',
+                        color: isFull ? '#6B5E4E' : '#12000E',
                         border: 'none',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        fontSize: '0.88rem',
+                        fontWeight: 800,
+                        boxShadow: isFull ? 'none' : '0 0 24px rgba(255, 26, 140, 0.55)',
                         cursor: isFull ? 'not-allowed' : 'pointer',
                         transition: 'all 0.2s',
                         fontFamily: "'Space Grotesk', sans-serif"
+                      }}
+                      onMouseEnter={e => {
+                        if (!isFull) {
+                          e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
+                          e.currentTarget.style.boxShadow = '0 0 32px rgba(255, 26, 140, 0.75)';
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isFull) {
+                          e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                          e.currentTarget.style.boxShadow = '0 0 24px rgba(255, 26, 140, 0.55)';
+                        }
                       }}
                     >
                       {isFull ? 'Sold Out' : evt.fee === 0 ? 'Register Free' : `₹${evt.fee} Register`}

@@ -20,6 +20,14 @@
   /* Cyber Magenta & Electric Violet (From Logo Glow Aura & Neons) */
   --neon-purple: #C026D3;
   --neon-magenta: #D946EF;
+  --neon-pink: #FF1A8C;
+  --neon-pink-bright: #FF4D94;
+  --neon-pink-deep: #D8005A;
+  --neon-pink-glow: rgba(255, 26, 140, 0.55);
+  --neon-pink-border: rgba(255, 26, 140, 0.45);
+  --neon-pink-bg: rgba(255, 26, 140, 0.08);
+  --gradient-pink-radiant: linear-gradient(135deg, #FF1A8C 0%, #FF006E 50%, #D8005A 100%);
+  --gradient-pink-bar: linear-gradient(90deg, #FF1A8C 0%, #FF66B2 100%);
   --violet: #7C3AED;
   --violet-bright: #A855F7;
   --violet-light: #C4B5FD;

@@ -648,8 +648,8 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     style={{
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(0, 240, 208, 0.05))',
-                      border: '1px solid rgba(255, 215, 0, 0.22)',
+                      background: 'rgba(255, 26, 140, 0.08)',
+                      border: '1px solid rgba(255, 26, 140, 0.28)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -657,12 +657,12 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Crown size={13} color="#FFD700" />
-                      <span style={{ fontSize: '0.73rem', color: '#FFD700', fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <Crown size={13} color="#FF1A8C" />
+                      <span style={{ fontSize: '0.73rem', color: '#FF4D94', fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>
                         1st Prize
                       </span>
                     </div>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#FFE55C', fontFamily: "'Space Grotesk', sans-serif" }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#FF66B2', fontFamily: "'Space Grotesk', sans-serif" }}>
                       {event.prizes.first}
                     </span>
                   </div>
@@ -671,14 +671,14 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   <div style={{ marginBottom: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '4px' }}>
                       <span style={{ color: '#94A3B8', fontFamily: "'Space Grotesk', sans-serif" }}>Slots Enrolled</span>
-                      <span style={{ color: isFull ? '#FB7185' : '#00F0D0', fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <span style={{ color: isFull ? '#FB7185' : '#FF4D94', fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>
                         {event.registeredCount} / {event.capacity} ({fillPercentage}%)
                       </span>
                     </div>
                     <div
                       style={{
                         width: '100%',
-                        height: '4px',
+                        height: '5px',
                         backgroundColor: 'rgba(255, 255, 255, 0.06)',
                         borderRadius: '9999px',
                         overflow: 'hidden'
@@ -690,7 +690,8 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                           height: '100%',
                           background: isFull
                             ? '#F43F5E'
-                            : 'linear-gradient(90deg, #00F0D0, #C026D3)',
+                            : 'linear-gradient(90deg, #FF1A8C, #FF66B2)',
+                          boxShadow: '0 0 8px rgba(255, 26, 140, 0.7)',
                           borderRadius: '9999px',
                           transition: 'width 0.5s ease'
                         }}
@@ -715,8 +716,9 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     </div>
                     <div
                       style={{
-                        fontFamily: "'Bebas Neue', sans-serif",
-                        fontSize: '1.2rem',
+                        fontFamily: "var(--font-heading)",
+                        fontWeight: 700,
+                        fontSize: '1.15rem',
                         color: event.fee === 0 ? '#10B981' : '#F5F0E8'
                       }}
                     >
@@ -736,15 +738,26 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     <button
                       onClick={() => onRegisterEvent(event)}
                       disabled={isFull}
-                      className="btn-cyber-primary"
                       style={{
-                        padding: '7px 16px',
-                        fontSize: '0.78rem',
-                        opacity: isFull ? 0.5 : 1,
-                        cursor: isFull ? 'not-allowed' : 'pointer'
+                        background: isFull
+                          ? 'rgba(255, 255, 255, 0.05)'
+                          : 'linear-gradient(135deg, #FF1A8C 0%, #FF006E 50%, #D8005A 100%)',
+                        color: isFull ? '#6B5E4E' : '#12000E',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '8px 16px',
+                        fontSize: '0.8rem',
+                        fontWeight: 800,
+                        cursor: isFull ? 'not-allowed' : 'pointer',
+                        boxShadow: isFull ? 'none' : '0 0 18px rgba(255, 26, 140, 0.45)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s',
+                        fontFamily: "'Space Grotesk', sans-serif"
                       }}
                     >
-                      <span>{isFull ? 'Full' : 'Register'}</span>
+                      <span>{isFull ? 'Full' : event.fee === 0 ? 'Register Free' : 'Register'}</span>
                       <ArrowRight size={13} />
                     </button>
                   </div>
