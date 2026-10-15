@@ -54,11 +54,12 @@
   --text-muted: #94A3B8;
   --text-cyber: #C4B5FD;
   
-  /* Typography */
-  --font-title: 'Bebas Neue', 'Anton', Impact, sans-serif;
-  --font-display: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-ui: 'Space Grotesk', 'Inter', sans-serif;
+  /* Typography: Ultra-Refined Digital */
+  --font-title: 'Clash Display', 'Space Grotesk', sans-serif;
+  --font-heading: 'Clash Display', 'Space Grotesk', sans-serif;
+  --font-display: 'Clash Display', 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ui: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
 }
 
 *, *::before, *::after {
@@ -134,6 +135,14 @@ body {
 
 .font-title {
   font-family: var(--font-title);
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-body {
+  font-family: var(--font-body);
 }
 
 .font-ui {

@@ -101,11 +101,11 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
 
         <h2
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 'clamp(2.5rem, 5vw, 4rem)',
-            fontWeight: 400,
+            fontFamily: "var(--font-heading)",
+            fontSize: 'clamp(2rem, 4vw, 3.2rem)',
+            fontWeight: 700,
             margin: '0 0 10px 0',
-            letterSpacing: '0.04em',
+            letterSpacing: '0.02em',
             display: 'inline-block',
             background: 'linear-gradient(135deg, #00F0D0 0%, #FFFFFF 40%, #C026D3 75%, #FFD700 100%)',
             WebkitBackgroundClip: 'text',
@@ -509,7 +509,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
           style={{ padding: '60px 20px', textAlign: 'center', color: '#9B8E7B' }}
         >
           <Inbox size={44} color="#FFD700" style={{ margin: '0 auto 12px' }} />
-          <h3 style={{ color: '#F5F0E8', fontSize: '1.2rem', marginBottom: '6px', fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.04em' }}>
+          <h3 style={{ color: '#F5F0E8', fontSize: '1.2rem', marginBottom: '6px', fontFamily: "var(--font-heading)", fontWeight: 700, letterSpacing: '0.02em' }}>
             No Matching Events Found
           </h3>
           <p style={{ fontSize: '0.9rem', marginBottom: '16px' }}>Try switching departments or categories to find more events.</p>
@@ -591,13 +591,13 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   {/* Title */}
                   <h3
                     style={{
-                      fontFamily: "'Bebas Neue', sans-serif",
-                      fontSize: '1.35rem',
-                      fontWeight: 400,
+                      fontFamily: "var(--font-heading)",
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
                       color: '#F8FAFC',
                       marginBottom: '8px',
-                      lineHeight: 1.2,
-                      letterSpacing: '0.03em'
+                      lineHeight: 1.25,
+                      letterSpacing: '0.02em'
                     }}
                   >
                     {event.title}

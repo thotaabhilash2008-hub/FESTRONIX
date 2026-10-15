@@ -174,8 +174,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <Flame size={14} color="#00F0D0" />
             <span
               style={{
-                fontFamily: "'Bebas Neue', sans-serif",
-                fontSize: '1.3rem',
+                fontFamily: "var(--font-heading)",
+                fontWeight: 700,
+                fontSize: '1.15rem',
                 letterSpacing: '0.15em',
                 background: 'linear-gradient(135deg, #00F0D0, #C026D3, #FFD700)',
                 WebkitBackgroundClip: 'text',
@@ -292,8 +293,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 >
                   <div
                     style={{
-                      fontFamily: "'Bebas Neue', sans-serif",
-                      fontSize: '1.3rem',
+                      fontFamily: "var(--font-heading)",
+                      fontWeight: 700,
+                      fontSize: '1.25rem',
                       color: '#F8FAFC',
                       lineHeight: 1
                     }}
@@ -363,8 +365,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <div style={{ marginBottom: '6px' }}>{item.icon}</div>
               <div
                 style={{
-                  fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: '1.4rem',
+                  fontFamily: "var(--font-heading)",
+                  fontWeight: 700,
+                  fontSize: '1.3rem',
                   color: item.accent,
                   lineHeight: 1.1
                 }}

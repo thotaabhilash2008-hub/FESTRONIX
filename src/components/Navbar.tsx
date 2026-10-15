@@ -116,9 +116,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#00F0D0',
-                fontWeight: 900,
-                fontSize: '0.9rem',
-                fontFamily: "'Bebas Neue', sans-serif",
+                fontWeight: 800,
+                fontSize: '0.82rem',
+                fontFamily: "var(--font-heading)",
                 letterSpacing: '0.05em'
               }}
             >
@@ -130,10 +130,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span
                 style={{
-                  fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: '1.45rem',
-                  fontWeight: 400,
-                  letterSpacing: '0.08em',
+                  fontFamily: "var(--font-heading)",
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
                   color: '#F8FAFC'
                 }}
               >

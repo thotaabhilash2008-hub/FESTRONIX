@@ -46,11 +46,11 @@ export const DepartmentsSection: React.FC = () => {
         </div>
         <h2
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 'clamp(2.5rem, 6vw, 4rem)',
-            fontWeight: 400,
+            fontFamily: "var(--font-heading)",
+            fontSize: 'clamp(2rem, 5vw, 3.2rem)',
+            fontWeight: 700,
             margin: '0 0 10px 0',
-            letterSpacing: '0.04em',
+            letterSpacing: '0.02em',
             display: 'inline-block',
             background: 'linear-gradient(135deg, #00F0D0 0%, #FFFFFF 40%, #C026D3 75%, #FFD700 100%)',
             WebkitBackgroundClip: 'text',
@@ -116,11 +116,12 @@ export const DepartmentsSection: React.FC = () => {
 
                 <h3
                   style={{
-                    fontFamily: "'Bebas Neue', sans-serif",
-                    fontSize: '1.2rem',
+                    fontFamily: "var(--font-heading)",
+                    fontSize: '1.15rem',
+                    fontWeight: 700,
                     color: '#F5F0E8',
                     marginBottom: '6px',
-                    letterSpacing: '0.03em'
+                    letterSpacing: '0.02em'
                   }}
                 >
                   {dept.name}

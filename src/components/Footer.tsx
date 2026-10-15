@@ -27,9 +27,10 @@ export const Footer: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <span
               style={{
-                fontFamily: "'Bebas Neue', sans-serif",
-                fontSize: '1.8rem',
-                letterSpacing: '0.06em',
+                fontFamily: "var(--font-heading)",
+                fontSize: '1.5rem',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
                 display: 'inline-block',
                 background: 'linear-gradient(135deg, #00F0D0 0%, #FFFFFF 40%, #C026D3 75%, #FFD700 100%)',
                 WebkitBackgroundClip: 'text',

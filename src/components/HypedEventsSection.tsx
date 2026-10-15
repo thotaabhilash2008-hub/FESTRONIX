@@ -111,11 +111,11 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
 
           <h2
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
-              fontWeight: 400,
+              fontFamily: "var(--font-heading)",
+              fontSize: 'clamp(2rem, 4vw, 3rem)',
+              fontWeight: 700,
               margin: '0 0 10px 0',
-              letterSpacing: '0.04em',
+              letterSpacing: '0.02em',
               display: 'inline-block',
               background: 'linear-gradient(135deg, #00F0D0 0%, #FFFFFF 40%, #C026D3 75%, #FFD700 100%)',
               WebkitBackgroundClip: 'text',
@@ -223,12 +223,13 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                   {/* Title */}
                   <h3
                     style={{
-                      fontFamily: "'Bebas Neue', sans-serif",
-                      fontSize: '1.45rem',
-                      letterSpacing: '0.04em',
+                      fontFamily: "var(--font-heading)",
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.02em',
                       color: '#F5F0E8',
                       margin: '0 0 10px 0',
-                      lineHeight: 1.2
+                      lineHeight: 1.25
                     }}
                   >
                     {evt.title}

@@ -23,11 +23,11 @@ export const PrizesSection: React.FC = () => {
         </div>
         <h2
           style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 'clamp(2.5rem, 6vw, 4rem)',
-            fontWeight: 400,
+            fontFamily: "var(--font-heading)",
+            fontSize: 'clamp(2rem, 5vw, 3.2rem)',
+            fontWeight: 700,
             margin: '0 0 10px 0',
-            letterSpacing: '0.04em',
+            letterSpacing: '0.02em',
             display: 'inline-block',
             background: 'linear-gradient(135deg, #FFD700 0%, #FFFFFF 40%, #00F0D0 75%, #C026D3 100%)',
             WebkitBackgroundClip: 'text',
@@ -71,19 +71,21 @@ export const PrizesSection: React.FC = () => {
           </div>
           <h3
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '1.5rem',
+              fontFamily: "var(--font-heading)",
+              fontSize: '1.25rem',
+              fontWeight: 700,
               color: '#F8FAFC',
               marginBottom: '8px',
-              letterSpacing: '0.03em'
+              letterSpacing: '0.02em'
             }}
           >
             Cash Rewards
           </h3>
           <div
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '2.2rem',
+              fontFamily: "var(--font-heading)",
+              fontSize: '1.85rem',
+              fontWeight: 800,
               color: '#FFD700',
               marginBottom: '12px',
               lineHeight: 1
@@ -118,19 +120,21 @@ export const PrizesSection: React.FC = () => {
           </div>
           <h3
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '1.5rem',
+              fontFamily: "var(--font-heading)",
+              fontSize: '1.25rem',
+              fontWeight: 700,
               color: '#F8FAFC',
               marginBottom: '8px',
-              letterSpacing: '0.03em'
+              letterSpacing: '0.02em'
             }}
           >
             Startup Incubation
           </h3>
           <div
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '2.2rem',
+              fontFamily: "var(--font-heading)",
+              fontSize: '1.85rem',
+              fontWeight: 800,
               color: '#00F0D0',
               marginBottom: '12px',
               lineHeight: 1
@@ -165,19 +169,21 @@ export const PrizesSection: React.FC = () => {
           </div>
           <h3
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '1.5rem',
+              fontFamily: "var(--font-heading)",
+              fontSize: '1.25rem',
+              fontWeight: 700,
               color: '#F8FAFC',
               marginBottom: '8px',
-              letterSpacing: '0.03em'
+              letterSpacing: '0.02em'
             }}
           >
             Certifications & Trophies
           </h3>
           <div
             style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '2.2rem',
+              fontFamily: "var(--font-heading)",
+              fontSize: '1.85rem',
+              fontWeight: 800,
               color: '#F0ABFC',
               marginBottom: '12px',
               lineHeight: 1
