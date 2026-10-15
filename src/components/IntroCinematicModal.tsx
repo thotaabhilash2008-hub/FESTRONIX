@@ -155,7 +155,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
         <div style={{ position: 'relative', width: '100%', backgroundColor: '#000', aspectRatio: '16/9' }}>
           <video
             ref={videoRef}
-            src="/festronix_intro.mp4"
+            src="/intro_final.mp4"
             autoPlay
             playsInline
             muted={isMuted}
