@@ -101,7 +101,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
       {/* Fullscreen Video */}
       <video
         ref={videoRef}
-        src="/intro_final.mp4"
+        src="/intro_final2.mp4"
         autoPlay
         playsInline
         muted={isMuted}

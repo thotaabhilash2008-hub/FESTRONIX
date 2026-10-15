@@ -126,7 +126,7 @@ export const CyberHeroCanvas: React.FC = () => {
         ctx.shadowBlur = 0; // reset
       });
 
-      // 3. Render 3D Segmented Lightning Core (Sphere motif from intro_final.mp4)
+      // 3. Render 3D Segmented Lightning Core (Sphere motif from intro_final2.mp4)
       const sphereCenterX = width > 768 ? width * 0.78 : width * 0.5;
       const sphereCenterY = width > 768 ? height * 0.45 : height * 0.28;
       const sphereRadius = width > 768 ? 120 : 85;
