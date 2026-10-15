@@ -152,8 +152,10 @@ export const Festronix3DTitle: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '16px',
+            gap: 'clamp(6px, 1.5vw, 16px)',
             marginTop: '10px',
+            maxWidth: '100%',
+            padding: '0 10px',
             transform: 'translateZ(20px)', // subtle 3D pop
             transition: 'transform 0.3s ease'
           }}
@@ -161,18 +163,20 @@ export const Festronix3DTitle: React.FC = () => {
           <span
             style={{
               height: '2px',
-              width: '50px',
-              background: 'linear-gradient(90deg, transparent, #FFD700)'
+              width: 'clamp(12px, 3.5vw, 45px)',
+              background: 'linear-gradient(90deg, transparent, #FFD700)',
+              flexShrink: 0
             }}
           />
           <span
             style={{
-              fontSize: 'clamp(0.9rem, 2vw, 1.35rem)',
+              fontSize: 'clamp(0.68rem, 2.2vw, 1.35rem)',
               color: isHovered ? '#FFFFFF' : '#F5F0E8',
-              letterSpacing: '0.28em',
+              letterSpacing: 'clamp(0.08em, 1vw, 0.25em)',
               fontWeight: 800,
               textTransform: 'uppercase',
               fontFamily: "'Space Grotesk', sans-serif",
+              textAlign: 'center',
               textShadow: isHovered
                 ? '0 0 15px rgba(255, 215, 0, 0.8), 0 0 30px rgba(168, 85, 247, 0.6)'
                 : '0 2px 10px rgba(0, 0, 0, 0.8)',
@@ -184,8 +188,9 @@ export const Festronix3DTitle: React.FC = () => {
           <span
             style={{
               height: '2px',
-              width: '50px',
-              background: 'linear-gradient(90deg, #FFD700, transparent)'
+              width: 'clamp(12px, 3.5vw, 45px)',
+              background: 'linear-gradient(90deg, #FFD700, transparent)',
+              flexShrink: 0
             }}
           />
         </div>

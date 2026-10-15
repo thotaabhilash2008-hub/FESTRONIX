@@ -155,6 +155,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
             <div
+              className="desktop-only"
               style={{
                 fontSize: '0.62rem',
                 color: '#94A3B8',
@@ -552,6 +553,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Replay Intro Button */}
           <button
             onClick={onOpenIntro}
+            className="desktop-only"
             style={{
               background: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -577,7 +579,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
           >
             <Clapperboard size={13} color="#FFD700" />
-            <span className="desktop-only">Intro</span>
+            <span>Intro</span>
           </button>
 
           {/* View Our Registration Passes */}
@@ -587,17 +589,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               background: 'linear-gradient(135deg, #00F0D0 0%, #7C3AED 52%, #C026D3 100%)',
               border: 'none',
               borderRadius: '9999px',
-              padding: '8px 18px',
+              padding: '7px 14px',
               color: '#FFFFFF',
-              fontSize: '0.82rem',
+              fontSize: '0.8rem',
               fontWeight: 700,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '7px',
+              gap: '6px',
               boxShadow: '0 0 20px rgba(0, 240, 208, 0.35)',
               transition: 'all 0.2s ease',
-              fontFamily: "'Space Grotesk', sans-serif"
+              fontFamily: "'Space Grotesk', sans-serif",
+              whiteSpace: 'nowrap'
             }}
             onMouseEnter={e => {
               e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 240, 208, 0.55), 0 0 20px rgba(192, 38, 211, 0.4)';
@@ -609,7 +612,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
           >
             <Ticket size={14} />
-            <span>Registration Passes</span>
+            <span className="desktop-only">Registration&nbsp;</span>
+            <span>Passes</span>
             {passesCount > 0 && (
               <span
                 style={{

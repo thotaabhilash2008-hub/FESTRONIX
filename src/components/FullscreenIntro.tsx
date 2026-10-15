@@ -14,12 +14,42 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
   const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
-    if (isOpen && videoRef.current) {
+    if (!isOpen) return;
+
+    if (videoRef.current) {
       videoRef.current.currentTime = 0;
       videoRef.current.play().catch(err => {
         console.log("Autoplay waiting for user gesture:", err);
       });
     }
+
+    // Complete scroll lock for body & html on mobile and desktop
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
+    const preventDefaultTouch = (e: TouchEvent) => {
+      // Allow button taps
+      if ((e.target as HTMLElement)?.closest('button')) {
+        return;
+      }
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.touchAction = prevBodyTouchAction;
+      window.removeEventListener('touchmove', preventDefaultTouch);
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -51,15 +81,21 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
     <div
       style={{
         position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+        minHeight: '100dvh',
         zIndex: 999999,
         backgroundColor: '#000',
         overflow: 'hidden',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        touchAction: 'none',
+        overscrollBehavior: 'none'
       }}
     >
       {/* Fullscreen Video */}
@@ -77,7 +113,8 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          display: 'block'
+          display: 'block',
+          pointerEvents: 'none'
         }}
       />
 
@@ -112,12 +149,13 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
       <div
         style={{
           position: 'absolute',
-          bottom: '42px',
-          left: '32px',
-          right: '32px',
+          bottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+          left: 'max(16px, env(safe-area-inset-left, 16px))',
+          right: 'max(16px, env(safe-area-inset-right, 16px))',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: '10px',
           zIndex: 20
         }}
       >
@@ -131,17 +169,19 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             border: '1px solid rgba(255, 215, 0, 0.2)',
             color: '#D4C5A9',
             borderRadius: '9999px',
-            padding: '12px 22px',
+            padding: '10px 18px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.85rem',
+            gap: '6px',
+            fontSize: '0.8rem',
             fontWeight: 600,
             letterSpacing: '0.04em',
             boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
             transition: 'all 0.2s ease',
-            fontFamily: "'Space Grotesk', sans-serif"
+            fontFamily: "'Space Grotesk', sans-serif",
+            whiteSpace: 'nowrap',
+            flexShrink: 0
           }}
           onMouseEnter={e => {
             e.currentTarget.style.borderColor = '#FFD700';
@@ -152,8 +192,8 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             e.currentTarget.style.color = '#D4C5A9';
           }}
         >
-          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          <span>{isMuted ? 'Enable Sound' : 'Sound Playing'}</span>
+          {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+          <span>{isMuted ? 'Sound' : 'Mute'}</span>
         </button>
 
         {/* Enter Festronix button */}
@@ -164,19 +204,19 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             border: 'none',
             color: '#0c0a14',
             borderRadius: '9999px',
-            padding: '14px 34px',
+            padding: '12px 24px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            fontSize: '0.95rem',
+            gap: '8px',
+            fontSize: '0.9rem',
             fontWeight: 800,
-            letterSpacing: '0.04em',
+            letterSpacing: '0.03em',
             boxShadow: '0 0 30px rgba(255, 215, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.7)',
             transition: 'all 0.25s ease',
-            minWidth: '200px',
             justifyContent: 'center',
-            fontFamily: "'Space Grotesk', sans-serif"
+            fontFamily: "'Space Grotesk', sans-serif",
+            whiteSpace: 'nowrap'
           }}
           onMouseEnter={e => {
             e.currentTarget.style.transform = 'translateY(-2px) scale(1.03)';
@@ -188,7 +228,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           }}
         >
           <span>Enter Festronix</span>
-          <ArrowRight size={17} />
+          <ArrowRight size={16} />
         </button>
       </div>
     </div>

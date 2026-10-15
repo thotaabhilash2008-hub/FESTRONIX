@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Calendar, MapPin, Users, Trophy, Shield, Phone, Mail, ArrowRight, Clock } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 
@@ -13,6 +13,19 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   onClose,
   onRegister
 }) => {
+  useEffect(() => {
+    if (!event) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [event]);
+
   if (!event) return null;
 
   const isFull = event.status === 'full' || event.registeredCount >= event.capacity;

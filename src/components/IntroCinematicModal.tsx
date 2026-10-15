@@ -19,13 +19,25 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
-    if (isOpen && videoRef.current) {
+    if (!isOpen) return;
+
+    if (videoRef.current) {
       videoRef.current.currentTime = 0;
       videoRef.current.play().catch(err => {
         console.log("Autoplay was prevented, waiting for user click", err);
       });
       setIsPlaying(true);
     }
+
+    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;

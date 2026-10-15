@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Sparkles, Ticket } from 'lucide-react';
 import { Registration } from '../types/festronix';
 import { INITIAL_REGISTRATIONS } from '../data/mockData';
@@ -14,6 +14,18 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   onClose,
   onBrowseEvents
 }) => {
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, []);
+
   // Combine props registrations + mock registrations if needed for lookup
   const [activeList, setActiveList] = useState<Registration[]>(
     initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS

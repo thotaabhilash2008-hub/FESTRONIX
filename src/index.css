@@ -61,10 +61,17 @@
   --font-ui: 'Space Grotesk', 'Inter', sans-serif;
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -72,6 +79,9 @@ body {
   color: var(--text-primary);
   font-family: var(--font-body);
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  position: relative;
   min-height: 100vh;
   line-height: 1.6;
   background-image:
@@ -516,13 +526,29 @@ body {
 }
 
 /* Responsive utilities */
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: inline-flex !important;
+}
+
 @media (max-width: 768px) {
   .desktop-nav {
     display: none !important;
   }
 
+  .desktop-only {
+    display: none !important;
+  }
+
   .mobile-only {
     display: block !important;
+  }
+
+  .mobile-flex {
+    display: flex !important;
   }
 }
 

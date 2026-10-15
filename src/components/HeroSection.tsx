@@ -110,37 +110,43 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '10px',
-            padding: '6px 20px',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+            padding: '6px 16px',
             borderRadius: '9999px',
             background: 'rgba(10, 7, 22, 0.78)',
             border: '1px solid rgba(0, 240, 208, 0.25)',
             backdropFilter: 'blur(16px)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 240, 208, 0.1)'
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 240, 208, 0.1)',
+            maxWidth: '100%'
           }}
         >
-          <Star size={12} color="#00F0D0" fill="#00F0D0" />
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <Star size={12} color="#00F0D0" fill="#00F0D0" />
+            <span
+              style={{
+                fontSize: 'clamp(0.68rem, 2.4vw, 0.78rem)',
+                color: '#CBD5E1',
+                letterSpacing: '0.06em',
+                fontWeight: 600,
+                fontFamily: "'Space Grotesk', sans-serif"
+              }}
+            >
+              VARDHAMAN COLLEGE OF ENGINEERING
+            </span>
+          </div>
           <span
             style={{
-              fontSize: '0.78rem',
-              color: '#CBD5E1',
-              letterSpacing: '0.1em',
-              fontWeight: 600,
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-          >
-            VARDHAMAN COLLEGE OF ENGINEERING • HYDERABAD
-          </span>
-          <span
-            style={{
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               background: 'linear-gradient(135deg, rgba(0, 240, 208, 0.2), rgba(192, 38, 211, 0.2))',
               border: '1px solid rgba(0, 240, 208, 0.4)',
               color: '#00F0D0',
-              padding: '2px 10px',
+              padding: '2px 9px',
               borderRadius: '9999px',
               fontWeight: 700,
-              fontFamily: "'Space Grotesk', sans-serif"
+              fontFamily: "'Space Grotesk', sans-serif",
+              whiteSpace: 'nowrap'
             }}
           >
             OCT 28–29

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, School, QrCode, Upload, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { FestEvent, Teammate, Registration } from '../types/festronix';
@@ -15,6 +15,19 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  useEffect(() => {
+    if (!event) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [event]);
+
   if (!event) return null;
 
   const [step, setStep] = useState<number>(1);
