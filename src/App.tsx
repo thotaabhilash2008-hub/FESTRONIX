@@ -13,6 +13,7 @@ import { DigitalPassModal } from './components/DigitalPassModal';
 import { AuthModal } from './components/AuthModal';
 import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
+import { GlitterBackground } from './components/GlitterBackground';
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
@@ -139,7 +140,9 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Background Cyber Grid */}
+      {/* Background Glitter Starfield & Cyber Grid */}
+      <GlitterBackground />
+      <div className="glitter-stardust-layer" />
       <div className="cyber-grid-overlay" />
 
       {/* FULLSCREEN INTRO VIDEO: Edge-to-edge with no headings, borders, or frames */}

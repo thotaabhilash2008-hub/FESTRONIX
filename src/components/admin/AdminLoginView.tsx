@@ -69,8 +69,8 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: '#101A35',
-        backgroundImage: 'radial-gradient(circle at 50% 20%, rgba(40, 59, 120, 0.35) 0%, rgba(16, 26, 53, 0.95) 75%)',
+        backgroundColor: 'transparent',
+        backgroundImage: 'radial-gradient(circle at 50% 20%, rgba(40, 59, 120, 0.25) 0%, transparent 80%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

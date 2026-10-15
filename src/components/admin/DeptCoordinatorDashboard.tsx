@@ -215,7 +215,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   });
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#101A35', color: '#FFFFFF', paddingBottom: '60px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'transparent', color: '#FFFFFF', paddingBottom: '60px' }}>
       {/* Top Department Coordinator Header */}
       <header
         style={{

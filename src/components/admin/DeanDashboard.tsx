@@ -132,7 +132,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   });
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#101A35', color: '#FFFFFF', paddingBottom: '60px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'transparent', color: '#FFFFFF', paddingBottom: '60px' }}>
       {/* Top Dean Executive Header */}
       <header
         style={{

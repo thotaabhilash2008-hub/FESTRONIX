@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
 import { AdminLoginView } from './AdminLoginView';
 import { DeanDashboard } from './DeanDashboard';
 import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
+import { GlitterBackground } from '../GlitterBackground';
 
 interface AdminPortalProps {
   onBackToFest: () => void;
@@ -16,30 +17,33 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
     setAdminUser(null);
   };
 
-  if (!adminUser) {
-    return (
-      <AdminLoginView
-        onLoginSuccess={user => setAdminUser(user)}
-        onBackToFest={onBackToFest}
-      />
-    );
-  }
-
-  if (adminUser.role === 'dean_sac' || adminUser.role === 'connect_club') {
-    return (
-      <DeanDashboard
-        adminUser={adminUser}
-        onLogout={handleLogout}
-        onSwitchToFest={onBackToFest}
-      />
-    );
-  }
-
   return (
-    <DeptCoordinatorDashboard
-      adminUser={adminUser}
-      onLogout={handleLogout}
-      onSwitchToFest={onBackToFest}
-    />
+    <div style={{ position: 'relative', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
+      {/* Background Glitter Starfield & Cyber Grid for Admin Console */}
+      <GlitterBackground />
+      <div className="glitter-stardust-layer" />
+      <div className="cyber-grid-overlay" />
+
+      <div style={{ position: 'relative', zIndex: 10 }}>
+        {!adminUser ? (
+          <AdminLoginView
+            onLoginSuccess={user => setAdminUser(user)}
+            onBackToFest={onBackToFest}
+          />
+        ) : (adminUser.role === 'dean_sac' || adminUser.role === 'connect_club') ? (
+          <DeanDashboard
+            adminUser={adminUser}
+            onLogout={handleLogout}
+            onSwitchToFest={onBackToFest}
+          />
+        ) : (
+          <DeptCoordinatorDashboard
+            adminUser={adminUser}
+            onLogout={handleLogout}
+            onSwitchToFest={onBackToFest}
+          />
+        )}
+      </div>
+    </div>
   );
 };
