@@ -40,44 +40,44 @@ export const GlitterBackground: React.FC = () => {
       'rgba(147, 197, 253, '  // Soft Astral Blue
     ];
 
-    // Determine particle count based on screen size (smooth 60fps performance)
-    const particleCount = Math.min(Math.floor((width * height) / 14000), 110);
+    // Determine particle count based on screen size - gentle, moderate ambient glitter
+    const particleCount = Math.min(Math.floor((width * height) / 32000), 45);
     const particles: Particle[] = [];
 
     for (let i = 0; i < particleCount; i++) {
-      const isStar = Math.random() < 0.28; // 28% of particles are twinkling 4-point diamond stars
+      const isStar = Math.random() < 0.10; // 10% are subtle 4-point diamond stars
       const color = GLITTER_COLORS[Math.floor(Math.random() * GLITTER_COLORS.length)];
-      const baseAlpha = 0.25 + Math.random() * 0.55;
+      const baseAlpha = 0.10 + Math.random() * 0.25;
 
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        size: isStar ? 1.5 + Math.random() * 2.5 : 0.7 + Math.random() * 1.8,
+        size: isStar ? 0.9 + Math.random() * 1.3 : 0.5 + Math.random() * 0.9,
         baseAlpha,
         alpha: baseAlpha,
-        twinkleSpeed: 0.015 + Math.random() * 0.035,
+        twinkleSpeed: 0.010 + Math.random() * 0.020,
         twinkleOffset: Math.random() * Math.PI * 2,
-        vx: (Math.random() - 0.5) * 0.18,
-        vy: -0.08 - Math.random() * 0.22, // gentle upward floating drift
+        vx: (Math.random() - 0.5) * 0.12,
+        vy: -0.04 - Math.random() * 0.10, // smooth, calm upward floating drift
         color,
         isStar,
         starRotation: Math.random() * Math.PI,
-        rotSpeed: (Math.random() - 0.5) * 0.01
+        rotSpeed: (Math.random() - 0.5) * 0.008
       });
     }
 
-    // Floating Bokeh Orbs (larger ambient colored glows)
+    // Floating Bokeh Orbs (subtle ambient colored glows)
     const orbs = [
-      { x: width * 0.2, y: height * 0.25, r: 180, color: 'rgba(40, 59, 120, 0.16)', vx: 0.05, vy: 0.03 },
-      { x: width * 0.8, y: height * 0.35, r: 240, color: 'rgba(120, 149, 147, 0.12)', vx: -0.04, vy: 0.06 },
-      { x: width * 0.5, y: height * 0.75, r: 220, color: 'rgba(40, 59, 120, 0.18)', vx: 0.03, vy: -0.05 },
-      { x: width * 0.15, y: height * 0.85, r: 160, color: 'rgba(62, 66, 100, 0.15)', vx: -0.04, vy: -0.03 }
+      { x: width * 0.2, y: height * 0.25, r: 180, color: 'rgba(40, 59, 120, 0.09)', vx: 0.03, vy: 0.02 },
+      { x: width * 0.8, y: height * 0.35, r: 240, color: 'rgba(120, 149, 147, 0.06)', vx: -0.02, vy: 0.03 },
+      { x: width * 0.5, y: height * 0.75, r: 220, color: 'rgba(40, 59, 120, 0.10)', vx: 0.02, vy: -0.03 },
+      { x: width * 0.15, y: height * 0.85, r: 160, color: 'rgba(62, 66, 100, 0.08)', vx: -0.02, vy: -0.02 }
     ];
 
     let time = 0;
 
     const render = () => {
-      time += 0.03;
+      time += 0.025;
       ctx.clearRect(0, 0, width, height);
 
       // 1. Render soft ambient bokeh orbs in the background
@@ -114,22 +114,22 @@ export const GlitterBackground: React.FC = () => {
         // Twinkle calculation
         p.starRotation += p.rotSpeed;
         const twinkle = Math.sin(time * p.twinkleSpeed * 60 + p.twinkleOffset);
-        p.alpha = Math.max(0.1, Math.min(1, p.baseAlpha + twinkle * 0.45));
+        p.alpha = Math.max(0.04, Math.min(0.48, p.baseAlpha + twinkle * 0.18));
 
         const fillStyle = `${p.color}${p.alpha})`;
 
-        if (p.isStar && p.alpha > 0.4) {
-          // Draw sparkling 4-pointed diamond star with cross-flare
+        if (p.isStar && p.alpha > 0.25) {
+          // Draw sparkling 4-pointed diamond star with gentle micro-flare
           ctx.save();
           ctx.translate(p.x, p.y);
           ctx.rotate(p.starRotation);
 
-          const r = p.size * (0.8 + (twinkle + 1) * 0.5);
-          const flare = r * 2.8;
+          const r = p.size * (0.8 + (twinkle + 1) * 0.35);
+          const flare = r * 1.5;
 
           // Cross flare lines
           ctx.strokeStyle = fillStyle;
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = 0.4;
           ctx.beginPath();
           ctx.moveTo(-flare, 0);
           ctx.lineTo(flare, 0);
@@ -147,20 +147,16 @@ export const GlitterBackground: React.FC = () => {
           ctx.closePath();
           ctx.fill();
 
-          // Outer luminous glow
-          ctx.beginPath();
-          ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fill();
-
           ctx.restore();
         } else {
           // Draw glittering circular particle with soft halo
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fillStyle = fillStyle;
-          ctx.shadowBlur = p.alpha > 0.6 ? 8 : 3;
-          ctx.shadowColor = p.color + '0.8)';
+          if (p.alpha > 0.3) {
+            ctx.shadowBlur = 3;
+            ctx.shadowColor = p.color + '0.4)';
+          }
           ctx.fill();
           ctx.shadowBlur = 0; // reset
         }
@@ -214,10 +210,10 @@ export const GlitterBackground: React.FC = () => {
           position: 'absolute',
           inset: 0,
           background:
-            'radial-gradient(circle at 20% 15%, rgba(120, 149, 147, 0.12) 0%, transparent 40%), ' +
-            'radial-gradient(circle at 80% 80%, rgba(40, 59, 120, 0.22) 0%, transparent 50%), ' +
-            'radial-gradient(circle at 50% 50%, rgba(186, 206, 187, 0.05) 0%, transparent 60%)',
-          animation: 'glitterAuroraPulse 12s ease-in-out infinite alternate'
+            'radial-gradient(circle at 20% 15%, rgba(120, 149, 147, 0.06) 0%, transparent 40%), ' +
+            'radial-gradient(circle at 80% 80%, rgba(40, 59, 120, 0.10) 0%, transparent 50%), ' +
+            'radial-gradient(circle at 50% 50%, rgba(186, 206, 187, 0.02) 0%, transparent 60%)',
+          animation: 'glitterAuroraPulse 14s ease-in-out infinite alternate'
         }}
       />
     </div>
