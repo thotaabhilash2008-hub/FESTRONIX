@@ -234,7 +234,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h3 className="font-title" style={{ fontSize: '1.35rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
-                  MULTI-PASS CHECKOUT DESK
+                  FESTRONIX REGISTRATION PORTAL
                 </h3>
                 <span
                   style={{
@@ -247,11 +247,11 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                     fontWeight: 700
                   }}
                 >
-                  BULK BOOKING
+                  SINGLE & MULTI-PASS
                 </span>
               </div>
               <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                Buy multiple event passes for yourself and your friends in a single transaction
+                Select any event(s), choose pass quantities for you or your team, and complete booking in one step
               </p>
             </div>
           </div>

@@ -19,6 +19,23 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   onSuccess,
   onOpenMultiPass
 }) => {
+  const [step, setStep] = useState<number>(1);
+  const [passQuantity, setPassQuantity] = useState<number>(1);
+
+  // Form State
+  const [leader, setLeader] = useState({
+    name: currentUser?.fullName || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
+    college: currentUser?.college || 'Vardhaman College of Engineering',
+    rollNumber: currentUser?.rollNumber || ''
+  });
+
+  const [teammates, setTeammates] = useState<Teammate[]>([]);
+  const [transactionId, setTransactionId] = useState('');
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
   useEffect(() => {
     if (!event) return;
     const prevOverflow = document.body.style.overflow;
@@ -32,20 +49,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     };
   }, [event]);
 
-  if (!event) return null;
-
-  const [step, setStep] = useState<number>(1);
-  const [passQuantity, setPassQuantity] = useState<number>(1);
-
-  // Form State
-  const [leader, setLeader] = useState({
-    name: currentUser?.fullName || '',
-    email: currentUser?.email || '',
-    phone: currentUser?.phone || '',
-    college: currentUser?.college || 'Vardhaman College of Engineering',
-    rollNumber: currentUser?.rollNumber || ''
-  });
-
   useEffect(() => {
     if (currentUser) {
       setLeader({
@@ -58,10 +61,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   }, [currentUser, event]);
 
-  const [teammates, setTeammates] = useState<Teammate[]>([]);
-  const [transactionId, setTransactionId] = useState('');
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState('');
+  if (!event) return null;
 
   // Total members needed for Duo / Team
   const maxTeammates = event.format === 'individual' ? 0 : event.maxTeamSize - 1;

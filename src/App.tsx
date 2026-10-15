@@ -137,10 +137,7 @@ export const App: React.FC = () => {
         <HeroSection
           onExploreEvents={handleNavigateExplore}
           onOpenIntro={() => setIsIntroOpen(true)}
-          onRegisterNow={() => {
-            const openEvent = events.find(e => e.status === 'open') || events[0];
-            if (openEvent) setRegisterEvent(openEvent);
-          }}
+          onRegisterNow={() => setIsMultiPassModalOpen(true)}
         />
 
         {/* TOP HYPED EVENTS (Ranked by Total Registrations) */}
@@ -181,13 +178,18 @@ export const App: React.FC = () => {
         onRegister={evt => setRegisterEvent(evt)}
       />
 
-      <RegistrationModal
-        event={registerEvent}
-        currentUser={currentUser}
-        onClose={() => setRegisterEvent(null)}
-        onSuccess={handleRegistrationSuccess}
-        onOpenMultiPass={() => setIsMultiPassModalOpen(true)}
-      />
+      {registerEvent && (
+        <RegistrationModal
+          event={registerEvent}
+          currentUser={currentUser}
+          onClose={() => setRegisterEvent(null)}
+          onSuccess={handleRegistrationSuccess}
+          onOpenMultiPass={() => {
+            setRegisterEvent(null);
+            setIsMultiPassModalOpen(true);
+          }}
+        />
+      )}
 
       <MultiPassModal
         isOpen={isMultiPassModalOpen}
