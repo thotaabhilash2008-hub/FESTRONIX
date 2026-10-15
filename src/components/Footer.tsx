@@ -1,7 +1,11 @@
 import React from 'react';
-import { ShieldCheck, MapPin, Phone, Mail, Globe, Sparkles } from 'lucide-react';
+import { ShieldCheck, MapPin, Phone, Mail, Globe, Sparkles, Shield } from 'lucide-react';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenAdmin?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
   return (
     <footer
       style={{
@@ -105,6 +109,39 @@ export const Footer: React.FC = () => {
               <Globe size={14} color="#DCE3E5" />
               <span>www.vardhaman.org</span>
             </div>
+
+            {onOpenAdmin && (
+              <div style={{ marginTop: '6px' }}>
+                <button
+                  onClick={onOpenAdmin}
+                  style={{
+                    background: 'rgba(40, 59, 120, 0.35)',
+                    border: '1px solid rgba(120, 149, 147, 0.45)',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    color: '#BACEBB',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontFamily: "'Space Grotesk', sans-serif"
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(40, 59, 120, 0.6)';
+                    e.currentTarget.style.color = '#FFFFFF';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
+                    e.currentTarget.style.color = '#BACEBB';
+                  }}
+                >
+                  <Shield size={14} color="#BACEBB" />
+                  <span>Admin Portal (Dean SAC & HODs)</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -128,9 +165,26 @@ export const Footer: React.FC = () => {
         <div>
           © 2026 FESTRONIX • Vardhaman College of Engineering. All rights reserved.
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#BACEBB' }}>
-          <Sparkles size={11} color="#BACEBB" />
-          <span>Designed with passion for engineering excellence</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {onOpenAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#789593',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Faculty & Admin Gateway
+            </button>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#BACEBB' }}>
+            <Sparkles size={11} color="#BACEBB" />
+            <span>Designed with passion for engineering excellence</span>
+          </div>
         </div>
       </div>
     </footer>

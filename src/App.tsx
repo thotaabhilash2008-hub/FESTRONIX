@@ -12,11 +12,15 @@ import { RegistrationModal } from './components/RegistrationModal';
 import { DigitalPassModal } from './components/DigitalPassModal';
 import { AuthModal } from './components/AuthModal';
 import { MultiPassModal } from './components/MultiPassModal';
+import { AdminPortal } from './components/admin/AdminPortal';
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
 
 export const App: React.FC = () => {
+  // Admin View State (supports #admin hash or portal button)
+  const [isAdminView, setIsAdminView] = useState<boolean>(() => window.location.hash === '#admin');
+
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -57,8 +61,29 @@ export const App: React.FC = () => {
       setCurrentUser(e.detail);
     };
     window.addEventListener('festronix:auth', handleAuthChange);
-    return () => window.removeEventListener('festronix:auth', handleAuthChange);
+
+    // Reactive hash listener for #admin
+    const handleHashChange = () => {
+      setIsAdminView(window.location.hash === '#admin');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('festronix:auth', handleAuthChange);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
+
+  const handleOpenAdmin = () => {
+    window.location.hash = '#admin';
+    setIsAdminView(true);
+  };
+
+  const handleBackFromAdmin = () => {
+    window.location.hash = '';
+    setIsAdminView(false);
+    refreshData();
+  };
 
   const handleRegistrationSuccess = (newReg: Registration) => {
     setRegisterEvent(null);
@@ -105,6 +130,13 @@ export const App: React.FC = () => {
     setIsAuthModalOpen(true);
   };
 
+  // Render Admin Console if in #admin view
+  if (isAdminView) {
+    return (
+      <AdminPortal onBackToFest={handleBackFromAdmin} />
+    );
+  }
+
   return (
     <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Background Cyber Grid */}
@@ -130,6 +162,7 @@ export const App: React.FC = () => {
         onNavigateHyped={handleNavigateHyped}
         onSelectDepartment={handleSelectDepartment}
         onSelectCategory={handleSelectCategory}
+        onOpenAdmin={handleOpenAdmin}
       />
 
       {/* Main Experience View */}
@@ -169,7 +202,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onOpenAdmin={handleOpenAdmin} />
 
       {/* User Modals */}
       <EventDetailModal

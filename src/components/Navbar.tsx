@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Clapperboard, Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Trophy, Compass, Layers, ShoppingBag, User as UserIcon, LogIn, LogOut } from 'lucide-react';
+import { Clapperboard, Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Trophy, Compass, Layers, ShoppingBag, User as UserIcon, LogIn, LogOut, Shield } from 'lucide-react';
 import { Announcement, User as UserType } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
@@ -16,6 +16,7 @@ interface NavbarProps {
   onNavigateHyped: () => void;
   onSelectDepartment: (deptCode: string) => void;
   onSelectCategory: (categoryKey: string) => void;
+  onOpenAdmin?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -30,7 +31,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateExplore,
   onNavigateHyped,
   onSelectDepartment,
-  onSelectCategory
+  onSelectCategory,
+  onOpenAdmin
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAnnouncementsDropdown, setShowAnnouncementsDropdown] = useState(false);
@@ -889,6 +891,44 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
+          {/* Admin / SAC Portal Access */}
+          {onOpenAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              className="desktop-only"
+              style={{
+                background: 'rgba(120, 149, 147, 0.15)',
+                border: '1px solid rgba(120, 149, 147, 0.4)',
+                borderRadius: '9999px',
+                padding: '7px 14px',
+                color: '#BACEBB',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease',
+                fontFamily: "'Space Grotesk', sans-serif",
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(40, 59, 120, 0.45)';
+                e.currentTarget.style.color = '#FFFFFF';
+                e.currentTarget.style.borderColor = '#BACEBB';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(120, 149, 147, 0.15)';
+                e.currentTarget.style.color = '#BACEBB';
+                e.currentTarget.style.borderColor = 'rgba(120, 149, 147, 0.4)';
+              }}
+              title="Dean SAC & Department HOD / Coordinator Portal"
+            >
+              <Shield size={13} color="#BACEBB" />
+              <span>Admin Portal</span>
+            </button>
+          )}
+
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -1138,6 +1178,32 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Ticket size={16} color="#FFFFFF" />
               <span>View Registration Passes {passesCount > 0 ? `(${passesCount})` : ''}</span>
             </button>
+
+            {onOpenAdmin && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAdmin();
+                }}
+                style={{
+                  background: 'rgba(120, 149, 147, 0.15)',
+                  border: '1px solid rgba(120, 149, 147, 0.45)',
+                  color: '#BACEBB',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Shield size={16} color="#BACEBB" />
+                <span>Admin Portal (Dean SAC & HODs)</span>
+              </button>
+            )}
 
             <button
               onClick={() => {

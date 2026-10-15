@@ -199,6 +199,83 @@ export class StorageService {
     };
   }
 
+  static saveAnnouncements(announcements: Announcement[]): void {
+    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements));
+  }
+
+  static addAnnouncement(data: Omit<Announcement, 'id' | 'date'>): Announcement {
+    const list = this.getAnnouncements();
+    const newAnn: Announcement = {
+      ...data,
+      id: `ann-${Date.now()}`,
+      date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    list.unshift(newAnn);
+    this.saveAnnouncements(list);
+    return newAnn;
+  }
+
+  static deleteAnnouncement(annId: string): void {
+    const list = this.getAnnouncements().filter(a => a.id !== annId);
+    this.saveAnnouncements(list);
+  }
+
+  static updateEvent(updatedEvent: FestEvent): boolean {
+    const events = this.getEvents();
+    const idx = events.findIndex(e => e.id === updatedEvent.id);
+    if (idx === -1) return false;
+    events[idx] = updatedEvent;
+    this.saveEvents(events);
+    return true;
+  }
+
+  static addEvent(newEvent: FestEvent): FestEvent {
+    const events = this.getEvents();
+    events.unshift(newEvent);
+    this.saveEvents(events);
+    return newEvent;
+  }
+
+  static deleteEvent(eventId: string): boolean {
+    const events = this.getEvents().filter(e => e.id !== eventId);
+    this.saveEvents(events);
+    return true;
+  }
+
+  static getDepartmentStats(deptCode: string): FestStats {
+    const allEvents = this.getEvents().filter(
+      e => e.departmentCode.toLowerCase() === deptCode.toLowerCase()
+    );
+    const eventIds = new Set(allEvents.map(e => e.id));
+    const regs = this.getRegistrations().filter(r => eventIds.has(r.eventId));
+
+    const totalRegistrations = regs.length;
+    const verifiedCount = regs.filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable').length;
+    const pendingCount = regs.filter(r => r.paymentStatus === 'verification_pending').length;
+    const rejectedCount = regs.filter(r => r.paymentStatus === 'rejected').length;
+    const spotCount = regs.filter(r => r.source === 'spot').length;
+    const onlineCount = regs.filter(r => r.source === 'online').length;
+    const checkedInCount = regs.filter(r => r.checkedIn).length;
+
+    const totalCollected = regs
+      .filter(r => r.paymentStatus === 'verified')
+      .reduce((sum, r) => sum + r.fee, 0);
+
+    const totalCapacity = allEvents.reduce((sum, e) => sum + e.capacity, 0);
+
+    return {
+      totalRegistrations,
+      verifiedCount,
+      pendingCount,
+      rejectedCount,
+      spotCount,
+      onlineCount,
+      totalCollected,
+      totalCapacity,
+      checkedInCount
+    };
+  }
+
   static resetToDefaults(): void {
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS));
     localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(INITIAL_REGISTRATIONS));
