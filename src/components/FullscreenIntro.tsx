@@ -163,11 +163,11 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         <button
           onClick={toggleSound}
           style={{
-            background: 'rgba(3, 14, 38, 0.85)',
+            background: 'rgba(16, 26, 53, 0.85)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(0, 140, 255, 0.35)',
-            color: '#E2E8F0',
+            border: '1px solid rgba(120, 149, 147, 0.45)',
+            color: '#DCE3E5',
             borderRadius: '9999px',
             padding: '10px 18px',
             cursor: 'pointer',
@@ -184,12 +184,12 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             flexShrink: 0
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.borderColor = '#00D2FF';
-            e.currentTarget.style.color = '#00D2FF';
+            e.currentTarget.style.borderColor = '#BACEBB';
+            e.currentTarget.style.color = '#BACEBB';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.borderColor = 'rgba(0, 140, 255, 0.35)';
-            e.currentTarget.style.color = '#E2E8F0';
+            e.currentTarget.style.borderColor = 'rgba(120, 149, 147, 0.45)';
+            e.currentTarget.style.color = '#DCE3E5';
           }}
         >
           {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -200,9 +200,9 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         <button
           onClick={handleEnterFestronix}
           style={{
-            background: 'linear-gradient(135deg, #00D2FF 0%, #0077FF 50%, #0051FF 100%)',
-            border: 'none',
-            color: '#020C1E',
+            background: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #4B63AA 100%)',
+            border: '1px solid rgba(220, 227, 229, 0.35)',
+            color: '#FFFFFF',
             borderRadius: '9999px',
             padding: '12px 24px',
             cursor: 'pointer',
@@ -212,7 +212,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             fontSize: '0.9rem',
             fontWeight: 800,
             letterSpacing: '0.03em',
-            boxShadow: '0 0 30px rgba(0, 210, 255, 0.65), 0 10px 30px rgba(0, 0, 0, 0.7)',
+            boxShadow: '0 0 30px rgba(40, 59, 120, 0.65), 0 10px 30px rgba(0, 0, 0, 0.7)',
             transition: 'all 0.25s ease',
             justifyContent: 'center',
             fontFamily: "'Space Grotesk', sans-serif",
@@ -220,11 +220,11 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           }}
           onMouseEnter={e => {
             e.currentTarget.style.transform = 'translateY(-2px) scale(1.03)';
-            e.currentTarget.style.boxShadow = '0 0 45px rgba(0, 210, 255, 0.9), 0 14px 36px rgba(0, 0, 0, 0.8)';
+            e.currentTarget.style.boxShadow = '0 0 45px rgba(120, 149, 147, 0.6), 0 14px 36px rgba(0, 0, 0, 0.8)';
           }}
           onMouseLeave={e => {
             e.currentTarget.style.transform = 'translateY(0) scale(1)';
-            e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 210, 255, 0.65), 0 10px 30px rgba(0, 0, 0, 0.7)';
+            e.currentTarget.style.boxShadow = '0 0 30px rgba(40, 59, 120, 0.65), 0 10px 30px rgba(0, 0, 0, 0.7)';
           }}
         >
           <span>Enter Festronix</span>

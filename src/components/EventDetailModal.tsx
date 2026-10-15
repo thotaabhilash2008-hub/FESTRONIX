@@ -43,10 +43,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
               <span
                 style={{
-                  backgroundColor: 'rgba(0, 140, 255, 0.12)',
-                  border: '1px solid rgba(0, 210, 255, 0.45)',
-                  color: '#00D2FF',
-                  padding: '2px 8px',
+                  backgroundColor: 'rgba(40, 59, 120, 0.4)',
+                  border: '1px solid rgba(120, 149, 147, 0.45)',
+                  color: '#BACEBB',
+                  padding: '3px 10px',
                   borderRadius: '4px',
                   fontSize: '0.75rem',
                   fontWeight: 700,
@@ -59,10 +59,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 style={{
                   textTransform: 'uppercase',
                   fontSize: '0.75rem',
-                  color: '#38BDF8',
-                  background: 'rgba(0, 130, 255, 0.08)',
-                  border: '1px solid rgba(0, 150, 255, 0.35)',
-                  padding: '2px 8px',
+                  color: '#DCE3E5',
+                  background: 'rgba(120, 149, 147, 0.15)',
+                  border: '1px solid rgba(120, 149, 147, 0.35)',
+                  padding: '3px 10px',
                   borderRadius: '4px',
                   fontWeight: 600
                 }}
@@ -71,7 +71,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
               </span>
             </div>
 
-            <h2 className="font-title" style={{ fontSize: '1.8rem', color: '#F8FAFC', fontWeight: 800 }}>
+            <h2 className="font-title" style={{ fontSize: '1.8rem', color: '#FFFFFF', fontWeight: 800 }}>
               {event.title}
             </h2>
           </div>
@@ -79,16 +79,17 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: '#94A3B8',
+              background: 'rgba(220, 227, 229, 0.08)',
+              border: '1px solid rgba(220, 227, 229, 0.15)',
+              color: '#A8B3C2',
               borderRadius: '50%',
               width: '36px',
               height: '36px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
             }}
           >
             <X size={20} />
@@ -103,48 +104,48 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             gap: '14px',
             marginBottom: '24px',
             padding: '16px',
-            background: 'rgba(3, 14, 38, 0.88)',
+            background: 'rgba(16, 26, 53, 0.85)',
             borderRadius: '12px',
-            border: '1px solid rgba(0, 140, 255, 0.35)'
+            border: '1px solid rgba(220, 227, 229, 0.18)'
           }}
         >
           <div>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={14} color="#00D2FF" />
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Calendar size={14} color="#BACEBB" />
               <span>DATE & TIME</span>
             </div>
-            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#F8FAFC', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#FFFFFF', marginTop: '4px' }}>
               {event.date}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#CBD5E1' }}>{event.time}</div>
+            <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>{event.time}</div>
           </div>
 
           <div>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <MapPin size={14} color="#00D2FF" />
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <MapPin size={14} color="#BACEBB" />
               <span>VENUE</span>
             </div>
-            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#F8FAFC', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#FFFFFF', marginTop: '4px' }}>
               {event.venue}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Users size={14} color="#38BDF8" />
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Users size={14} color="#789593" />
               <span>TEAM STRUCTURE</span>
             </div>
-            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#F8FAFC', marginTop: '4px', textTransform: 'capitalize' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#FFFFFF', marginTop: '4px', textTransform: 'capitalize' }}>
               {event.format === 'individual' ? 'Solo Participant' : `${event.format} (${event.minTeamSize}-${event.maxTeamSize} Members)`}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={14} color="#00D2FF" />
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Clock size={14} color="#DCE3E5" />
               <span>REGISTRATION FEE</span>
             </div>
-            <div className="font-title" style={{ fontSize: '1.1rem', fontWeight: 800, color: event.fee === 0 ? '#34d399' : '#00D2FF', marginTop: '2px' }}>
+            <div className="font-title" style={{ fontSize: '1.1rem', fontWeight: 800, color: event.fee === 0 ? '#BACEBB' : '#DCE3E5', marginTop: '2px' }}>
               {event.fee === 0 ? 'FREE ENTRY' : `₹${event.fee} per Team`}
             </div>
           </div>
@@ -152,35 +153,35 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
         {/* Description */}
         <div style={{ marginBottom: '24px' }}>
-          <h4 className="font-title" style={{ fontSize: '1rem', color: '#00D2FF', marginBottom: '8px' }}>
+          <h4 className="font-title" style={{ fontSize: '1rem', color: '#DCE3E5', marginBottom: '8px', letterSpacing: '0.05em' }}>
             OVERVIEW
           </h4>
-          <p style={{ color: '#CBD5E1', lineHeight: 1.6, fontSize: '0.95rem' }}>
+          <p style={{ color: '#A8B3C2', lineHeight: 1.65, fontSize: '0.95rem' }}>
             {event.description}
           </p>
         </div>
 
         {/* Prizes Section */}
         <div style={{ marginBottom: '24px' }}>
-          <h4 className="font-title" style={{ fontSize: '1rem', color: '#00D2FF', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h4 className="font-title" style={{ fontSize: '1rem', color: '#DCE3E5', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Trophy size={18} color="#FBBF24" />
             <span>AWARDS & RECOGNITION</span>
           </h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-            <div style={{ padding: '12px', background: 'rgba(2, 25, 60, 0.7)', border: '1px solid rgba(0, 140, 255, 0.35)', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.75rem', color: '#00D2FF', fontWeight: 700 }}>FIRST PRIZE</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#F8FAFC' }}>{event.prizes.first}</div>
+            <div style={{ padding: '12px', background: 'rgba(40, 59, 120, 0.35)', border: '1px solid rgba(120, 149, 147, 0.4)', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontWeight: 700 }}>FIRST PRIZE</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF' }}>{event.prizes.first}</div>
             </div>
             {event.prizes.second && (
-              <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.75rem', color: '#CBD5E1', fontWeight: 700 }}>SECOND PRIZE</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#F8FAFC' }}>{event.prizes.second}</div>
+              <div style={{ padding: '12px', background: 'rgba(220, 227, 229, 0.05)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: '#A8B3C2', fontWeight: 700 }}>SECOND PRIZE</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF' }}>{event.prizes.second}</div>
               </div>
             )}
             {event.prizes.third && (
-              <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.75rem', color: '#CBD5E1', fontWeight: 700 }}>THIRD PRIZE</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#F8FAFC' }}>{event.prizes.third}</div>
+              <div style={{ padding: '12px', background: 'rgba(220, 227, 229, 0.05)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: '#A8B3C2', fontWeight: 700 }}>THIRD PRIZE</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF' }}>{event.prizes.third}</div>
               </div>
             )}
           </div>
@@ -188,10 +189,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
         {/* Rules & Guidelines */}
         <div style={{ marginBottom: '24px' }}>
-          <h4 className="font-title" style={{ fontSize: '1rem', color: '#38BDF8', marginBottom: '10px' }}>
+          <h4 className="font-title" style={{ fontSize: '1rem', color: '#DCE3E5', marginBottom: '10px', letterSpacing: '0.05em' }}>
             RULES & COMPLIANCE
           </h4>
-          <ul style={{ paddingLeft: '20px', color: '#CBD5E1', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.9rem' }}>
+          <ul style={{ paddingLeft: '20px', color: '#A8B3C2', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.9rem' }}>
             {event.rules.map((rule, idx) => (
               <li key={idx} style={{ lineHeight: 1.5 }}>
                 {rule}
@@ -208,28 +209,28 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '16px',
-            background: 'rgba(3, 14, 38, 0.88)',
+            background: 'rgba(16, 26, 53, 0.85)',
             borderRadius: '10px',
-            border: '1px solid rgba(0, 140, 255, 0.3)',
+            border: '1px solid rgba(220, 227, 229, 0.18)',
             marginBottom: '28px',
             gap: '14px'
           }}
         >
           <div>
-            <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>EVENT COORDINATOR</div>
-            <div style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '0.95rem' }}>{event.coordinatorName}</div>
-            <div style={{ display: 'flex', gap: '14px', marginTop: '4px', fontSize: '0.8rem', color: '#38BDF8' }}>
+            <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>EVENT COORDINATOR</div>
+            <div style={{ fontWeight: 700, color: '#FFFFFF', fontSize: '0.95rem' }}>{event.coordinatorName}</div>
+            <div style={{ display: 'flex', gap: '14px', marginTop: '4px', fontSize: '0.8rem', color: '#BACEBB' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Phone size={13} color="#00D2FF" /> {event.coordinatorPhone}
+                <Phone size={13} color="#789593" /> {event.coordinatorPhone}
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Mail size={13} color="#00D2FF" /> {event.coordinatorEmail}
+                <Mail size={13} color="#789593" /> {event.coordinatorEmail}
               </span>
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>REGISTRATION DEADLINE</div>
+            <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>REGISTRATION DEADLINE</div>
             <div style={{ fontWeight: 600, color: '#f87171', fontSize: '0.85rem' }}>{event.deadline}</div>
           </div>
         </div>

@@ -95,11 +95,11 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '1100px',
-          background: '#030e26',
-          border: '1px solid rgba(0, 140, 255, 0.45)',
+          background: '#101A35',
+          border: '1px solid rgba(120, 149, 147, 0.4)',
           borderRadius: '20px',
           overflow: 'hidden',
-          boxShadow: '0 0 60px rgba(0, 140, 255, 0.35), 0 0 80px rgba(0, 210, 255, 0.25)',
+          boxShadow: '0 0 60px rgba(40, 59, 120, 0.4), 0 0 80px rgba(120, 149, 147, 0.2)',
           position: 'relative'
         }}
       >
@@ -110,8 +110,8 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '14px 22px',
-            borderBottom: '1px solid rgba(0, 140, 255, 0.25)',
-            background: 'rgba(3, 14, 38, 0.92)'
+            borderBottom: '1px solid rgba(120, 149, 147, 0.25)',
+            background: 'rgba(20, 31, 62, 0.95)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -120,14 +120,14 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                 width: '10px',
                 height: '10px',
                 borderRadius: '50%',
-                backgroundColor: '#00D2FF',
-                boxShadow: '0 0 10px #00D2FF'
+                backgroundColor: '#BACEBB',
+                boxShadow: '0 0 10px #BACEBB'
               }}
             />
-            <span className="font-display" style={{ fontSize: '0.88rem', color: '#00D2FF', letterSpacing: '0.08em' }}>
+            <span className="font-display" style={{ fontSize: '0.88rem', color: '#FFFFFF', letterSpacing: '0.08em' }}>
               FESTRONIX 2026 // OFFICIAL CINEMATIC INTRO
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '6px' }}>
+            <span style={{ fontSize: '0.75rem', color: '#A8B3C2', marginLeft: '6px' }}>
               Vardhaman College of Engineering
             </span>
           </div>
@@ -177,7 +177,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
               left: 0,
               right: 0,
               padding: '24px 20px 16px',
-              background: 'linear-gradient(to top, rgba(2,7,20,0.95) 0%, rgba(2,7,20,0.4) 70%, transparent 100%)',
+              background: 'linear-gradient(to top, rgba(16, 26, 53, 0.95) 0%, rgba(16, 26, 53, 0.4) 70%, transparent 100%)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
@@ -188,7 +188,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
               style={{
                 width: '100%',
                 height: '4px',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backgroundColor: 'rgba(220, 227, 229, 0.2)',
                 borderRadius: '2px',
                 overflow: 'hidden',
                 position: 'relative'
@@ -198,8 +198,8 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                 style={{
                   width: `${progress}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, #00D2FF, #0077FF)',
-                  boxShadow: '0 0 10px #00D2FF'
+                  background: 'linear-gradient(90deg, #283B78, #789593, #BACEBB)',
+                  boxShadow: '0 0 10px #789593'
                 }}
               />
             </div>
@@ -210,9 +210,9 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                 <button
                   onClick={togglePlay}
                   style={{
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(0, 140, 255, 0.4)',
-                    color: '#fff',
+                    background: 'rgba(220, 227, 229, 0.08)',
+                    border: '1px solid rgba(220, 227, 229, 0.2)',
+                    color: '#DCE3E5',
                     borderRadius: '8px',
                     padding: '8px 12px',
                     cursor: 'pointer',
@@ -221,16 +221,16 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                     gap: '6px'
                   }}
                 >
-                  <Play size={16} fill={isPlaying ? '#00D2FF' : 'none'} color="#00D2FF" />
+                  <Play size={16} fill={isPlaying ? '#BACEBB' : 'none'} color="#BACEBB" />
                   <span style={{ fontSize: '0.8rem' }}>{isPlaying ? 'Pause' : 'Play'}</span>
                 </button>
 
                 <button
                   onClick={toggleMute}
                   style={{
-                    background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 140, 255, 0.15)',
-                    border: `1px solid ${isMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(0, 210, 255, 0.4)'}`,
-                    color: isMuted ? '#f87171' : '#38BDF8',
+                    background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(40, 59, 120, 0.35)',
+                    border: `1px solid ${isMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(120, 149, 147, 0.45)'}`,
+                    color: isMuted ? '#f87171' : '#BACEBB',
                     borderRadius: '8px',
                     padding: '8px 14px',
                     cursor: 'pointer',

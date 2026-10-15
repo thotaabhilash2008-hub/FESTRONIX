@@ -29,14 +29,14 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ padding: '8px', background: 'rgba(0, 140, 255, 0.15)', borderRadius: '8px', border: '1px solid rgba(0, 210, 255, 0.45)' }}>
-              <Shield size={20} color="#00D2FF" />
+            <div style={{ padding: '8px', background: 'rgba(40, 59, 120, 0.4)', borderRadius: '8px', border: '1px solid rgba(120, 149, 147, 0.45)' }}>
+              <Shield size={20} color="#BACEBB" />
             </div>
             <div>
-              <h3 className="font-title" style={{ fontSize: '1.4rem', color: '#F8FAFC' }}>
+              <h3 className="font-title" style={{ fontSize: '1.4rem', color: '#FFFFFF' }}>
                 SAC EXECUTIVE DASHBOARD
               </h3>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+              <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>
                 Vardhaman College of Engineering • Student Affairs Council Central Operations
               </div>
             </div>
@@ -45,16 +45,17 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: '#94A3B8',
+              background: 'rgba(220, 227, 229, 0.08)',
+              border: '1px solid rgba(220, 227, 229, 0.15)',
+              color: '#A8B3C2',
               borderRadius: '50%',
               width: '34px',
               height: '34px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.2s'
             }}
           >
             <X size={18} />
@@ -63,42 +64,42 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
 
         {/* Top KPI Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '28px' }}>
-          <div style={{ padding: '16px', background: 'rgba(3, 14, 38, 0.85)', border: '1px solid rgba(0, 140, 255, 0.4)', borderRadius: '12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase' }}>Total Registrations</div>
-            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#00D2FF', marginTop: '4px' }}>
+          <div style={{ padding: '16px', background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(120, 149, 147, 0.35)', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', textTransform: 'uppercase' }}>Total Registrations</div>
+            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#BACEBB', marginTop: '4px' }}>
               {stats.totalRegistrations}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#CBD5E1' }}>
+            <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>
               Online: {stats.onlineCount} | Spot: {stats.spotCount}
             </div>
           </div>
 
-          <div style={{ padding: '16px', background: 'rgba(3, 14, 38, 0.85)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase' }}>Verified Collections</div>
-            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#34d399', marginTop: '4px' }}>
+          <div style={{ padding: '16px', background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(120, 149, 147, 0.35)', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', textTransform: 'uppercase' }}>Verified Collections</div>
+            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#DCE3E5', marginTop: '4px' }}>
               ₹{stats.totalCollected.toLocaleString()}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>
               Strictly verified receipts per PRD
             </div>
           </div>
 
-          <div style={{ padding: '16px', background: 'rgba(3, 14, 38, 0.85)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase' }}>Review Queue</div>
+          <div style={{ padding: '16px', background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', textTransform: 'uppercase' }}>Review Queue</div>
             <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fbbf24', marginTop: '4px' }}>
               {stats.pendingCount}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>
               Awaiting verification
             </div>
           </div>
 
-          <div style={{ padding: '16px', background: 'rgba(3, 14, 38, 0.85)', border: '1px solid rgba(0, 140, 255, 0.4)', borderRadius: '12px' }}>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase' }}>Gate Attendance</div>
-            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#38BDF8', marginTop: '4px' }}>
+          <div style={{ padding: '16px', background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.22)', borderRadius: '12px' }}>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', textTransform: 'uppercase' }}>Gate Attendance</div>
+            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#FFFFFF', marginTop: '4px' }}>
               {stats.checkedInCount}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>
               Checked-in at venue
             </div>
           </div>
@@ -106,13 +107,13 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
 
         {/* Department Breakdown */}
         <div style={{ marginBottom: '28px' }}>
-          <h4 className="font-title" style={{ fontSize: '1rem', color: '#00D2FF', marginBottom: '12px', letterSpacing: '0.05em' }}>
+          <h4 className="font-title" style={{ fontSize: '1rem', color: '#DCE3E5', marginBottom: '12px', letterSpacing: '0.05em' }}>
             DEPARTMENT SUMMARY & READINESS
           </h4>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(0, 140, 255, 0.35)', color: '#38BDF8' }}>
+                <tr style={{ borderBottom: '1px solid rgba(120, 149, 147, 0.35)', color: '#BACEBB' }}>
                   <th style={{ padding: '8px' }}>Code</th>
                   <th style={{ padding: '8px' }}>Department</th>
                   <th style={{ padding: '8px' }}>Chief Coordinator</th>
@@ -127,12 +128,12 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
                   const deptRegs = registrations.filter(r => deptEventIds.includes(r.eventId));
 
                   return (
-                    <tr key={dept.code} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#F8FAFC' }}>{dept.code}</td>
-                      <td style={{ padding: '10px 8px', color: '#CBD5E1' }}>{dept.name}</td>
-                      <td style={{ padding: '10px 8px', color: '#94A3B8' }}>{dept.chiefCoordinator}</td>
-                      <td style={{ padding: '10px 8px', color: '#38BDF8', fontWeight: 600 }}>{deptEvents.length}</td>
-                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#00D2FF' }}>{deptRegs.length}</td>
+                    <tr key={dept.code} style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.08)' }}>
+                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#FFFFFF' }}>{dept.code}</td>
+                      <td style={{ padding: '10px 8px', color: '#A8B3C2' }}>{dept.name}</td>
+                      <td style={{ padding: '10px 8px', color: '#A8B3C2' }}>{dept.chiefCoordinator}</td>
+                      <td style={{ padding: '10px 8px', color: '#DCE3E5', fontWeight: 600 }}>{deptEvents.length}</td>
+                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#BACEBB' }}>{deptRegs.length}</td>
                     </tr>
                   );
                 })}

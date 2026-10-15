@@ -10,7 +10,7 @@ export const PrizesSection: React.FC = () => {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            color: '#00D2FF',
+            color: '#BACEBB',
             fontSize: '0.78rem',
             fontFamily: "'Space Grotesk', sans-serif",
             letterSpacing: '0.15em',
@@ -18,7 +18,7 @@ export const PrizesSection: React.FC = () => {
             fontWeight: 700
           }}
         >
-          <Crown size={14} color="#00D2FF" />
+          <Crown size={14} color="#BACEBB" />
           <span>PRIZE POOL & REWARDS</span>
         </div>
         <h2
@@ -29,7 +29,7 @@ export const PrizesSection: React.FC = () => {
             margin: '0 0 10px 0',
             letterSpacing: '0.02em',
             display: 'inline-block',
-            background: 'linear-gradient(135deg, #00D2FF 0%, #FFFFFF 40%, #0088FF 75%, #38BDF8 100%)',
+            background: 'linear-gradient(135deg, #FFFFFF 0%, #DCE3E5 40%, #BACEBB 75%, #789593 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
@@ -37,7 +37,7 @@ export const PrizesSection: React.FC = () => {
         >
           ₹5,00,000+ IN AWARDS
         </h2>
-        <p style={{ color: '#CBD5E1', maxWidth: '640px', margin: '0 auto', fontSize: '0.95rem' }}>
+        <p style={{ color: '#A8B3C2', maxWidth: '640px', margin: '0 auto', fontSize: '0.95rem' }}>
           Cash prizes, startup incubation grants, internship offers, and certified industry recognition.
         </p>
       </div>
@@ -54,7 +54,7 @@ export const PrizesSection: React.FC = () => {
           style={{
             padding: '30px',
             borderTop: '2px solid rgba(251, 191, 36, 0.8)',
-            background: 'linear-gradient(180deg, rgba(251, 191, 36, 0.08) 0%, rgba(3, 14, 38, 0.92) 100%)'
+            background: 'linear-gradient(180deg, rgba(251, 191, 36, 0.08) 0%, rgba(20, 31, 62, 0.92) 100%)'
           }}
         >
           <div
@@ -74,7 +74,7 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "var(--font-heading)",
               fontSize: '1.25rem',
               fontWeight: 700,
-              color: '#F8FAFC',
+              color: '#FFFFFF',
               marginBottom: '8px',
               letterSpacing: '0.02em'
             }}
@@ -93,7 +93,7 @@ export const PrizesSection: React.FC = () => {
           >
             ₹3,50,000+
           </div>
-          <p style={{ color: '#94A3B8', fontSize: '0.88rem', lineHeight: 1.6 }}>
+          <p style={{ color: '#A8B3C2', fontSize: '0.88rem', lineHeight: 1.6 }}>
             Direct cash transfer to winners across 30+ competitive categories including Hackathons, RoboWars, and E-Sports championships.
           </p>
         </div>
@@ -102,28 +102,28 @@ export const PrizesSection: React.FC = () => {
           className="cyber-card"
           style={{
             padding: '30px',
-            borderTop: '2px solid rgba(0, 210, 255, 0.8)',
-            background: 'linear-gradient(180deg, rgba(0, 140, 255, 0.1) 0%, rgba(3, 14, 38, 0.92) 100%)'
+            borderTop: '2px solid rgba(120, 149, 147, 0.8)',
+            background: 'linear-gradient(180deg, rgba(120, 149, 147, 0.12) 0%, rgba(20, 31, 62, 0.92) 100%)'
           }}
         >
           <div
             style={{
               padding: '12px',
-              background: 'rgba(0, 140, 255, 0.15)',
+              background: 'rgba(120, 149, 147, 0.15)',
               borderRadius: '12px',
               display: 'inline-flex',
               marginBottom: '16px',
-              border: '1px solid rgba(0, 210, 255, 0.35)'
+              border: '1px solid rgba(120, 149, 147, 0.35)'
             }}
           >
-            <Rocket size={28} color="#00D2FF" />
+            <Rocket size={28} color="#BACEBB" />
           </div>
           <h3
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: '1.25rem',
               fontWeight: 700,
-              color: '#F8FAFC',
+              color: '#FFFFFF',
               marginBottom: '8px',
               letterSpacing: '0.02em'
             }}
@@ -135,14 +135,14 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "var(--font-heading)",
               fontSize: '1.85rem',
               fontWeight: 800,
-              color: '#00D2FF',
+              color: '#BACEBB',
               marginBottom: '12px',
               lineHeight: 1
             }}
           >
             ₹1,50,000+
           </div>
-          <p style={{ color: '#94A3B8', fontSize: '0.88rem', lineHeight: 1.6 }}>
+          <p style={{ color: '#A8B3C2', fontSize: '0.88rem', lineHeight: 1.6 }}>
             Seed incubation funding from Vardhaman CIE, plus cloud credits and legal mentoring for promising startups.
           </p>
         </div>
@@ -151,28 +151,28 @@ export const PrizesSection: React.FC = () => {
           className="cyber-card"
           style={{
             padding: '30px',
-            borderTop: '2px solid rgba(56, 189, 248, 0.8)',
-            background: 'linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, rgba(3, 14, 38, 0.92) 100%)'
+            borderTop: '2px solid rgba(40, 59, 120, 0.8)',
+            background: 'linear-gradient(180deg, rgba(40, 59, 120, 0.18) 0%, rgba(20, 31, 62, 0.92) 100%)'
           }}
         >
           <div
             style={{
               padding: '12px',
-              background: 'rgba(0, 140, 255, 0.12)',
+              background: 'rgba(40, 59, 120, 0.25)',
               borderRadius: '12px',
               display: 'inline-flex',
               marginBottom: '16px',
-              border: '1px solid rgba(56, 189, 248, 0.35)'
+              border: '1px solid rgba(220, 227, 229, 0.25)'
             }}
           >
-            <Gem size={28} color="#38BDF8" />
+            <Gem size={28} color="#DCE3E5" />
           </div>
           <h3
             style={{
               fontFamily: "var(--font-heading)",
               fontSize: '1.25rem',
               fontWeight: 700,
-              color: '#F8FAFC',
+              color: '#FFFFFF',
               marginBottom: '8px',
               letterSpacing: '0.02em'
             }}
@@ -184,14 +184,14 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "var(--font-heading)",
               fontSize: '1.85rem',
               fontWeight: 800,
-              color: '#38BDF8',
+              color: '#DCE3E5',
               marginBottom: '12px',
               lineHeight: 1
             }}
           >
             SAC Endorsed
           </div>
-          <p style={{ color: '#94A3B8', fontSize: '0.88rem', lineHeight: 1.6 }}>
+          <p style={{ color: '#A8B3C2', fontSize: '0.88rem', lineHeight: 1.6 }}>
             Exclusive metallic trophies, merit certificates for podium finishers, and verifiable digital certificates.
           </p>
         </div>

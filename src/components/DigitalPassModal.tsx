@@ -109,12 +109,12 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Ticket size={20} color="#00D2FF" />
+            <Ticket size={20} color="#BACEBB" />
             <span
               style={{
                 fontFamily: "var(--font-heading)",
                 fontSize: '1.25rem',
-                color: '#00D2FF',
+                color: '#FFFFFF',
                 letterSpacing: '0.04em',
                 fontWeight: 700
               }}
@@ -126,9 +126,9 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: '#94A3B8',
+              background: 'rgba(220, 227, 229, 0.08)',
+              border: '1px solid rgba(220, 227, 229, 0.15)',
+              color: '#A8B3C2',
               borderRadius: '50%',
               width: '34px',
               height: '34px',
@@ -138,8 +138,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#F8FAFC')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#94A3B8')}
+            onMouseEnter={e => (e.currentTarget.style.color = '#FFFFFF')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#A8B3C2')}
           >
             <X size={18} />
           </button>
@@ -151,7 +151,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             <div style={{ position: 'relative', flex: 1 }}>
               <Search
                 size={15}
-                color="#00D2FF"
+                color="#BACEBB"
                 style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
               />
               <input
@@ -165,9 +165,9 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   height: '38px',
                   borderRadius: '8px',
                   fontSize: '0.8rem',
-                  background: 'rgba(3, 14, 38, 0.85)',
-                  border: '1px solid rgba(0, 140, 255, 0.35)',
-                  color: '#F8FAFC'
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(220, 227, 229, 0.22)',
+                  color: '#FFFFFF'
                 }}
               />
             </div>
@@ -221,9 +221,9 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 style={{
                   padding: '6px 14px',
                   borderRadius: '6px',
-                  border: i === selectedIndex ? '1px solid #00D2FF' : '1px solid rgba(0, 140, 255, 0.2)',
-                  background: i === selectedIndex ? 'rgba(0, 140, 255, 0.2)' : 'rgba(3, 14, 38, 0.6)',
-                  color: i === selectedIndex ? '#00D2FF' : '#94a3b8',
+                  border: i === selectedIndex ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.15)',
+                  background: i === selectedIndex ? 'rgba(40, 59, 120, 0.4)' : 'rgba(16, 26, 53, 0.6)',
+                  color: i === selectedIndex ? '#BACEBB' : '#A8B3C2',
                   fontSize: '0.78rem',
                   whiteSpace: 'nowrap',
                   cursor: 'pointer',
@@ -243,18 +243,18 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             className="ticket-wrapper"
             style={{
               padding: '24px',
-              color: '#F8FAFC',
+              color: '#FFFFFF',
               position: 'relative',
               borderRadius: '16px',
-              background: 'linear-gradient(135deg, rgba(3, 14, 38, 0.98) 0%, rgba(2, 7, 20, 0.98) 100%)',
-              border: '1px solid rgba(0, 140, 255, 0.38)',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 140, 255, 0.2)'
+              background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.98) 0%, rgba(16, 26, 53, 0.98) 100%)',
+              border: '1px solid rgba(120, 149, 147, 0.35)',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(40, 59, 120, 0.3)'
             }}
           >
             {/* Ticket Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
               <div>
-                <div style={{ fontSize: '0.7rem', color: '#00D2FF', letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.7rem', color: '#BACEBB', letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase' }}>
                   VARDHAMAN COLLEGE OF ENGINEERING • FESTRONIX 2026
                 </div>
                 <h2
@@ -263,14 +263,14 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                     fontSize: '1.45rem',
                     fontWeight: 700,
                     marginTop: '2px',
-                    color: '#F8FAFC',
+                    color: '#FFFFFF',
                     letterSpacing: '0.02em'
                   }}
                 >
                   {reg.eventTitle}
                 </h2>
-                <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '2px' }}>
-                  Registration ID: <span style={{ color: '#00D2FF', fontFamily: 'monospace', fontWeight: 700 }}>{reg.id}</span>
+                <div style={{ fontSize: '0.78rem', color: '#A8B3C2', marginTop: '2px' }}>
+                  Registration ID: <span style={{ color: '#DCE3E5', fontFamily: 'monospace', fontWeight: 700 }}>{reg.id}</span>
                 </div>
               </div>
 
@@ -284,26 +284,26 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 gridTemplateColumns: '1.3fr 1fr',
                 gap: '20px',
                 padding: '16px 0',
-                borderTop: '1px dashed rgba(0, 140, 255, 0.3)',
-                borderBottom: '1px dashed rgba(0, 140, 255, 0.3)',
+                borderTop: '1px dashed rgba(120, 149, 147, 0.35)',
+                borderBottom: '1px dashed rgba(120, 149, 147, 0.35)',
                 alignItems: 'center'
               }}
             >
               {/* Participant info */}
               <div>
                 <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Participant / Team Lead
                   </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#F8FAFC' }}>{reg.leaderName}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>{reg.leaderCollege}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#00D2FF', fontFamily: 'monospace' }}>Roll No: {reg.leaderRoll}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Email: {reg.leaderEmail}</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFFFFF' }}>{reg.leaderName}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#A8B3C2' }}>{reg.leaderCollege}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll No: {reg.leaderRoll}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>Email: {reg.leaderEmail}</div>
                 </div>
 
                 {reg.teammates && reg.teammates.length > 0 && (
                   <div style={{ marginTop: '10px' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#94A3B8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', marginBottom: '4px' }}>
                       Squad Teammates ({reg.teammates.length}):
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -312,11 +312,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                           key={idx}
                           style={{
                             fontSize: '0.72rem',
-                            padding: '2px 8px',
-                            background: 'rgba(0, 140, 255, 0.1)',
-                            border: '1px solid rgba(0, 210, 255, 0.25)',
+                            padding: '3px 10px',
+                            background: 'rgba(120, 149, 147, 0.15)',
+                            border: '1px solid rgba(120, 149, 147, 0.35)',
                             borderRadius: '4px',
-                            color: '#38BDF8',
+                            color: '#BACEBB',
                             fontFamily: "'Space Grotesk', sans-serif"
                           }}
                         >
@@ -354,14 +354,14 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                         alignItems: 'center',
                         gap: '6px',
                         padding: '4px 10px',
-                        background: 'rgba(0, 140, 255, 0.08)',
-                        border: '1px solid rgba(0, 210, 255, 0.3)',
+                        background: 'rgba(40, 59, 120, 0.35)',
+                        border: '1px solid rgba(120, 149, 147, 0.4)',
                         borderRadius: '6px',
-                        color: '#00D2FF',
+                        color: '#BACEBB',
                         fontSize: '0.75rem'
                       }}
                     >
-                      <Clock size={14} color="#00D2FF" />
+                      <Clock size={14} color="#BACEBB" />
                       <span>Authorized Entry Pass • Ready for QR Scan</span>
                     </div>
                   )}
@@ -369,7 +369,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               </div>
 
               {/* QR Code token */}
-              <div style={{ textAlign: 'center', background: '#ffffff', padding: '14px', borderRadius: '12px' }}>
+              <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '14px', borderRadius: '12px' }}>
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(reg.qrToken || reg.id)}`}
                   alt="Entry QR Pass"
@@ -379,7 +379,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   style={{
                     fontFamily: 'monospace',
                     fontSize: '0.68rem',
-                    color: '#0c0a14',
+                    color: '#101A35',
                     fontWeight: 700,
                     marginTop: '8px',
                     letterSpacing: '0.05em'
@@ -398,7 +398,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 alignItems: 'center',
                 marginTop: '14px',
                 fontSize: '0.72rem',
-                color: '#94A3B8'
+                color: '#A8B3C2'
               }}
             >
               <div>
@@ -406,13 +406,13 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               </div>
               {reg.transactionId && (
                 <div>
-                  UTR: <span style={{ color: '#00D2FF', fontFamily: 'monospace' }}>{reg.transactionId}</span>
+                  UTR: <span style={{ color: '#BACEBB', fontFamily: 'monospace' }}>{reg.transactionId}</span>
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div style={{ padding: '30px', textAlign: 'center', color: '#94A3B8' }}>
+          <div style={{ padding: '30px', textAlign: 'center', color: '#A8B3C2' }}>
             <p>No pass selected.</p>
           </div>
         )}
@@ -428,7 +428,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#00D2FF',
+                color: '#BACEBB',
                 fontSize: '0.82rem',
                 fontWeight: 600,
                 cursor: 'pointer',

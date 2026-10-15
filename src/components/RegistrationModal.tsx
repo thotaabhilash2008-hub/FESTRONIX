@@ -163,26 +163,27 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
           <div>
-            <span style={{ fontSize: '0.75rem', color: '#00D2FF', letterSpacing: '0.08em', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.75rem', color: '#BACEBB', letterSpacing: '0.08em', fontWeight: 700 }}>
               EVENT REGISTRATION DESK
             </span>
-            <h3 className="font-title" style={{ fontSize: '1.4rem', color: '#F8FAFC', marginTop: '2px' }}>
+            <h3 className="font-title" style={{ fontSize: '1.4rem', color: '#FFFFFF', marginTop: '2px' }}>
               {event.title}
             </h3>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: '#94A3B8',
+              background: 'rgba(220, 227, 229, 0.08)',
+              border: '1px solid rgba(220, 227, 229, 0.15)',
+              color: '#A8B3C2',
               borderRadius: '50%',
               width: '34px',
               height: '34px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
             }}
           >
             <X size={18} />
@@ -197,17 +198,18 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             justifyContent: 'space-between',
             marginBottom: '24px',
             paddingBottom: '14px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            borderBottom: '1px solid rgba(220, 227, 229, 0.15)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
-                width: '24px',
-                height: '24px',
+                width: '26px',
+                height: '26px',
                 borderRadius: '50%',
-                background: step >= 1 ? '#00D2FF' : 'rgba(255,255,255,0.2)',
-                color: step >= 1 ? '#020C1E' : '#FFFFFF',
+                background: step >= 1 ? 'linear-gradient(135deg, #283B78 0%, #3E4264 100%)' : 'rgba(220, 227, 229, 0.1)',
+                border: step >= 1 ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.2)',
+                color: step >= 1 ? '#FFFFFF' : '#A8B3C2',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -217,7 +219,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             >
               1
             </span>
-            <span style={{ fontSize: '0.82rem', color: step >= 1 ? '#00D2FF' : '#64748b', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.82rem', color: step >= 1 ? '#BACEBB' : '#64748b', fontWeight: 600 }}>
               Team Lead
             </span>
           </div>
@@ -226,11 +228,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span
                 style={{
-                  width: '24px',
-                  height: '24px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
-                  background: step >= 2 ? '#00D2FF' : 'rgba(255,255,255,0.2)',
-                  color: step >= 2 ? '#020C1E' : '#FFFFFF',
+                  background: step >= 2 ? 'linear-gradient(135deg, #283B78 0%, #3E4264 100%)' : 'rgba(220, 227, 229, 0.1)',
+                  border: step >= 2 ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.2)',
+                  color: step >= 2 ? '#FFFFFF' : '#A8B3C2',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -240,7 +243,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               >
                 2
               </span>
-              <span style={{ fontSize: '0.82rem', color: step >= 2 ? '#00D2FF' : '#64748b', fontWeight: 600 }}>
+              <span style={{ fontSize: '0.82rem', color: step >= 2 ? '#BACEBB' : '#64748b', fontWeight: 600 }}>
                 Teammates
               </span>
             </div>
@@ -250,11 +253,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span
                 style={{
-                  width: '24px',
-                  height: '24px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
-                  background: (event.format === 'individual' ? step === 2 : step === 3) ? '#00D2FF' : 'rgba(255,255,255,0.2)',
-                  color: (event.format === 'individual' ? step === 2 : step === 3) ? '#020C1E' : '#FFFFFF',
+                  background: (event.format === 'individual' ? step === 2 : step === 3) ? 'linear-gradient(135deg, #283B78 0%, #3E4264 100%)' : 'rgba(220, 227, 229, 0.1)',
+                  border: (event.format === 'individual' ? step === 2 : step === 3) ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.2)',
+                  color: (event.format === 'individual' ? step === 2 : step === 3) ? '#FFFFFF' : '#A8B3C2',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -264,7 +268,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               >
                 {event.format === 'individual' ? 2 : 3}
               </span>
-              <span style={{ fontSize: '0.82rem', color: (event.format === 'individual' ? step === 2 : step === 3) ? '#00D2FF' : '#64748b', fontWeight: 600 }}>
+              <span style={{ fontSize: '0.82rem', color: (event.format === 'individual' ? step === 2 : step === 3) ? '#BACEBB' : '#64748b', fontWeight: 600 }}>
                 UPI Payment
               </span>
             </div>
@@ -295,12 +299,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         {/* STEP 1: Participant / Leader Details */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ fontSize: '0.9rem', color: '#00D2FF', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.9rem', color: '#DCE3E5', fontWeight: 600, letterSpacing: '0.04em' }}>
               Primary Participant / Team Leader Details:
             </div>
 
             <div>
-              <label style={{ fontSize: '0.78rem', color: '#94A3B8', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.78rem', color: '#A8B3C2', display: 'block', marginBottom: '6px' }}>
                 FULL NAME *
               </label>
               <input
@@ -314,7 +318,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94A3B8', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.78rem', color: '#A8B3C2', display: 'block', marginBottom: '6px' }}>
                   COLLEGE EMAIL *
                 </label>
                 <input
@@ -327,7 +331,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94A3B8', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.78rem', color: '#A8B3C2', display: 'block', marginBottom: '6px' }}>
                   PHONE NUMBER (WHATSAPP) *
                 </label>
                 <input
@@ -342,7 +346,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94A3B8', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.78rem', color: '#A8B3C2', display: 'block', marginBottom: '6px' }}>
                   COLLEGE / INSTITUTION NAME *
                 </label>
                 <input
@@ -355,7 +359,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94A3B8', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.78rem', color: '#A8B3C2', display: 'block', marginBottom: '6px' }}>
                   ROLL / STUDENT ID *
                 </label>
                 <input
@@ -395,7 +399,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         {step === 2 && event.format !== 'individual' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '0.9rem', color: '#00D2FF', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.9rem', color: '#DCE3E5', fontWeight: 600 }}>
                 Add Teammates ({teammates.length + 1} / {event.maxTeamSize} Members)
               </div>
               {teammates.length < maxTeammates && (
@@ -414,13 +418,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               <div
                 style={{
                   padding: '24px',
-                  background: 'rgba(3, 14, 38, 0.88)',
-                  border: '1px dashed rgba(0, 140, 255, 0.35)',
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px dashed rgba(120, 149, 147, 0.4)',
                   borderRadius: '10px',
                   textAlign: 'center'
                 }}
               >
-                <p style={{ color: '#94A3B8', fontSize: '0.88rem', marginBottom: '12px' }}>
+                <p style={{ color: '#A8B3C2', fontSize: '0.88rem', marginBottom: '12px' }}>
                   This event requires a team of {event.minTeamSize} to {event.maxTeamSize} members.
                 </p>
                 <button
@@ -438,14 +442,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     key={idx}
                     style={{
                       padding: '16px',
-                      background: 'rgba(3, 14, 38, 0.88)',
-                      border: '1px solid rgba(0, 140, 255, 0.35)',
+                      background: 'rgba(16, 26, 53, 0.85)',
+                      border: '1px solid rgba(220, 227, 229, 0.18)',
                       borderRadius: '10px',
                       position: 'relative'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                      <span style={{ fontSize: '0.8rem', color: '#38BDF8', fontWeight: 700 }}>
+                      <span style={{ fontSize: '0.8rem', color: '#BACEBB', fontWeight: 700 }}>
                         Teammate #{idx + 1}
                       </span>
                       <button
@@ -528,8 +532,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <div
               style={{
                 padding: '20px',
-                background: 'rgba(2, 25, 60, 0.7)',
-                border: '1px solid rgba(0, 140, 255, 0.45)',
+                background: 'rgba(16, 26, 53, 0.92)',
+                border: '1px solid rgba(120, 149, 147, 0.35)',
                 borderRadius: '12px',
                 display: 'grid',
                 gridTemplateColumns: '1fr 1.3fr',
@@ -538,30 +542,30 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               }}
             >
               {/* QR Code Presentation */}
-              <div style={{ textAlign: 'center', background: '#fff', padding: '12px', borderRadius: '10px' }}>
+              <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '12px', borderRadius: '10px' }}>
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=festronix2026@vce%26pn=Festronix%20VCE%26am=${event.fee}%26cu=INR`}
                   alt="UPI Payment QR"
                   style={{ width: '140px', height: '140px', display: 'block', margin: '0 auto' }}
                 />
-                <div style={{ fontSize: '0.72rem', color: '#0c0a14', fontWeight: 700, marginTop: '6px' }}>
+                <div style={{ fontSize: '0.72rem', color: '#101A35', fontWeight: 800, marginTop: '6px' }}>
                   SCAN WITH ANY UPI APP
                 </div>
               </div>
 
               {/* Instructions */}
               <div>
-                <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>OFFICIAL UPI ID:</div>
-                <div className="font-title" style={{ fontSize: '1.05rem', color: '#00D2FF', fontWeight: 700 }}>
+                <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>OFFICIAL UPI ID:</div>
+                <div className="font-title" style={{ fontSize: '1.05rem', color: '#BACEBB', fontWeight: 700 }}>
                   festronix2026@vce
                 </div>
-                <div style={{ fontSize: '0.78rem', color: '#CBD5E1', marginTop: '6px' }}>
+                <div style={{ fontSize: '0.78rem', color: '#DCE3E5', marginTop: '6px' }}>
                   Beneficiary: <strong>Festronix SAC Vardhaman</strong>
                 </div>
                 <div style={{ fontSize: '1.25rem', color: '#fbbf24', fontWeight: 800, marginTop: '8px' }}>
                   Payable Amount: ₹{event.fee}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '6px', lineHeight: 1.4 }}>
+                <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '6px', lineHeight: 1.4 }}>
                   Supports PhonePe, Google Pay, Paytm, BHIM, CRED, and all banking apps.
                 </div>
               </div>
@@ -569,7 +573,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
             {/* Proof Submission inputs */}
             <div>
-              <label style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#DCE3E5', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
                 UPI TRANSACTION ID / UTR NUMBER (12 Digits) *
               </label>
               <input
@@ -582,16 +586,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             </div>
 
             <div>
-              <label style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#DCE3E5', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
                 PAYMENT RECEIPT SCREENSHOT *
               </label>
               <div
                 style={{
-                  border: '2px dashed rgba(0, 140, 255, 0.45)',
+                  border: '2px dashed rgba(120, 149, 147, 0.45)',
                   borderRadius: '10px',
                   padding: '16px',
                   textAlign: 'center',
-                  background: 'rgba(3, 14, 38, 0.75)',
+                  background: 'rgba(16, 26, 53, 0.75)',
                   cursor: 'pointer'
                 }}
               >
@@ -610,17 +614,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         alt="Screenshot Preview"
                         style={{ maxHeight: '120px', borderRadius: '6px', margin: '0 auto', display: 'block' }}
                       />
-                      <span style={{ fontSize: '0.75rem', color: '#34d399', display: 'block', marginTop: '6px' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#BACEBB', display: 'block', marginTop: '6px', fontWeight: 600 }}>
                         ✓ Screenshot uploaded (Click to change)
                       </span>
                     </div>
                   ) : (
                     <div>
-                      <Upload size={28} color="#00D2FF" style={{ margin: '0 auto 8px' }} />
-                      <div style={{ fontSize: '0.85rem', color: '#F8FAFC', fontWeight: 600 }}>
+                      <Upload size={28} color="#BACEBB" style={{ margin: '0 auto 8px' }} />
+                      <div style={{ fontSize: '0.85rem', color: '#FFFFFF', fontWeight: 600 }}>
                         Click to upload payment screenshot
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '4px' }}>
                         Supports PNG, JPG, WebP up to 5MB
                       </div>
                     </div>
