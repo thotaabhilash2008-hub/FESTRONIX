@@ -10,7 +10,7 @@ export const PrizesSection: React.FC = () => {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            color: '#00F0D0',
+            color: '#FF1A8C',
             fontSize: '0.78rem',
             fontFamily: "'Space Grotesk', sans-serif",
             letterSpacing: '0.15em',
@@ -18,7 +18,7 @@ export const PrizesSection: React.FC = () => {
             fontWeight: 600
           }}
         >
-          <Crown size={14} color="#00F0D0" />
+          <Crown size={14} color="#FF1A8C" />
           <span>PRIZE POOL & REWARDS</span>
         </div>
         <h2
@@ -29,7 +29,7 @@ export const PrizesSection: React.FC = () => {
             margin: '0 0 10px 0',
             letterSpacing: '0.02em',
             display: 'inline-block',
-            background: 'linear-gradient(135deg, #FFD700 0%, #FFFFFF 40%, #00F0D0 75%, #C026D3 100%)',
+            background: 'linear-gradient(135deg, #FF1A8C 0%, #FFFFFF 40%, #FF66B2 75%, #D8005A 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
@@ -53,21 +53,21 @@ export const PrizesSection: React.FC = () => {
           className="cyber-card"
           style={{
             padding: '30px',
-            borderTop: '2px solid rgba(255, 215, 0, 0.6)',
-            background: 'linear-gradient(180deg, rgba(255, 215, 0, 0.05) 0%, rgba(15, 11, 28, 0.85) 100%)'
+            borderTop: '2px solid rgba(255, 26, 140, 0.7)',
+            background: 'linear-gradient(180deg, rgba(255, 26, 140, 0.08) 0%, rgba(15, 11, 28, 0.85) 100%)'
           }}
         >
           <div
             style={{
               padding: '12px',
-              background: 'rgba(255, 215, 0, 0.1)',
+              background: 'rgba(255, 26, 140, 0.12)',
               borderRadius: '12px',
               display: 'inline-flex',
               marginBottom: '16px',
-              border: '1px solid rgba(255, 215, 0, 0.25)'
+              border: '1px solid rgba(255, 26, 140, 0.3)'
             }}
           >
-            <Crown size={28} color="#FFD700" />
+            <Crown size={28} color="#FF1A8C" />
           </div>
           <h3
             style={{
@@ -86,7 +86,7 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "var(--font-heading)",
               fontSize: '1.85rem',
               fontWeight: 800,
-              color: '#FFD700',
+              color: '#FF1A8C',
               marginBottom: '12px',
               lineHeight: 1
             }}
@@ -102,21 +102,21 @@ export const PrizesSection: React.FC = () => {
           className="cyber-card"
           style={{
             padding: '30px',
-            borderTop: '2px solid rgba(0, 240, 208, 0.6)',
-            background: 'linear-gradient(180deg, rgba(0, 240, 208, 0.05) 0%, rgba(15, 11, 28, 0.85) 100%)'
+            borderTop: '2px solid rgba(255, 77, 148, 0.7)',
+            background: 'linear-gradient(180deg, rgba(255, 77, 148, 0.08) 0%, rgba(15, 11, 28, 0.85) 100%)'
           }}
         >
           <div
             style={{
               padding: '12px',
-              background: 'rgba(0, 240, 208, 0.1)',
+              background: 'rgba(255, 77, 148, 0.12)',
               borderRadius: '12px',
               display: 'inline-flex',
               marginBottom: '16px',
-              border: '1px solid rgba(0, 240, 208, 0.25)'
+              border: '1px solid rgba(255, 77, 148, 0.3)'
             }}
           >
-            <Rocket size={28} color="#00F0D0" />
+            <Rocket size={28} color="#FF4D94" />
           </div>
           <h3
             style={{
@@ -135,7 +135,7 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "var(--font-heading)",
               fontSize: '1.85rem',
               fontWeight: 800,
-              color: '#00F0D0',
+              color: '#FF4D94',
               marginBottom: '12px',
               lineHeight: 1
             }}
@@ -151,21 +151,21 @@ export const PrizesSection: React.FC = () => {
           className="cyber-card"
           style={{
             padding: '30px',
-            borderTop: '2px solid rgba(192, 38, 211, 0.6)',
-            background: 'linear-gradient(180deg, rgba(192, 38, 211, 0.05) 0%, rgba(15, 11, 28, 0.85) 100%)'
+            borderTop: '2px solid rgba(255, 102, 178, 0.7)',
+            background: 'linear-gradient(180deg, rgba(255, 102, 178, 0.08) 0%, rgba(15, 11, 28, 0.85) 100%)'
           }}
         >
           <div
             style={{
               padding: '12px',
-              background: 'rgba(192, 38, 211, 0.1)',
+              background: 'rgba(255, 102, 178, 0.12)',
               borderRadius: '12px',
               display: 'inline-flex',
               marginBottom: '16px',
-              border: '1px solid rgba(192, 38, 211, 0.25)'
+              border: '1px solid rgba(255, 102, 178, 0.3)'
             }}
           >
-            <Gem size={28} color="#F0ABFC" />
+            <Gem size={28} color="#FF66B2" />
           </div>
           <h3
             style={{
@@ -184,7 +184,7 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "var(--font-heading)",
               fontSize: '1.85rem',
               fontWeight: 800,
-              color: '#F0ABFC',
+              color: '#FF66B2',
               marginBottom: '12px',
               lineHeight: 1
             }}

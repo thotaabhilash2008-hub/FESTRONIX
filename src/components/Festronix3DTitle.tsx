@@ -164,21 +164,21 @@ export const Festronix3DTitle: React.FC = () => {
             style={{
               height: '2px',
               width: 'clamp(12px, 3.5vw, 45px)',
-              background: 'linear-gradient(90deg, transparent, #FFD700)',
+              background: 'linear-gradient(90deg, transparent, #FF1A8C)',
               flexShrink: 0
             }}
           />
           <span
             style={{
               fontSize: 'clamp(0.68rem, 2.2vw, 1.35rem)',
-              color: isHovered ? '#FFFFFF' : '#F5F0E8',
+              color: isHovered ? '#FFFFFF' : '#F8FAFC',
               letterSpacing: 'clamp(0.08em, 1vw, 0.25em)',
               fontWeight: 800,
               textTransform: 'uppercase',
               fontFamily: "'Space Grotesk', sans-serif",
               textAlign: 'center',
               textShadow: isHovered
-                ? '0 0 15px rgba(255, 215, 0, 0.8), 0 0 30px rgba(168, 85, 247, 0.6)'
+                ? '0 0 15px rgba(255, 26, 140, 0.8), 0 0 30px rgba(255, 0, 110, 0.6)'
                 : '0 2px 10px rgba(0, 0, 0, 0.8)',
               transition: 'all 0.3s ease'
             }}
@@ -189,7 +189,7 @@ export const Festronix3DTitle: React.FC = () => {
             style={{
               height: '2px',
               width: 'clamp(12px, 3.5vw, 45px)',
-              background: 'linear-gradient(90deg, #FFD700, transparent)',
+              background: 'linear-gradient(90deg, #FF1A8C, transparent)',
               flexShrink: 0
             }}
           />

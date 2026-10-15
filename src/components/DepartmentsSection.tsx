@@ -33,7 +33,7 @@ export const DepartmentsSection: React.FC = () => {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            color: '#00F0D0',
+            color: '#FF1A8C',
             fontSize: '0.78rem',
             fontFamily: "'Space Grotesk', sans-serif",
             letterSpacing: '0.15em',
@@ -41,7 +41,7 @@ export const DepartmentsSection: React.FC = () => {
             fontWeight: 600
           }}
         >
-          <BrainCircuit size={14} color="#00F0D0" />
+          <BrainCircuit size={14} color="#FF1A8C" />
           <span>FACULTIES OF INNOVATION</span>
         </div>
         <h2
@@ -52,7 +52,7 @@ export const DepartmentsSection: React.FC = () => {
             margin: '0 0 10px 0',
             letterSpacing: '0.02em',
             display: 'inline-block',
-            background: 'linear-gradient(135deg, #00F0D0 0%, #FFFFFF 40%, #C026D3 75%, #FFD700 100%)',
+            background: 'linear-gradient(135deg, #FF1A8C 0%, #FFFFFF 40%, #FF66B2 75%, #D8005A 100%)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
@@ -148,7 +148,7 @@ export const DepartmentsSection: React.FC = () => {
                     gap: '4px'
                   }}
                 >
-                  <Mail size={11} /> {dept.contact}
+                  <Mail size={11} color="#FF1A8C" /> {dept.contact}
                 </div>
               </div>
             </div>

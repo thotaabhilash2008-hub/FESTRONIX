@@ -184,11 +184,11 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             flexShrink: 0
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.borderColor = '#FFD700';
-            e.currentTarget.style.color = '#FFD700';
+            e.currentTarget.style.borderColor = '#FF1A8C';
+            e.currentTarget.style.color = '#FF4D94';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.borderColor = 'rgba(255, 215, 0, 0.2)';
+            e.currentTarget.style.borderColor = 'rgba(255, 26, 140, 0.3)';
             e.currentTarget.style.color = '#D4C5A9';
           }}
         >
@@ -200,9 +200,9 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         <button
           onClick={handleEnterFestronix}
           style={{
-            background: 'linear-gradient(135deg, #FFD700, #F5A623)',
+            background: 'linear-gradient(135deg, #FF1A8C 0%, #FF006E 50%, #D8005A 100%)',
             border: 'none',
-            color: '#0c0a14',
+            color: '#12000E',
             borderRadius: '9999px',
             padding: '12px 24px',
             cursor: 'pointer',
@@ -212,7 +212,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             fontSize: '0.9rem',
             fontWeight: 800,
             letterSpacing: '0.03em',
-            boxShadow: '0 0 30px rgba(255, 215, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.7)',
+            boxShadow: '0 0 30px rgba(255, 26, 140, 0.55), 0 10px 30px rgba(0, 0, 0, 0.7)',
             transition: 'all 0.25s ease',
             justifyContent: 'center',
             fontFamily: "'Space Grotesk', sans-serif",
@@ -220,11 +220,11 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           }}
           onMouseEnter={e => {
             e.currentTarget.style.transform = 'translateY(-2px) scale(1.03)';
-            e.currentTarget.style.boxShadow = '0 0 45px rgba(255, 215, 0, 0.55), 0 14px 36px rgba(0, 0, 0, 0.8)';
+            e.currentTarget.style.boxShadow = '0 0 45px rgba(255, 26, 140, 0.8), 0 14px 36px rgba(0, 0, 0, 0.8)';
           }}
           onMouseLeave={e => {
             e.currentTarget.style.transform = 'translateY(0) scale(1)';
-            e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 215, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.7)';
+            e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 26, 140, 0.55), 0 10px 30px rgba(0, 0, 0, 0.7)';
           }}
         >
           <span>Enter Festronix</span>

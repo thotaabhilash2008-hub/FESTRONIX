@@ -63,12 +63,12 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
 
         {/* Top KPI Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '28px' }}>
-          <div style={{ padding: '16px', background: 'rgba(18, 14, 30, 0.7)', border: '1px solid rgba(255, 215, 0, 0.3)', borderRadius: '10px' }}>
+          <div style={{ padding: '16px', background: 'rgba(18, 14, 30, 0.7)', border: '1px solid rgba(255, 26, 140, 0.3)', borderRadius: '10px' }}>
             <div style={{ fontSize: '0.72rem', color: '#9B8E7B', textTransform: 'uppercase' }}>Total Registrations</div>
-            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#FFD700', marginTop: '4px' }}>
+            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#FF1A8C', marginTop: '4px' }}>
               {stats.totalRegistrations}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#D4C5A9' }}>
+            <div style={{ fontSize: '0.75rem', color: '#CBD5E1' }}>
               Online: {stats.onlineCount} | Spot: {stats.spotCount}
             </div>
           </div>
@@ -93,9 +93,9 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
             </div>
           </div>
 
-          <div style={{ padding: '16px', background: 'rgba(18, 14, 30, 0.7)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '10px' }}>
+          <div style={{ padding: '16px', background: 'rgba(18, 14, 30, 0.7)', border: '1px solid rgba(255, 26, 140, 0.3)', borderRadius: '10px' }}>
             <div style={{ fontSize: '0.72rem', color: '#9B8E7B', textTransform: 'uppercase' }}>Gate Attendance</div>
-            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#A78BFA', marginTop: '4px' }}>
+            <div className="font-title" style={{ fontSize: '1.8rem', fontWeight: 800, color: '#FF66B2', marginTop: '4px' }}>
               {stats.checkedInCount}
             </div>
             <div style={{ fontSize: '0.72rem', color: '#9B8E7B' }}>
@@ -106,13 +106,13 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
 
         {/* Department Breakdown */}
         <div style={{ marginBottom: '28px' }}>
-          <h4 className="font-title" style={{ fontSize: '1rem', color: '#FFD700', marginBottom: '12px' }}>
+          <h4 className="font-title" style={{ fontSize: '1rem', color: '#FF4D94', marginBottom: '12px' }}>
             DEPARTMENT SUMMARY & READINESS
           </h4>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255, 215, 0, 0.3)', color: '#FFD700' }}>
+                <tr style={{ borderBottom: '1px solid rgba(255, 26, 140, 0.3)', color: '#FF4D94' }}>
                   <th style={{ padding: '8px' }}>Code</th>
                   <th style={{ padding: '8px' }}>Department</th>
                   <th style={{ padding: '8px' }}>Chief Coordinator</th>
@@ -128,11 +128,11 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
 
                   return (
                     <tr key={dept.code} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#F5F0E8' }}>{dept.code}</td>
-                      <td style={{ padding: '10px 8px', color: '#D4C5A9' }}>{dept.name}</td>
-                      <td style={{ padding: '10px 8px', color: '#9B8E7B' }}>{dept.chiefCoordinator}</td>
-                      <td style={{ padding: '10px 8px', color: '#FFD700' }}>{deptEvents.length}</td>
-                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#A78BFA' }}>{deptRegs.length}</td>
+                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#F8FAFC' }}>{dept.code}</td>
+                      <td style={{ padding: '10px 8px', color: '#CBD5E1' }}>{dept.name}</td>
+                      <td style={{ padding: '10px 8px', color: '#94A3B8' }}>{dept.chiefCoordinator}</td>
+                      <td style={{ padding: '10px 8px', color: '#FF4D94' }}>{deptEvents.length}</td>
+                      <td style={{ padding: '10px 8px', fontWeight: 700, color: '#FF66B2' }}>{deptRegs.length}</td>
                     </tr>
                   );
                 })}

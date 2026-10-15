@@ -95,11 +95,11 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '1100px',
-          background: '#090d22',
-          border: '1px solid rgba(0, 240, 255, 0.4)',
+          background: '#0c0818',
+          border: '1px solid rgba(255, 26, 140, 0.45)',
           borderRadius: '20px',
           overflow: 'hidden',
-          boxShadow: '0 0 60px rgba(0, 240, 255, 0.3), 0 0 80px rgba(168, 85, 247, 0.25)',
+          boxShadow: '0 0 60px rgba(255, 26, 140, 0.35), 0 0 80px rgba(255, 0, 110, 0.25)',
           position: 'relative'
         }}
       >
@@ -110,8 +110,8 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '14px 22px',
-            borderBottom: '1px solid rgba(0, 240, 255, 0.2)',
-            background: 'rgba(10, 15, 36, 0.8)'
+            borderBottom: '1px solid rgba(255, 26, 140, 0.25)',
+            background: 'rgba(14, 10, 24, 0.85)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -120,11 +120,11 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                 width: '10px',
                 height: '10px',
                 borderRadius: '50%',
-                backgroundColor: '#00f0ff',
-                boxShadow: '0 0 10px #00f0ff'
+                backgroundColor: '#FF1A8C',
+                boxShadow: '0 0 10px #FF1A8C'
               }}
             />
-            <span className="font-display" style={{ fontSize: '0.88rem', color: '#00f0ff', letterSpacing: '0.08em' }}>
+            <span className="font-display" style={{ fontSize: '0.88rem', color: '#FF4D94', letterSpacing: '0.08em' }}>
               FESTRONIX 2026 // OFFICIAL CINEMATIC INTRO
             </span>
             <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '6px' }}>
@@ -198,8 +198,8 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                 style={{
                   width: `${progress}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, #00f0ff, #a855f7)',
-                  boxShadow: '0 0 10px #00f0ff'
+                  background: 'linear-gradient(90deg, #FF1A8C, #FF66B2)',
+                  boxShadow: '0 0 10px #FF1A8C'
                 }}
               />
             </div>
@@ -211,7 +211,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                   onClick={togglePlay}
                   style={{
                     background: 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(0, 240, 255, 0.3)',
+                    border: '1px solid rgba(255, 26, 140, 0.35)',
                     color: '#fff',
                     borderRadius: '8px',
                     padding: '8px 12px',
@@ -221,16 +221,16 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                     gap: '6px'
                   }}
                 >
-                  <Play size={16} fill={isPlaying ? '#00f0ff' : 'none'} color="#00f0ff" />
+                  <Play size={16} fill={isPlaying ? '#FF1A8C' : 'none'} color="#FF1A8C" />
                   <span style={{ fontSize: '0.8rem' }}>{isPlaying ? 'Pause' : 'Play'}</span>
                 </button>
 
                 <button
                   onClick={toggleMute}
                   style={{
-                    background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 240, 255, 0.15)',
-                    border: `1px solid ${isMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(0, 240, 255, 0.4)'}`,
-                    color: isMuted ? '#f87171' : '#00f0ff',
+                    background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 26, 140, 0.15)',
+                    border: `1px solid ${isMuted ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 26, 140, 0.4)'}`,
+                    color: isMuted ? '#f87171' : '#FF4D94',
                     borderRadius: '8px',
                     padding: '8px 14px',
                     cursor: 'pointer',

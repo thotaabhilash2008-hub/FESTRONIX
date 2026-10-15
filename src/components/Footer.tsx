@@ -5,7 +5,7 @@ export const Footer: React.FC = () => {
   return (
     <footer
       style={{
-        borderTop: '1px solid rgba(0, 240, 208, 0.2)',
+        borderTop: '1px solid rgba(255, 26, 140, 0.25)',
         backgroundColor: '#06040d',
         padding: '60px 20px 30px',
         position: 'relative',
@@ -32,7 +32,7 @@ export const Footer: React.FC = () => {
                 fontWeight: 800,
                 letterSpacing: '0.04em',
                 display: 'inline-block',
-                background: 'linear-gradient(135deg, #00F0D0 0%, #FFFFFF 40%, #C026D3 75%, #FFD700 100%)',
+                background: 'linear-gradient(135deg, #FF1A8C 0%, #FF66B2 50%, #FFFFFF 100%)',
                 WebkitBackgroundClip: 'text',
                 backgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
@@ -46,7 +46,7 @@ export const Footer: React.FC = () => {
             Orchestrated by the Student Affairs Council (SAC).
           </p>
           <div style={{ fontSize: '0.78rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <ShieldCheck size={13} color="#00F0D0" />
+            <ShieldCheck size={13} color="#FF1A8C" />
             <span>Autonomous • NAAC 'A++' Grade • NBA Accredited</span>
           </div>
         </div>
@@ -56,7 +56,7 @@ export const Footer: React.FC = () => {
           <h4
             style={{
               fontSize: '0.85rem',
-              color: '#00F0D0',
+              color: '#FF4D94',
               marginBottom: '14px',
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
@@ -66,14 +66,14 @@ export const Footer: React.FC = () => {
             CAMPUS VENUE
           </h4>
           <div style={{ display: 'flex', gap: '10px', color: '#94A3B8', fontSize: '0.83rem', lineHeight: 1.6 }}>
-            <MapPin size={16} color="#C026D3" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <MapPin size={16} color="#FF1A8C" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
               <strong style={{ color: '#F8FAFC' }}>Vardhaman College of Engineering</strong><br />
               Kacharam, Shamshabad, Hyderabad,<br />
               Telangana 501218, India
             </div>
           </div>
-          <div style={{ marginTop: '12px', fontSize: '0.78rem', color: '#C4B5FD' }}>
+          <div style={{ marginTop: '12px', fontSize: '0.78rem', color: '#FF66B2' }}>
             15 mins from Rajiv Gandhi International Airport (RGIA)
           </div>
         </div>
@@ -83,7 +83,7 @@ export const Footer: React.FC = () => {
           <h4
             style={{
               fontSize: '0.85rem',
-              color: '#00F0D0',
+              color: '#FF4D94',
               marginBottom: '14px',
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
@@ -94,15 +94,15 @@ export const Footer: React.FC = () => {
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.83rem', color: '#CBD5E1' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Phone size={14} color="#00F0D0" />
+              <Phone size={14} color="#FF1A8C" />
               <span>SAC Helpline: +91 98480 99112</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Mail size={14} color="#FFD700" />
+              <Mail size={14} color="#FF4D94" />
               <span>festronix.support@vardhaman.org</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Globe size={14} color="#A78BFA" />
+              <Globe size={14} color="#FF66B2" />
               <span>www.vardhaman.org</span>
             </div>
           </div>
@@ -129,7 +129,7 @@ export const Footer: React.FC = () => {
           © 2026 FESTRONIX • Vardhaman College of Engineering. All rights reserved.
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9B8E7B' }}>
-          <Sparkles size={11} color="#FFD700" />
+          <Sparkles size={11} color="#FF1A8C" />
           <span>Designed with passion for engineering excellence</span>
         </div>
       </div>
