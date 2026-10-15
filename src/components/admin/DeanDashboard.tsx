@@ -168,7 +168,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h1 className="font-title" style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#FFFFFF' }}>
-                DEAN SAC EXECUTIVE CONSOLE
+                {adminUser.role === 'connect_club' ? 'CONNECT CLUB EXECUTIVE CONSOLE' : 'DEAN SAC EXECUTIVE CONSOLE'}
               </h1>
               <span
                 style={{
@@ -181,7 +181,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   fontWeight: 700
                 }}
               >
-                CENTRAL OVERSIGHT
+                {adminUser.role === 'connect_club' ? 'CONNECT CLUB CENTRAL LEAD' : 'CENTRAL OVERSIGHT'}
               </span>
             </div>
             <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>

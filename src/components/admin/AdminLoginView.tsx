@@ -39,12 +39,12 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setLoading(true);
 
     setTimeout(() => {
-      const res = AdminAuthService.loginDean(deanUsername, deanPassword);
+      const res = AdminAuthService.loginCentral(deanUsername, deanPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
       } else {
-        setErrorMessage(res.error || 'Failed to authenticate Dean SAC.');
+        setErrorMessage(res.error || 'Failed to authenticate Central Council credentials.');
       }
     }, 300);
   };
@@ -235,7 +235,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             }}
           >
             <Award size={16} color={activeTab === 'dean' ? '#BACEBB' : '#A8B3C2'} />
-            <span>1. DEAN SAC</span>
+            <span>1. DEAN SAC & CONNECT CLUB</span>
           </button>
 
           <button
@@ -288,7 +288,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           </div>
         )}
 
-        {/* TAB 1: DEAN SAC LOGIN FORM */}
+        {/* TAB 1: DEAN SAC & CONNECT CLUB LOGIN FORM */}
         {activeTab === 'dean' && (
           <form onSubmit={handleDeanSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div
@@ -305,17 +305,17 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               <Award size={22} color="#BACEBB" style={{ flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Central Fest Executive Access
+                  Dean SAC & Connect Club Central Access
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
-                  Full institutional control across all 8 engineering departments, live payment verifications, and fest-wide broadcasts.
+                  Central festival administration for Dean SAC & Connect Club organizers with separate secure credentials.
                 </div>
               </div>
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Dean Username or Official Email
+                Dean SAC or Connect Club Username / Email
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
@@ -323,7 +323,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type="text"
                   value={deanUsername}
                   onChange={e => setDeanUsername(e.target.value)}
-                  placeholder="e.g. dean_sac or dean.sac@vardhaman.org"
+                  placeholder="e.g. dean_sac or connect_club"
                   required
                   style={{
                     width: '100%',
@@ -342,7 +342,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Dean SAC Access Key / Password
+                Access Password
               </label>
               <div style={{ position: 'relative' }}>
                 <Key size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
@@ -367,40 +367,67 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               </div>
             </div>
 
-            {/* Quick Demo Credentials Badge */}
+            {/* Quick Demo Credentials Badges for Dean SAC and Connect Club */}
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: '8px',
+                flexDirection: 'column',
+                gap: '8px',
+                padding: '10px 12px',
+                borderRadius: '10px',
                 background: 'rgba(120, 149, 147, 0.1)',
                 border: '1px dashed rgba(120, 149, 147, 0.4)',
-                fontSize: '0.75rem',
+                fontSize: '0.74rem',
                 color: '#BACEBB'
               }}
             >
-              <span>Demo credentials: <strong>dean_sac</strong> / <strong>deansac2026</strong></span>
-              <button
-                type="button"
-                onClick={() => {
-                  setDeanUsername('dean_sac');
-                  setDeanPassword('deansac2026');
-                }}
-                style={{
-                  background: 'rgba(40, 59, 120, 0.4)',
-                  border: '1px solid rgba(120, 149, 147, 0.4)',
-                  borderRadius: '6px',
-                  color: '#FFFFFF',
-                  padding: '3px 8px',
-                  fontSize: '0.72rem',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Auto-Fill
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>1. Dean SAC: <strong>dean_sac</strong> / <strong>deansac2026</strong></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeanUsername('dean_sac');
+                    setDeanPassword('deansac2026');
+                    setErrorMessage('');
+                  }}
+                  style={{
+                    background: 'rgba(40, 59, 120, 0.45)',
+                    border: '1px solid rgba(120, 149, 147, 0.4)',
+                    borderRadius: '6px',
+                    color: '#FFFFFF',
+                    padding: '3px 8px',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Auto-Fill Dean
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(120, 149, 147, 0.2)', paddingTop: '6px' }}>
+                <span>2. Connect Club: <strong>connect_club</strong> / <strong>connect2026</strong></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeanUsername('connect_club');
+                    setDeanPassword('connect2026');
+                    setErrorMessage('');
+                  }}
+                  style={{
+                    background: 'rgba(40, 59, 120, 0.45)',
+                    border: '1px solid rgba(120, 149, 147, 0.4)',
+                    borderRadius: '6px',
+                    color: '#FFFFFF',
+                    padding: '3px 8px',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Auto-Fill Connect Club
+                </button>
+              </div>
             </div>
 
             <button
@@ -420,11 +447,11 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               }}
             >
               {loading ? (
-                <span>Authenticating Dean...</span>
+                <span>Authenticating Council Access...</span>
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Enter Dean SAC Console</span>
+                  <span>Enter Central Council Console</span>
                   <ArrowRight size={16} />
                 </>
               )}

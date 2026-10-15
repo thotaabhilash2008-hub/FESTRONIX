@@ -1,6 +1,6 @@
 import { DEPARTMENTS } from '../data/mockData';
 
-export type AdminRole = 'dean_sac' | 'dept_coordinator';
+export type AdminRole = 'dean_sac' | 'connect_club' | 'dept_coordinator';
 
 export interface AdminUser {
   id: string;
@@ -28,7 +28,18 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     email: 'dean.sac@vardhaman.org',
     phone: '+91 98480 11001'
   },
-  // 2. Department HODs & Coordinators
+  // 2. CONNECT Club (Central Student Media & Organizing Body, SAC)
+  {
+    id: 'admin_connect_club',
+    username: 'connect_club',
+    password: 'connect2026',
+    fullName: 'Aditya Varma & Core Team',
+    designation: 'President & Lead Organizer, CONNECT Club (SAC)',
+    role: 'connect_club',
+    email: 'connect.club@vardhaman.org',
+    phone: '+91 98480 77001'
+  },
+  // 3. Department HODs & Coordinators
   {
     id: 'admin_hod_cse',
     username: 'hod_cse',
@@ -138,40 +149,63 @@ export class AdminAuthService {
     }
   }
 
-  static loginDean(usernameOrEmail: string, password: string): { success: boolean; user?: AdminUser; error?: string } {
+  static loginCentral(usernameOrEmail: string, password: string): { success: boolean; user?: AdminUser; error?: string } {
     const cleanId = usernameOrEmail.trim().toLowerCase();
     const cleanPass = password.trim();
 
     if (!cleanId || !cleanPass) {
-      return { success: false, error: 'Please enter Dean username or official email, and password.' };
+      return { success: false, error: 'Please enter Username/Email and Password.' };
     }
 
     const dean = PRESET_ADMINS.find(a => a.role === 'dean_sac');
-    if (!dean) {
-      return { success: false, error: 'Dean account configuration not found.' };
+    const connect = PRESET_ADMINS.find(a => a.role === 'connect_club');
+
+    // 1. Check Dean SAC Credentials
+    if (dean && (dean.username.toLowerCase() === cleanId || dean.email.toLowerCase() === cleanId)) {
+      if (dean.password === cleanPass) {
+        const sessionUser: AdminUser = {
+          id: dean.id,
+          username: dean.username,
+          fullName: dean.fullName,
+          designation: dean.designation,
+          role: dean.role,
+          email: dean.email,
+          phone: dean.phone
+        };
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
+        return { success: true, user: sessionUser };
+      } else {
+        return { success: false, error: 'Incorrect password for Dean SAC. (Demo: deansac2026)' };
+      }
     }
 
-    const matchesUser = dean.username.toLowerCase() === cleanId || dean.email.toLowerCase() === cleanId;
-    if (!matchesUser) {
-      return { success: false, error: 'Invalid Dean SAC username or email. (Demo: dean_sac)' };
+    // 2. Check Connect Club Credentials
+    if (connect && (connect.username.toLowerCase() === cleanId || connect.email.toLowerCase() === cleanId || cleanId === 'connect')) {
+      if (connect.password === cleanPass || cleanPass === 'connectclub2026') {
+        const sessionUser: AdminUser = {
+          id: connect.id,
+          username: connect.username,
+          fullName: connect.fullName,
+          designation: connect.designation,
+          role: connect.role,
+          email: connect.email,
+          phone: connect.phone
+        };
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
+        return { success: true, user: sessionUser };
+      } else {
+        return { success: false, error: 'Incorrect password for Connect Club. (Demo: connect2026)' };
+      }
     }
 
-    if (dean.password !== cleanPass) {
-      return { success: false, error: 'Invalid Dean SAC password. (Demo: deansac2026)' };
-    }
-
-    const sessionUser: AdminUser = {
-      id: dean.id,
-      username: dean.username,
-      fullName: dean.fullName,
-      designation: dean.designation,
-      role: dean.role,
-      email: dean.email,
-      phone: dean.phone
+    return {
+      success: false,
+      error: 'Invalid credentials. Enter Dean SAC (dean_sac) or Connect Club (connect_club) username and password.'
     };
+  }
 
-    localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-    return { success: true, user: sessionUser };
+  static loginDean(usernameOrEmail: string, password: string) {
+    return this.loginCentral(usernameOrEmail, password);
   }
 
   static loginDepartment(

@@ -25,7 +25,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
     );
   }
 
-  if (adminUser.role === 'dean_sac') {
+  if (adminUser.role === 'dean_sac' || adminUser.role === 'connect_club') {
     return (
       <DeanDashboard
         adminUser={adminUser}
