@@ -11,13 +11,58 @@ export const DEPARTMENTS: Department[] = [
     iconName: 'Cpu'
   },
   {
+    id: 'dept-csd',
+    code: 'CSD',
+    name: 'CSE (Data Science)',
+    description: 'Big data pipelines, statistical predictive modeling, data visualization, and intelligence systems.',
+    chiefCoordinator: 'Dr. S. Radhika',
+    contact: 'csd.festronix@vardhaman.org',
+    iconName: 'Database'
+  },
+  {
+    id: 'dept-csm',
+    code: 'CSM',
+    name: 'CSE (AI & Machine Learning)',
+    description: 'Deep neural networks, computer vision, robotics reinforcement learning, and autonomous LLM agents.',
+    chiefCoordinator: 'Dr. V. Prasad',
+    contact: 'csm.festronix@vardhaman.org',
+    iconName: 'Brain'
+  },
+  {
     id: 'dept-it',
     code: 'IT',
     name: 'Information Technology',
-    description: 'Cloud systems, web3 networks, distributed computing, and generative tech.',
+    description: 'Cloud systems, web3 networks, distributed computing, and generative tech infrastructure.',
     chiefCoordinator: 'Prof. Anitha Sharma',
     contact: 'it.festronix@vardhaman.org',
     iconName: 'Globe'
+  },
+  {
+    id: 'dept-mechanical',
+    code: 'MECHANICAL',
+    name: 'Mechanical Engineering',
+    description: 'CAD/CAM design, autonomous drone dynamics, RC racing, and 3D additive manufacturing.',
+    chiefCoordinator: 'Dr. C. H. Rao',
+    contact: 'mechanical.festronix@vardhaman.org',
+    iconName: 'Wrench'
+  },
+  {
+    id: 'dept-civil',
+    code: 'CIVIL',
+    name: 'Civil Engineering',
+    description: 'Smart city modeling, seismic structural design, sustainable surveying, and bridge load-testing.',
+    chiefCoordinator: 'Prof. P. Sunitha',
+    contact: 'civil.festronix@vardhaman.org',
+    iconName: 'Building'
+  },
+  {
+    id: 'dept-eee',
+    code: 'EEE',
+    name: 'Electrical & Electronics',
+    description: 'Electric mobility, green energy microgrids, power systems, and automation logic.',
+    chiefCoordinator: 'Dr. B. Srinivas',
+    contact: 'eee.festronix@vardhaman.org',
+    iconName: 'Zap'
   },
   {
     id: 'dept-ece',
@@ -29,46 +74,10 @@ export const DEPARTMENTS: Department[] = [
     iconName: 'Radio'
   },
   {
-    id: 'dept-eee',
-    code: 'EEE',
-    name: 'Electrical & Electronics',
-    description: 'Electric mobility, green energy grids, power systems, and automation logic.',
-    chiefCoordinator: 'Dr. B. Srinivas',
-    contact: 'eee.festronix@vardhaman.org',
-    iconName: 'Zap'
-  },
-  {
-    id: 'dept-mech',
-    code: 'MECH',
-    name: 'Mechanical Engineering',
-    description: 'CAD/CAM design, drone dynamics, RC racing, and 3D additive manufacturing.',
-    chiefCoordinator: 'Dr. C. H. Rao',
-    contact: 'mech.festronix@vardhaman.org',
-    iconName: 'Wrench'
-  },
-  {
-    id: 'dept-civil',
-    code: 'CIVIL',
-    name: 'Civil Engineering',
-    description: 'Smart city modeling, seismic structural design, and bridge load-testing.',
-    chiefCoordinator: 'Prof. P. Sunitha',
-    contact: 'civil.festronix@vardhaman.org',
-    iconName: 'Building'
-  },
-  {
-    id: 'dept-aiml',
-    code: 'AI&ML',
-    name: 'Artificial Intelligence & Machine Learning',
-    description: 'Deep neural networks, computer vision, robotics RL, and LLM autonomous agents.',
-    chiefCoordinator: 'Dr. V. Prasad',
-    contact: 'aiml.festronix@vardhaman.org',
-    iconName: 'Brain'
-  },
-  {
-    id: 'dept-management',
+    id: 'dept-mba',
     code: 'MBA',
-    name: 'Management & Humanities',
-    description: 'Venture pitch deck, corporate crisis simulations, and fintech trading floors.',
+    name: 'Master of Business Administration',
+    description: 'Venture pitch decks, startup capital funding, corporate strategy simulations, and fintech trading floors.',
     chiefCoordinator: 'Prof. R. L. Narayana',
     contact: 'mba.festronix@vardhaman.org',
     iconName: 'Briefcase'
@@ -152,8 +161,8 @@ export const INITIAL_EVENTS: FestEvent[] = [
     id: 'evt-3',
     slug: 'ai-prompt-engineering-showdown',
     title: 'PromptMatrix: Autonomous AI Agents & Vision',
-    departmentId: 'dept-aiml',
-    departmentCode: 'AI&ML',
+    departmentId: 'dept-csm',
+    departmentCode: 'CSM',
     category: 'technical',
     format: 'duo',
     minTeamSize: 1,
@@ -286,8 +295,8 @@ export const INITIAL_EVENTS: FestEvent[] = [
     id: 'evt-7',
     slug: 'cad-gladiator-rc-chase',
     title: 'AeroDrone: Autonomous FPV Obstacle Derby',
-    departmentId: 'dept-mech',
-    departmentCode: 'MECH',
+    departmentId: 'dept-mechanical',
+    departmentCode: 'MECHANICAL',
     category: 'technical',
     format: 'team',
     minTeamSize: 2,
@@ -319,7 +328,7 @@ export const INITIAL_EVENTS: FestEvent[] = [
     id: 'evt-8',
     slug: 'shark-tank-vardhaman-venture',
     title: 'VentureVortex: Shark Pitch & Angel Sim',
-    departmentId: 'dept-management',
+    departmentId: 'dept-mba',
     departmentCode: 'MBA',
     category: 'non-technical',
     format: 'team',
@@ -347,6 +356,40 @@ export const INITIAL_EVENTS: FestEvent[] = [
     coordinatorEmail: 'aishwarya.mba@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #10b981 0%, #3b82f6 100%)'
+  },
+  {
+    id: 'evt-9',
+    slug: 'data-forge-predictive-ai',
+    title: 'DataForge: Predictive Analytics & Big Data Sprint',
+    departmentId: 'dept-csd',
+    departmentCode: 'CSD',
+    category: 'hackathon',
+    format: 'duo',
+    minTeamSize: 1,
+    maxTeamSize: 2,
+    fee: 150,
+    capacity: 50,
+    registeredCount: 34,
+    deadline: '2026-10-26 18:00',
+    date: 'Oct 28, 2026',
+    time: '11:00 AM - 03:00 PM',
+    venue: 'CSD Big Data & Cloud Analytics Lab',
+    description: 'High-speed data analytics sprint solving complex statistical classification, customer churn forecasting, and interactive dashboard storytelling.',
+    rules: [
+      'Python (Pandas/Scikit-learn/Polars) or R permitted.',
+      'Jupyter notebooks and presentation decks submitted before buzzer.'
+    ],
+    prizes: {
+      first: '₹25,000 + Data Cloud Credits',
+      second: '₹12,000',
+      third: '₹6,000'
+    },
+    eligibility: 'All students interested in machine learning and big data science.',
+    coordinatorName: 'Dr. S. Radhika',
+    coordinatorPhone: '+91 98480 33991',
+    coordinatorEmail: 'csd.festronix@vardhaman.org',
+    status: 'open',
+    bannerGradient: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)'
   }
 ];
 
@@ -362,7 +405,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'ann-2',
     title: '🏆 Cash Prize Pool Enhanced to ₹5,00,000!',
-    message: 'SAC Vardhaman has officially increased prize distributions across all 8 engineering departments.',
+    message: 'SAC Vardhaman has officially increased prize distributions across all 9 academic departments.',
     type: 'prize',
     scope: 'fest-wide',
     date: '2026-10-13 16:45'

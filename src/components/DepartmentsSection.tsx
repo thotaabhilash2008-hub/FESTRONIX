@@ -1,9 +1,10 @@
 import React from 'react';
-import { Cpu, Globe, Radio, Zap, Wrench, Building2, BrainCircuit, Briefcase, Mail } from 'lucide-react';
+import { Cpu, Globe, Radio, Zap, Wrench, Building2, BrainCircuit, Briefcase, Mail, Database } from 'lucide-react';
 import { DEPARTMENTS } from '../data/mockData';
 
 const iconMap: Record<string, React.ReactNode> = {
   Cpu: <Cpu size={26} color="#BACEBB" />,
+  Database: <Database size={26} color="#789593" />,
   Globe: <Globe size={26} color="#789593" />,
   Radio: <Radio size={26} color="#DCE3E5" />,
   Zap: <Zap size={26} color="#BACEBB" />,
@@ -15,6 +16,7 @@ const iconMap: Record<string, React.ReactNode> = {
 
 const accentColors: Record<string, string> = {
   Cpu: '#BACEBB',
+  Database: '#789593',
   Globe: '#789593',
   Radio: '#DCE3E5',
   Zap: '#BACEBB',
@@ -61,7 +63,7 @@ export const DepartmentsSection: React.FC = () => {
           PARTICIPATING DEPARTMENTS
         </h2>
         <p style={{ color: '#A8B3C2', maxWidth: '640px', margin: '0 auto', fontSize: '0.95rem' }}>
-          8 premier engineering branches powering specialized arenas and technical juries.
+          9 premier academic branches powering specialized arenas and technical juries.
         </p>
       </div>
 

@@ -117,7 +117,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
         </h2>
 
         <p style={{ color: '#A8B3C2', maxWidth: '600px', margin: '0 auto', fontSize: '0.95rem' }}>
-          Explore competitions across 8 branches or filter directly by department and category.
+          Explore competitions across 9 departments or filter directly by department and category.
         </p>
 
         {/* Primary View Switcher Tabs: All Events, Select by Department, Select by Event Category */}

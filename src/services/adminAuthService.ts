@@ -50,7 +50,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     email: 'vencorpia@vardhaman.org',
     phone: '+91 98480 88001'
   },
-  // 4. Department HODs & Coordinators
+  // 4. Department HODs & Coordinators (CSE, CSD, CSM, IT, MECHANICAL, CIVIL, EEE, ECE, MBA)
   {
     id: 'admin_hod_cse',
     username: 'hod_cse',
@@ -62,6 +62,30 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     departmentName: 'Computer Science & Engineering',
     email: 'cse.festronix@vardhaman.org',
     phone: '+91 98480 22001'
+  },
+  {
+    id: 'admin_hod_csd',
+    username: 'hod_csd',
+    password: 'csd2026',
+    fullName: 'Dr. S. Radhika',
+    designation: 'HOD & Chief Coordinator (CSD)',
+    role: 'dept_coordinator',
+    departmentCode: 'CSD',
+    departmentName: 'CSE (Data Science)',
+    email: 'csd.festronix@vardhaman.org',
+    phone: '+91 98480 22009'
+  },
+  {
+    id: 'admin_hod_csm',
+    username: 'hod_csm',
+    password: 'csm2026',
+    fullName: 'Dr. V. Prasad',
+    designation: 'HOD & Chief Coordinator (CSM)',
+    role: 'dept_coordinator',
+    departmentCode: 'CSM',
+    departmentName: 'CSE (AI & Machine Learning)',
+    email: 'csm.festronix@vardhaman.org',
+    phone: '+91 98480 22007'
   },
   {
     id: 'admin_hod_it',
@@ -76,39 +100,15 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     phone: '+91 98480 22002'
   },
   {
-    id: 'admin_hod_ece',
-    username: 'hod_ece',
-    password: 'ece2026',
-    fullName: 'Dr. M. V. Ramana',
-    designation: 'HOD & Chief Coordinator (ECE)',
-    role: 'dept_coordinator',
-    departmentCode: 'ECE',
-    departmentName: 'Electronics & Communication',
-    email: 'ece.festronix@vardhaman.org',
-    phone: '+91 98480 22003'
-  },
-  {
-    id: 'admin_hod_eee',
-    username: 'hod_eee',
-    password: 'eee2026',
-    fullName: 'Dr. B. Srinivas',
-    designation: 'HOD & Chief Coordinator (EEE)',
-    role: 'dept_coordinator',
-    departmentCode: 'EEE',
-    departmentName: 'Electrical & Electronics',
-    email: 'eee.festronix@vardhaman.org',
-    phone: '+91 98480 22004'
-  },
-  {
-    id: 'admin_hod_mech',
-    username: 'hod_mech',
-    password: 'mech2026',
+    id: 'admin_hod_mechanical',
+    username: 'hod_mechanical',
+    password: 'mechanical2026',
     fullName: 'Dr. C. H. Rao',
-    designation: 'HOD & Chief Coordinator (MECH)',
+    designation: 'HOD & Chief Coordinator (MECHANICAL)',
     role: 'dept_coordinator',
-    departmentCode: 'MECH',
+    departmentCode: 'MECHANICAL',
     departmentName: 'Mechanical Engineering',
-    email: 'mech.festronix@vardhaman.org',
+    email: 'mechanical.festronix@vardhaman.org',
     phone: '+91 98480 22005'
   },
   {
@@ -124,16 +124,28 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     phone: '+91 98480 22006'
   },
   {
-    id: 'admin_hod_aiml',
-    username: 'hod_aiml',
-    password: 'aiml2026',
-    fullName: 'Dr. V. Prasad',
-    designation: 'HOD & Chief Coordinator (AI&ML)',
+    id: 'admin_hod_eee',
+    username: 'hod_eee',
+    password: 'eee2026',
+    fullName: 'Dr. B. Srinivas',
+    designation: 'HOD & Chief Coordinator (EEE)',
     role: 'dept_coordinator',
-    departmentCode: 'AI&ML',
-    departmentName: 'Artificial Intelligence & Machine Learning',
-    email: 'aiml.festronix@vardhaman.org',
-    phone: '+91 98480 22007'
+    departmentCode: 'EEE',
+    departmentName: 'Electrical & Electronics',
+    email: 'eee.festronix@vardhaman.org',
+    phone: '+91 98480 22004'
+  },
+  {
+    id: 'admin_hod_ece',
+    username: 'hod_ece',
+    password: 'ece2026',
+    fullName: 'Dr. M. V. Ramana',
+    designation: 'HOD & Chief Coordinator (ECE)',
+    role: 'dept_coordinator',
+    departmentCode: 'ECE',
+    departmentName: 'Electronics & Communication',
+    email: 'ece.festronix@vardhaman.org',
+    phone: '+91 98480 22003'
   },
   {
     id: 'admin_hod_mba',
@@ -143,7 +155,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     designation: 'HOD & Chief Coordinator (MBA)',
     role: 'dept_coordinator',
     departmentCode: 'MBA',
-    departmentName: 'Management & Humanities',
+    departmentName: 'Master of Business Administration',
     email: 'mba.festronix@vardhaman.org',
     phone: '+91 98480 22008'
   }
@@ -257,14 +269,30 @@ export class AdminAuthService {
       return { success: false, error: 'Please provide credentials or department passcode.' };
     }
 
-    // Match preset HOD for this department
-    const preset = PRESET_ADMINS.find(a => a.departmentCode?.toUpperCase() === cleanDept);
+    // Match preset HOD for this department (supports MECHANICAL / MECH aliases)
+    const preset = PRESET_ADMINS.find(a => {
+      const code = a.departmentCode?.toUpperCase();
+      if (code === cleanDept) return true;
+      if (cleanDept === 'MECHANICAL' && code === 'MECH') return true;
+      if (cleanDept === 'MECH' && code === 'MECHANICAL') return true;
+      return false;
+    });
 
     // Accept HOD credentials or general dept coordinator passcode 'festcoord2026'
-    const isDeptPass = preset && preset.password === cleanPass;
-    const isCoordPass = cleanPass === 'festcoord2026' || cleanPass === `${cleanDept.toLowerCase()}2026`;
+    const isDeptPass = preset && (
+      preset.password === cleanPass ||
+      (cleanDept === 'MECHANICAL' && (cleanPass === 'mech2026' || cleanPass === 'mechanical2026'))
+    );
+    const isCoordPass = cleanPass === 'festcoord2026' || 
+      cleanPass === `${cleanDept.toLowerCase()}2026` ||
+      (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026');
 
-    if (preset && (cleanId === preset.username.toLowerCase() || cleanId === preset.email.toLowerCase() || cleanId === cleanDept.toLowerCase())) {
+    if (preset && (
+      cleanId === preset.username.toLowerCase() || 
+      cleanId === preset.email.toLowerCase() || 
+      cleanId === cleanDept.toLowerCase() ||
+      (cleanDept === 'MECHANICAL' && (cleanId === 'hod_mech' || cleanId === 'mech'))
+    )) {
       if (isDeptPass || isCoordPass) {
         const sessionUser: AdminUser = {
           id: preset.id,

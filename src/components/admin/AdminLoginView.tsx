@@ -399,7 +399,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
                 Select Department
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
                 {DEPARTMENTS.map(dept => {
                   const isSelected = selectedDept === dept.code;
                   return (

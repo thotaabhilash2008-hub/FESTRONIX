@@ -416,7 +416,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   Engineering Department Performance Matrix
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Live aggregate metrics across all 8 academic divisions for FESTRONIX 2026
+                  Live aggregate metrics across all 9 academic divisions for FESTRONIX 2026
                 </p>
               </div>
               <button

@@ -294,8 +294,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </span>
                   </div>
 
-                  {/* Department Quick Chips */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                  {/* Department Quick Chips (3x3 grid for 9 departments) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                     {DEPARTMENTS.map(dept => (
                       <button
                         key={dept.id}
@@ -893,7 +893,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div style={{ fontSize: '0.75rem', color: '#A8B3C2', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Select by Department
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}>
               {DEPARTMENTS.map(dept => (
                 <button
                   key={dept.id}

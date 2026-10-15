@@ -2,9 +2,9 @@ import { FestEvent, Registration, Announcement, FestStats, PaymentStatus } from 
 import { INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_ANNOUNCEMENTS } from '../data/mockData';
 
 const STORAGE_KEYS = {
-  EVENTS: 'festronix_events_v1',
-  REGISTRATIONS: 'festronix_registrations_v1',
-  ANNOUNCEMENTS: 'festronix_announcements_v1'
+  EVENTS: 'festronix_events_v2',
+  REGISTRATIONS: 'festronix_registrations_v2',
+  ANNOUNCEMENTS: 'festronix_announcements_v2'
 };
 
 export class StorageService {
