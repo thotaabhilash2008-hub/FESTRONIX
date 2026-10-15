@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Clapperboard, Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Trophy, Compass, Layers } from 'lucide-react';
-import { Announcement } from '../types/festronix';
+import { Clapperboard, Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Trophy, Compass, Layers, ShoppingBag, User as UserIcon, LogIn, LogOut } from 'lucide-react';
+import { Announcement, User as UserType } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
 interface NavbarProps {
   onOpenIntro: () => void;
   onOpenPasses: () => void;
+  onOpenMultiPass: () => void;
+  currentUser: UserType | null;
+  onOpenAuth: (mode?: 'signin' | 'signup') => void;
+  onSignOut: () => void;
   announcements: Announcement[];
   passesCount: number;
   onNavigateExplore: () => void;
@@ -17,6 +21,10 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenIntro,
   onOpenPasses,
+  onOpenMultiPass,
+  currentUser,
+  onOpenAuth,
+  onSignOut,
   announcements,
   passesCount,
   onNavigateExplore,
@@ -27,7 +35,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAnnouncementsDropdown, setShowAnnouncementsDropdown] = useState(false);
   const [isBrowseDropdownOpen, setIsBrowseDropdownOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside or scrolling
   useEffect(() => {
@@ -35,9 +45,13 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsBrowseDropdownOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
     };
     const handleScroll = () => {
       setIsBrowseDropdownOpen(false);
+      setIsUserMenuOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -582,6 +596,249 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Intro</span>
           </button>
 
+          {/* Buy Multiple Passes Button */}
+          <button
+            onClick={onOpenMultiPass}
+            className="desktop-only"
+            style={{
+              background: 'rgba(40, 59, 120, 0.35)',
+              border: '1px solid rgba(120, 149, 147, 0.45)',
+              borderRadius: '9999px',
+              padding: '7px 14px',
+              color: '#BACEBB',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+              fontFamily: "'Space Grotesk', sans-serif",
+              whiteSpace: 'nowrap'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#BACEBB';
+              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.55)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'rgba(120, 149, 147, 0.45)';
+              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
+            }}
+          >
+            <ShoppingBag size={14} color="#BACEBB" />
+            <span>Buy Multiple Passes</span>
+          </button>
+
+          {/* User Account / Sign In */}
+          {currentUser ? (
+            <div ref={userMenuRef} style={{ position: 'relative' }} className="desktop-only">
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(120, 149, 147, 0.4)',
+                  borderRadius: '9999px',
+                  padding: '5px 12px 5px 6px',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                  fontFamily: "'Space Grotesk', sans-serif"
+                }}
+              >
+                <div
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #283B78 0%, #789593 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.72rem'
+                  }}
+                >
+                  {currentUser.fullName.charAt(0)}
+                </div>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>{currentUser.rollNumber}</span>
+                <ChevronDown size={12} color="#A8B3C2" />
+              </button>
+
+              {isUserMenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '46px',
+                    right: 0,
+                    width: '260px',
+                    background: '#142042',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    borderRadius: '14px',
+                    padding: '16px',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.85), 0 0 20px rgba(40, 59, 120, 0.3)',
+                    zIndex: 100
+                  }}
+                >
+                  <div style={{ marginBottom: '12px', borderBottom: '1px solid rgba(220, 227, 229, 0.1)', paddingBottom: '10px' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF' }}>{currentUser.fullName}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll: {currentUser.rollNumber}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '2px' }}>{currentUser.email}</div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onOpenPasses();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#DCE3E5',
+                        textAlign: 'left',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(40, 59, 120, 0.4)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <Ticket size={14} color="#BACEBB" />
+                      <span>My Passes ({passesCount})</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onOpenMultiPass();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#DCE3E5',
+                        textAlign: 'left',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(40, 59, 120, 0.4)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <ShoppingBag size={14} color="#BACEBB" />
+                      <span>Buy Multiple Passes</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onSignOut();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#f87171',
+                        textAlign: 'left',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderTop: '1px solid rgba(220, 227, 229, 0.08)',
+                        marginTop: '4px'
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <LogOut size={14} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => onOpenAuth('signin')}
+              className="desktop-only"
+              style={{
+                background: 'rgba(220, 227, 229, 0.08)',
+                border: '1px solid rgba(220, 227, 229, 0.25)',
+                borderRadius: '9999px',
+                padding: '7px 15px',
+                color: '#FFFFFF',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s',
+                fontFamily: "'Space Grotesk', sans-serif",
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#BACEBB';
+                e.currentTarget.style.color = '#BACEBB';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.25)';
+                e.currentTarget.style.color = '#FFFFFF';
+              }}
+            >
+              <LogIn size={14} color="#BACEBB" />
+              <span>Sign In / Sign Up</span>
+            </button>
+          )}
+
+          {/* Replay Intro Button */}
+          <button
+            onClick={onOpenIntro}
+            className="desktop-only"
+            style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(220, 227, 229, 0.25)',
+              borderRadius: '9999px',
+              padding: '7px 13px',
+              color: '#DCE3E5',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease',
+              fontFamily: "'Space Grotesk', sans-serif"
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = '#FFFFFF';
+              e.currentTarget.style.borderColor = '#789593';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = '#DCE3E5';
+              e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.25)';
+            }}
+          >
+            <Clapperboard size={13} color="#DCE3E5" />
+            <span>Intro</span>
+          </button>
+
           {/* View Our Registration Passes */}
           <button
             onClick={onOpenPasses}
@@ -614,8 +871,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
           >
             <Ticket size={14} color="#FFFFFF" />
-            <span className="desktop-only">Registration&nbsp;</span>
-            <span>Passes</span>
+            <span className="desktop-only">Passes</span>
             {passesCount > 0 && (
               <span
                 style={{
@@ -769,6 +1025,95 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Mobile Action Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.12)', paddingTop: '12px' }}>
+            {/* User Profile / Sign In in Mobile */}
+            {currentUser ? (
+              <div
+                style={{
+                  padding: '12px',
+                  background: 'rgba(40, 59, 120, 0.3)',
+                  border: '1px solid rgba(120, 149, 147, 0.4)',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>{currentUser.fullName}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll: {currentUser.rollNumber}</div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onSignOut();
+                  }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#fca5a5',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAuth('signin');
+                }}
+                style={{
+                  background: 'rgba(220, 227, 229, 0.08)',
+                  border: '1px solid rgba(220, 227, 229, 0.25)',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  color: '#FFFFFF',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <LogIn size={16} color="#BACEBB" />
+                <span>Sign In / Sign Up</span>
+              </button>
+            )}
+
+            {/* Buy Multiple Passes */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenMultiPass();
+              }}
+              style={{
+                background: 'rgba(40, 59, 120, 0.35)',
+                border: '1px solid rgba(120, 149, 147, 0.45)',
+                color: '#BACEBB',
+                borderRadius: '10px',
+                padding: '12px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <ShoppingBag size={16} color="#BACEBB" />
+              <span>Buy Multiple Passes</span>
+            </button>
+
+            {/* View Passes */}
             <button
               onClick={() => {
                 setMobileMenuOpen(false);

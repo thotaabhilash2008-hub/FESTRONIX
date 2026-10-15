@@ -70,8 +70,22 @@ export interface Teammate {
   rollNumber: string;
 }
 
+export interface User {
+  id: string;
+  username: string;
+  rollNumber: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  college: string;
+  password?: string;
+  createdAt: string;
+}
+
 export interface Registration {
   id: string; // e.g. FEST-2026-9042
+  userId?: string; // id of the purchasing user
+  buyerRoll?: string; // roll number of the buyer
   eventId: string;
   eventTitle: string;
   leaderName: string;

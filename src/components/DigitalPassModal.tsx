@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Sparkles, Ticket } from 'lucide-react';
-import { Registration } from '../types/festronix';
+import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Sparkles, Ticket, ShoppingBag } from 'lucide-react';
+import { Registration, User as UserType } from '../types/festronix';
 import { INITIAL_REGISTRATIONS } from '../data/mockData';
 
 interface DigitalPassModalProps {
   registrations: Registration[];
+  currentUser?: UserType | null;
   onClose: () => void;
   onBrowseEvents?: () => void;
+  onOpenMultiPass?: () => void;
 }
 
 export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   registrations: initialRegistrations,
+  currentUser,
   onClose,
-  onBrowseEvents
+  onBrowseEvents,
+  onOpenMultiPass
 }) => {
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -26,9 +30,21 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
     };
   }, []);
 
-  // Combine props registrations + mock registrations if needed for lookup
+  const allRegs = initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS;
+
+  // Filter for current user if logged in, otherwise show all
+  const userFiltered = currentUser
+    ? allRegs.filter(
+        r =>
+          r.userId === currentUser.id ||
+          r.buyerRoll === currentUser.rollNumber ||
+          r.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase() ||
+          r.leaderEmail.toLowerCase() === currentUser.email.toLowerCase()
+      )
+    : allRegs;
+
   const [activeList, setActiveList] = useState<Registration[]>(
-    initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS
+    userFiltered.length > 0 ? userFiltered : allRegs
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -418,26 +434,55 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         )}
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
-          {onBrowseEvents && (
-            <button
-              onClick={() => {
-                onClose();
-                onBrowseEvents();
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#BACEBB',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: "'Space Grotesk', sans-serif"
-              }}
-            >
-              + Register for another event
-            </button>
-          )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {onOpenMultiPass && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenMultiPass();
+                }}
+                style={{
+                  background: 'rgba(40, 59, 120, 0.35)',
+                  border: '1px solid rgba(120, 149, 147, 0.45)',
+                  borderRadius: '6px',
+                  color: '#BACEBB',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '7px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  transition: 'all 0.2s'
+                }}
+              >
+                <ShoppingBag size={14} />
+                <span>+ Buy Multiple Passes</span>
+              </button>
+            )}
+
+            {onBrowseEvents && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onBrowseEvents();
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#A8B3C2',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: "'Space Grotesk', sans-serif"
+                }}
+              >
+                Browse Events →
+              </button>
+            )}
+          </div>
 
           <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
             <button onClick={handlePrint} className="btn-cyber-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>

@@ -71,6 +71,16 @@ export class StorageService {
     return fullReg;
   }
 
+  static addMultipleRegistrations(
+    batch: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>>
+  ): Registration[] {
+    const created: Registration[] = [];
+    for (const item of batch) {
+      created.push(this.addRegistration(item));
+    }
+    return created;
+  }
+
   static updatePaymentStatus(
     regId: string, 
     status: PaymentStatus, 

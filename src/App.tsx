@@ -10,10 +10,18 @@ import { FullscreenIntro } from './components/FullscreenIntro';
 import { EventDetailModal } from './components/EventDetailModal';
 import { RegistrationModal } from './components/RegistrationModal';
 import { DigitalPassModal } from './components/DigitalPassModal';
+import { AuthModal } from './components/AuthModal';
+import { MultiPassModal } from './components/MultiPassModal';
 import { StorageService } from './services/storageService';
-import { FestEvent, Registration, Announcement } from './types/festronix';
+import { AuthService } from './services/authService';
+import { FestEvent, Registration, Announcement, User } from './types/festronix';
 
 export const App: React.FC = () => {
+  // User Authentication State
+  const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
+
   // State
   const [events, setEvents] = useState<FestEvent[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -29,6 +37,7 @@ export const App: React.FC = () => {
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
   const [isPassesModalOpen, setIsPassesModalOpen] = useState<boolean>(false);
+  const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
 
   const refreshData = () => {
     const evts = StorageService.getEvents();
@@ -42,10 +51,23 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     refreshData();
+
+    // Reactive auth listener
+    const handleAuthChange = (e: any) => {
+      setCurrentUser(e.detail);
+    };
+    window.addEventListener('festronix:auth', handleAuthChange);
+    return () => window.removeEventListener('festronix:auth', handleAuthChange);
   }, []);
 
   const handleRegistrationSuccess = (newReg: Registration) => {
     setRegisterEvent(null);
+    refreshData();
+    setIsPassesModalOpen(true);
+  };
+
+  const handleMultiPassSuccess = (newRegs: Registration[]) => {
+    setIsMultiPassModalOpen(false);
     refreshData();
     setIsPassesModalOpen(true);
   };
@@ -78,6 +100,11 @@ export const App: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleOpenAuth = (mode: 'signin' | 'signup' = 'signin') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
   return (
     <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Background Cyber Grid */}
@@ -93,6 +120,10 @@ export const App: React.FC = () => {
       <Navbar
         onOpenIntro={() => setIsIntroOpen(true)}
         onOpenPasses={() => setIsPassesModalOpen(true)}
+        onOpenMultiPass={() => setIsMultiPassModalOpen(true)}
+        currentUser={currentUser}
+        onOpenAuth={handleOpenAuth}
+        onSignOut={() => AuthService.signOut()}
         announcements={announcements}
         passesCount={registrations.length}
         onNavigateExplore={handleNavigateExplore}
@@ -152,15 +183,41 @@ export const App: React.FC = () => {
 
       <RegistrationModal
         event={registerEvent}
+        currentUser={currentUser}
         onClose={() => setRegisterEvent(null)}
         onSuccess={handleRegistrationSuccess}
+        onOpenMultiPass={() => setIsMultiPassModalOpen(true)}
+      />
+
+      <MultiPassModal
+        isOpen={isMultiPassModalOpen}
+        onClose={() => setIsMultiPassModalOpen(false)}
+        events={events}
+        currentUser={currentUser}
+        onOpenAuth={() => handleOpenAuth('signin')}
+        onSuccess={handleMultiPassSuccess}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          setIsAuthModalOpen(false);
+        }}
       />
 
       {isPassesModalOpen && (
         <DigitalPassModal
           registrations={registrations}
+          currentUser={currentUser}
           onClose={() => setIsPassesModalOpen(false)}
           onBrowseEvents={handleNavigateExplore}
+          onOpenMultiPass={() => {
+            setIsPassesModalOpen(false);
+            setIsMultiPassModalOpen(true);
+          }}
         />
       )}
     </div>
@@ -168,3 +225,4 @@ export const App: React.FC = () => {
 };
 
 export default App;
+

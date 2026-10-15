@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, School, QrCode, Upload, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { X, User, Mail, Phone, School, QrCode, Upload, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Layers, Plus, Minus } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FestEvent, Teammate, Registration } from '../types/festronix';
+import { FestEvent, Teammate, Registration, User as UserType } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 
 interface RegistrationModalProps {
   event: FestEvent | null;
+  currentUser?: UserType | null;
   onClose: () => void;
   onSuccess: (registration: Registration) => void;
+  onOpenMultiPass?: () => void;
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   event,
+  currentUser,
   onClose,
-  onSuccess
+  onSuccess,
+  onOpenMultiPass
 }) => {
   useEffect(() => {
     if (!event) return;
@@ -31,15 +35,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   if (!event) return null;
 
   const [step, setStep] = useState<number>(1);
+  const [passQuantity, setPassQuantity] = useState<number>(1);
 
   // Form State
   const [leader, setLeader] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    college: 'Vardhaman College of Engineering',
-    rollNumber: ''
+    name: currentUser?.fullName || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
+    college: currentUser?.college || 'Vardhaman College of Engineering',
+    rollNumber: currentUser?.rollNumber || ''
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setLeader({
+        name: currentUser.fullName,
+        email: currentUser.email,
+        phone: currentUser.phone,
+        college: currentUser.college,
+        rollNumber: currentUser.rollNumber
+      });
+    }
+  }, [currentUser, event]);
 
   const [teammates, setTeammates] = useState<Teammate[]>([]);
   const [transactionId, setTransactionId] = useState('');
@@ -124,24 +141,31 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       }
     }
 
-    // Register via StorageService
-    const newReg = StorageService.addRegistration({
-      eventId: event.id,
-      eventTitle: event.title,
-      leaderName: leader.name,
-      leaderEmail: leader.email,
-      leaderPhone: leader.phone,
-      leaderCollege: leader.college,
-      leaderRoll: leader.rollNumber,
-      teammates,
-      format: event.format,
-      fee: event.fee,
-      source: 'online',
-      registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      paymentStatus: event.fee === 0 ? 'not_applicable' : 'verification_pending',
-      transactionId: event.fee > 0 ? transactionId : undefined,
-      paymentScreenshotUrl: screenshotPreview || undefined
-    });
+    // Register via StorageService (creates passQuantity registrations)
+    let finalReg: Registration | null = null;
+    const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    for (let i = 0; i < passQuantity; i++) {
+      finalReg = StorageService.addRegistration({
+        userId: currentUser?.id,
+        buyerRoll: leader.rollNumber,
+        eventId: event.id,
+        eventTitle: `${event.title}${passQuantity > 1 ? ` (Pass #${i + 1})` : ''}`,
+        leaderName: leader.name,
+        leaderEmail: leader.email,
+        leaderPhone: leader.phone,
+        leaderCollege: leader.college,
+        leaderRoll: leader.rollNumber,
+        teammates,
+        format: event.format,
+        fee: event.fee,
+        source: 'online',
+        registrationDate: dateNow,
+        paymentStatus: event.fee === 0 ? 'not_applicable' : 'verification_pending',
+        transactionId: event.fee > 0 ? transactionId : undefined,
+        paymentScreenshotUrl: screenshotPreview || undefined
+      });
+    }
 
     // Fire festive celebration
     confetti({
@@ -150,7 +174,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       origin: { y: 0.6 }
     });
 
-    onSuccess(newReg);
+    if (finalReg) {
+      onSuccess(finalReg);
+    }
   };
 
   return (
@@ -161,7 +187,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         style={{ padding: '30px', maxWidth: '700px' }}
       >
         {/* Top Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: '#BACEBB', letterSpacing: '0.08em', fontWeight: 700 }}>
               EVENT REGISTRATION DESK
@@ -189,6 +215,46 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <X size={18} />
           </button>
         </div>
+
+        {/* Multi-Pass Banner */}
+        {onOpenMultiPass && (
+          <div
+            style={{
+              padding: '10px 14px',
+              background: 'rgba(40, 59, 120, 0.25)',
+              border: '1px solid rgba(120, 149, 147, 0.35)',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '0.78rem'
+            }}
+          >
+            <span style={{ color: '#DCE3E5' }}>
+              Want to buy passes for multiple events simultaneously?
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenMultiPass();
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#BACEBB',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <span>Open Multi-Pass Desk →</span>
+            </button>
+          </div>
+        )}
 
         {/* Progress Tracker Steps */}
         <div
@@ -372,6 +438,70 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               </div>
             </div>
 
+            {/* Single Person Buying Multiple Passes selector */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                background: 'rgba(16, 26, 53, 0.85)',
+                border: '1px solid rgba(120, 149, 147, 0.35)',
+                borderRadius: '10px'
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>
+                  Number of Passes to Book
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
+                  {event.fee === 0 ? 'Reserve multiple free entry passes' : `₹${event.fee} per pass • Total: ₹${event.fee * passQuantity}`}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPassQuantity(Math.max(1, passQuantity - 1))}
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    background: 'rgba(40, 59, 120, 0.4)',
+                    border: '1px solid rgba(120, 149, 147, 0.4)',
+                    color: '#FFFFFF',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Minus size={13} />
+                </button>
+                <span style={{ fontSize: '1rem', fontWeight: 800, color: '#BACEBB', width: '24px', textAlign: 'center' }}>
+                  {passQuantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPassQuantity(Math.min(10, passQuantity + 1))}
+                  style={{
+                    width: '30px',
+                    height: '30px',
+                    background: 'rgba(40, 59, 120, 0.4)',
+                    border: '1px solid rgba(120, 149, 147, 0.4)',
+                    color: '#FFFFFF',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
               <button
                 type="button"
@@ -544,7 +674,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               {/* QR Code Presentation */}
               <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '12px', borderRadius: '10px' }}>
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=festronix2026@vce%26pn=Festronix%20VCE%26am=${event.fee}%26cu=INR`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=festronix2026@vce%26pn=Festronix%20VCE%26am=${event.fee * passQuantity}%26cu=INR`}
                   alt="UPI Payment QR"
                   style={{ width: '140px', height: '140px', display: 'block', margin: '0 auto' }}
                 />
@@ -563,7 +693,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   Beneficiary: <strong>Festronix SAC Vardhaman</strong>
                 </div>
                 <div style={{ fontSize: '1.25rem', color: '#fbbf24', fontWeight: 800, marginTop: '8px' }}>
-                  Payable Amount: ₹{event.fee}
+                  Payable Amount: ₹{event.fee * passQuantity}
+                  {passQuantity > 1 && (
+                    <span style={{ fontSize: '0.8rem', color: '#BACEBB', marginLeft: '6px', fontWeight: 600 }}>
+                      ({passQuantity} Passes)
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '6px', lineHeight: 1.4 }}>
                   Supports PhonePe, Google Pay, Paytm, BHIM, CRED, and all banking apps.
