@@ -42,6 +42,8 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
   const [transactionId, setTransactionId] = useState('');
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,6 +115,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
         setErrorMessage('File size exceeds 5MB. Please upload a smaller screenshot.');
         return;
       }
+      setScreenshotFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setScreenshotPreview(reader.result as string);
@@ -141,7 +144,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
     }
   };
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     if (totalAmount > 0) {
       if (!transactionId.trim()) {
         setErrorMessage('Please enter the UPI Transaction ID / UTR number.');
@@ -153,43 +156,62 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       }
     }
 
-    // Generate registrations for each pass
-    const batchData: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>> = [];
-    const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    setIsSubmitting(true);
+    setErrorMessage(null);
 
-    for (const item of selectedEventEntries) {
-      for (let i = 0; i < item.quantity; i++) {
-        batchData.push({
-          userId: currentUser?.id,
-          buyerRoll: buyerInfo.rollNumber,
-          eventId: item.event.id,
-          eventTitle: `${item.event.title}${item.quantity > 1 ? ` (Pass #${i + 1})` : ''}`,
-          leaderName: buyerInfo.name,
-          leaderEmail: buyerInfo.email,
-          leaderPhone: buyerInfo.phone,
-          leaderCollege: buyerInfo.college,
-          leaderRoll: buyerInfo.rollNumber,
-          teammates: [],
-          format: item.event.format,
-          fee: item.event.fee,
-          source: 'online',
-          registrationDate: dateNow,
-          paymentStatus: item.event.fee === 0 ? 'not_applicable' : 'verification_pending',
-          transactionId: item.event.fee > 0 ? transactionId : undefined,
-          paymentScreenshotUrl: screenshotPreview || undefined
-        });
+    try {
+      let finalScreenshotUrl = screenshotPreview || undefined;
+
+      // Upload to Supabase Storage if file is present
+      if (screenshotFile) {
+        const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, buyerInfo.rollNumber);
+        if (uploadRes.url) {
+          finalScreenshotUrl = uploadRes.url;
+        }
       }
+
+      // Generate registrations for each pass
+      const batchData: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>> = [];
+      const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+      for (const item of selectedEventEntries) {
+        for (let i = 0; i < item.quantity; i++) {
+          batchData.push({
+            userId: currentUser?.id,
+            buyerRoll: buyerInfo.rollNumber,
+            eventId: item.event.id,
+            eventTitle: `${item.event.title}${item.quantity > 1 ? ` (Pass #${i + 1})` : ''}`,
+            leaderName: buyerInfo.name,
+            leaderEmail: buyerInfo.email,
+            leaderPhone: buyerInfo.phone,
+            leaderCollege: buyerInfo.college,
+            leaderRoll: buyerInfo.rollNumber,
+            teammates: [],
+            format: item.event.format,
+            fee: item.event.fee,
+            source: 'online',
+            registrationDate: dateNow,
+            paymentStatus: item.event.fee === 0 ? 'not_applicable' : 'verification_pending',
+            transactionId: item.event.fee > 0 ? transactionId : undefined,
+            paymentScreenshotUrl: finalScreenshotUrl
+          });
+        }
+      }
+
+      const created = await StorageService.addMultipleRegistrations(batchData);
+
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+
+      onSuccess(created);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Failed to complete registration passes.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const created = StorageService.addMultipleRegistrations(batchData);
-
-    confetti({
-      particleCount: 120,
-      spread: 80,
-      origin: { y: 0.6 }
-    });
-
-    onSuccess(created);
   };
 
   // Filter events

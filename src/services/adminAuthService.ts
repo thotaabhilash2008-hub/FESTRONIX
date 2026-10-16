@@ -1,17 +1,22 @@
 import { DEPARTMENTS } from '../data/mockData';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export type AdminRole = 
+  | 'super_admin'
   | 'dean_sac' 
   | 'connect_club' 
   | 'vencorpia' 
   | 'dept_chief_coordinator'
   | 'dept_coordinator'
   | 'event_coordinator' 
+  | 'faculty_coord'
+  | 'student_coord'
   | 'finance_reviewer' 
-  | 'volunteer_checkin';
+  | 'volunteer_checkin'
+  | 'checkin_staff';
 
 export const isSuperAdminRole = (role: AdminRole): boolean => {
-  return role === 'dean_sac' || role === 'connect_club' || role === 'vencorpia';
+  return role === 'dean_sac' || role === 'connect_club' || role === 'vencorpia' || role === 'super_admin';
 };
 
 export interface AdminUser {
@@ -247,7 +252,13 @@ export class AdminAuthService {
     }
   }
 
-  static loginCentral(usernameOrEmail: string, password: string): { success: boolean; user?: AdminUser; error?: string } {
+  /**
+   * Login for Central Oversight (Dean SAC, Connect Club, Vencorpia, Super Admin)
+   */
+  static async loginCentral(
+    usernameOrEmail: string,
+    password: string
+  ): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
     const cleanId = usernameOrEmail.trim().toLowerCase();
     const cleanPass = password.trim();
 
@@ -255,6 +266,51 @@ export class AdminAuthService {
       return { success: false, error: 'Please enter Username/Email and Password.' };
     }
 
+    // --- 1. SUPABASE ROLE-BASED AUTH CHECK ---
+    if (isSupabaseConfigured()) {
+      try {
+        let authEmail = cleanId;
+        if (!cleanId.includes('@')) {
+          // Check preset matching email
+          const matchingPreset = PRESET_ADMINS.find(p => p.username.toLowerCase() === cleanId);
+          if (matchingPreset) {
+            authEmail = matchingPreset.email;
+          }
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: cleanPass
+        });
+
+        if (!authError && authData.user) {
+          // Check role in admin_roles table
+          const { data: roleData } = await supabase
+            .from('admin_roles')
+            .select('*')
+            .eq('user_id', authData.user.id)
+            .maybeSingle();
+
+          if (roleData) {
+            const sessionUser: AdminUser = {
+              id: authData.user.id,
+              username: cleanId,
+              fullName: authData.user.user_metadata?.full_name || 'Admin',
+              designation: roleData.designation || 'Central Administrator',
+              role: roleData.role as AdminRole,
+              email: authData.user.email || '',
+              departmentCode: roleData.department_code || undefined
+            };
+            localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
+            return { success: true, user: sessionUser };
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase admin login check warning, checking preset credentials:', err);
+      }
+    }
+
+    // --- 2. PRESET CREDENTIALS CHECK ---
     const dean = PRESET_ADMINS.find(a => a.role === 'dean_sac');
     const connect = PRESET_ADMINS.find(a => a.role === 'connect_club');
     const vencorpia = PRESET_ADMINS.find(a => a.role === 'vencorpia');
@@ -262,7 +318,7 @@ export class AdminAuthService {
     const volunteer = PRESET_ADMINS.find(a => a.role === 'volunteer_checkin');
     const eventCoord = PRESET_ADMINS.find(a => a.role === 'event_coordinator');
 
-    // 1. Check Dean SAC Credentials
+    // Dean SAC
     if (dean && (dean.username.toLowerCase() === cleanId || dean.email.toLowerCase() === cleanId)) {
       if (dean.password === cleanPass) {
         const sessionUser: AdminUser = {
@@ -282,7 +338,7 @@ export class AdminAuthService {
       }
     }
 
-    // 2. Check Connect Club Credentials
+    // Connect Club
     if (connect && (connect.username.toLowerCase() === cleanId || connect.email.toLowerCase() === cleanId || cleanId === 'connect')) {
       if (connect.password === cleanPass || cleanPass === 'connectclub2026') {
         const sessionUser: AdminUser = {
@@ -302,7 +358,7 @@ export class AdminAuthService {
       }
     }
 
-    // 3. Check Vencorpia Credentials
+    // Vencorpia
     if (vencorpia && (vencorpia.username.toLowerCase() === cleanId || vencorpia.email.toLowerCase() === cleanId || cleanId === 'vencorpia_club')) {
       if (vencorpia.password === cleanPass || cleanPass === 'vencorpia' || cleanPass === 'vencorpia2026') {
         const sessionUser: AdminUser = {
@@ -394,12 +450,15 @@ export class AdminAuthService {
     return this.loginCentral(usernameOrEmail, password);
   }
 
-  static loginDepartment(
+  /**
+   * Login for Department HODs and Coordinators
+   */
+  static async loginDepartment(
     deptCode: string,
     usernameOrCode: string,
     password: string,
     coordinatorName?: string
-  ): { success: boolean; user?: AdminUser; error?: string } {
+  ): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
     const cleanDept = deptCode.trim().toUpperCase();
     const cleanId = usernameOrCode.trim().toLowerCase();
     const cleanPass = password.trim();
@@ -412,7 +471,53 @@ export class AdminAuthService {
       return { success: false, error: 'Please provide credentials or department passcode.' };
     }
 
-    // Match preset HOD for this department (supports MECHANICAL / MECH aliases)
+    // --- 1. SUPABASE ADMIN ROLE CHECK ---
+    if (isSupabaseConfigured()) {
+      try {
+        let authEmail = cleanId;
+        if (!cleanId.includes('@')) {
+          const matchingPreset = PRESET_ADMINS.find(
+            p => (p.departmentCode?.toUpperCase() === cleanDept || (cleanDept === 'MECHANICAL' && p.departmentCode?.toUpperCase() === 'MECH')) && p.username.toLowerCase() === cleanId
+          );
+          if (matchingPreset) {
+            authEmail = matchingPreset.email;
+          }
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: cleanPass
+        });
+
+        if (!authError && authData.user) {
+          const { data: roleData } = await supabase
+            .from('admin_roles')
+            .select('*')
+            .eq('user_id', authData.user.id)
+            .maybeSingle();
+
+          if (roleData && (roleData.department_code?.toUpperCase() === cleanDept || roleData.role === 'dean_sac' || roleData.role === 'super_admin')) {
+            const deptInfo = DEPARTMENTS.find(d => d.code.toUpperCase() === cleanDept);
+            const sessionUser: AdminUser = {
+              id: authData.user.id,
+              username: cleanId,
+              fullName: coordinatorName || authData.user.user_metadata?.full_name || 'Coordinator',
+              designation: roleData.designation || `Faculty Coordinator (${cleanDept})`,
+              role: roleData.role as AdminRole,
+              departmentCode: cleanDept,
+              departmentName: deptInfo?.name || cleanDept,
+              email: authData.user.email || ''
+            };
+            localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
+            return { success: true, user: sessionUser };
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase dept admin login check warning:', err);
+      }
+    }
+
+    // --- 2. PRESET CREDENTIALS CHECK (supports MECHANICAL / MECH aliases) ---
     const preset = PRESET_ADMINS.find(a => {
       const code = a.departmentCode?.toUpperCase();
       if (code === cleanDept) return true;
@@ -421,7 +526,6 @@ export class AdminAuthService {
       return false;
     });
 
-    // Accept HOD credentials or general dept coordinator passcode 'festcoord2026'
     const isDeptPass = preset && (
       preset.password === cleanPass ||
       (cleanDept === 'MECHANICAL' && (cleanPass === 'mech2026' || cleanPass === 'mechanical2026'))
@@ -430,12 +534,13 @@ export class AdminAuthService {
       cleanPass === `${cleanDept.toLowerCase()}2026` ||
       (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026');
 
-    if (preset && (
-      cleanId === preset.username.toLowerCase() || 
-      cleanId === preset.email.toLowerCase() || 
-      cleanId === cleanDept.toLowerCase() ||
-      (cleanDept === 'MECHANICAL' && (cleanId === 'hod_mech' || cleanId === 'mech'))
-    )) {
+    if (
+      preset &&
+      (cleanId === preset.username.toLowerCase() ||
+        cleanId === preset.email.toLowerCase() ||
+        cleanId === cleanDept.toLowerCase() ||
+        (cleanDept === 'MECHANICAL' && (cleanId === 'hod_mech' || cleanId === 'mech')))
+    ) {
       if (isDeptPass || isCoordPass) {
         const sessionUser: AdminUser = {
           id: preset.id,
@@ -456,7 +561,32 @@ export class AdminAuthService {
       }
     }
 
-    // Allow custom coordinator login for the department with dept passcode
+    // Allow custom coordinator login for the department with dept passcode or custom password
+    const customList = this.getCustomCoordinators();
+    const matchingCustom = customList.find(
+      c => c.departmentCode?.toUpperCase() === cleanDept && (c.username.toLowerCase() === cleanId || c.email.toLowerCase() === cleanId)
+    );
+
+    if (matchingCustom) {
+      if (matchingCustom.password === cleanPass || isCoordPass) {
+        const sessionUser: AdminUser = {
+          id: matchingCustom.id,
+          username: matchingCustom.username,
+          fullName: coordinatorName || matchingCustom.fullName,
+          designation: matchingCustom.designation,
+          role: matchingCustom.role,
+          departmentCode: matchingCustom.departmentCode,
+          departmentName: matchingCustom.departmentName,
+          email: matchingCustom.email,
+          phone: matchingCustom.phone
+        };
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
+        return { success: true, user: sessionUser };
+      } else {
+        return { success: false, error: 'Incorrect password for this coordinator account.' };
+      }
+    }
+
     if (isCoordPass) {
       const deptInfo = DEPARTMENTS.find(d => d.code.toUpperCase() === cleanDept);
       const sessionUser: AdminUser = {
@@ -480,7 +610,67 @@ export class AdminAuthService {
     };
   }
 
-  static logout(): void {
+  // ==========================================
+  // COORDINATORS DIRECTORY & APPOINTMENT CRUD
+  // ==========================================
+
+  static getCustomCoordinators(): Array<AdminUser & { password?: string; assignedEvents?: string[] }> {
+    const raw = localStorage.getItem('festronix_custom_coordinators_v1');
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+
+  static getCoordinators(): Array<AdminUser & { password?: string; assignedEvents?: string[] }> {
+    const custom = this.getCustomCoordinators();
+    return [...PRESET_ADMINS, ...custom];
+  }
+
+  static addCoordinator(
+    coordinator: Omit<AdminUser, 'id'> & { password?: string; assignedEvents?: string[] }
+  ): AdminUser & { password?: string; assignedEvents?: string[] } {
+    const customList = this.getCustomCoordinators();
+    const newCoord = {
+      ...coordinator,
+      id: `coord_${(coordinator.departmentCode || 'central').toLowerCase()}_${Date.now().toString().slice(-4)}`
+    };
+    customList.push(newCoord);
+    localStorage.setItem('festronix_custom_coordinators_v1', JSON.stringify(customList));
+    return newCoord;
+  }
+
+  static updateCoordinator(
+    id: string,
+    updated: Partial<AdminUser & { password?: string; assignedEvents?: string[] }>
+  ): boolean {
+    const customList = this.getCustomCoordinators();
+    const idx = customList.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      customList[idx] = { ...customList[idx], ...updated };
+      localStorage.setItem('festronix_custom_coordinators_v1', JSON.stringify(customList));
+      return true;
+    }
+    return false;
+  }
+
+  static deleteCoordinator(id: string): boolean {
+    const customList = this.getCustomCoordinators();
+    const filtered = customList.filter(c => c.id !== id);
+    localStorage.setItem('festronix_custom_coordinators_v1', JSON.stringify(filtered));
+    return true;
+  }
+
+  static async logout(): Promise<void> {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Supabase logout warning:', err);
+      }
+    }
     localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
   }
 }

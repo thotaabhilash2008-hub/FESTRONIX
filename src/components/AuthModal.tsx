@@ -9,13 +9,15 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (user: UserType) => void;
   initialMode?: 'signin' | 'signup';
+  customNotice?: string | null;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  initialMode = 'signin'
+  initialMode = 'signin',
+  customNotice
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
@@ -38,14 +40,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     confirmPassword: ''
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     setMode(initialMode);
     setError(null);
     setSuccessMsg(null);
+    setIsLoading(false);
   }, [initialMode, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
+
     const prevOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -59,26 +65,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
 
-    const res = AuthService.signIn(signInIdentifier, signInPassword);
-    if (!res.success || !res.user) {
-      setError(res.error || 'Authentication failed.');
-      return;
+    try {
+      const res = await AuthService.signIn(signInIdentifier, signInPassword);
+      if (!res.success || !res.user) {
+        setError(res.error || 'Authentication failed.');
+        setIsLoading(false);
+        return;
+      }
+
+      setSuccessMsg(`Welcome back, ${res.user.fullName}!`);
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+
+      setTimeout(() => {
+        onSuccess(res.user!);
+        onClose();
+      }, 700);
+    } catch (err: any) {
+      setError(err?.message || 'Authentication error.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setSuccessMsg(`Welcome back, ${res.user.fullName}!`);
-    confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-
-    setTimeout(() => {
-      onSuccess(res.user!);
-      onClose();
-    }, 700);
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -87,28 +101,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    const res = AuthService.signUp({
-      fullName: signUpData.fullName,
-      rollNumber: signUpData.rollNumber,
-      username: signUpData.username || signUpData.rollNumber,
-      email: signUpData.email,
-      phone: signUpData.phone,
-      college: signUpData.college,
-      password: signUpData.password
-    });
+    setIsLoading(true);
 
-    if (!res.success || !res.user) {
-      setError(res.error || 'Registration failed.');
-      return;
+    try {
+      const res = await AuthService.signUp({
+        fullName: signUpData.fullName,
+        rollNumber: signUpData.rollNumber,
+        username: signUpData.username || signUpData.rollNumber,
+        email: signUpData.email,
+        phone: signUpData.phone,
+        college: signUpData.college,
+        password: signUpData.password
+      });
+
+      if (!res.success || !res.user) {
+        setError(res.error || 'Registration failed.');
+        setIsLoading(false);
+        return;
+      }
+
+      setSuccessMsg(`Account created! Welcome to Festronix, ${res.user.fullName}.`);
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+
+      setTimeout(() => {
+        onSuccess(res.user!);
+        onClose();
+      }, 800);
+    } catch (err: any) {
+      setError(err?.message || 'Registration error.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setSuccessMsg(`Account created! Welcome to Festronix, ${res.user.fullName}.`);
-    confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
-
-    setTimeout(() => {
-      onSuccess(res.user!);
-      onClose();
-    }, 800);
   };
 
   const fillDemoAccount = () => {
@@ -182,6 +205,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <X size={18} />
           </button>
         </div>
+
+        {/* Contextual Notice */}
+        {customNotice && (
+          <div
+            style={{
+              padding: '12px 14px',
+              background: 'rgba(40, 59, 120, 0.45)',
+              border: '1px solid rgba(120, 149, 147, 0.4)',
+              borderRadius: '12px',
+              marginBottom: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}
+          >
+            <Sparkles size={18} color="#BACEBB" style={{ flexShrink: 0 }} />
+            <div style={{ fontSize: '0.82rem', color: '#FFFFFF', lineHeight: 1.4 }}>
+              <strong>Login Required:</strong> {customNotice}
+            </div>
+          </div>
+        )}
 
         {/* Tab Toggle: Sign In / Sign Up */}
         <div
@@ -388,10 +432,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <button
               type="submit"
+              disabled={isLoading}
               className="btn-cyber-primary"
-              style={{ width: '100%', height: '44px', marginTop: '6px', justifyContent: 'center', fontSize: '0.88rem' }}
+              style={{
+                width: '100%',
+                height: '44px',
+                marginTop: '6px',
+                justifyContent: 'center',
+                fontSize: '0.88rem',
+                opacity: isLoading ? 0.7 : 1,
+                cursor: isLoading ? 'not-allowed' : 'pointer'
+              }}
             >
-              <span>Sign In & Continue</span>
+              <span>{isLoading ? 'Signing In...' : 'Sign In & Continue'}</span>
               <LogIn size={16} />
             </button>
           </form>
@@ -524,10 +577,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <button
               type="submit"
+              disabled={isLoading}
               className="btn-cyber-primary"
-              style={{ width: '100%', height: '44px', marginTop: '8px', justifyContent: 'center', fontSize: '0.88rem' }}
+              style={{
+                width: '100%',
+                height: '44px',
+                marginTop: '8px',
+                justifyContent: 'center',
+                fontSize: '0.88rem',
+                opacity: isLoading ? 0.7 : 1,
+                cursor: isLoading ? 'not-allowed' : 'pointer'
+              }}
             >
-              <span>Create Account & Continue</span>
+              <span>{isLoading ? 'Creating Account...' : 'Create Account & Continue'}</span>
               <Sparkles size={16} />
             </button>
           </form>

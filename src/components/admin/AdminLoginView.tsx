@@ -40,37 +40,43 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   };
 
   // Submit Handler: 3 Super Admins
-  const handleSuperSubmit = (e: React.FormEvent) => {
+  const handleSuperSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setLoading(true);
 
-    setTimeout(() => {
-      const res = AdminAuthService.loginCentral(superUsername, superPassword);
+    try {
+      const res = await AdminAuthService.loginCentral(superUsername, superPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
       } else {
         setErrorMessage(res.error || 'Failed to authenticate Central Council credentials.');
       }
-    }, 300);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err?.message || 'Authentication error.');
+    }
   };
 
   // Submit Handler: Department Chief & Event Coordinators
-  const handleDeptSubmit = (e: React.FormEvent) => {
+  const handleDeptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setLoading(true);
 
-    setTimeout(() => {
-      const res = AdminAuthService.loginDepartment(selectedDept, deptUsername, deptPassword, coordName);
+    try {
+      const res = await AdminAuthService.loginDepartment(selectedDept, deptUsername, deptPassword, coordName);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
       } else {
         setErrorMessage(res.error || 'Failed to authenticate Department credentials.');
       }
-    }, 300);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err?.message || 'Authentication error.');
+    }
   };
 
   // Submit Handler: Operational Roles (Finance & Volunteer)

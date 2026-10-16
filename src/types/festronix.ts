@@ -6,9 +6,12 @@ export type EventCategory =
   | 'gaming' 
   | 'departmental';
 
-export type EventFormat = 'individual' | 'duo' | 'team';
+export type FestCategory = EventCategory;
 
-export type EventState = 'upcoming' | 'open' | 'full' | 'closed' | 'completed';
+export type EventFormat = 'individual' | 'duo' | 'team';
+export type ParticipationFormat = EventFormat;
+
+export type EventState = 'upcoming' | 'open' | 'full' | 'closed' | 'completed' | 'pending_approval';
 
 export type PaymentStatus = 
   | 'payment_required' 
@@ -33,7 +36,8 @@ export interface FestEvent {
   id: string;
   slug: string;
   title: string;
-  departmentId: string;
+  tagline?: string;
+  departmentId?: string;
   departmentCode: string;
   category: EventCategory;
   format: EventFormat;
@@ -54,12 +58,15 @@ export interface FestEvent {
     third?: string;
     special?: string;
   };
-  eligibility: string;
+  eligibility?: string;
   coordinatorName: string;
   coordinatorPhone: string;
   coordinatorEmail: string;
   status: EventState;
-  bannerGradient: string;
+  bannerGradient?: string;
+  paymentInstructions?: string; // FR-EVT-05
+  faqs?: { question: string; answer: string }[]; // FR-EVT-07
+  approvalStatus?: 'approved' | 'pending' | 'rejected'; // FR-EVT-08
 }
 
 export interface Teammate {
@@ -82,12 +89,33 @@ export interface User {
   createdAt: string;
 }
 
+export interface Team {
+  id: string; // e.g. TEAM-9042
+  teamCode: string; // e.g. FX-CSE-8921
+  teamName: string;
+  eventId: string;
+  eventTitle: string;
+  registrationId: string;
+  leaderId?: string;
+  leaderName: string;
+  leaderRoll: string;
+  leaderEmail: string;
+  leaderPhone: string;
+  leaderCollege: string;
+  members: Teammate[];
+  maxTeamSize: number;
+  minTeamSize: number;
+  createdAt: string;
+}
+
 export interface Registration {
   id: string; // e.g. FEST-2026-9042
   userId?: string; // id of the purchasing user
   buyerRoll?: string; // roll number of the buyer
   eventId: string;
   eventTitle: string;
+  teamName?: string;
+  teamCode?: string;
   leaderName: string;
   leaderEmail: string;
   leaderPhone: string;
@@ -108,6 +136,8 @@ export interface Registration {
   checkedIn: boolean;
   checkedInAt?: string;
   checkedInBy?: string;
+  spotRegisteredBy?: string;
+  departmentCode?: string;
 }
 
 export interface Announcement {

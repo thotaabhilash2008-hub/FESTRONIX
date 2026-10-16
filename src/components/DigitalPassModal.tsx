@@ -39,7 +39,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           r.userId === currentUser.id ||
           r.buyerRoll === currentUser.rollNumber ||
           r.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase() ||
-          r.leaderEmail.toLowerCase() === currentUser.email.toLowerCase()
+          r.leaderEmail.toLowerCase() === currentUser.email.toLowerCase() ||
+          (r.teammates && r.teammates.some(tm => 
+            (tm.rollNumber && tm.rollNumber.toLowerCase() === currentUser.rollNumber.toLowerCase()) ||
+            (tm.email && tm.email.toLowerCase() === currentUser.email.toLowerCase())
+          ))
       )
     : allRegs;
 
@@ -61,6 +65,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         r.leaderRoll.toLowerCase().includes(q) ||
         r.leaderEmail.toLowerCase().includes(q) ||
         r.leaderName.toLowerCase().includes(q) ||
+        (r.teamName && r.teamName.toLowerCase().includes(q)) ||
+        (r.teamCode && r.teamCode.toLowerCase().includes(q)) ||
         (r.teammates && r.teammates.some(tm => tm.rollNumber.toLowerCase().includes(q) || tm.name.toLowerCase().includes(q)))
     );
 
@@ -307,6 +313,50 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             >
               {/* Participant info */}
               <div>
+                {/* Squad Banner (For Team Events) */}
+                {(reg.teamName || reg.teamCode) && (
+                  <div
+                    style={{
+                      marginBottom: '14px',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(40, 59, 120, 0.45) 0%, rgba(62, 66, 100, 0.45) 100%)',
+                      border: '1px solid rgba(120, 149, 147, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.66rem', color: '#BACEBB', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>
+                        OFFICIAL SQUAD
+                      </div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: '#FFFFFF' }}>
+                        {reg.teamName || 'Squad Team'}
+                      </div>
+                    </div>
+                    {reg.teamCode && (
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.64rem', color: '#A8B3C2', fontWeight: 600 }}>TEAM CODE</div>
+                        <div
+                          style={{
+                            fontFamily: 'monospace',
+                            fontWeight: 800,
+                            color: '#BACEBB',
+                            background: 'rgba(16, 26, 53, 0.85)',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(120, 149, 147, 0.35)',
+                            fontSize: '0.82rem'
+                          }}
+                        >
+                          {reg.teamCode}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Participant / Team Lead

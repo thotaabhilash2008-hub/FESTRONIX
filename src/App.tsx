@@ -44,7 +44,13 @@ export const App: React.FC = () => {
   const [isPassesModalOpen, setIsPassesModalOpen] = useState<boolean>(false);
   const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
 
-  const refreshData = () => {
+  // Pending actions after login
+  const [pendingRegisterEvent, setPendingRegisterEvent] = useState<FestEvent | null>(null);
+  const [pendingAction, setPendingAction] = useState<'multipass' | null>(null);
+  const [authCustomNotice, setAuthCustomNotice] = useState<string | null>(null);
+
+  const refreshData = async () => {
+    // 1. Immediate sync from cached store (instant render)
     const evts = StorageService.getEvents();
     const regs = StorageService.getRegistrations();
     const anns = StorageService.getAnnouncements();
@@ -52,6 +58,20 @@ export const App: React.FC = () => {
     setEvents(evts);
     setRegistrations(regs);
     setAnnouncements(anns);
+
+    // 2. Fetch fresh data from Supabase backend in parallel
+    try {
+      const [liveEvts, liveRegs, liveAnns] = await Promise.all([
+        StorageService.fetchEvents(),
+        StorageService.fetchRegistrations(),
+        StorageService.fetchAnnouncements()
+      ]);
+      setEvents(liveEvts);
+      setRegistrations(liveRegs);
+      setAnnouncements(liveAnns);
+    } catch (err) {
+      console.warn('Background sync warning:', err);
+    }
   };
 
   useEffect(() => {
@@ -63,6 +83,15 @@ export const App: React.FC = () => {
     };
     window.addEventListener('festronix:auth', handleAuthChange);
 
+    // Reactive live data update listeners
+    const handleEventsUpdate = (e: any) => setEvents(e.detail);
+    const handleRegsUpdate = (e: any) => setRegistrations(e.detail);
+    const handleAnnsUpdate = (e: any) => setAnnouncements(e.detail);
+
+    window.addEventListener('festronix:events-updated', handleEventsUpdate);
+    window.addEventListener('festronix:regs-updated', handleRegsUpdate);
+    window.addEventListener('festronix:announcements-updated', handleAnnsUpdate);
+
     // Reactive hash listener for #admin
     const handleHashChange = () => {
       setIsAdminView(window.location.hash === '#admin');
@@ -71,6 +100,9 @@ export const App: React.FC = () => {
 
     return () => {
       window.removeEventListener('festronix:auth', handleAuthChange);
+      window.removeEventListener('festronix:events-updated', handleEventsUpdate);
+      window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
+      window.removeEventListener('festronix:announcements-updated', handleAnnsUpdate);
       window.removeEventListener('hashchange', handleHashChange);
     };
   }, []);
@@ -126,6 +158,30 @@ export const App: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleStartEventRegistration = (evt: FestEvent) => {
+    if (!currentUser) {
+      setPendingRegisterEvent(evt);
+      setPendingAction(null);
+      setDetailEvent(null);
+      setAuthCustomNotice(`Please sign in with your college credentials to register for "${evt.title}". Your profile details will automatically auto-fill into the registration pass!`);
+      handleOpenAuth('signin');
+    } else {
+      setDetailEvent(null);
+      setRegisterEvent(evt);
+    }
+  };
+
+  const handleStartMultiPass = () => {
+    if (!currentUser) {
+      setPendingAction('multipass');
+      setPendingRegisterEvent(null);
+      setAuthCustomNotice('Please sign in with your college credentials to book passes. Your student details will automatically auto-fill!');
+      handleOpenAuth('signin');
+    } else {
+      setIsMultiPassModalOpen(true);
+    }
+  };
+
   const handleOpenAuth = (mode: 'signin' | 'signup' = 'signin') => {
     setAuthModalMode(mode);
     setIsAuthModalOpen(true);
@@ -155,7 +211,7 @@ export const App: React.FC = () => {
       <Navbar
         onOpenIntro={() => setIsIntroOpen(true)}
         onOpenPasses={() => setIsPassesModalOpen(true)}
-        onOpenMultiPass={() => setIsMultiPassModalOpen(true)}
+        onOpenMultiPass={handleStartMultiPass}
         currentUser={currentUser}
         onOpenAuth={handleOpenAuth}
         onSignOut={() => AuthService.signOut()}
@@ -173,14 +229,14 @@ export const App: React.FC = () => {
         <HeroSection
           onExploreEvents={handleNavigateExplore}
           onOpenIntro={() => setIsIntroOpen(true)}
-          onRegisterNow={() => setIsMultiPassModalOpen(true)}
+          onRegisterNow={handleStartMultiPass}
         />
 
         {/* TOP HYPED EVENTS (Ranked by Total Registrations) */}
         <HypedEventsSection
           events={events}
           onSelectEvent={evt => setDetailEvent(evt)}
-          onRegisterEvent={evt => setRegisterEvent(evt)}
+          onRegisterEvent={handleStartEventRegistration}
           onExploreAll={handleNavigateExplore}
         />
 
@@ -188,7 +244,7 @@ export const App: React.FC = () => {
         <EventCatalog
           events={events}
           onSelectEvent={evt => setDetailEvent(evt)}
-          onRegisterEvent={evt => setRegisterEvent(evt)}
+          onRegisterEvent={handleStartEventRegistration}
           selectedDept={selectedDept}
           onSelectDept={setSelectedDept}
           selectedCategory={selectedCategory}
@@ -211,7 +267,7 @@ export const App: React.FC = () => {
       <EventDetailModal
         event={detailEvent}
         onClose={() => setDetailEvent(null)}
-        onRegister={evt => setRegisterEvent(evt)}
+        onRegister={handleStartEventRegistration}
       />
 
       {registerEvent && (
@@ -220,9 +276,10 @@ export const App: React.FC = () => {
           currentUser={currentUser}
           onClose={() => setRegisterEvent(null)}
           onSuccess={handleRegistrationSuccess}
+          onOpenAuth={handleOpenAuth}
           onOpenMultiPass={() => {
             setRegisterEvent(null);
-            setIsMultiPassModalOpen(true);
+            handleStartMultiPass();
           }}
         />
       )}
@@ -239,10 +296,27 @@ export const App: React.FC = () => {
       <AuthModal
         isOpen={isAuthModalOpen}
         initialMode={authModalMode}
-        onClose={() => setIsAuthModalOpen(false)}
+        customNotice={authCustomNotice}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setPendingRegisterEvent(null);
+          setPendingAction(null);
+          setAuthCustomNotice(null);
+        }}
         onSuccess={(user) => {
           setCurrentUser(user);
           setIsAuthModalOpen(false);
+          setAuthCustomNotice(null);
+
+          // Resume pending registration flow seamlessly
+          if (pendingRegisterEvent) {
+            const evt = pendingRegisterEvent;
+            setPendingRegisterEvent(null);
+            setRegisterEvent(evt);
+          } else if (pendingAction === 'multipass') {
+            setPendingAction(null);
+            setIsMultiPassModalOpen(true);
+          }
         }}
       />
 

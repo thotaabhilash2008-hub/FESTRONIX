@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, Users, IndianRupee, Layers, CheckCircle2, Clock, Search, 
   Download, Plus, Edit3, Trash2, ArrowRight, LogOut, Globe, QrCode, 
@@ -7,7 +7,7 @@ import {
 import confetti from 'canvas-confetti';
 import { AdminUser } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
-import { FestEvent, Registration, FestStats, PaymentStatus } from '../../types/festronix';
+import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
 
 interface DeptCoordinatorDashboardProps {
@@ -26,11 +26,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [events, setEvents] = useState<FestEvent[]>(
     StorageService.getEvents().filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase())
   );
-  const [registrations, setRegistrations] = useState<Registration[]>(() => {
-    const allEvents = StorageService.getEvents().filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
-    const eventIds = new Set(allEvents.map(e => e.id));
-    return StorageService.getRegistrations().filter(r => eventIds.has(r.eventId));
-  });
+  const [registrations, setRegistrations] = useState<Registration[]>(() =>
+    StorageService.getDepartmentRegistrations(deptCode)
+  );
 
   // Gate Check-in State
   const [checkInInput, setCheckInInput] = useState('');
@@ -45,50 +43,110 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [rosterSearch, setRosterSearch] = useState('');
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
 
-  // Edit Event Modal State
+  // Edit Event Modal State (FR-EVT-01 to FR-EVT-08)
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
 
-  // Add Event Form State
+  // Add Event Form State (FR-EVT-01 to FR-EVT-08)
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventCategory, setNewEventCategory] = useState<'technical' | 'workshop' | 'hackathon' | 'gaming' | 'non-technical'>('technical');
+  const [newEventFormat, setNewEventFormat] = useState<EventFormat>('individual');
+  const [newEventMinTeamSize, setNewEventMinTeamSize] = useState(1);
+  const [newEventMaxTeamSize, setNewEventMaxTeamSize] = useState(1);
   const [newEventFee, setNewEventFee] = useState(150);
   const [newEventCapacity, setNewEventCapacity] = useState(60);
   const [newEventVenue, setNewEventVenue] = useState('Auditorium Block A');
   const [newEventDate, setNewEventDate] = useState('April 24, 2026');
   const [newEventTime, setNewEventTime] = useState('10:00 AM');
+  const [newEventDeadline, setNewEventDeadline] = useState('April 22, 2026');
   const [newEventDesc, setNewEventDesc] = useState('');
+  const [newEventRules, setNewEventRules] = useState('Valid college ID required\nReport 15 minutes before start');
+  const [newEventPaymentInstructions, setNewEventPaymentInstructions] = useState('Pay via Festronix Central UPI QR or spot desk');
+  const [newEventCoordinatorName, setNewEventCoordinatorName] = useState(adminUser.fullName);
+  const [newEventCoordinatorPhone, setNewEventCoordinatorPhone] = useState(adminUser.phone || '+91 98480 12345');
+  const [newEventCoordinatorEmail, setNewEventCoordinatorEmail] = useState(adminUser.email);
+  const [newEventPublishPolicy, setNewEventPublishPolicy] = useState<'open' | 'pending_approval'>('open');
 
-  const refreshDeptData = () => {
+  const refreshDeptData = async () => {
     setDeptStats(StorageService.getDepartmentStats(deptCode));
     const all = StorageService.getEvents();
     const deptEvts = all.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
     setEvents(deptEvts);
-    const eventIds = new Set(deptEvts.map(e => e.id));
-    setRegistrations(StorageService.getRegistrations().filter(r => eventIds.has(r.eventId)));
+    setRegistrations(StorageService.getDepartmentRegistrations(deptCode));
+
+    try {
+      const [liveEvts, liveRegs] = await Promise.all([
+        StorageService.fetchEvents(),
+        StorageService.fetchRegistrations()
+      ]);
+      const updatedDeptEvts = liveEvts.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
+      setEvents(updatedDeptEvts);
+      setRegistrations(liveRegs.filter(r => StorageService.resolveDepartmentForRegistration(r, liveEvts) === deptCode.toUpperCase()));
+      setDeptStats(StorageService.getDepartmentStats(deptCode));
+    } catch (err) {
+      console.warn('Dept dashboard sync warning:', err);
+    }
   };
 
+  useEffect(() => {
+    refreshDeptData();
+
+    // Listen to real-time local updates and cross-tab storage changes
+    const handleRegsUpdate = () => {
+      refreshDeptData();
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'festronix_registrations_v1' || e.key === 'festronix_events_v1') {
+        refreshDeptData();
+      }
+    };
+
+    window.addEventListener('festronix:regs-updated', handleRegsUpdate);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [deptCode]);
+
   // Toggle Event Status
-  const handleToggleEventStatus = (event: FestEvent) => {
+  const handleToggleEventStatus = async (event: FestEvent) => {
     const nextStatus = event.status === 'open' ? 'closed' : 'open';
     const updated = { ...event, status: nextStatus as any };
-    StorageService.updateEvent(updated);
+    await StorageService.updateEvent(updated);
     refreshDeptData();
   };
 
   // Save Edited Event
-  const handleSaveEditedEvent = (e: React.FormEvent) => {
+  const handleSaveEditedEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEvent) return;
-    StorageService.updateEvent(editingEvent);
+    await StorageService.updateEvent(editingEvent);
     setEditingEvent(null);
     refreshDeptData();
   };
 
-  // Add New Event
-  const handleCreateNewEvent = (e: React.FormEvent) => {
+  // Add New Event (FR-EVT-01 to FR-EVT-08)
+  const handleCreateNewEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventTitle.trim()) return;
+
+    let minSize = 1;
+    let maxSize = 1;
+    if (newEventFormat === 'duo') {
+      minSize = 2;
+      maxSize = 2;
+    } else if (newEventFormat === 'team') {
+      minSize = Math.max(2, Number(newEventMinTeamSize) || 2);
+      maxSize = Math.max(minSize, Number(newEventMaxTeamSize) || 4);
+    }
+
+    const rulesArr = newEventRules
+      .split('\n')
+      .map(r => r.trim())
+      .filter(Boolean);
 
     const newEvt: FestEvent = {
       id: `evt-${deptCode.toLowerCase()}-${Date.now().toString().slice(-4)}`,
@@ -97,28 +155,30 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       departmentId: deptInfo?.id || `dept-${deptCode.toLowerCase()}`,
       departmentCode: deptCode,
       category: newEventCategory,
-      format: 'individual',
-      minTeamSize: 1,
-      maxTeamSize: 1,
+      format: newEventFormat,
+      minTeamSize: minSize,
+      maxTeamSize: maxSize,
       fee: Number(newEventFee),
       capacity: Number(newEventCapacity),
       registeredCount: 0,
-      deadline: 'April 22, 2026',
+      deadline: newEventDeadline || 'April 22, 2026',
       date: newEventDate,
       time: newEventTime,
       venue: newEventVenue,
       description: newEventDesc || 'Exciting engineering challenge hosted by the department.',
-      rules: ['Valid college ID required', 'Report 15 minutes before start'],
+      rules: rulesArr.length > 0 ? rulesArr : ['Valid college ID required', 'Report 15 minutes before start'],
       prizes: { first: '₹15,000 Cash + Certificate', second: '₹8,000 Cash' },
       eligibility: 'All Engineering Students',
-      coordinatorName: adminUser.fullName,
-      coordinatorPhone: adminUser.phone || '+91 98480 12345',
-      coordinatorEmail: adminUser.email,
-      status: 'open',
+      coordinatorName: newEventCoordinatorName.trim() || adminUser.fullName,
+      coordinatorPhone: newEventCoordinatorPhone.trim() || adminUser.phone || '+91 98480 12345',
+      coordinatorEmail: newEventCoordinatorEmail.trim() || adminUser.email,
+      status: newEventPublishPolicy,
+      approvalStatus: newEventPublishPolicy === 'open' ? 'approved' : 'pending',
+      paymentInstructions: newEventPaymentInstructions.trim() || 'Pay via Festronix Central UPI or on-venue spot desk',
       bannerGradient: 'linear-gradient(135deg, #283B78 0%, #101A35 100%)'
     };
 
-    StorageService.addEvent(newEvt);
+    await StorageService.addEvent(newEvt);
     setIsAddEventOpen(false);
     setNewEventTitle('');
     setNewEventDesc('');
@@ -126,7 +186,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   };
 
   // Fast Gate Check-In Handler
-  const handleCheckInSubmit = (e: React.FormEvent) => {
+  const handleCheckInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkInInput.trim()) return;
 
@@ -135,7 +195,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     const matchingReg = registrations.find(
       r => r.id.toLowerCase() === query || 
            r.qrToken.toLowerCase() === query || 
-           r.leaderRoll.toLowerCase() === query
+           (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
+           (r.buyerRoll && r.buyerRoll.toLowerCase() === query) ||
+           (r.teamCode && r.teamCode.toLowerCase() === query) ||
+           (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase() === query))
     );
 
     if (!matchingReg) {
@@ -147,7 +210,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       return;
     }
 
-    const res = StorageService.checkInRegistration(matchingReg.id, adminUser.fullName);
+    const res = await StorageService.checkInRegistration(matchingReg.id, adminUser.fullName);
     setCheckInResult(res);
 
     if (res.success) {
@@ -158,8 +221,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   };
 
   // 1-Click Check-in directly from the roster table
-  const handleQuickCheckInFromRoster = (reg: Registration) => {
-    const res = StorageService.checkInRegistration(reg.id, adminUser.fullName);
+  const handleQuickCheckInFromRoster = async (reg: Registration) => {
+    const res = await StorageService.checkInRegistration(reg.id, adminUser.fullName);
     setCheckInResult(res);
     if (res.success) {
       confetti({ particleCount: 50, spread: 40 });
@@ -168,8 +231,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   };
 
   // Payment Verification Handler
-  const handleVerifyPayment = (regId: string, status: PaymentStatus, reason?: string) => {
-    const success = StorageService.updatePaymentStatus(regId, status, adminUser.fullName, reason);
+  const handleVerifyPayment = async (regId: string, status: PaymentStatus, reason?: string) => {
+    const success = await StorageService.updatePaymentStatus(regId, status, adminUser.fullName, reason);
     if (success) {
       if (status === 'verified') {
         confetti({ particleCount: 60, spread: 50 });
@@ -180,12 +243,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Export Dept CSV
   const handleExportDeptCSV = () => {
-    const headers = ['Reg ID', 'Event Title', 'Student Name', 'Roll Number', 'Email', 'Phone', 'College', 'Fee (INR)', 'Payment Status', 'Checked In'];
+    const headers = ['Reg ID', 'Event Title', 'Student Name', 'Roll Number', 'Team Name', 'Team Code', 'Email', 'Phone', 'College', 'Fee (INR)', 'Payment Status', 'Checked In'];
     const rows = registrations.map(r => [
       r.id,
       `"${r.eventTitle.replace(/"/g, '""')}"`,
       `"${r.leaderName.replace(/"/g, '""')}"`,
       r.leaderRoll,
+      `"${(r.teamName || 'Solo').replace(/"/g, '""')}"`,
+      r.teamCode || 'N/A',
       r.leaderEmail,
       r.leaderPhone,
       `"${r.leaderCollege.replace(/"/g, '""')}"`,
@@ -210,7 +275,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       r.leaderName.toLowerCase().includes(rosterSearch.toLowerCase()) ||
       r.leaderRoll.toLowerCase().includes(rosterSearch.toLowerCase()) ||
       r.eventTitle.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-      r.id.toLowerCase().includes(rosterSearch.toLowerCase())
+      r.id.toLowerCase().includes(rosterSearch.toLowerCase()) ||
+      (r.teamName && r.teamName.toLowerCase().includes(rosterSearch.toLowerCase())) ||
+      (r.teamCode && r.teamCode.toLowerCase().includes(rosterSearch.toLowerCase()))
     );
   });
 
@@ -718,7 +785,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                         {r.leaderRoll}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
-                        {r.eventTitle}
+                        <div>{r.eventTitle}</div>
+                        {(r.teamName || r.teamCode) && (
+                          <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px' }}>
+                            Squad: <strong>{r.teamName || 'Team'}</strong> <span style={{ fontFamily: 'monospace', color: '#A8B3C2' }}>({r.teamCode})</span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#BACEBB', fontWeight: 700 }}>
                         ₹{r.fee}
@@ -1043,7 +1115,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         )}
       </main>
 
-      {/* Edit Event Modal */}
+      {/* Edit Event Modal (FR-EVT-01 to FR-EVT-08) */}
       {editingEvent && (
         <div
           style={{
@@ -1061,46 +1133,230 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         >
           <div
             style={{
-              maxWidth: '520px',
+              maxWidth: '650px',
               width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               background: '#142042',
               borderRadius: '16px',
-              padding: '24px',
+              padding: '26px',
               border: '1px solid rgba(220, 227, 229, 0.25)'
             }}
             onClick={e => e.stopPropagation()}
           >
-            <h4 style={{ color: '#FFFFFF', margin: '0 0 16px', fontSize: '1.1rem' }}>Edit Event: {editingEvent.title}</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h4 style={{ color: '#FFFFFF', margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>
+                Configure Event: {editingEvent.title}
+              </h4>
+              <span style={{ fontSize: '0.72rem', background: 'rgba(255, 215, 0, 0.15)', color: '#FFD700', padding: '3px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                {editingEvent.departmentCode}
+              </span>
+            </div>
+
             <form onSubmit={handleSaveEditedEvent} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Venue Location</label>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Event Title</label>
                 <input
                   type="text"
-                  value={editingEvent.venue}
-                  onChange={e => setEditingEvent({ ...editingEvent, venue: e.target.value })}
+                  value={editingEvent.title}
+                  onChange={e => setEditingEvent({ ...editingEvent, title: e.target.value })}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  required
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {/* Format & Team Sizes (FR-EVT-03, FR-EVT-04) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Entry Fee (INR)</label>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Participation Format (FR-EVT-03)</label>
+                  <select
+                    value={editingEvent.format}
+                    onChange={e => {
+                      const fmt = e.target.value as EventFormat;
+                      const minSize = fmt === 'duo' ? 2 : fmt === 'team' ? Math.max(2, editingEvent.minTeamSize) : 1;
+                      const maxSize = fmt === 'duo' ? 2 : fmt === 'team' ? Math.max(minSize, editingEvent.maxTeamSize) : 1;
+                      setEditingEvent({ ...editingEvent, format: fmt, minTeamSize: minSize, maxTeamSize: maxSize });
+                    }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
+                  >
+                    <option value="individual">Individual (Solo)</option>
+                    <option value="duo">Duo (2 Members)</option>
+                    <option value="team">Team (Configurable Squad)</option>
+                  </select>
+                </div>
+
+                {editingEvent.format === 'team' ? (
+                  <>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Min Team Size (FR-EVT-04)</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={10}
+                        value={editingEvent.minTeamSize}
+                        onChange={e => setEditingEvent({ ...editingEvent, minTeamSize: Number(e.target.value) })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Max Team Size (FR-EVT-04)</label>
+                      <input
+                        type="number"
+                        min={editingEvent.minTeamSize}
+                        max={15}
+                        value={editingEvent.maxTeamSize}
+                        onChange={e => setEditingEvent({ ...editingEvent, maxTeamSize: Number(e.target.value) })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#A8B3C2' }}>
+                    Team size fixed at {editingEvent.format === 'duo' ? '2 members' : '1 member (solo)'}.
+                  </div>
+                )}
+              </div>
+
+              {/* Fee & Payment Instructions (FR-EVT-05) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Entry Fee (INR) (FR-EVT-05)</label>
                   <input
                     type="number"
+                    min={0}
                     value={editingEvent.fee}
                     onChange={e => setEditingEvent({ ...editingEvent, fee: Number(e.target.value) })}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
                   />
+                  <span style={{ fontSize: '0.7rem', color: '#A8B3C2' }}>Set to 0 for Free Event</span>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Max Capacity</label>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Payment Instructions (FR-EVT-05)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. UPI to festronix.vce@sbi or pay cash at spot desk"
+                    value={editingEvent.paymentInstructions || ''}
+                    onChange={e => setEditingEvent({ ...editingEvent, paymentInstructions: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Capacity & Deadline (FR-EVT-06) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Max Capacity Slots (FR-EVT-06)</label>
                   <input
                     type="number"
+                    min={1}
                     value={editingEvent.capacity}
                     onChange={e => setEditingEvent({ ...editingEvent, capacity: Number(e.target.value) })}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
                   />
                 </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Registration Deadline (FR-EVT-06)</label>
+                  <input
+                    type="text"
+                    value={editingEvent.deadline}
+                    onChange={e => setEditingEvent({ ...editingEvent, deadline: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Schedule & Venue (FR-EVT-07) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Date</label>
+                  <input
+                    type="text"
+                    value={editingEvent.date}
+                    onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Time</label>
+                  <input
+                    type="text"
+                    value={editingEvent.time}
+                    onChange={e => setEditingEvent({ ...editingEvent, time: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Venue Location</label>
+                  <input
+                    type="text"
+                    value={editingEvent.venue}
+                    onChange={e => setEditingEvent({ ...editingEvent, venue: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Assigned Event Coordinator (FR-EVT-01, FR-EVT-07) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Coordinator Name (FR-EVT-01)</label>
+                  <input
+                    type="text"
+                    value={editingEvent.coordinatorName}
+                    onChange={e => setEditingEvent({ ...editingEvent, coordinatorName: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Coordinator Phone</label>
+                  <input
+                    type="text"
+                    value={editingEvent.coordinatorPhone}
+                    onChange={e => setEditingEvent({ ...editingEvent, coordinatorPhone: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Coordinator Email</label>
+                  <input
+                    type="email"
+                    value={editingEvent.coordinatorEmail}
+                    onChange={e => setEditingEvent({ ...editingEvent, coordinatorEmail: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Rules (FR-EVT-07) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Rules & Guidelines (1 per line) (FR-EVT-07)</label>
+                <textarea
+                  rows={2}
+                  value={Array.isArray(editingEvent.rules) ? editingEvent.rules.join('\n') : ''}
+                  onChange={e => setEditingEvent({
+                    ...editingEvent,
+                    rules: e.target.value.split('\n').map(r => r.trim()).filter(Boolean)
+                  })}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Status / SAC Publishing Policy (FR-EVT-08) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Event Gate & SAC Approval Status (FR-EVT-08)</label>
+                <select
+                  value={editingEvent.status}
+                  onChange={e => setEditingEvent({
+                    ...editingEvent,
+                    status: e.target.value as any,
+                    approvalStatus: e.target.value === 'open' ? 'approved' : editingEvent.approvalStatus
+                  })}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
+                >
+                  <option value="open">Open (Published & Accepting Registrations)</option>
+                  <option value="closed">Closed (Registrations Paused)</option>
+                  <option value="pending_approval">Pending SAC Approval (Under Review)</option>
+                </select>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
@@ -1116,7 +1372,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   className="btn-cyber-primary"
                   style={{ padding: '8px 20px', borderRadius: '8px', fontWeight: 700 }}
                 >
-                  Save Changes
+                  Save Configuration
                 </button>
               </div>
             </form>
@@ -1124,7 +1380,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         </div>
       )}
 
-      {/* Add Event Modal */}
+      {/* Add Event Modal (FR-EVT-01 to FR-EVT-08) */}
       {isAddEventOpen && (
         <div
           style={{
@@ -1142,19 +1398,23 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         >
           <div
             style={{
-              maxWidth: '540px',
+              maxWidth: '650px',
               width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               background: '#142042',
               borderRadius: '16px',
-              padding: '24px',
+              padding: '26px',
               border: '1px solid rgba(220, 227, 229, 0.25)'
             }}
             onClick={e => e.stopPropagation()}
           >
-            <h4 style={{ color: '#FFFFFF', margin: '0 0 16px', fontSize: '1.15rem' }}>Create New {deptCode} Event</h4>
+            <h4 style={{ color: '#FFFFFF', margin: '0 0 16px', fontSize: '1.2rem', fontWeight: 800 }}>
+              Create New {deptCode} Event (FR-EVT-01 to FR-EVT-08)
+            </h4>
             <form onSubmit={handleCreateNewEvent} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Event Title</label>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Event Title *</label>
                 <input
                   type="text"
                   required
@@ -1165,9 +1425,57 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {/* Format & Team Config (FR-EVT-03, FR-EVT-04) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Category</label>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Participation Format (FR-EVT-03)</label>
+                  <select
+                    value={newEventFormat}
+                    onChange={e => setNewEventFormat(e.target.value as any)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
+                  >
+                    <option value="individual">Individual (Solo)</option>
+                    <option value="duo">Duo (2 Members)</option>
+                    <option value="team">Team (Configurable Squad)</option>
+                  </select>
+                </div>
+
+                {newEventFormat === 'team' ? (
+                  <>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Min Team Size (FR-EVT-04)</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={10}
+                        value={newEventMinTeamSize}
+                        onChange={e => setNewEventMinTeamSize(Number(e.target.value))}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Max Team Size (FR-EVT-04)</label>
+                      <input
+                        type="number"
+                        min={newEventMinTeamSize}
+                        max={15}
+                        value={newEventMaxTeamSize}
+                        onChange={e => setNewEventMaxTeamSize(Number(e.target.value))}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#A8B3C2' }}>
+                    Team size fixed at {newEventFormat === 'duo' ? '2 members' : '1 member (solo)'}.
+                  </div>
+                )}
+              </div>
+
+              {/* Category, Fee & Payment Instructions (FR-EVT-05) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Category</label>
                   <select
                     value={newEventCategory}
                     onChange={e => setNewEventCategory(e.target.value as any)}
@@ -1182,21 +1490,36 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Entry Fee (INR)</label>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Fee (INR) (FR-EVT-05)</label>
                   <input
                     type="number"
+                    min={0}
                     value={newEventFee}
                     onChange={e => setNewEventFee(Number(e.target.value))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                  <span style={{ fontSize: '0.68rem', color: '#A8B3C2' }}>0 for Free Event</span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Payment Instructions (FR-EVT-05)</label>
+                  <input
+                    type="text"
+                    value={newEventPaymentInstructions}
+                    onChange={e => setNewEventPaymentInstructions(e.target.value)}
+                    placeholder="e.g. UPI or spot desk"
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
 
+              {/* Capacity Slots & Deadline (FR-EVT-06) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Capacity Slots</label>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Capacity Slots (FR-EVT-06)</label>
                   <input
                     type="number"
+                    min={1}
                     value={newEventCapacity}
                     onChange={e => setNewEventCapacity(Number(e.target.value))}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
@@ -1204,7 +1527,38 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Venue</label>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Registration Deadline (FR-EVT-06)</label>
+                  <input
+                    type="text"
+                    value={newEventDeadline}
+                    onChange={e => setNewEventDeadline(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Schedule & Venue (FR-EVT-07) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Date</label>
+                  <input
+                    type="text"
+                    value={newEventDate}
+                    onChange={e => setNewEventDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Time</label>
+                  <input
+                    type="text"
+                    value={newEventTime}
+                    onChange={e => setNewEventTime(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Venue Location</label>
                   <input
                     type="text"
                     value={newEventVenue}
@@ -1214,8 +1568,39 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               </div>
 
+              {/* Assigned Coordinator (FR-EVT-01, FR-EVT-07) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Coordinator Name (FR-EVT-01)</label>
+                  <input
+                    type="text"
+                    value={newEventCoordinatorName}
+                    onChange={e => setNewEventCoordinatorName(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Coordinator Phone</label>
+                  <input
+                    type="text"
+                    value={newEventCoordinatorPhone}
+                    onChange={e => setNewEventCoordinatorPhone(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Coordinator Email</label>
+                  <input
+                    type="email"
+                    value={newEventCoordinatorEmail}
+                    onChange={e => setNewEventCoordinatorEmail(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '4px' }}>Description</label>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Description</label>
                 <textarea
                   rows={2}
                   value={newEventDesc}
@@ -1223,6 +1608,29 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   placeholder="Event summary and learning outcomes"
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
                 />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Rules & Regulations (1 per line) (FR-EVT-07)</label>
+                <textarea
+                  rows={2}
+                  value={newEventRules}
+                  onChange={e => setNewEventRules(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* SAC Approval Policy (FR-EVT-08) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Publishing & Approval Policy (FR-EVT-08)</label>
+                <select
+                  value={newEventPublishPolicy}
+                  onChange={e => setNewEventPublishPolicy(e.target.value as any)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
+                >
+                  <option value="open">Direct Publishing (Open Gate immediately)</option>
+                  <option value="pending_approval">Submit for SAC Dean Approval (Pending status)</option>
+                </select>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
@@ -1238,7 +1646,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   className="btn-cyber-primary"
                   style={{ padding: '8px 20px', borderRadius: '8px', fontWeight: 700 }}
                 >
-                  Create Event
+                  Create & Save Event
                 </button>
               </div>
             </form>
