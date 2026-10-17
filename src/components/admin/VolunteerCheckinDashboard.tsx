@@ -361,6 +361,12 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
                 <span style={{ color: '#A8B3C2' }}>Roll Number: </span>
                 <strong>{lastCheckedIn.leaderRoll}</strong>
               </div>
+              {lastCheckedIn.deptSection && (
+                <div>
+                  <span style={{ color: '#A8B3C2' }}>Dept & Section: </span>
+                  <strong style={{ color: '#34d399' }}>{lastCheckedIn.deptSection}</strong>
+                </div>
+              )}
               <div>
                 <span style={{ color: '#A8B3C2' }}>College: </span>
                 <span>{lastCheckedIn.leaderCollege}</span>

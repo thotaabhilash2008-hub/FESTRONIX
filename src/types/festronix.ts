@@ -75,6 +75,13 @@ export interface Teammate {
   phone: string;
   college: string;
   rollNumber: string;
+  deptSection?: string;
+}
+
+export interface AdditionalMember {
+  name: string;
+  rollNumber: string;
+  deptSection: string;
 }
 
 export interface User {
@@ -121,6 +128,7 @@ export interface Registration {
   leaderPhone: string;
   leaderCollege: string;
   leaderRoll: string;
+  deptSection?: string;
   teammates: Teammate[];
   format: EventFormat;
   fee: number;

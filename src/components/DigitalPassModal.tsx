@@ -364,6 +364,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFFFFF' }}>{reg.leaderName}</div>
                   <div style={{ fontSize: '0.78rem', color: '#A8B3C2' }}>{reg.leaderCollege}</div>
                   <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll No: {reg.leaderRoll}</div>
+                  {reg.deptSection && (
+                    <div style={{ fontSize: '0.75rem', color: '#DCE3E5', marginTop: '2px' }}>
+                      Dept & Section: <strong style={{ color: '#BACEBB', letterSpacing: '0.04em' }}>{reg.deptSection}</strong>
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>Email: {reg.leaderEmail}</div>
                 </div>
 

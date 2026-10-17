@@ -5,7 +5,7 @@ import {
   Share2, ShieldCheck, Search, Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FestEvent, Teammate, Registration, User as UserType, Team } from '../types/festronix';
+import { FestEvent, Teammate, Registration, User as UserType, Team, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 
 interface RegistrationModalProps {
@@ -31,6 +31,22 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [teamMode, setTeamMode] = useState<'create' | 'join'>('create');
   const [step, setStep] = useState<number>(1);
   const [passQuantity, setPassQuantity] = useState<number>(1);
+  const [additionalMembers, setAdditionalMembers] = useState<AdditionalMember[]>([]);
+
+  // Helper to synchronize additional members roster when booking multiple passes
+  const handlePassQuantityChange = (newQty: number) => {
+    const validQty = Math.max(1, Math.min(10, newQty));
+    setPassQuantity(validQty);
+    setAdditionalMembers(prev => {
+      const needed = validQty - 1;
+      if (needed <= 0) return [];
+      const updated = [...prev];
+      while (updated.length < needed) {
+        updated.push({ name: '', rollNumber: '', deptSection: '' });
+      }
+      return updated.slice(0, needed);
+    });
+  };
 
   // Form State: Primary Participant / Leader
   const [leader, setLeader] = useState({
@@ -256,6 +272,43 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setErrorMessage('Please enter a team name for your squad.');
       return false;
     }
+
+    // Validate additional members when booking more than 1 pass
+    if (!isTeamEvent && passQuantity > 1) {
+      const seenRolls = new Set<string>();
+      seenRolls.add(leader.rollNumber.trim().toUpperCase());
+
+      for (let i = 0; i < additionalMembers.length; i++) {
+        const mem = additionalMembers[i];
+        const passNum = i + 2;
+        if (!mem.name.trim()) {
+          setErrorMessage(`Please enter the full name for Pass #${passNum}.`);
+          return false;
+        }
+        if (!mem.rollNumber.trim()) {
+          setErrorMessage(`Please enter the roll number for Pass #${passNum} (${mem.name || 'Member'}).`);
+          return false;
+        }
+        if (!mem.deptSection.trim()) {
+          setErrorMessage(`Please enter the Department & Section (e.g. CSE - A) for Pass #${passNum} (${mem.name}).`);
+          return false;
+        }
+
+        const cleanRoll = mem.rollNumber.trim().toUpperCase();
+        if (seenRolls.has(cleanRoll)) {
+          setErrorMessage(`Duplicate roll number detected: "${cleanRoll}" is entered more than once.`);
+          return false;
+        }
+        seenRolls.add(cleanRoll);
+
+        const dup = StorageService.checkDuplicateRegistration(event.id, cleanRoll);
+        if (dup.isDuplicate && dup.existingReg) {
+          setErrorMessage(`Member "${mem.name}" (${cleanRoll}) is already registered for this event (Pass ID: ${dup.existingReg.id}).`);
+          return false;
+        }
+      }
+    }
+
     setErrorMessage('');
     return true;
   };
@@ -415,17 +468,21 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
       for (let i = 0; i < passQuantity; i++) {
+        const isLeaderPass = i === 0;
+        const memberInfo = isLeaderPass ? null : additionalMembers[i - 1];
+
         finalReg = await StorageService.addRegistration({
           userId: currentUser?.id,
-          buyerRoll: leader.rollNumber,
+          buyerRoll: leader.rollNumber.trim(),
           eventId: event.id,
-          eventTitle: `${event.title}${passQuantity > 1 ? ` (Pass #${i + 1})` : ''}`,
+          eventTitle: `${event.title}${passQuantity > 1 ? ` (Pass #${i + 1}${memberInfo ? `: ${memberInfo.name.trim()}` : ''})` : ''}`,
           departmentCode: event.departmentCode,
-          leaderName: leader.name,
-          leaderEmail: leader.email,
-          leaderPhone: leader.phone,
-          leaderCollege: leader.college,
-          leaderRoll: leader.rollNumber,
+          leaderName: isLeaderPass ? leader.name.trim() : memberInfo!.name.trim(),
+          leaderEmail: leader.email.trim(),
+          leaderPhone: leader.phone.trim(),
+          leaderCollege: leader.college.trim(),
+          leaderRoll: isLeaderPass ? leader.rollNumber.trim() : memberInfo!.rollNumber.trim().toUpperCase(),
+          deptSection: memberInfo ? memberInfo.deptSection.trim().toUpperCase() : undefined,
           teammates: isTeamEvent ? teammates : [],
           format: event.format,
           teamName: isTeamEvent ? teamName.trim() : undefined,
@@ -1470,7 +1527,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button
                     type="button"
-                    onClick={() => setPassQuantity(Math.max(1, passQuantity - 1))}
+                    onClick={() => handlePassQuantityChange(passQuantity - 1)}
                     style={{
                       width: '30px',
                       height: '30px',
@@ -1491,7 +1548,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setPassQuantity(Math.min(10, passQuantity + 1))}
+                    onClick={() => handlePassQuantityChange(passQuantity + 1)}
                     style={{
                       width: '30px',
                       height: '30px',
@@ -1507,6 +1564,128 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   >
                     <Plus size={13} />
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Members Information (When passQuantity > 1) */}
+            {!isTeamEvent && passQuantity > 1 && (
+              <div
+                style={{
+                  padding: '16px',
+                  background: 'rgba(20, 31, 62, 0.75)',
+                  border: '1px solid rgba(120, 149, 147, 0.35)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Users size={16} color="#BACEBB" />
+                      <span>Additional Pass Members ({passQuantity - 1})</span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        background: 'rgba(120, 149, 147, 0.2)',
+                        border: '1px solid rgba(120, 149, 147, 0.4)',
+                        borderRadius: '6px',
+                        color: '#BACEBB'
+                      }}
+                    >
+                      Mandatory for Entry
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '3px' }}>
+                    Pass #1 belongs to you ({leader.name || 'Primary Attendee'}). Please provide Name, Roll Number, and Dept & Section for passes #2 to #{passQuantity}.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {additionalMembers.map((member, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '14px',
+                        background: 'rgba(16, 26, 53, 0.88)',
+                        border: '1px solid rgba(220, 227, 229, 0.16)',
+                        borderRadius: '10px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#BACEBB' }}>
+                          Pass #{idx + 2} Member
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: '#A8B3C2' }}>
+                          Attendee #{idx + 2}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                            MEMBER FULL NAME *
+                          </label>
+                          <input
+                            type="text"
+                            className="cyber-input"
+                            style={{ height: '38px', fontSize: '0.84rem' }}
+                            placeholder="e.g. Sravan Kumar"
+                            value={member.name}
+                            onChange={e => {
+                              const updated = [...additionalMembers];
+                              updated[idx] = { ...updated[idx], name: e.target.value };
+                              setAdditionalMembers(updated);
+                            }}
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                            ROLL / STUDENT ID *
+                          </label>
+                          <input
+                            type="text"
+                            className="cyber-input"
+                            style={{ height: '38px', fontSize: '0.84rem' }}
+                            placeholder="e.g. 22VCECS109"
+                            value={member.rollNumber}
+                            onChange={e => {
+                              const updated = [...additionalMembers];
+                              updated[idx] = { ...updated[idx], rollNumber: e.target.value.toUpperCase() };
+                              setAdditionalMembers(updated);
+                            }}
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                            DEPT & SECTION *
+                          </label>
+                          <input
+                            type="text"
+                            className="cyber-input"
+                            style={{ height: '38px', fontSize: '0.84rem' }}
+                            placeholder="e.g. CSE - B or IT - A"
+                            value={member.deptSection}
+                            onChange={e => {
+                              const updated = [...additionalMembers];
+                              updated[idx] = { ...updated[idx], deptSection: e.target.value.toUpperCase() };
+                              setAdditionalMembers(updated);
+                            }}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

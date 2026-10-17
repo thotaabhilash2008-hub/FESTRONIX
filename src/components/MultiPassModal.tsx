@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Ticket, Plus, Minus, ShoppingBag, CheckCircle2, ArrowRight, ArrowLeft, QrCode, Upload, User, AlertCircle, Shield } from 'lucide-react';
+import { X, Ticket, Plus, Minus, ShoppingBag, CheckCircle2, ArrowRight, ArrowLeft, QrCode, Upload, User, AlertCircle, Shield, Users } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FestEvent, Registration, User as UserType } from '../types/festronix';
+import { FestEvent, Registration, User as UserType, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 
 interface MultiPassModalProps {
@@ -28,6 +28,9 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedItems, setSelectedItems] = useState<{ [eventId: string]: number }>({});
+  const [additionalMembersByEvent, setAdditionalMembersByEvent] = useState<{
+    [eventId: string]: AdditionalMember[];
+  }>({});
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
 
@@ -83,18 +86,40 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       }
       return copy;
     });
+    setAdditionalMembersByEvent(prev => {
+      const copy = { ...prev };
+      delete copy[eventId];
+      return copy;
+    });
   };
 
   const updateQuantity = (eventId: string, delta: number) => {
+    let nextQty = 0;
     setSelectedItems(prev => {
       const current = prev[eventId] || 0;
-      const next = current + delta;
-      if (next <= 0) {
+      nextQty = Math.max(0, Math.min(10, current + delta));
+      if (nextQty <= 0) {
         const copy = { ...prev };
         delete copy[eventId];
         return copy;
       }
-      return { ...prev, [eventId]: Math.min(next, 10) };
+      return { ...prev, [eventId]: nextQty };
+    });
+
+    setAdditionalMembersByEvent(prev => {
+      const needed = Math.max(0, nextQty - 1);
+      const copy = { ...prev };
+      if (needed <= 0) {
+        delete copy[eventId];
+        return copy;
+      }
+      const existing = copy[eventId] || [];
+      const updated = [...existing];
+      while (updated.length < needed) {
+        updated.push({ name: '', rollNumber: '', deptSection: '' });
+      }
+      copy[eventId] = updated.slice(0, needed);
+      return copy;
     });
   };
 
@@ -134,6 +159,46 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       setErrorMessage('Please fill in all buyer / student details.');
       return;
     }
+
+    // Validate additional members for any event with quantity > 1
+    for (const item of selectedEventEntries) {
+      if (item.quantity > 1) {
+        const extra = additionalMembersByEvent[item.event.id] || [];
+        const seenRolls = new Set<string>();
+        seenRolls.add(buyerInfo.rollNumber.trim().toUpperCase());
+
+        for (let i = 0; i < item.quantity - 1; i++) {
+          const mem = extra[i];
+          const passNum = i + 2;
+          if (!mem || !mem.name.trim()) {
+            setErrorMessage(`Please enter the full name for Pass #${passNum} of "${item.event.title}".`);
+            return;
+          }
+          if (!mem.rollNumber.trim()) {
+            setErrorMessage(`Please enter the roll number for Pass #${passNum} of "${item.event.title}".`);
+            return;
+          }
+          if (!mem.deptSection.trim()) {
+            setErrorMessage(`Please enter Department & Section (e.g. CSE - A) for Pass #${passNum} of "${item.event.title}".`);
+            return;
+          }
+
+          const cleanRoll = mem.rollNumber.trim().toUpperCase();
+          if (seenRolls.has(cleanRoll)) {
+            setErrorMessage(`Duplicate roll number "${cleanRoll}" detected for "${item.event.title}".`);
+            return;
+          }
+          seenRolls.add(cleanRoll);
+
+          const dup = StorageService.checkDuplicateRegistration(item.event.id, cleanRoll);
+          if (dup.isDuplicate && dup.existingReg) {
+            setErrorMessage(`Member "${mem.name}" (${cleanRoll}) is already registered for "${item.event.title}".`);
+            return;
+          }
+        }
+      }
+    }
+
     setErrorMessage(null);
 
     if (totalAmount === 0) {
@@ -175,17 +240,22 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
       for (const item of selectedEventEntries) {
+        const extra = additionalMembersByEvent[item.event.id] || [];
         for (let i = 0; i < item.quantity; i++) {
+          const isBuyer = i === 0;
+          const memberInfo = isBuyer ? null : extra[i - 1];
+
           batchData.push({
             userId: currentUser?.id,
-            buyerRoll: buyerInfo.rollNumber,
+            buyerRoll: buyerInfo.rollNumber.trim().toUpperCase(),
             eventId: item.event.id,
-            eventTitle: `${item.event.title}${item.quantity > 1 ? ` (Pass #${i + 1})` : ''}`,
-            leaderName: buyerInfo.name,
-            leaderEmail: buyerInfo.email,
-            leaderPhone: buyerInfo.phone,
-            leaderCollege: buyerInfo.college,
-            leaderRoll: buyerInfo.rollNumber,
+            eventTitle: `${item.event.title}${item.quantity > 1 ? ` (Pass #${i + 1}${memberInfo ? `: ${memberInfo.name.trim()}` : ''})` : ''}`,
+            leaderName: isBuyer ? buyerInfo.name.trim() : memberInfo!.name.trim(),
+            leaderEmail: buyerInfo.email.trim(),
+            leaderPhone: buyerInfo.phone.trim(),
+            leaderCollege: buyerInfo.college.trim(),
+            leaderRoll: isBuyer ? buyerInfo.rollNumber.trim().toUpperCase() : memberInfo!.rollNumber.trim().toUpperCase(),
+            deptSection: memberInfo ? memberInfo.deptSection.trim().toUpperCase() : undefined,
             teammates: [],
             format: item.event.format,
             fee: item.event.fee,
@@ -608,6 +678,171 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                 );
               })}
             </div>
+
+            {/* Additional Members for Events with Multiple Passes */}
+            {selectedEventEntries.some(item => item.quantity > 1) && (
+              <div
+                style={{
+                  marginTop: '16px',
+                  marginBottom: '16px',
+                  padding: '16px',
+                  background: 'rgba(20, 31, 62, 0.75)',
+                  border: '1px solid rgba(120, 149, 147, 0.35)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Users size={16} color="#BACEBB" />
+                      <span>Additional Pass Members</span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        background: 'rgba(120, 149, 147, 0.2)',
+                        border: '1px solid rgba(120, 149, 147, 0.4)',
+                        borderRadius: '6px',
+                        color: '#BACEBB'
+                      }}
+                    >
+                      Required for Extra Passes
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '3px' }}>
+                    Pass #1 for each event is registered for you ({buyerInfo.name || 'Buyer'}). Please enter attendee details for all extra passes below.
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {selectedEventEntries
+                    .filter(item => item.quantity > 1)
+                    .map(item => {
+                      const members = additionalMembersByEvent[item.event.id] || [];
+                      return (
+                        <div
+                          key={item.event.id}
+                          style={{
+                            padding: '14px',
+                            background: 'rgba(16, 26, 53, 0.9)',
+                            border: '1px solid rgba(120, 149, 147, 0.25)',
+                            borderRadius: '10px'
+                          }}
+                        >
+                          <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ color: '#BACEBB' }}>{item.event.departmentCode}</span>
+                            <span>•</span>
+                            <span>{item.event.title}</span>
+                            <span style={{ fontSize: '0.72rem', color: '#A8B3C2', fontWeight: 400 }}>
+                              ({item.quantity - 1} Extra Pass{item.quantity - 1 > 1 ? 'es' : ''})
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {Array.from({ length: item.quantity - 1 }).map((_, idx) => {
+                              const mem = members[idx] || { name: '', rollNumber: '', deptSection: '' };
+                              return (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    padding: '10px',
+                                    background: 'rgba(10, 16, 32, 0.65)',
+                                    border: '1px solid rgba(220, 227, 229, 0.1)',
+                                    borderRadius: '6px'
+                                  }}
+                                >
+                                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#BACEBB', marginBottom: '8px' }}>
+                                    Pass #{idx + 2} Attendee
+                                  </div>
+
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '8px' }}>
+                                    <div>
+                                      <label style={{ fontSize: '0.68rem', color: '#A8B3C2', display: 'block', marginBottom: '3px' }}>
+                                        MEMBER FULL NAME *
+                                      </label>
+                                      <input
+                                        type="text"
+                                        className="cyber-input"
+                                        style={{ height: '34px', fontSize: '0.8rem' }}
+                                        placeholder="e.g. Sravan Kumar"
+                                        value={mem.name}
+                                        onChange={e => {
+                                          const copy = { ...additionalMembersByEvent };
+                                          const evList = [...(copy[item.event.id] || [])];
+                                          while (evList.length < item.quantity - 1) {
+                                            evList.push({ name: '', rollNumber: '', deptSection: '' });
+                                          }
+                                          evList[idx] = { ...evList[idx], name: e.target.value };
+                                          copy[item.event.id] = evList;
+                                          setAdditionalMembersByEvent(copy);
+                                        }}
+                                        required
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label style={{ fontSize: '0.68rem', color: '#A8B3C2', display: 'block', marginBottom: '3px' }}>
+                                        ROLL / STUDENT ID *
+                                      </label>
+                                      <input
+                                        type="text"
+                                        className="cyber-input"
+                                        style={{ height: '34px', fontSize: '0.8rem' }}
+                                        placeholder="e.g. 22VCECS109"
+                                        value={mem.rollNumber}
+                                        onChange={e => {
+                                          const copy = { ...additionalMembersByEvent };
+                                          const evList = [...(copy[item.event.id] || [])];
+                                          while (evList.length < item.quantity - 1) {
+                                            evList.push({ name: '', rollNumber: '', deptSection: '' });
+                                          }
+                                          evList[idx] = { ...evList[idx], rollNumber: e.target.value.toUpperCase() };
+                                          copy[item.event.id] = evList;
+                                          setAdditionalMembersByEvent(copy);
+                                        }}
+                                        required
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label style={{ fontSize: '0.68rem', color: '#A8B3C2', display: 'block', marginBottom: '3px' }}>
+                                        DEPT & SECTION *
+                                      </label>
+                                      <input
+                                        type="text"
+                                        className="cyber-input"
+                                        style={{ height: '34px', fontSize: '0.8rem' }}
+                                        placeholder="e.g. CSE - B"
+                                        value={mem.deptSection}
+                                        onChange={e => {
+                                          const copy = { ...additionalMembersByEvent };
+                                          const evList = [...(copy[item.event.id] || [])];
+                                          while (evList.length < item.quantity - 1) {
+                                            evList.push({ name: '', rollNumber: '', deptSection: '' });
+                                          }
+                                          evList[idx] = { ...evList[idx], deptSection: e.target.value.toUpperCase() };
+                                          copy[item.event.id] = evList;
+                                          setAdditionalMembersByEvent(copy);
+                                        }}
+                                        required
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* Bottom Summary Bar */}
             <div
