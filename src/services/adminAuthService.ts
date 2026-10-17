@@ -349,11 +349,14 @@ export class AdminAuthService {
     if (matchedAdmin) {
       const isPassCorrect = 
         matchedAdmin.password === cleanPass ||
-        (matchedAdmin.role === 'connect_club' && cleanPass === 'connectclub2026') ||
-        (matchedAdmin.role === 'vencorpia' && cleanPass === 'vencorpia') ||
-        (matchedAdmin.role === 'finance_reviewer' && cleanPass === 'finance2026') ||
-        (matchedAdmin.role === 'volunteer_checkin' && cleanPass === 'volunteer2026') ||
-        (matchedAdmin.role === 'event_coordinator' && cleanPass === 'eventcoord2026');
+        (matchedAdmin.password && matchedAdmin.password.trim().toLowerCase() === cleanPass.toLowerCase()) ||
+        (matchedAdmin.role === 'connect_club' && (cleanPass === 'connectclub2026' || cleanPass === 'connect2026')) ||
+        (matchedAdmin.role === 'vencorpia' && (cleanPass === 'vencorpia' || cleanPass === 'vencorpia2026')) ||
+        (matchedAdmin.role === 'dean_sac' && (cleanPass === 'deansac2026' || cleanPass === 'dean2026')) ||
+        (matchedAdmin.role === 'finance_reviewer' && (cleanPass === 'finance2026' || (matchedAdmin.password && matchedAdmin.password.trim().toLowerCase() === cleanPass.toLowerCase()))) ||
+        (matchedAdmin.role === 'volunteer_checkin' && (cleanPass === 'volunteer2026' || (matchedAdmin.password && matchedAdmin.password.trim().toLowerCase() === cleanPass.toLowerCase()))) ||
+        (matchedAdmin.role === 'event_coordinator' && (cleanPass === 'eventcoord2026' || (matchedAdmin.password && matchedAdmin.password.trim().toLowerCase() === cleanPass.toLowerCase()))) ||
+        (matchedAdmin.departmentCode && cleanPass === `${matchedAdmin.departmentCode.toLowerCase()}2026`);
 
       if (isPassCorrect) {
         const sessionUser: AdminUser = {
@@ -462,30 +465,48 @@ export class AdminAuthService {
       return false;
     });
 
-    const matchingDeptUser = deptAdmins.find(a => 
+    let matchingDeptUser = deptAdmins.find(a => 
       a.username.toLowerCase() === cleanId || 
       a.email.toLowerCase() === cleanId ||
       cleanId === cleanDept.toLowerCase() ||
       (cleanDept === 'MECHANICAL' && (cleanId === 'hod_mech' || cleanId === 'mech'))
     );
 
+    // Smart Global Fallback: If user didn't pre-select their department, or selected another branch,
+    // match their username across all admins so their login succeeds automatically!
+    if (!matchingDeptUser) {
+      const globalMatch = allAdmins.find(a => 
+        a.username.toLowerCase() === cleanId || 
+        a.email.toLowerCase() === cleanId
+      );
+      if (globalMatch) {
+        matchingDeptUser = globalMatch;
+      }
+    }
+
+    const effectiveDept = (matchingDeptUser?.departmentCode || cleanDept).toUpperCase();
     const isUniversalCoordPass = cleanPass === 'festcoord2026' || 
+      cleanPass === `${effectiveDept.toLowerCase()}2026` ||
       cleanPass === `${cleanDept.toLowerCase()}2026` ||
-      (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026');
+      (effectiveDept === 'MECHANICAL' && cleanPass === 'mech2026');
 
     if (matchingDeptUser) {
-      const isDeptPass = matchingDeptUser.password === cleanPass || 
-        (cleanDept === 'MECHANICAL' && (cleanPass === 'mech2026' || cleanPass === 'mechanical2026'));
+      const isDeptPass = 
+        matchingDeptUser.password === cleanPass || 
+        (matchingDeptUser.password && matchingDeptUser.password.trim().toLowerCase() === cleanPass.toLowerCase()) ||
+        (effectiveDept === 'MECHANICAL' && (cleanPass === 'mech2026' || cleanPass === 'mechanical2026')) ||
+        cleanPass === `${effectiveDept.toLowerCase()}2026`;
 
       if (isDeptPass || isUniversalCoordPass) {
+        const deptInfo = getDynamicDepartments().find(d => d.code.toUpperCase() === effectiveDept);
         const sessionUser: AdminUser = {
           id: matchingDeptUser.id,
           username: matchingDeptUser.username,
           fullName: coordinatorName ? coordinatorName : matchingDeptUser.fullName,
-          designation: coordinatorName ? `Faculty Coordinator (${cleanDept})` : matchingDeptUser.designation,
+          designation: coordinatorName ? `Faculty Coordinator (${effectiveDept})` : matchingDeptUser.designation,
           role: matchingDeptUser.role,
-          departmentCode: matchingDeptUser.departmentCode,
-          departmentName: matchingDeptUser.departmentName,
+          departmentCode: effectiveDept,
+          departmentName: matchingDeptUser.departmentName || deptInfo?.name || effectiveDept,
           email: matchingDeptUser.email,
           phone: matchingDeptUser.phone,
           accessBoundary: matchingDeptUser.accessBoundary || "Their department's events"
@@ -493,7 +514,7 @@ export class AdminAuthService {
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
         return { success: true, user: sessionUser };
       } else {
-        return { success: false, error: `Invalid password for ${cleanDept} department.` };
+        return { success: false, error: `Invalid password for ${effectiveDept} department.` };
       }
     }
 

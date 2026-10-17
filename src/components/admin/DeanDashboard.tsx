@@ -570,12 +570,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // Delete Coordinator / Staff Handler
   const handleDeleteCoordinator = (coordId: string, name: string, roleName?: string) => {
     if (coordId === adminUser.id) {
-      alert('You cannot revoke access for your own currently active Super Admin session.');
+      alert('You cannot delete your own currently active Super Admin session.');
       return;
     }
-    const confirmed = window.confirm(`Revoke and delete portal access for ${name} (${roleName || 'Staff'})? They will no longer be able to log in.`);
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${roleName || 'coordinator'} "${name}"?\n\nThis will permanently remove their credentials and revoke their portal access immediately.`
+    );
     if (confirmed) {
       AdminAuthService.deleteCoordinator(coordId);
+      confetti({ particleCount: 50, spread: 45, origin: { y: 0.6 } });
       refreshAllData();
     }
   };
@@ -1473,8 +1476,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         <button
                           onClick={() => handleDeleteCoordinator(reviewer.id, reviewer.fullName, 'Payment Reviewer')}
                           style={{
-                            background: 'rgba(239, 68, 68, 0.12)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
                             borderRadius: '6px',
                             color: '#f87171',
                             padding: '4px 10px',
@@ -1486,7 +1489,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             gap: '4px'
                           }}
                         >
-                          <Trash2 size={11} /> Revoke
+                          <Trash2 size={11} /> Delete
                         </button>
                       </div>
                     </div>
@@ -2241,6 +2244,36 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                 <button
                   onClick={() => {
+                    setCoordRole('event_coordinator');
+                    setCoordDeptCode(departments[0]?.code || 'CSE');
+                    setCoordFullName('');
+                    setCoordDesignation('Lead Event Operations Coordinator');
+                    setCoordEmail('');
+                    setCoordPhone('+91 ');
+                    setCoordUsername('');
+                    setCoordPassword('eventcoord2026');
+                    setIsAddCoordinatorOpen(true);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <UserPlus size={14} />
+                  <span>+ Create Event Coordinator</span>
+                </button>
+
+                <button
+                  onClick={() => {
                     setCoordRole('faculty_coord');
                     setCoordDeptCode(departments[0]?.code || 'CSE');
                     setCoordFullName('');
@@ -2457,23 +2490,24 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                         {!isSelf && (
                           <button
-                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isHod ? 'HOD' : isFinance ? 'Payment Reviewer' : 'Staff')}
+                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isHod ? 'Department HOD' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
                             style={{
-                              background: 'rgba(239, 68, 68, 0.12)',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
                               borderRadius: '6px',
                               color: '#f87171',
                               cursor: 'pointer',
-                              padding: '4px 6px',
+                              padding: '4px 8px',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '4px',
-                              fontSize: '0.7rem'
+                              fontSize: '0.72rem',
+                              fontWeight: 600
                             }}
-                            title="Revoke & Delete Access"
+                            title="Delete coordinator account"
                           >
                             <Trash2 size={13} />
-                            <span>Revoke</span>
+                            <span>Delete</span>
                           </button>
                         )}
                       </div>
@@ -2560,7 +2594,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       )}
                     </div>
 
-                    {/* Bottom Action Buttons: Edit, Copy, Revoke */}
+                    {/* Bottom Action Buttons: Edit, Copy, Delete */}
                     <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.1)', display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
                       <button
                         onClick={() => handleOpenEditCoordinator(coord)}
@@ -2604,6 +2638,29 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         {copiedId === coord.id ? <Check size={13} /> : <Copy size={13} />}
                         <span>{copiedId === coord.id ? 'Copied' : 'Credentials'}</span>
                       </button>
+
+                      {!isSelf && (
+                        <button
+                          onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isHod ? 'Department HOD' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            color: '#f87171',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer'
+                          }}
+                          title="Permanently Delete Coordinator"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

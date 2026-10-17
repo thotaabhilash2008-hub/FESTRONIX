@@ -18,7 +18,8 @@ interface DeptCoordinatorDashboardProps {
 
 export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> = ({ adminUser, onLogout, onSwitchToFest }) => {
   const deptCode = adminUser.departmentCode || 'CSE';
-  const deptInfo = DEPARTMENTS.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
+  const deptInfo = StorageService.getDepartments().find(d => d.code.toUpperCase() === deptCode.toUpperCase()) || 
+                   DEPARTMENTS.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
 
   const [activeTab, setActiveTab] = useState<'events' | 'roster' | 'checkin' | 'payments'>('events');
 

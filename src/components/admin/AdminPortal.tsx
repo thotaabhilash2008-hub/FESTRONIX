@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
+import { AdminAuthService, AdminUser, isSuperAdminRole } from '../../services/adminAuthService';
 import { AdminLoginView } from './AdminLoginView';
 import { DeanDashboard } from './DeanDashboard';
-import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
 import { FinanceReviewerDashboard } from './FinanceReviewerDashboard';
 import { VolunteerCheckinDashboard } from './VolunteerCheckinDashboard';
+import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
 import { GlitterBackground } from '../GlitterBackground';
 
 interface AdminPortalProps {
@@ -32,7 +32,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
             onLoginSuccess={user => setAdminUser(user)}
             onBackToFest={onBackToFest}
           />
-        ) : (adminUser.role === 'dean_sac' || adminUser.role === 'connect_club' || adminUser.role === 'vencorpia') ? (
+        ) : isSuperAdminRole(adminUser.role) ? (
           <DeanDashboard
             adminUser={adminUser}
             onLogout={handleLogout}
