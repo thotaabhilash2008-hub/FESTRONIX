@@ -53,7 +53,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     id: 'admin_dean_sac',
     username: 'dean_sac',
     password: 'deansac2026',
-    fullName: 'Dr. J. V. R. Ravindra',
+    fullName: 'Md. Asif',
     designation: 'Dean, Student Activity Council (SAC)',
     role: 'dean_sac',
     email: 'dean.sac@vardhaman.org',
@@ -64,7 +64,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     id: 'admin_connect_club',
     username: 'connect_club',
     password: 'connect2026',
-    fullName: 'Aditya Varma & Core Team',
+    fullName: 'Himavardhan & Core Team',
     designation: 'President & Lead Organizer, CONNECT Club (SAC)',
     role: 'connect_club',
     email: 'connect.club@vardhaman.org',
@@ -257,7 +257,16 @@ export class AdminAuthService {
     const raw = localStorage.getItem(STORAGE_KEY_ADMIN_SESSION);
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      const preset = PRESET_ADMINS.find(a => a.id === parsed.id || a.username === parsed.username);
+      if (preset) {
+        return {
+          ...parsed,
+          fullName: preset.fullName,
+          designation: preset.designation
+        };
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -328,7 +337,7 @@ export class AdminAuthService {
       const u = a.username.toLowerCase();
       const e = a.email.toLowerCase();
       if (u === cleanId || e === cleanId) return true;
-      if (a.role === 'dean_sac' && (cleanId === 'dean' || cleanId === 'dean_sac')) return true;
+      if (a.role === 'dean_sac' && (cleanId === 'dean' || cleanId === 'dean_sac' || cleanId === 'asif' || cleanId === 'md.asif' || cleanId === 'mdasif')) return true;
       if (a.role === 'connect_club' && (cleanId === 'connect' || cleanId === 'connect_club')) return true;
       if (a.role === 'vencorpia' && (cleanId === 'vencorpia' || cleanId === 'vencorpia_club')) return true;
       if (a.role === 'finance_reviewer' && (cleanId === 'finance' || cleanId === 'finance_reviewer')) return true;

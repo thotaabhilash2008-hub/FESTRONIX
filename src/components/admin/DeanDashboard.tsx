@@ -3055,7 +3055,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <div style={{ background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '12px', padding: '14px' }}>
                   <div style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 800, textTransform: 'uppercase' }}>Super Admin 1</div>
                   <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>SAC DEAN</div>
-                  <div style={{ fontSize: '0.76rem', color: '#A8B3C2' }}>Dr. J. V. R. Ravindra • Dean, SAC</div>
+                  <div style={{ fontSize: '0.76rem', color: '#A8B3C2' }}>Md. Asif • Dean, SAC</div>
                   <div style={{ fontSize: '0.72rem', color: '#789593', marginTop: '6px' }}>Fest-wide administration</div>
                 </div>
 
