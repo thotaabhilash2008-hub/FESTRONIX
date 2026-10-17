@@ -108,80 +108,47 @@ export const Navbar: React.FC<NavbarProps> = ({
             gap: '12px',
             textDecoration: 'none'
           }}
+          title="Vardhaman College of Engineering"
         >
-          <div
+          <img
+            src="/vce_logo.png"
+            alt="VCE Logo"
             style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '11px',
-              background: 'linear-gradient(135deg, #283B78 0%, #3E4264 50%, #789593 100%)',
-              padding: '1.5px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(120, 149, 147, 0.45)'
+              height: '42px',
+              width: 'auto',
+              maxHeight: '44px',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 10px rgba(120, 149, 147, 0.25))'
             }}
-          >
-            <div
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <span
               style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '10px',
-                background: '#101A35',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#BACEBB',
-                fontWeight: 800,
-                fontSize: '0.82rem',
                 fontFamily: "var(--font-heading)",
-                letterSpacing: '0.05em'
+                fontSize: '1.2rem',
+                fontWeight: 800,
+                letterSpacing: '0.05em',
+                color: '#FFFFFF',
+                lineHeight: 1.15
               }}
             >
-              FX
-            </div>
-          </div>
-
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  fontFamily: "var(--font-heading)",
-                  fontSize: '1.25rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.06em',
-                  color: '#FFFFFF'
-                }}
-              >
-                FESTRONIX
-              </span>
-              <span
-                style={{
-                  fontSize: '0.62rem',
-                  padding: '2px 7px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(120, 149, 147, 0.15)',
-                  border: '1px solid rgba(120, 149, 147, 0.4)',
-                  color: '#BACEBB',
-                  fontWeight: 700,
-                  fontFamily: "'Space Grotesk', sans-serif"
-                }}
-              >
-                2026
-              </span>
-            </div>
-            <div
-              className="desktop-only"
+              VARDHAMAN
+            </span>
+            <span
               style={{
                 fontSize: '0.62rem',
-                color: '#A8B3C2',
-                letterSpacing: '0.06em',
+                color: '#BACEBB',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                fontFamily: "'Space Grotesk', sans-serif"
+                fontFamily: "'Space Grotesk', sans-serif",
+                lineHeight: 1.1,
+                marginTop: '1px'
               }}
             >
-              Vardhaman College of Engineering
-            </div>
+              College of Engineering
+            </span>
           </div>
         </a>
 
