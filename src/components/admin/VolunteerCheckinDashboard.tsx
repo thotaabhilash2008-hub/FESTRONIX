@@ -81,7 +81,7 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
     const res = await StorageService.checkInRegistration(reg.id, adminUser.fullName || 'Volunteer Gate Crew');
     if (res.success) {
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-      const updated = { ...reg, checkedIn: true, checkedInAt: new Date().toLocaleTimeString(), checkedInBy: adminUser.fullName };
+      const updated = res.registration || { ...reg, checkedIn: true, checkedInAt: new Date().toLocaleTimeString(), checkedInBy: adminUser.fullName };
       setLastCheckedIn(updated);
       setCheckinStatus({
         type: 'success',
@@ -91,7 +91,7 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
       refreshList();
     } else {
       setCheckinStatus({
-        type: 'pending_payment',
+        type: 'already',
         message: res.message || 'Check-in failed.'
       });
     }

@@ -80,12 +80,12 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   };
 
   // Submit Handler: Operational Roles (Finance & Volunteer)
-  const handleOpsSubmit = (e: React.FormEvent) => {
+  const handleOpsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setLoading(true);
 
-    setTimeout(async () => {
+    try {
       const res = await AdminAuthService.loginCentral(opsUsername, opsPassword);
       setLoading(false);
       if (res.success && res.user) {
@@ -93,7 +93,10 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
       } else {
         setErrorMessage(res.error || 'Failed to authenticate staff credentials.');
       }
-    }, 300);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMessage(err?.message || 'Failed to authenticate staff credentials.');
+    }
   };
 
   return (
