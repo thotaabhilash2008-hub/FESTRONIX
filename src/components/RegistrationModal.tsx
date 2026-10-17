@@ -5,7 +5,7 @@ import {
   Share2, ShieldCheck, Search, Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FestEvent, Teammate, Registration, User as UserType, Team, AdditionalMember } from '../types/festronix';
+import { FestEvent, Teammate, Registration, User as UserType, Team, AdditionalMember, PaymentStatus } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 
 interface RegistrationModalProps {
@@ -62,6 +62,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [generatedTeamCode, setGeneratedTeamCode] = useState<string>('');
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [teammates, setTeammates] = useState<Teammate[]>([]);
+  const [newTeammateAlert, setNewTeammateAlert] = useState<string | null>(null);
 
   // Join Team Specific States
   const [joinCodeInput, setJoinCodeInput] = useState<string>('');
@@ -145,6 +146,81 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   }, [currentUser, event, isTeamEvent]);
 
+  // Real-time synchronization of squad members for team leader
+  useEffect(() => {
+    if (!isTeamEvent || !generatedTeamCode) return;
+
+    const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+    const syncLiveMembers = (team: Team) => {
+      if (!team || team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normCode) return;
+      const liveMembers = team.members || [];
+
+      setTeammates(prev => {
+        // Find newly joined members not in prev state
+        const newlyAdded = liveMembers.filter(
+          lm => !prev.some(p => p.rollNumber && lm.rollNumber && p.rollNumber.trim().toLowerCase() === lm.rollNumber.trim().toLowerCase())
+        );
+
+        if (newlyAdded.length > 0) {
+          const names = newlyAdded.map(m => `${m.name} (${m.rollNumber})`).join(', ');
+          setNewTeammateAlert(`🎉 Teammate Joined: ${names} just joined your squad via code ${generatedTeamCode}!`);
+          setTimeout(() => setNewTeammateAlert(null), 8000);
+          confetti({
+            particleCount: 75,
+            spread: 60,
+            origin: { y: 0.65 }
+          });
+          return [...prev, ...newlyAdded];
+        }
+        return prev;
+      });
+    };
+
+    // 1. Initial check from StorageService
+    const existing = StorageService.getTeams().find(
+      t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
+    );
+    if (existing) syncLiveMembers(existing);
+
+    // 2. Window event listener
+    const handleTeamsUpdated = (e: any) => {
+      if (e?.detail?.team) {
+        syncLiveMembers(e.detail.team);
+      }
+    };
+    window.addEventListener('festronix:teams-updated', handleTeamsUpdated);
+
+    // 3. Cross-tab BroadcastChannel listener
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('festronix_teams_sync_bus');
+        bc.onmessage = evt => {
+          if (evt.data?.team) {
+            syncLiveMembers(evt.data.team);
+          }
+        };
+      }
+    } catch {}
+
+    // 4. Polling fallback every 1500ms
+    const intervalId = setInterval(async () => {
+      const lookup = await StorageService.findTeamWithValidation(generatedTeamCode);
+      if (lookup.team) {
+        syncLiveMembers(lookup.team);
+      }
+    }, 1500);
+
+    return () => {
+      window.removeEventListener('festronix:teams-updated', handleTeamsUpdated);
+      if (bc) {
+        bc.close();
+      }
+      clearInterval(intervalId);
+    };
+  }, [isTeamEvent, generatedTeamCode]);
+
   if (!event) return null;
 
   const maxTeammates = event.format === 'individual' ? 0 : event.maxTeamSize - 1;
@@ -217,7 +293,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleRemoveTeammate = (index: number) => {
+    const memberToRemove = teammates[index];
     setTeammates(teammates.filter((_, i) => i !== index));
+    if (generatedTeamCode && memberToRemove) {
+      StorageService.removeTeamMember(generatedTeamCode, memberToRemove.rollNumber || memberToRemove.email);
+    }
   };
 
   // Live Team Verification for Join Flow
@@ -339,10 +419,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const validateStep2 = () => {
     const totalTeamSize = 1 + teammates.length;
     if (isTeamEvent) {
-      if (totalTeamSize < event.minTeamSize) {
-        setErrorMessage(`This event requires at least ${event.minTeamSize} team members (including Team Leader). Please add teammate details.`);
-        return false;
-      }
       if (totalTeamSize > event.maxTeamSize) {
         setErrorMessage(`This event permits a maximum of ${event.maxTeamSize} team members.`);
         return false;
@@ -418,13 +494,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         origin: { y: 0.6 }
       });
 
+      const isLeaderPaid = event.fee === 0 || joinRes.isLeaderPaid || StorageService.isTeamLeaderPaid(verifiedTeam).isPaid;
+
       if (joinRes.registration) {
         onSuccess(joinRes.registration);
       } else {
         // Fallback registration pass
+        const paymentStatus: PaymentStatus = event.fee === 0 ? 'not_applicable' : isLeaderPaid ? 'verified' : 'payment_required';
         const fallbackReg: Registration = {
           id: `FEST-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          qrToken: `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+          qrToken: (paymentStatus === 'verified' || paymentStatus === 'not_applicable') ? `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}` : '',
           eventId: event.id,
           eventTitle: event.title,
           leaderName: verifiedTeam.leaderName,
@@ -440,7 +519,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           fee: 0,
           source: 'online',
           registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-          paymentStatus: 'verified',
+          paymentStatus,
           checkedIn: false
         };
         onSuccess(fallbackReg);
@@ -486,6 +565,23 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         }
       }
 
+      let finalTeammates = teammates;
+      if (isTeamEvent && generatedTeamCode) {
+        const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        const liveTeam = StorageService.getTeams().find(
+          t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
+        );
+        if (liveTeam && liveTeam.members && liveTeam.members.length > 0) {
+          const merged = [...finalTeammates];
+          liveTeam.members.forEach(lm => {
+            if (!merged.some(m => (m.rollNumber && lm.rollNumber && m.rollNumber.trim().toLowerCase() === lm.rollNumber.trim().toLowerCase()))) {
+              merged.push(lm);
+            }
+          });
+          finalTeammates = merged;
+        }
+      }
+
       let finalReg: Registration | null = null;
       const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
@@ -505,7 +601,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           leaderCollege: leader.college.trim(),
           leaderRoll: isLeaderPass ? leader.rollNumber.trim() : memberInfo!.rollNumber.trim().toUpperCase(),
           deptSection: memberInfo ? memberInfo.deptSection.trim().toUpperCase() : undefined,
-          teammates: isTeamEvent ? teammates : [],
+          teammates: isTeamEvent ? finalTeammates : [],
           format: event.format,
           teamName: isTeamEvent ? teamName.trim() : undefined,
           teamCode: isTeamEvent ? generatedTeamCode.trim() : undefined,
@@ -1134,20 +1230,37 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   </div>
                 </div>
 
-                {/* Free Join Disclaimer */}
+                {/* Payment Disclaimer depending on leader's payment */}
                 {!isLeaderOfVerifiedTeam && (
-                  <div
-                    style={{
-                      marginTop: '14px',
-                      padding: '8px 12px',
-                      background: 'rgba(52, 211, 153, 0.08)',
-                      borderRadius: '6px',
-                      fontSize: '0.72rem',
-                      color: '#a7f3d0'
-                    }}
-                  >
-                    ✓ <strong>No Extra Payment Required:</strong> Team registration and access fees were already covered by Team Leader {verifiedTeam.leaderName}. Confirming will immediately issue your squad pass!
-                  </div>
+                  event.fee > 0 && !StorageService.isTeamLeaderPaid(verifiedTeam).isPaid ? (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '10px 14px',
+                        background: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        borderRadius: '8px',
+                        fontSize: '0.74rem',
+                        color: '#FEF3C7',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      ⏳ <strong>Leader Payment Pending:</strong> Team Leader {verifiedTeam.leaderName} has not completed the ₹{event.fee} team registration fee yet. You can confirm now to secure your squad seat; your entry QR pass will activate automatically once your Team Leader submits payment!
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '8px 12px',
+                        background: 'rgba(52, 211, 153, 0.08)',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        color: '#a7f3d0'
+                      }}
+                    >
+                      ✓ <strong>No Extra Payment Required:</strong> Team registration and access fees are covered by Team Leader {verifiedTeam.leaderName}. Confirming will immediately issue your official squad pass!
+                    </div>
+                  )
                 )}
               </div>
             )}
@@ -1740,6 +1853,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         {/* ============================================================== */}
         {isTeamEvent && teamMode === 'create' && step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Live Teammate Joined Banner */}
+            {newTeammateAlert && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                  border: '1px solid #34D399',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 0 20px rgba(52, 211, 153, 0.2)'
+                }}
+              >
+                <Sparkles size={16} color="#34D399" />
+                <span>{newTeammateAlert}</span>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: '0.92rem', color: '#FFFFFF', fontWeight: 700 }}>
@@ -1806,15 +1941,26 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     key={idx}
                     style={{
                       padding: '14px',
-                      background: 'rgba(16, 26, 53, 0.85)',
-                      border: '1px solid rgba(220, 227, 229, 0.18)',
-                      borderRadius: '10px'
+                      background: 'linear-gradient(135deg, rgba(20, 35, 65, 0.95) 0%, rgba(16, 26, 53, 0.95) 100%)',
+                      border: '1px solid rgba(52, 211, 153, 0.4)',
+                      borderRadius: '10px',
+                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.78rem', color: '#BACEBB', fontWeight: 700 }}>
-                        Teammate #{idx + 1}
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: 'rgba(52, 211, 153, 0.2)', color: '#34D399', letterSpacing: '0.04em' }}>
+                          ✓ SQUAD MEMBER #{idx + 1}
+                        </span>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF' }}>
+                          {tm.name || 'Pending Details'}
+                        </span>
+                        {tm.rollNumber && (
+                          <span style={{ fontSize: '0.78rem', color: '#BACEBB', fontFamily: 'monospace' }}>
+                            ({tm.rollNumber})
+                          </span>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleRemoveTeammate(idx)}
@@ -1846,19 +1992,46 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         type="email"
                         className="cyber-input"
                         placeholder="Email (Optional)"
-                        value={tm.email}
+                        value={tm.email || ''}
                         onChange={e => handleUpdateTeammate(idx, 'email', e.target.value)}
                       />
                       <input
                         type="tel"
                         className="cyber-input"
                         placeholder="Phone Number *"
-                        value={tm.phone}
+                        value={tm.phone || ''}
                         onChange={e => handleUpdateTeammate(idx, 'phone', e.target.value)}
                       />
                     </div>
                   </div>
                 ))}
+
+                {teammates.length < maxTeammates && (
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      background: 'rgba(40, 59, 120, 0.25)',
+                      border: '1px dashed rgba(120, 149, 147, 0.4)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '0.76rem',
+                      color: '#BACEBB'
+                    }}
+                  >
+                    <span>
+                      <strong>{maxTeammates - teammates.length} more slot(s) available.</strong> Teammates can join using code <strong style={{ color: '#FFFFFF', fontFamily: 'monospace' }}>{generatedTeamCode}</strong>.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddTeammateSlot}
+                      style={{ background: 'none', border: '1px solid rgba(120, 149, 147, 0.4)', borderRadius: '6px', color: '#FFFFFF', padding: '4px 10px', fontSize: '0.74rem', cursor: 'pointer' }}
+                    >
+                      + Add Manual Slot
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1893,6 +2066,35 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         {/* ============================================================== */}
         {((step === 3 && isTeamEvent) || (step === 2 && !isTeamEvent)) && event.fee > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Squad Summary Card for Leader */}
+            {isTeamEvent && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(16, 26, 53, 0.95) 100%)',
+                  border: '1px solid rgba(52, 211, 153, 0.35)',
+                  borderRadius: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#34D399', fontWeight: 800, letterSpacing: '0.06em' }}>
+                    SQUAD ROSTER READY FOR PAYMENT
+                  </span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#BACEBB', background: 'rgba(40, 59, 120, 0.4)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.74rem' }}>
+                    {generatedTeamCode}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.92rem', color: '#FFFFFF', fontWeight: 700, marginTop: '4px' }}>
+                  {teamName || 'Your Squad'} • Leader: {leader.name} ({leader.rollNumber})
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#DCE3E5', marginTop: '4px' }}>
+                  Teammates ({teammates.length}):{' '}
+                  {teammates.length > 0
+                    ? teammates.map(t => `${t.name || 'Member'} (${t.rollNumber || 'ID'})`).join(', ')
+                    : 'None added yet (teammates can also join later using code)'}
+                </div>
+              </div>
+            )}
             {/* Payment Box */}
             <div
               style={{

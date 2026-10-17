@@ -648,6 +648,7 @@ export class StorageService {
               maxTeamSize: matchedEvt?.maxTeamSize || 4,
               minTeamSize: matchedEvt?.minTeamSize || 2
             });
+            this.syncTeammatePassesForTeam(fullReg);
           }
 
           // Update cached event count
@@ -708,6 +709,7 @@ export class StorageService {
         maxTeamSize: matchedEvt?.maxTeamSize || 4,
         minTeamSize: matchedEvt?.minTeamSize || 2
       });
+      this.syncTeammatePassesForTeam(fullReg);
     }
 
     // Update event registered count
@@ -747,6 +749,7 @@ export class StorageService {
     const regs = this.getRegistrations();
     const idx = regs.findIndex(r => r.id === regId || r.qrToken === regId);
     if (idx !== -1) {
+      const targetReg = regs[idx];
       regs[idx].paymentStatus = status;
       regs[idx].verifiedBy = reviewerName;
       regs[idx].verifiedAt = new Date().toLocaleString();
@@ -754,6 +757,23 @@ export class StorageService {
         regs[idx].rejectionReason = rejectionReason;
       } else {
         delete regs[idx].rejectionReason;
+      }
+
+      // Automatically sync all teammate passes for this team
+      if (targetReg.teamCode) {
+        const teamCodeClean = targetReg.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        regs.forEach(r => {
+          if (r.id !== targetReg.id && r.teamCode && r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === teamCodeClean) {
+            r.paymentStatus = status;
+            r.verifiedBy = reviewerName;
+            r.verifiedAt = new Date().toLocaleString();
+            if (rejectionReason) r.rejectionReason = rejectionReason;
+            else delete r.rejectionReason;
+            if ((status === 'verified' || status === 'verification_pending') && (!r.qrToken || r.qrToken === '')) {
+              r.qrToken = `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${r.id.slice(-4)}`;
+            }
+          }
+        });
       }
       this.saveRegistrations(regs);
     }
@@ -1263,6 +1283,13 @@ export class StorageService {
       }
     } catch {}
 
+    // In-window custom event broadcast
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('festronix:teams-updated', { detail: { team } }));
+      } catch {}
+    }
+
     // Supabase realtime broadcast
     if (typeof window !== 'undefined' && isSupabaseConfigured()) {
       try {
@@ -1274,6 +1301,128 @@ export class StorageService {
         }).catch(() => {});
       } catch {}
     }
+  }
+
+  /**
+   * Check if team leader has paid the event fee
+   */
+  static isTeamLeaderPaid(teamCodeOrTeam: string | Team, eventId?: string): { isPaid: boolean; leaderReg?: Registration } {
+    const allRegs = this.getRegistrations();
+    let normCode = '';
+    let leaderRoll = '';
+    let regId = '';
+    let evtId = eventId || '';
+
+    if (typeof teamCodeOrTeam === 'string') {
+      normCode = teamCodeOrTeam.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const teams = this.getTeams();
+      const t = teams.find(team => team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
+      if (t) {
+        leaderRoll = t.leaderRoll || '';
+        regId = t.registrationId || '';
+        if (!evtId) evtId = t.eventId;
+      }
+    } else {
+      normCode = teamCodeOrTeam.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      leaderRoll = teamCodeOrTeam.leaderRoll || '';
+      regId = teamCodeOrTeam.registrationId || '';
+      if (!evtId) evtId = teamCodeOrTeam.eventId;
+    }
+
+    const leaderReg = allRegs.find(
+      r =>
+        (regId && r.id === regId) ||
+        (r.teamCode && r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode && (r.fee > 0 || r.transactionId || r.paymentScreenshotUrl)) ||
+        (evtId && r.eventId === evtId && leaderRoll && r.leaderRoll && r.leaderRoll.toLowerCase() === leaderRoll.toLowerCase())
+    );
+
+    const isPaid = !!leaderReg && (leaderReg.paymentStatus === 'verified' || leaderReg.paymentStatus === 'verification_pending');
+    return { isPaid, leaderReg };
+  }
+
+  /**
+   * Synchronize all teammate passes for a team once the leader submits payment
+   */
+  static syncTeammatePassesForTeam(leaderReg: Registration): void {
+    if (!leaderReg.teamCode) return;
+    const normCode = leaderReg.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const regs = this.getRegistrations();
+    let updated = false;
+
+    for (let i = 0; i < regs.length; i++) {
+      const r = regs[i];
+      if (r.id !== leaderReg.id && r.teamCode && r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode) {
+        // Upgrade teammate pass from pending payment
+        if (r.paymentStatus === 'payment_required' || !r.qrToken || r.qrToken === '') {
+          r.paymentStatus = leaderReg.paymentStatus;
+          if (!r.qrToken || r.qrToken === '') {
+            r.qrToken = `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${r.id.slice(-4)}`;
+          }
+          if (leaderReg.transactionId) r.transactionId = leaderReg.transactionId;
+          if (leaderReg.paymentScreenshotUrl) r.paymentScreenshotUrl = leaderReg.paymentScreenshotUrl;
+          updated = true;
+        }
+      }
+    }
+
+    if (updated) {
+      this.saveRegistrations(regs);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('festronix:registrations-updated', { detail: { registrations: regs } }));
+        } catch {}
+      }
+    }
+
+    // Also update team entity
+    const teams = this.getTeams();
+    const tIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
+    if (tIdx !== -1) {
+      teams[tIdx].registrationId = leaderReg.id;
+      // Merge leader's teammates with team's members
+      const existingMembers = teams[tIdx].members || [];
+      const leaderMembers = leaderReg.teammates || [];
+      const mergedMembers = [...existingMembers];
+      leaderMembers.forEach(lm => {
+        if (!mergedMembers.some(em => (em.rollNumber && lm.rollNumber && em.rollNumber.trim().toLowerCase() === lm.rollNumber.trim().toLowerCase()))) {
+          mergedMembers.push(lm);
+        }
+      });
+      teams[tIdx].members = mergedMembers;
+      this.saveTeams(teams);
+      this.broadcastTeam(teams[tIdx]);
+    }
+  }
+
+  /**
+   * Remove a member from a squad
+   */
+  static removeTeamMember(teamCode: string, identifier: string): { success: boolean; team?: Team } {
+    const normCode = teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const cleanId = (identifier || '').trim().toLowerCase();
+    const teams = this.getTeams();
+    const tIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
+    if (tIdx === -1) return { success: false };
+
+    const team = teams[tIdx];
+    team.members = (team.members || []).filter(
+      m => (m.rollNumber || '').trim().toLowerCase() !== cleanId && (m.email || '').trim().toLowerCase() !== cleanId && (m.name || '').trim().toLowerCase() !== cleanId
+    );
+    teams[tIdx] = team;
+    this.saveTeams(teams);
+    this.broadcastTeam(team);
+
+    // Also remove or cancel their registration pass if present
+    const regs = this.getRegistrations();
+    const filteredRegs = regs.filter(r => {
+      const isThisTeam = r.teamCode && r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode;
+      const isThisMember = (r.buyerRoll && r.buyerRoll.trim().toLowerCase() === cleanId) ||
+        (r.leaderRoll && r.leaderRoll.trim().toLowerCase() === cleanId && r.id !== team.registrationId);
+      return !(isThisTeam && isThisMember && r.id !== team.registrationId);
+    });
+    this.saveRegistrations(filteredRegs);
+
+    return { success: true, team };
   }
 
   static async fetchCloudTeams(): Promise<Team[]> {
@@ -1687,7 +1836,7 @@ export class StorageService {
   static async joinTeam(
     teamCode: string,
     member: Teammate
-  ): Promise<{ success: boolean; team?: Team; registration?: Registration; error?: string }> {
+  ): Promise<{ success: boolean; team?: Team; registration?: Registration; isLeaderPaid?: boolean; error?: string }> {
     const cleanCode = teamCode.trim().toUpperCase();
     const normCode = cleanCode.replace(/[^A-Za-z0-9]/g, '');
 
@@ -1755,6 +1904,27 @@ export class StorageService {
     this.saveTeams(teams);
     this.broadcastTeam(team);
 
+    // Check event fee and leader payment status
+    const matchedEvt = this.getEvents().find(e => e.id === team.eventId || e.slug === team.eventId);
+    const eventFee = Number(matchedEvt?.fee) || 0;
+    const { isPaid: isLeaderPaid, leaderReg } = this.isTeamLeaderPaid(team);
+
+    // If event is free: not_applicable
+    // If event has fee: if leader has paid: use leader's status; otherwise: payment_required (LOCKED!)
+    let paymentStatus: PaymentStatus = 'payment_required';
+    if (eventFee === 0) {
+      paymentStatus = 'not_applicable';
+    } else if (isLeaderPaid && leaderReg) {
+      paymentStatus = leaderReg.paymentStatus;
+    }
+
+    // QR Token is only generated if payment is covered (or event is free)
+    // If payment is pending from leader, token is locked (empty string)
+    const id = `FEST-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const qrToken = (paymentStatus === 'verified' || paymentStatus === 'verification_pending' || paymentStatus === 'not_applicable')
+      ? `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${id.slice(-4)}`
+      : '';
+
     // Sync member into registrations roster
     const regs = this.getRegistrations();
     let regIdx = regs.findIndex(
@@ -1770,39 +1940,37 @@ export class StorageService {
       regs[regIdx].teammates = [...(regs[regIdx].teammates || []), member];
       if (!regs[regIdx].teamCode) regs[regIdx].teamCode = team.teamCode;
       if (!regs[regIdx].teamName) regs[regIdx].teamName = team.teamName;
-      updatedReg = regs[regIdx];
       this.saveRegistrations(regs);
-    } else {
-      // Create dedicated digital pass for joined member
-      const id = `FEST-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-      const qrToken = `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${id.slice(-4)}`;
-      const matchedEvt = this.getEvents().find(e => e.id === team.eventId || e.slug === team.eventId);
-      const newReg: Registration = {
-        id,
-        qrToken,
-        eventId: team.eventId,
-        eventTitle: team.eventTitle,
-        departmentCode: matchedEvt?.departmentCode || 'MECH',
-        leaderName: team.leaderName,
-        leaderRoll: team.leaderRoll,
-        leaderEmail: team.leaderEmail,
-        leaderPhone: team.leaderPhone,
-        leaderCollege: team.leaderCollege,
-        buyerRoll: member.rollNumber,
-        teammates: team.members,
-        format: 'team',
-        teamName: team.teamName,
-        teamCode: team.teamCode,
-        fee: 0,
-        source: 'online',
-        registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        paymentStatus: 'verified',
-        checkedIn: false
-      };
-      regs.unshift(newReg);
-      this.saveRegistrations(regs);
-      updatedReg = newReg;
     }
+
+    // Create dedicated digital pass for joined member
+    const newReg: Registration = {
+      id,
+      qrToken,
+      eventId: team.eventId,
+      eventTitle: team.eventTitle,
+      departmentCode: matchedEvt?.departmentCode || 'MECH',
+      leaderName: team.leaderName,
+      leaderRoll: team.leaderRoll,
+      leaderEmail: team.leaderEmail,
+      leaderPhone: team.leaderPhone,
+      leaderCollege: team.leaderCollege,
+      buyerRoll: member.rollNumber,
+      teammates: team.members,
+      format: 'team',
+      teamName: team.teamName,
+      teamCode: team.teamCode,
+      fee: 0,
+      source: 'online',
+      registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      paymentStatus,
+      transactionId: isLeaderPaid ? leaderReg?.transactionId : undefined,
+      paymentScreenshotUrl: isLeaderPaid ? leaderReg?.paymentScreenshotUrl : undefined,
+      checkedIn: false
+    };
+    regs.unshift(newReg);
+    this.saveRegistrations(regs);
+    updatedReg = newReg;
 
     // Sync to Supabase cloud safely
     if (isSupabaseConfigured()) {
@@ -1820,7 +1988,7 @@ export class StorageService {
       } catch {}
     }
 
-    return { success: true, team, registration: updatedReg };
+    return { success: true, team, registration: updatedReg, isLeaderPaid };
   }
 
   static resetToDefaults(): void {

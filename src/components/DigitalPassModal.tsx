@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Sparkles, Ticket, ShoppingBag } from 'lucide-react';
+import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Sparkles, Ticket, ShoppingBag, Lock } from 'lucide-react';
 import { Registration, User as UserType } from '../types/festronix';
 import { INITIAL_REGISTRATIONS } from '../data/mockData';
 
@@ -103,6 +103,27 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           <span className="badge-status badge-pending">
             <Clock size={13} />
             <span>Verification Pending</span>
+          </span>
+        );
+      case 'payment_required':
+        return (
+          <span
+            className="badge-status"
+            style={{
+              background: 'rgba(245, 158, 11, 0.2)',
+              border: '1px solid #F59E0B',
+              color: '#FBBF24',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              fontWeight: 700
+            }}
+          >
+            <Clock size={13} />
+            <span>Awaiting Leader Payment</span>
           </span>
         );
       case 'rejected':
@@ -400,7 +421,25 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
                 {/* Verification/Entry Status */}
                 <div style={{ marginTop: '14px' }}>
-                  {reg.checkedIn ? (
+                  {reg.paymentStatus === 'payment_required' || !reg.qrToken ? (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '5px 12px',
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        border: '1px solid #F59E0B',
+                        borderRadius: '6px',
+                        color: '#FBBF24',
+                        fontSize: '0.75rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      <Lock size={14} />
+                      <span>ENTRY QR LOCKED • AWAITING LEADER PAYMENT</span>
+                    </div>
+                  ) : reg.checkedIn ? (
                     <div
                       style={{
                         display: 'inline-flex',
@@ -439,26 +478,79 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </div>
               </div>
 
-              {/* QR Code token */}
-              <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '14px', borderRadius: '12px' }}>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(reg.qrToken || reg.id)}`}
-                  alt="Entry QR Pass"
-                  style={{ width: '120px', height: '120px', margin: '0 auto', display: 'block' }}
-                />
+              {/* QR Code token or Locked Placeholder */}
+              {reg.paymentStatus === 'payment_required' || !reg.qrToken ? (
                 <div
                   style={{
-                    fontFamily: 'monospace',
-                    fontSize: '0.68rem',
-                    color: '#101A35',
-                    fontWeight: 700,
-                    marginTop: '8px',
-                    letterSpacing: '0.05em'
+                    textAlign: 'center',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(16, 26, 53, 0.95) 100%)',
+                    border: '1px dashed #F59E0B',
+                    padding: '16px 12px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '160px'
                   }}
                 >
-                  TOKEN: {reg.qrToken || reg.id}
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      background: 'rgba(245, 158, 11, 0.2)',
+                      color: '#FBBF24',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <Lock size={22} />
+                  </div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#FBBF24', letterSpacing: '0.04em' }}>
+                    QR PASS LOCKED
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#FEF3C7', marginTop: '4px', maxWidth: '170px', lineHeight: 1.3 }}>
+                    Awaiting Team Leader's payment submission.
+                  </div>
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(245, 158, 11, 0.25)',
+                      color: '#FBBF24',
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      fontFamily: 'monospace'
+                    }}
+                  >
+                    SLOT SECURED
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '14px', borderRadius: '12px' }}>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(reg.qrToken || reg.id)}`}
+                    alt="Entry QR Pass"
+                    style={{ width: '120px', height: '120px', margin: '0 auto', display: 'block' }}
+                  />
+                  <div
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.68rem',
+                      color: '#101A35',
+                      fontWeight: 700,
+                      marginTop: '8px',
+                      letterSpacing: '0.05em'
+                    }}
+                  >
+                    TOKEN: {reg.qrToken || reg.id}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Ticket Footer details */}
@@ -473,7 +565,12 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               }}
             >
               <div>
-                Date Issued: <span>{reg.registrationDate}</span> • Status: <strong style={{ color: '#10B981' }}>CONFIRMED</strong>
+                Date Issued: <span>{reg.registrationDate}</span> • Status:{' '}
+                {reg.paymentStatus === 'payment_required' ? (
+                  <strong style={{ color: '#FBBF24' }}>PENDING LEADER PAYMENT</strong>
+                ) : (
+                  <strong style={{ color: '#10B981' }}>CONFIRMED</strong>
+                )}
               </div>
               {reg.transactionId && (
                 <div>
