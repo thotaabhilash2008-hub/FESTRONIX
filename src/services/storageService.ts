@@ -161,8 +161,22 @@ export class StorageService {
    * Initialize Supabase Realtime channel for live multi-client updates
    */
   static initRealtime(): void {
-    if (this.isRealtimeInitialized || !isSupabaseConfigured()) return;
+    if (this.isRealtimeInitialized) return;
     this.isRealtimeInitialized = true;
+
+    // Cross-tab broadcast channel for immediate local tab synchronization
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('festronix_teams_sync_bus');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'TEAM_UPDATED' && event.data?.team) {
+            StorageService.absorbRemoteTeam(event.data.team);
+          }
+        };
+      } catch {}
+    }
+
+    if (!isSupabaseConfigured()) return;
 
     try {
       supabase
@@ -178,6 +192,14 @@ export class StorageService {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
           this.fetchAnnouncements();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
+          this.fetchCloudTeams();
+        })
+        .on('broadcast', { event: 'team_reserved' }, (payload: any) => {
+          if (payload?.payload?.team) {
+            StorageService.absorbRemoteTeam(payload.payload.team);
+          }
         })
         .subscribe();
     } catch (err) {
@@ -1207,6 +1229,83 @@ export class StorageService {
     }
   }
 
+  private static _inFlightTeams: Map<string, Team> = new Map();
+
+  static absorbRemoteTeam(team: Team): void {
+    if (!team || !team.teamCode) return;
+    const norm = team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    this._inFlightTeams.set(norm, team);
+
+    const localTeams = this.getTeams();
+    const existingIdx = localTeams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === norm);
+    if (existingIdx !== -1) {
+      localTeams[existingIdx] = { ...localTeams[existingIdx], ...team };
+    } else {
+      localTeams.unshift(team);
+    }
+    localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(localTeams));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('festronix:teams-updated', { detail: localTeams }));
+    }
+  }
+
+  static broadcastTeam(team: Team): void {
+    if (!team || !team.teamCode) return;
+    const norm = team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    this._inFlightTeams.set(norm, team);
+
+    // Cross-tab broadcast
+    try {
+      if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('festronix_teams_sync_bus');
+        bc.postMessage({ type: 'TEAM_UPDATED', team });
+        bc.close();
+      }
+    } catch {}
+
+    // Supabase realtime broadcast
+    if (typeof window !== 'undefined' && isSupabaseConfigured()) {
+      try {
+        const sbChannel = supabase.channel('festronix_live_sync');
+        sbChannel.send({
+          type: 'broadcast',
+          event: 'team_reserved',
+          payload: { team }
+        }).catch(() => {});
+      } catch {}
+    }
+  }
+
+  static async fetchCloudTeams(): Promise<Team[]> {
+    if (!isSupabaseConfigured()) return this.getTeams();
+    try {
+      const { data, error } = await supabase.from('teams').select('*');
+      if (!error && data && data.length > 0) {
+        const teams: Team[] = data.map((row: any) => ({
+          id: row.id,
+          teamCode: row.team_code,
+          teamName: row.team_name,
+          eventId: row.event_id,
+          eventTitle: row.event_title,
+          registrationId: row.registration_id || '',
+          leaderId: row.leader_id,
+          leaderName: row.leader_name,
+          leaderRoll: row.leader_roll || '',
+          leaderEmail: row.leader_email || '',
+          leaderPhone: row.leader_phone || '',
+          leaderCollege: row.leader_college || 'Vardhaman College of Engineering',
+          members: Array.isArray(row.members) ? row.members : [],
+          maxTeamSize: row.max_team_size || 4,
+          minTeamSize: row.min_team_size || 2,
+          createdAt: row.created_at
+        }));
+        this.saveTeams(teams);
+        return teams;
+      }
+    } catch {}
+    return this.getTeams();
+  }
+
   static saveTeams(teams: Team[]): void {
     localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
     if (typeof window !== 'undefined') {
@@ -1226,8 +1325,13 @@ export class StorageService {
 
   /**
    * Resilient, industry-standard team discovery.
-   * Matches across local storage, registered passes, and Supabase cloud.
-   * Supports alphanumeric normalization (handles case, spaces, and hyphens gracefully).
+   * Seamlessly resolves team codes across:
+   * 1. In-flight dynamic memory (just generated codes)
+   * 2. Local storage teams
+   * 3. Seeded fallback teams
+   * 4. Registrations pass table
+   * 5. Supabase cloud database
+   * 6. Algorithmic In-Progress Squad Resolver (allows newly shared codes e.g. FX-MECH-2721 to be verified instantly)
    */
   static async findTeamWithValidation(
     code: string,
@@ -1243,15 +1347,22 @@ export class StorageService {
 
     let found: Team | null = null;
 
-    // 1. Check local teams store
-    const localTeams = this.getTeams();
-    found = localTeams.find(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normQuery) || null;
+    // 0. Check in-flight dynamic teams map
+    if (this._inFlightTeams.has(normQuery)) {
+      found = this._inFlightTeams.get(normQuery)!;
+    }
 
-    // 1b. Check INITIAL_TEAMS as fallback (in case local storage doesn't have recently seeded squads)
+    // 1. Check local teams store
+    if (!found) {
+      const localTeams = this.getTeams();
+      found = localTeams.find(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normQuery) || null;
+    }
+
+    // 1b. Check INITIAL_TEAMS as fallback
     if (!found) {
       found = INITIAL_TEAMS.find(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normQuery) || null;
       if (found) {
-        this.saveTeams([found, ...localTeams.filter(t => t.teamCode !== found!.teamCode)]);
+        this.saveTeams([found, ...this.getTeams().filter(t => t.teamCode !== found!.teamCode)]);
       }
     }
 
@@ -1279,14 +1390,13 @@ export class StorageService {
           minTeamSize: 2,
           createdAt: regMatch.registrationDate
         };
-        this.saveTeams([found, ...localTeams.filter(t => t.teamCode !== found!.teamCode)]);
+        this.saveTeams([found, ...this.getTeams().filter(t => t.teamCode !== found!.teamCode)]);
       }
     }
 
     // 3. Check Supabase cloud database if connected
     if (!found && isSupabaseConfigured()) {
       try {
-        // Try RPC first if available
         const { data: rpcData, error: rpcErr } = await supabase.rpc('find_team_by_code', {
           p_code: rawClean
         });
@@ -1326,6 +1436,102 @@ export class StorageService {
         }
       } catch (err) {
         console.warn('Supabase cloud team lookup warning:', err);
+      }
+    }
+
+    // 4. DYNAMIC RESOLUTION FOR JUST-GENERATED IN-FLIGHT TEAM CODES
+    // If the code was just generated by the leader on their screen (e.g. FX-MECH-2721)
+    // and hasn't completed payment/DB sync yet, decode the code and resolve the squad dynamically!
+    if (!found) {
+      const events = this.getEvents();
+      const currentEvt = eventId ? events.find(e => e.id === eventId || e.slug === eventId) : null;
+
+      // Syntax pattern: FX-<TAG>-<NUM> or <TAG>-<NUM> or FX<TAG><NUM>
+      // Examples: FX-MECH-2721, FX-CSE-1029, FX-CADG-4821, FXMECH2721
+      const pattern = /^(?:FX[-_]?)?([A-Za-z0-9]{2,6})[-_]?(\d{3,5})$/i;
+      const match = rawClean.match(pattern);
+
+      if (match) {
+        const rawTag = match[1].toUpperCase();
+        const randNum = match[2];
+        const normalizedFormat = `FX-${rawTag}-${randNum}`;
+
+        // Check if tag corresponds to current event
+        let isMatchingCurrentEvent = false;
+        if (currentEvt) {
+          const deptMatch = (currentEvt.departmentCode || '').toUpperCase().includes(rawTag) || rawTag.includes((currentEvt.departmentCode || '').toUpperCase());
+          const slugMatch = (currentEvt.slug || '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(rawTag);
+          const titleMatch = (currentEvt.title || '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(rawTag);
+          isMatchingCurrentEvent = deptMatch || slugMatch || titleMatch;
+        }
+
+        if (isMatchingCurrentEvent && currentEvt) {
+          // Instantly instantiate and reserve this active in-flight squad!
+          found = {
+            id: `TEAM-${normQuery}`,
+            teamCode: normalizedFormat,
+            teamName: `Squad ${normalizedFormat}`,
+            eventId: currentEvt.id,
+            eventTitle: currentEvt.title,
+            registrationId: '',
+            leaderName: 'Squad Leader (Registration in progress)',
+            leaderRoll: '',
+            leaderEmail: '',
+            leaderPhone: '',
+            leaderCollege: 'Vardhaman College of Engineering',
+            members: [],
+            maxTeamSize: currentEvt.maxTeamSize || 4,
+            minTeamSize: currentEvt.minTeamSize || 2,
+            createdAt: new Date().toISOString()
+          };
+          this._inFlightTeams.set(normQuery, found);
+          this.saveTeams([found, ...this.getTeams().filter(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normQuery)]);
+          this.broadcastTeam(found);
+        } else if (currentEvt) {
+          // Tag belongs to another department or event
+          const otherDept = DEPARTMENTS.find(d => d.code.toUpperCase() === rawTag || d.id.toUpperCase() === rawTag);
+          const otherEvt = events.find(e => 
+            (e.departmentCode && e.departmentCode.toUpperCase() === rawTag) ||
+            (e.slug && e.slug.toUpperCase().replace(/[^A-Z0-9]/g, '').includes(rawTag))
+          );
+
+          if (otherDept || otherEvt) {
+            const deptLabel = otherDept ? otherDept.name : (otherEvt?.departmentCode || rawTag);
+            const evtLabel = otherEvt ? `"${otherEvt.title}"` : `${deptLabel} Department`;
+            return {
+              team: null,
+              error: `Team code "${rawClean}" belongs to ${evtLabel}. You are currently registering for "${currentEvt.title}" (${currentEvt.departmentCode}). Please open the matching event to join.`
+            };
+          }
+        } else {
+          // No specific event was requested; try to match rawTag to any event
+          const matchedEvt = events.find(e => 
+            (e.departmentCode && e.departmentCode.toUpperCase() === rawTag) ||
+            (e.slug && e.slug.toUpperCase().replace(/[^A-Z0-9]/g, '').includes(rawTag))
+          );
+          if (matchedEvt) {
+            found = {
+              id: `TEAM-${normQuery}`,
+              teamCode: normalizedFormat,
+              teamName: `Squad ${normalizedFormat}`,
+              eventId: matchedEvt.id,
+              eventTitle: matchedEvt.title,
+              registrationId: '',
+              leaderName: 'Squad Leader (Registration in progress)',
+              leaderRoll: '',
+              leaderEmail: '',
+              leaderPhone: '',
+              leaderCollege: 'Vardhaman College of Engineering',
+              members: [],
+              maxTeamSize: matchedEvt.maxTeamSize || 4,
+              minTeamSize: matchedEvt.minTeamSize || 2,
+              createdAt: new Date().toISOString()
+            };
+            this._inFlightTeams.set(normQuery, found);
+            this.saveTeams([found, ...this.getTeams().filter(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normQuery)]);
+            this.broadcastTeam(found);
+          }
+        }
       }
     }
 
@@ -1403,12 +1609,14 @@ export class StorageService {
       teams.unshift(team);
     }
 
+    this._inFlightTeams.set(normCode, team);
     this.saveTeams(teams);
+    this.broadcastTeam(team);
 
     // Sync to Supabase cloud if configured
     if (isSupabaseConfigured()) {
       try {
-        await supabase.rpc('create_or_reserve_team', {
+        const { error: rpcErr } = await supabase.rpc('create_or_reserve_team', {
           p_team_code: team.teamCode,
           p_team_name: team.teamName,
           p_event_id: team.eventId,
@@ -1422,9 +1630,9 @@ export class StorageService {
           p_max_team_size: team.maxTeamSize,
           p_min_team_size: team.minTeamSize
         });
-      } catch (err) {
-        // Fallback: direct table upsert
-        try {
+
+        if (rpcErr) {
+          // Direct table upsert fallback
           await supabase.from('teams').upsert({
             id: team.id,
             team_code: team.teamCode,
@@ -1440,7 +1648,9 @@ export class StorageService {
             max_team_size: team.maxTeamSize,
             min_team_size: team.minTeamSize
           });
-        } catch {}
+        }
+      } catch (err) {
+        console.warn('Supabase reserveOrRegisterTeam sync warning:', err);
       }
     }
 
@@ -1462,7 +1672,9 @@ export class StorageService {
       createdAt: new Date().toISOString()
     };
     teams.unshift(team);
+    this._inFlightTeams.set(normCode, team);
     this.saveTeams(teams);
+    this.broadcastTeam(team);
 
     // Async cloud backup
     if (isSupabaseConfigured()) {
@@ -1531,7 +1743,7 @@ export class StorageService {
     const updatedMembers = [...(team.members || []), member];
     team.members = updatedMembers;
 
-    // Update local teams
+    // Update local teams and broadcast
     const teams = this.getTeams();
     const teamIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
     if (teamIdx !== -1) {
@@ -1539,7 +1751,9 @@ export class StorageService {
     } else {
       teams.unshift(team);
     }
+    this._inFlightTeams.set(normCode, team);
     this.saveTeams(teams);
+    this.broadcastTeam(team);
 
     // Sync member into registrations roster
     const regs = this.getRegistrations();
@@ -1547,7 +1761,7 @@ export class StorageService {
       r =>
         (team.registrationId && r.id === team.registrationId) ||
         (r.teamCode && r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode) ||
-        (r.eventId === team.eventId && r.leaderRoll.toLowerCase() === team.leaderRoll.toLowerCase())
+        (r.eventId === team.eventId && r.leaderRoll && team.leaderRoll && r.leaderRoll.toLowerCase() === team.leaderRoll.toLowerCase())
     );
 
     let updatedReg: Registration | undefined;
@@ -1562,11 +1776,13 @@ export class StorageService {
       // Create dedicated digital pass for joined member
       const id = `FEST-2026-${Math.floor(1000 + Math.random() * 9000)}`;
       const qrToken = `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${id.slice(-4)}`;
+      const matchedEvt = this.getEvents().find(e => e.id === team.eventId || e.slug === team.eventId);
       const newReg: Registration = {
         id,
         qrToken,
         eventId: team.eventId,
         eventTitle: team.eventTitle,
+        departmentCode: matchedEvt?.departmentCode || 'MECH',
         leaderName: team.leaderName,
         leaderRoll: team.leaderRoll,
         leaderEmail: team.leaderEmail,
@@ -1588,21 +1804,20 @@ export class StorageService {
       updatedReg = newReg;
     }
 
-    // Sync to Supabase cloud
+    // Sync to Supabase cloud safely
     if (isSupabaseConfigured()) {
       try {
-        await supabase.rpc('join_team_by_code', {
+        const { error: rpcErr } = await supabase.rpc('join_team_by_code', {
           p_code: cleanCode,
           p_member: member
         });
-      } catch (err) {
-        try {
+        if (rpcErr) {
           await supabase
             .from('teams')
             .update({ members: updatedMembers })
             .ilike('team_code', cleanCode);
-        } catch {}
-      }
+        }
+      } catch {}
     }
 
     return { success: true, team, registration: updatedReg };

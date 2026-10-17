@@ -179,6 +179,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
+  const updateLeaderAndSyncTeam = (updatedLeader: typeof leader) => {
+    setLeader(updatedLeader);
+    if (generatedTeamCode && event && isTeamEvent) {
+      StorageService.reserveOrRegisterTeam({
+        teamCode: generatedTeamCode,
+        teamName: teamName || (updatedLeader.name ? `${updatedLeader.name.split(' ')[0]}'s Squad` : 'Alpha Squad'),
+        eventId: event.id,
+        eventTitle: event.title,
+        registrationId: '',
+        leaderId: currentUser?.id,
+        leaderName: updatedLeader.name || 'Team Leader',
+        leaderRoll: updatedLeader.rollNumber || '',
+        leaderEmail: updatedLeader.email || '',
+        leaderPhone: updatedLeader.phone || '',
+        leaderCollege: updatedLeader.college || 'Vardhaman College of Engineering',
+        members: teammates,
+        maxTeamSize: event.maxTeamSize || 4,
+        minTeamSize: event.minTeamSize || 2
+      }).catch(() => {});
+    }
+  };
+
   const handleAddTeammateSlot = () => {
     if (teammates.length < maxTeammates) {
       setTeammates([
@@ -1442,7 +1464,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 className="cyber-input"
                 placeholder="e.g. Rahul Sharma"
                 value={leader.name}
-                onChange={e => setLeader({ ...leader, name: e.target.value })}
+                onChange={e => updateLeaderAndSyncTeam({ ...leader, name: e.target.value })}
               />
             </div>
 
@@ -1456,7 +1478,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="rahul@college.edu"
                   value={leader.email}
-                  onChange={e => setLeader({ ...leader, email: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, email: e.target.value })}
                 />
               </div>
 
@@ -1469,7 +1491,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="+91 98765 43210"
                   value={leader.phone}
-                  onChange={e => setLeader({ ...leader, phone: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, phone: e.target.value })}
                 />
               </div>
             </div>
@@ -1484,7 +1506,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="e.g. Vardhaman College of Engineering"
                   value={leader.college}
-                  onChange={e => setLeader({ ...leader, college: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, college: e.target.value })}
                 />
               </div>
 
@@ -1497,7 +1519,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="22VCECS104"
                   value={leader.rollNumber}
-                  onChange={e => setLeader({ ...leader, rollNumber: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, rollNumber: e.target.value })}
                 />
               </div>
             </div>
