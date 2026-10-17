@@ -19,6 +19,17 @@ export const isSuperAdminRole = (role: AdminRole): boolean => {
   return role === 'dean_sac' || role === 'connect_club' || role === 'vencorpia' || role === 'super_admin';
 };
 
+export const getDynamicDepartments = (): Array<{ id: string; code: string; name: string; description: string; chiefCoordinator: string; contact: string; iconName: string }> => {
+  try {
+    const raw = localStorage.getItem('festronix_departments_v2');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return DEPARTMENTS;
+};
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -412,7 +423,7 @@ export class AdminAuthService {
             .maybeSingle();
 
           if (roleData && (roleData.department_code?.toUpperCase() === cleanDept || roleData.role === 'dean_sac' || roleData.role === 'super_admin')) {
-            const deptInfo = DEPARTMENTS.find(d => d.code.toUpperCase() === cleanDept);
+            const deptInfo = getDynamicDepartments().find(d => d.code.toUpperCase() === cleanDept);
             const sessionUser: AdminUser = {
               id: authData.user.id,
               username: cleanId,
@@ -478,7 +489,7 @@ export class AdminAuthService {
     }
 
     if (isUniversalCoordPass) {
-      const deptInfo = DEPARTMENTS.find(d => d.code.toUpperCase() === cleanDept);
+      const deptInfo = getDynamicDepartments().find(d => d.code.toUpperCase() === cleanDept);
       const sessionUser: AdminUser = {
         id: `admin_coord_${cleanDept.toLowerCase()}_${Date.now()}`,
         username: cleanId,

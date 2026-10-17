@@ -1,5 +1,5 @@
-import { FestEvent, Registration, Announcement, FestStats, PaymentStatus, Teammate, Team } from '../types/festronix';
-import { INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_ANNOUNCEMENTS, INITIAL_TEAMS } from '../data/mockData';
+import { FestEvent, Registration, Announcement, FestStats, PaymentStatus, Teammate, Team, Department } from '../types/festronix';
+import { INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_ANNOUNCEMENTS, INITIAL_TEAMS, DEPARTMENTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 
@@ -7,7 +7,8 @@ const STORAGE_KEYS = {
   EVENTS: 'festronix_events_v2',
   REGISTRATIONS: 'festronix_registrations_v2',
   ANNOUNCEMENTS: 'festronix_announcements_v2',
-  TEAMS: 'festronix_teams_v2'
+  TEAMS: 'festronix_teams_v2',
+  DEPARTMENTS: 'festronix_departments_v2'
 };
 
 type EventRow = Database['public']['Tables']['events']['Row'];
@@ -1111,6 +1112,84 @@ export class StorageService {
   }
 
   // ==========================================
+  // DEPARTMENTS (Full Dynamic CRUD for Super Admin)
+  // ==========================================
+
+  static getDepartments(): Department[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (err) {
+        console.warn('Failed to parse cached departments:', err);
+      }
+    }
+    // Default to DEPARTMENTS mock data and persist
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEPARTMENTS));
+    return [...DEPARTMENTS];
+  }
+
+  static saveDepartments(departments: Department[]): void {
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(departments));
+    window.dispatchEvent(new CustomEvent('festronix:departments-updated', { detail: departments }));
+  }
+
+  static addDepartment(dept: Omit<Department, 'id'> & { id?: string }): Department {
+    const departments = this.getDepartments();
+    const cleanCode = dept.code.trim().toUpperCase();
+    const id = dept.id || `dept-${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+
+    const newDept: Department = {
+      id,
+      code: cleanCode,
+      name: dept.name.trim(),
+      description: dept.description?.trim() || 'Academic Department for FESTRONIX 2026',
+      chiefCoordinator: dept.chiefCoordinator?.trim() || 'Department Chief',
+      contact: dept.contact?.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
+      iconName: dept.iconName || 'Cpu'
+    };
+
+    const existingIdx = departments.findIndex(d => d.code.toUpperCase() === cleanCode || d.id === id);
+    if (existingIdx !== -1) {
+      departments[existingIdx] = newDept;
+    } else {
+      departments.push(newDept);
+    }
+
+    this.saveDepartments(departments);
+    return newDept;
+  }
+
+  static updateDepartment(idOrCode: string, updated: Partial<Department>): Department | null {
+    const departments = this.getDepartments();
+    const cleanKey = idOrCode.trim().toUpperCase();
+    const idx = departments.findIndex(d => d.id === idOrCode || d.code.toUpperCase() === cleanKey);
+
+    if (idx === -1) return null;
+
+    const current = departments[idx];
+    const merged: Department = {
+      ...current,
+      ...updated,
+      code: updated.code ? updated.code.trim().toUpperCase() : current.code
+    };
+    departments[idx] = merged;
+    this.saveDepartments(departments);
+    return merged;
+  }
+
+  static deleteDepartment(idOrCode: string): boolean {
+    const departments = this.getDepartments();
+    const cleanKey = idOrCode.trim().toUpperCase();
+    const filtered = departments.filter(d => d.id !== idOrCode && d.code.toUpperCase() !== cleanKey);
+    this.saveDepartments(filtered);
+    return true;
+  }
+
+  // ==========================================
   // TEAMS (Industry-Standard Squad System)
   // ==========================================
 
@@ -1534,6 +1613,7 @@ export class StorageService {
     localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(INITIAL_REGISTRATIONS));
     localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(INITIAL_ANNOUNCEMENTS));
     localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(INITIAL_TEAMS));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEPARTMENTS));
   }
 }
 

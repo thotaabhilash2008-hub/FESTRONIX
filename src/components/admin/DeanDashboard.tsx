@@ -4,14 +4,14 @@ import {
   Download, Bell, Plus, Trash2, Edit3, LogOut, Globe, 
   Layers, Eye, RefreshCw, Building2,
   UserCheck, UserPlus, Phone, Mail, Copy, Check,
-  Lock, Unlock
+  Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
 import { 
   FestEvent, Registration, Announcement, FestStats, PaymentStatus, 
-  EventCategory, EventFormat 
+  EventCategory, EventFormat, Department
 } from '../../types/festronix';
 import { DEPARTMENTS, ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
 
@@ -28,6 +28,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [events, setEvents] = useState<FestEvent[]>(StorageService.getEvents());
   const [registrations, setRegistrations] = useState<Registration[]>(StorageService.getRegistrations());
   const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
+  const [departments, setDepartments] = useState<Department[]>(StorageService.getDepartments());
   const [coordinators, setCoordinators] = useState<Array<AdminUser & { password?: string; assignedEvents?: string[] }>>(
     AdminAuthService.getCoordinators()
   );
@@ -117,11 +118,31 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [editCoordPassword, setEditCoordPassword] = useState('');
   const [editCoordShowPassword, setEditCoordShowPassword] = useState(false);
 
+  // Form State: Add New Department
+  const [isAddDepartmentOpen, setIsAddDepartmentOpen] = useState(false);
+  const [deptCode, setDeptCode] = useState('');
+  const [deptName, setDeptName] = useState('');
+  const [deptDesc, setDeptDesc] = useState('');
+  const [deptChief, setDeptChief] = useState('');
+  const [deptContact, setDeptContact] = useState('');
+  const [deptIcon, setDeptIcon] = useState('Cpu');
+
+  // Form State: Edit Department
+  const [isEditDepartmentOpen, setIsEditDepartmentOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  const [editDeptCode, setEditDeptCode] = useState('');
+  const [editDeptName, setEditDeptName] = useState('');
+  const [editDeptDesc, setEditDeptDesc] = useState('');
+  const [editDeptChief, setEditDeptChief] = useState('');
+  const [editDeptContact, setEditDeptContact] = useState('');
+  const [editDeptIcon, setEditDeptIcon] = useState('Cpu');
+
   const refreshAllData = async () => {
     setStats(StorageService.getStats());
     setEvents(StorageService.getEvents());
     setRegistrations(StorageService.getRegistrations());
     setAnnouncements(StorageService.getAnnouncements());
+    setDepartments(StorageService.getDepartments());
     setCoordinators(AdminAuthService.getCoordinators());
 
     try {
@@ -133,6 +154,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setEvents(liveEvts);
       setRegistrations(liveRegs);
       setAnnouncements(liveAnns);
+      setDepartments(StorageService.getDepartments());
       setStats(StorageService.getStats());
       setCoordinators(AdminAuthService.getCoordinators());
     } catch (err) {
@@ -153,11 +175,17 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setStats(StorageService.getStats());
     };
 
+    const handleDeptsUpdate = () => {
+      setDepartments(StorageService.getDepartments());
+    };
+
     const handleStorageChange = (e: StorageEvent) => {
       if (
         e.key === 'festronix_registrations_v1' || 
         e.key === 'festronix_events_v1' || 
-        e.key === 'festronix_custom_coordinators_v1'
+        e.key === 'festronix_custom_coordinators_v1' ||
+        e.key === 'festronix_departments_v2' ||
+        e.key === 'festronix_all_admins_v2'
       ) {
         refreshAllData();
       }
@@ -165,14 +193,126 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
     window.addEventListener('festronix:events-updated', handleEventsUpdate);
+    window.addEventListener('festronix:departments-updated', handleDeptsUpdate);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
       window.removeEventListener('festronix:events-updated', handleEventsUpdate);
+      window.removeEventListener('festronix:departments-updated', handleDeptsUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+
+  // Department CRUD Handlers
+  const handleCreateDepartment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = deptCode.trim().toUpperCase();
+    if (!cleanCode || !deptName.trim()) {
+      alert('Please enter department code and name.');
+      return;
+    }
+
+    StorageService.addDepartment({
+      code: cleanCode,
+      name: deptName.trim(),
+      description: deptDesc.trim() || `${deptName.trim()} engineering division for FESTRONIX 2026.`,
+      chiefCoordinator: deptChief.trim() || 'Department Chief',
+      contact: deptContact.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
+      iconName: deptIcon || 'Cpu'
+    });
+
+    // If chief provided, also ensure HOD login exists
+    if (deptChief.trim()) {
+      const existingHod = AdminAuthService.getAllAdmins().find(
+        a => a.departmentCode?.toUpperCase() === cleanCode && (a.role === 'dept_chief_coordinator' || a.role === 'dept_coordinator')
+      );
+      if (!existingHod) {
+        AdminAuthService.addAdmin({
+          username: `hod_${cleanCode.toLowerCase()}`,
+          password: `${cleanCode.toLowerCase()}2026`,
+          fullName: deptChief.trim(),
+          designation: `Department Chief Coordinator (${cleanCode})`,
+          role: 'dept_chief_coordinator',
+          departmentCode: cleanCode,
+          departmentName: deptName.trim(),
+          email: deptContact.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
+          accessBoundary: "Their department's events"
+        });
+      }
+    }
+
+    confetti({ particleCount: 90, spread: 70 });
+    setIsAddDepartmentOpen(false);
+    setDeptCode('');
+    setDeptName('');
+    setDeptDesc('');
+    setDeptChief('');
+    setDeptContact('');
+    setDeptIcon('Cpu');
+    refreshAllData();
+  };
+
+  const handleOpenEditDepartment = (dept: Department) => {
+    setEditingDepartment(dept);
+    setEditDeptCode(dept.code);
+    setEditDeptName(dept.name);
+    setEditDeptDesc(dept.description);
+    setEditDeptChief(dept.chiefCoordinator);
+    setEditDeptContact(dept.contact);
+    setEditDeptIcon(dept.iconName || 'Cpu');
+    setIsEditDepartmentOpen(true);
+  };
+
+  const handleUpdateDepartment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDepartment) return;
+    const cleanCode = editDeptCode.trim().toUpperCase();
+    if (!cleanCode || !editDeptName.trim()) {
+      alert('Please enter department code and name.');
+      return;
+    }
+
+    StorageService.updateDepartment(editingDepartment.id, {
+      code: cleanCode,
+      name: editDeptName.trim(),
+      description: editDeptDesc.trim(),
+      chiefCoordinator: editDeptChief.trim(),
+      contact: editDeptContact.trim(),
+      iconName: editDeptIcon
+    });
+
+    confetti({ particleCount: 70, spread: 50 });
+    setIsEditDepartmentOpen(false);
+    setEditingDepartment(null);
+    refreshAllData();
+  };
+
+  const handleDeleteDepartment = (deptId: string, deptCode: string, deptName: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete department "${deptCode} — ${deptName}"?\n\nThis will remove it from the department matrix, catalog filters, and login views.`
+    );
+    if (confirmed) {
+      StorageService.deleteDepartment(deptId);
+      refreshAllData();
+    }
+  };
+
+  const renderDeptIcon = (iconName: string, size = 18) => {
+    switch ((iconName || '').toLowerCase()) {
+      case 'cpu': return <Cpu size={size} />;
+      case 'database': return <Database size={size} />;
+      case 'brain': return <Brain size={size} />;
+      case 'globe': return <Globe size={size} />;
+      case 'wrench': return <Wrench size={size} />;
+      case 'building':
+      case 'building2': return <Building2 size={size} />;
+      case 'zap': return <Zap size={size} />;
+      case 'radio': return <Radio size={size} />;
+      case 'briefcase': return <Briefcase size={size} />;
+      default: return <Layers size={size} />;
+    }
+  };
 
   // Update format team sizes automatically when format changes
   useEffect(() => {
@@ -341,7 +481,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
     const deptName = coordRole === 'finance_reviewer'
       ? 'Central Accounts & Finance Desk'
-      : (DEPARTMENTS.find(d => d.code === coordDeptCode)?.name || coordDeptCode);
+      : (departments.find(d => d.code === coordDeptCode)?.name || coordDeptCode);
 
     AdminAuthService.addCoordinator({
       username: coordUsername.trim().toLowerCase(),
@@ -400,7 +540,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
     const deptName = editCoordRole === 'finance_reviewer'
       ? 'Central Accounts & Finance Desk'
-      : (DEPARTMENTS.find(d => d.code === editCoordDeptCode)?.name || editCoordDeptCode);
+      : (departments.find(d => d.code === editCoordDeptCode)?.name || editCoordDeptCode);
 
     AdminAuthService.updateCoordinator(editingCoordinator.id, {
       fullName: editCoordFullName.trim(),
@@ -843,34 +983,63 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   Engineering Department Performance Matrix
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Live aggregate metrics across all academic divisions for FESTRONIX 2026. Click any department to filter events, roster, or appoint faculty.
+                  Live aggregate metrics across all academic divisions for FESTRONIX 2026. Create, edit, delete, or appoint HODs dynamically.
                 </p>
               </div>
-              <button
-                onClick={refreshAllData}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(220, 227, 229, 0.2)',
-                  borderRadius: '8px',
-                  padding: '6px 14px',
-                  color: '#DCE3E5',
-                  fontSize: '0.78rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer'
-                }}
-              >
-                <RefreshCw size={13} />
-                <span>Refresh Matrix</span>
-              </button>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    setDeptCode('');
+                    setDeptName('');
+                    setDeptDesc('');
+                    setDeptChief('');
+                    setDeptContact('');
+                    setDeptIcon('Cpu');
+                    setIsAddDepartmentOpen(true);
+                  }}
+                  className="btn-cyber-primary"
+                  style={{
+                    padding: '7px 16px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px'
+                  }}
+                >
+                  <Plus size={15} />
+                  <span>+ Create Department</span>
+                </button>
+
+                <button
+                  onClick={refreshAllData}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(220, 227, 229, 0.2)',
+                    borderRadius: '8px',
+                    padding: '7px 14px',
+                    color: '#DCE3E5',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <RefreshCw size={13} />
+                  <span>Refresh Matrix</span>
+                </button>
+              </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '16px' }}>
-              {DEPARTMENTS.map(dept => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px' }}>
+              {departments.map(dept => {
                 const deptStats = StorageService.getDepartmentStats(dept.code);
-                const deptEvents = events.filter(e => e.departmentCode === dept.code);
-                const deptCoords = coordinators.filter(c => c.departmentCode === dept.code);
+                const deptEvents = events.filter(e => e.departmentCode.toUpperCase() === dept.code.toUpperCase());
+                const deptCoords = coordinators.filter(c => c.departmentCode?.toUpperCase() === dept.code.toUpperCase());
+                const deptHod = deptCoords.find(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator');
 
                 return (
                   <div
@@ -883,35 +1052,115 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       transition: 'transform 0.2s, border-color 0.2s',
                       display: 'flex',
                       flexDirection: 'column',
-                      justifyContent: 'space-between'
+                      justifyContent: 'space-between',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
                     }}
                   >
                     <div>
+                      {/* Top Header of Card with Code & Action Buttons */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <span
-                          style={{
-                            fontSize: '0.78rem',
-                            fontWeight: 800,
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            background: 'rgba(40, 59, 120, 0.45)',
-                            border: '1px solid rgba(120, 149, 147, 0.4)',
-                            color: '#BACEBB'
-                          }}
-                        >
-                          {dept.code}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>
-                          {deptEvents.length} Events Listed
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span
+                            style={{
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: 'rgba(40, 59, 120, 0.45)',
+                              border: '1px solid rgba(120, 149, 147, 0.4)',
+                              color: '#BACEBB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                          >
+                            {renderDeptIcon(dept.iconName, 13)}
+                            {dept.code}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>
+                            {deptEvents.length} Events Listed
+                          </span>
+                        </div>
+
+                        {/* Edit & Delete Buttons for Department */}
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            onClick={() => handleOpenEditDepartment(dept)}
+                            style={{
+                              background: 'rgba(59, 130, 246, 0.15)',
+                              border: '1px solid rgba(59, 130, 246, 0.35)',
+                              borderRadius: '6px',
+                              color: '#60A5FA',
+                              padding: '4px 7px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.7rem'
+                            }}
+                            title={`Edit ${dept.name}`}
+                          >
+                            <Edit3 size={11} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDepartment(dept.id, dept.code, dept.name)}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '6px',
+                              color: '#f87171',
+                              padding: '4px 7px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.7rem'
+                            }}
+                            title={`Delete ${dept.code} Department`}
+                          >
+                            <Trash2 size={11} />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
 
                       <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 4px' }}>
                         {dept.name}
                       </h4>
-                      <p style={{ fontSize: '0.76rem', color: '#A8B3C2', margin: '0 0 12px' }}>
-                        Chief: {dept.chiefCoordinator}
+                      <p style={{ fontSize: '0.75rem', color: '#A8B3C2', margin: '0 0 6px', lineHeight: 1.35 }}>
+                        {dept.description}
                       </p>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#BACEBB', marginBottom: '12px' }}>
+                        <span>Chief: <strong>{dept.chiefCoordinator}</strong></span>
+                        {deptHod ? (
+                          <span style={{ color: '#C084FC', fontSize: '0.68rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(192, 132, 252, 0.15)' }}>
+                            HOD Portal Active
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setCoordRole('dept_chief_coordinator');
+                              setCoordDeptCode(dept.code);
+                              setCoordFullName(dept.chiefCoordinator);
+                              setCoordDesignation(`Department Chief Coordinator (${dept.code})`);
+                              setCoordUsername(`hod_${dept.code.toLowerCase()}`);
+                              setCoordPassword(`${dept.code.toLowerCase()}2026`);
+                              setIsAddCoordinatorOpen(true);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#60A5FA',
+                              fontSize: '0.7rem',
+                              textDecoration: 'underline',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            + Appoint HOD
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -1089,9 +1338,161 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     cursor: 'pointer'
                   }}
                 >
-                  Manage Reviewers
+                  Manage in Staff Tab
                 </button>
               </div>
+            </div>
+
+            {/* Active Payment Reviewers Operations Panel */}
+            <div
+              style={{
+                marginBottom: '20px',
+                background: 'rgba(20, 31, 62, 0.75)',
+                border: '1px solid rgba(52, 211, 153, 0.3)',
+                borderRadius: '12px',
+                padding: '16px 18px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#FFFFFF', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldCheck size={16} color="#34D399" />
+                    <span>Payment Verification Staff Roster ({coordinators.filter(c => c.role === 'finance_reviewer').length})</span>
+                  </h4>
+                  <p style={{ fontSize: '0.74rem', color: '#A8B3C2', margin: '2px 0 0' }}>
+                    Staff assigned to review student transaction screenshots, verify UTRs, and approve passes.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setCoordRole('finance_reviewer');
+                    setCoordDeptCode('FINANCE');
+                    setCoordFullName('');
+                    setCoordDesignation('Central Payment Review Officer');
+                    setCoordEmail('accounts.fest@vardhaman.org');
+                    setCoordPhone('+91 98480 55001');
+                    setCoordUsername('finance_desk_' + Math.floor(100 + Math.random() * 900));
+                    setCoordPassword('finance2026');
+                    setIsAddCoordinatorOpen(true);
+                  }}
+                  className="btn-cyber-primary"
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>+ Create Payment User</span>
+                </button>
+              </div>
+
+              {coordinators.filter(c => c.role === 'finance_reviewer').length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '16px', color: '#A8B3C2', fontSize: '0.8rem' }}>
+                  No payment users appointed yet. Click "+ Create Payment User" to add one.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '12px' }}>
+                  {coordinators.filter(c => c.role === 'finance_reviewer').map(reviewer => (
+                    <div
+                      key={reviewer.id}
+                      style={{
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(52, 211, 153, 0.25)',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                          <div>
+                            <strong style={{ fontSize: '0.88rem', color: '#FFFFFF', display: 'block' }}>{reviewer.fullName}</strong>
+                            <span style={{ fontSize: '0.72rem', color: '#34D399' }}>{reviewer.designation}</span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(52, 211, 153, 0.15)',
+                              border: '1px solid rgba(52, 211, 153, 0.35)',
+                              color: '#34D399',
+                              fontWeight: 700
+                            }}
+                          >
+                            FINANCE
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.74rem', color: '#DCE3E5', display: 'flex', flexDirection: 'column', gap: '4px', margin: '8px 0', background: 'rgba(20, 31, 62, 0.7)', padding: '8px 10px', borderRadius: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#A8B3C2' }}>Username:</span>
+                            <code style={{ color: '#FFFFFF', fontWeight: 700 }}>{reviewer.username}</code>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#A8B3C2' }}>Password:</span>
+                            <code style={{ color: '#34D399', fontWeight: 700 }}>{reviewer.password || 'finance2026'}</code>
+                          </div>
+                          {reviewer.email && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#A8B3C2' }}>Email:</span>
+                              <span style={{ color: '#DCE3E5', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '170px' }}>{reviewer.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', paddingTop: '8px', borderTop: '1px solid rgba(220, 227, 229, 0.1)' }}>
+                        <button
+                          onClick={() => handleOpenEditCoordinator(reviewer)}
+                          style={{
+                            background: 'rgba(59, 130, 246, 0.15)',
+                            border: '1px solid rgba(59, 130, 246, 0.35)',
+                            borderRadius: '6px',
+                            color: '#60A5FA',
+                            padding: '4px 10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Edit3 size={11} /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCoordinator(reviewer.id, reviewer.fullName, 'Payment Reviewer')}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '6px',
+                            color: '#f87171',
+                            padding: '4px 10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Trash2 size={11} /> Revoke
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
@@ -1198,8 +1599,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     boxSizing: 'border-box'
                   }}
                 >
-                  <option value="all">All Departments</option>
-                  {DEPARTMENTS.map(d => (
+                  <option value="all">All Departments ({departments.length})</option>
+                  {departments.map(d => (
                     <option key={d.code} value={d.code}>
                       {d.code} — {d.name}
                     </option>
@@ -1535,8 +1936,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   fontSize: '0.82rem'
                 }}
               >
-                <option value="all">All Departments</option>
-                {DEPARTMENTS.map(d => (
+                <option value="all">All Departments ({departments.length})</option>
+                {departments.map(d => (
                   <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                 ))}
                 <option value="SAC">SAC Central</option>
@@ -1777,23 +2178,132 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </p>
               </div>
 
-              {/* Primary Action Button: + Appoint New Coordinator */}
-              <button
-                onClick={() => setIsAddCoordinatorOpen(true)}
-                className="btn-cyber-primary"
-                style={{
-                  padding: '9px 18px',
-                  fontSize: '0.84rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  borderRadius: '10px'
-                }}
-              >
-                <UserPlus size={16} />
-                <span>+ Appoint New Coordinator</span>
-              </button>
+              {/* Dedicated Action Buttons for Payment Users, HODs, and Event Coordinators */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  onClick={() => {
+                    setCoordRole('finance_reviewer');
+                    setCoordDeptCode('FINANCE');
+                    setCoordFullName('');
+                    setCoordDesignation('Central Payment Review Officer');
+                    setCoordEmail('accounts.fest@vardhaman.org');
+                    setCoordPhone('+91 98480 55001');
+                    setCoordUsername('finance_desk_' + Math.floor(100 + Math.random() * 900));
+                    setCoordPassword('finance2026');
+                    setIsAddCoordinatorOpen(true);
+                  }}
+                  className="btn-cyber-primary"
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)'
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>+ Create Payment User</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const firstDept = departments[0]?.code || 'CSE';
+                    setCoordRole('dept_chief_coordinator');
+                    setCoordDeptCode(firstDept);
+                    setCoordFullName('');
+                    setCoordDesignation(`Department Chief Coordinator (${firstDept})`);
+                    setCoordEmail(`${firstDept.toLowerCase()}.festronix@vardhaman.org`);
+                    setCoordPhone('+91 ');
+                    setCoordUsername(`hod_${firstDept.toLowerCase()}`);
+                    setCoordPassword(`${firstDept.toLowerCase()}2026`);
+                    setIsAddCoordinatorOpen(true);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #7C3AED 0%, #9333EA 100%)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Building2 size={14} />
+                  <span>+ Appoint Department HOD</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setCoordRole('faculty_coord');
+                    setCoordDeptCode(departments[0]?.code || 'CSE');
+                    setCoordFullName('');
+                    setCoordDesignation('Faculty Event Convener');
+                    setCoordEmail('');
+                    setCoordPhone('+91 ');
+                    setCoordUsername('');
+                    setCoordPassword('festcoord2026');
+                    setIsAddCoordinatorOpen(true);
+                  }}
+                  className="btn-cyber-primary"
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px'
+                  }}
+                >
+                  <UserPlus size={14} />
+                  <span>+ Appoint Coordinator</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Role Categorization Pills */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
+              {[
+                { id: 'all', label: '👥 All Staff', count: coordinators.length },
+                { id: 'finance_reviewer', label: '💳 Payment Users', count: coordinators.filter(c => c.role === 'finance_reviewer').length },
+                { id: 'dept_chief_coordinator', label: '🏛️ Department HODs', count: coordinators.filter(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator').length },
+                { id: 'faculty_coord', label: '🎯 Event Coordinators', count: coordinators.filter(c => c.role === 'faculty_coord' || c.role === 'student_coord' || c.role === 'event_coordinator').length },
+                { id: 'volunteer_checkin', label: '🎟️ Gate Volunteers', count: coordinators.filter(c => c.role === 'volunteer_checkin' || c.role === 'checkin_staff').length }
+              ].map(pill => {
+                const isSelected = coordRoleFilter === pill.id;
+                return (
+                  <button
+                    key={pill.id}
+                    onClick={() => setCoordRoleFilter(pill.id)}
+                    style={{
+                      background: isSelected ? 'rgba(52, 211, 153, 0.2)' : 'rgba(20, 31, 62, 0.7)',
+                      border: isSelected ? '1px solid #34D399' : '1px solid rgba(220, 227, 229, 0.15)',
+                      borderRadius: '20px',
+                      padding: '5px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: isSelected ? 700 : 500,
+                      color: isSelected ? '#34D399' : '#DCE3E5',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <span>{pill.label}</span>
+                    <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '10px', background: isSelected ? 'rgba(52, 211, 153, 0.3)' : 'rgba(255, 255, 255, 0.1)' }}>
+                      {pill.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Filter Bar */}
@@ -1813,7 +2323,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <Search size={15} color="#789593" style={{ position: 'absolute', left: '12px', top: '11px' }} />
                 <input
                   type="text"
-                  placeholder="Search by coordinator name, designation, email, or username..."
+                  placeholder="Search by name, designation, email, username..."
                   value={coordSearch}
                   onChange={e => setCoordSearch(e.target.value)}
                   style={{
@@ -1841,11 +2351,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   fontSize: '0.82rem'
                 }}
               >
-                <option value="all">All Departments</option>
-                {DEPARTMENTS.map(d => (
+                <option value="all">All Departments ({departments.length})</option>
+                {departments.map(d => (
                   <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                 ))}
                 <option value="SAC">SAC Central</option>
+                <option value="FINANCE">Finance Desk</option>
               </select>
 
               <select
@@ -2348,8 +2859,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   fontSize: '0.82rem'
                 }}
               >
-                <option value="all">All Departments</option>
-                {DEPARTMENTS.map(d => (
+                <option value="all">All Departments ({departments.length})</option>
+                {departments.map(d => (
                   <option key={d.code} value={d.code}>{d.code}</option>
                 ))}
               </select>
@@ -2707,7 +3218,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       fontSize: '0.84rem'
                     }}
                   >
-                    {DEPARTMENTS.map(d => (
+                    {departments.map(d => (
                       <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                     ))}
                     <option value="SAC">SAC Central Oversight</option>
@@ -3614,7 +4125,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       fontSize: '0.84rem'
                     }}
                   >
-                    {DEPARTMENTS.map(d => (
+                    {departments.map(d => (
                       <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                     ))}
                     <option value="SAC">SAC Central Team</option>
@@ -3958,7 +4469,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       fontSize: '0.84rem'
                     }}
                   >
-                    {DEPARTMENTS.map(d => (
+                    {departments.map(d => (
                       <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                     ))}
                     <option value="SAC">SAC Central Team</option>
@@ -4156,6 +4667,506 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   }}
                 >
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CREATE NEW ACADEMIC DEPARTMENT                                    */}
+      {/* ========================================================================= */}
+      {isAddDepartmentOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            overflowY: 'auto'
+          }}
+          onClick={() => setIsAddDepartmentOpen(false)}
+        >
+          <div
+            style={{
+              maxWidth: '560px',
+              width: '100%',
+              background: '#142042',
+              borderRadius: '18px',
+              padding: '28px',
+              border: '1px solid rgba(120, 149, 147, 0.35)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
+                  Create New Academic Department
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
+                  Register a new branch for FESTRONIX 2026. This creates catalog filters, matrix cards, and HOD portal access.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddDepartmentOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#A8B3C2', cursor: 'pointer', fontSize: '1.4rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDepartment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Code (Short) *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. AIML"
+                    value={deptCode}
+                    onChange={e => setDeptCode(e.target.value.toUpperCase())}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#BACEBB',
+                      fontWeight: 800,
+                      fontFamily: 'monospace',
+                      fontSize: '0.9rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Full Department Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. AI & Machine Learning"
+                    value={deptName}
+                    onChange={e => setDeptName(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                  Branch Overview / Description
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Flagship AI, neural networks, robotics, and generative intelligence systems..."
+                  value={deptDesc}
+                  onChange={e => setDeptDesc(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    color: '#FFFFFF',
+                    fontSize: '0.82rem',
+                    boxSizing: 'border-box',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Chief Coordinator / HOD Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dr. V. Prasad"
+                    value={deptChief}
+                    onChange={e => setDeptChief(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Official Contact Email
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="dept.festronix@vardhaman.org"
+                    value={deptContact}
+                    onChange={e => setDeptContact(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                  Representative Icon
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                  {[
+                    { id: 'Cpu', label: 'Cpu' },
+                    { id: 'Brain', label: 'Brain' },
+                    { id: 'Database', label: 'Data' },
+                    { id: 'Globe', label: 'Globe' },
+                    { id: 'Wrench', label: 'Mech' },
+                    { id: 'Building2', label: 'Civil' },
+                    { id: 'Zap', label: 'Electrical' },
+                    { id: 'Radio', label: 'ECE' },
+                    { id: 'Briefcase', label: 'MBA' },
+                    { id: 'Layers', label: 'General' }
+                  ].map(item => {
+                    const isSelected = deptIcon === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setDeptIcon(item.id)}
+                        style={{
+                          background: isSelected ? 'rgba(40, 59, 120, 0.65)' : 'rgba(16, 26, 53, 0.8)',
+                          border: isSelected ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.15)',
+                          borderRadius: '8px',
+                          padding: '8px 4px',
+                          color: isSelected ? '#BACEBB' : '#A8B3C2',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.7rem'
+                        }}
+                      >
+                        {renderDeptIcon(item.id, 16)}
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {deptChief.trim() && (
+                <div style={{ background: 'rgba(124, 58, 237, 0.12)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.76rem', color: '#C084FC' }}>
+                  💡 <strong>Auto-Credentialing</strong>: Creating this department will also automatically provision HOD portal credentials: Username: <code>hod_{(deptCode || 'dept').toLowerCase()}</code> | Passcode: <code>{(deptCode || 'dept').toLowerCase()}2026</code>.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAddDepartmentOpen(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(220, 227, 229, 0.2)',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    color: '#DCE3E5',
+                    fontSize: '0.84rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-cyber-primary"
+                  style={{
+                    borderRadius: '8px',
+                    padding: '8px 20px',
+                    fontSize: '0.84rem',
+                    fontWeight: 700
+                  }}
+                >
+                  Create Department
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: EDIT DEPARTMENT                                                    */}
+      {/* ========================================================================= */}
+      {isEditDepartmentOpen && editingDepartment && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            overflowY: 'auto'
+          }}
+          onClick={() => setIsEditDepartmentOpen(false)}
+        >
+          <div
+            style={{
+              maxWidth: '560px',
+              width: '100%',
+              background: '#142042',
+              borderRadius: '18px',
+              padding: '28px',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
+                  Edit Department: {editingDepartment.code}
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
+                  Update branch titles, description, chief coordinator, or contact channels.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditDepartmentOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#A8B3C2', cursor: 'pointer', fontSize: '1.4rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateDepartment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Code (Short) *
+                  </label>
+                  <input
+                    type="text"
+                    value={editDeptCode}
+                    onChange={e => setEditDeptCode(e.target.value.toUpperCase())}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#BACEBB',
+                      fontWeight: 800,
+                      fontFamily: 'monospace',
+                      fontSize: '0.9rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Full Department Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editDeptName}
+                    onChange={e => setEditDeptName(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                  Branch Overview / Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={editDeptDesc}
+                  onChange={e => setEditDeptDesc(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    color: '#FFFFFF',
+                    fontSize: '0.82rem',
+                    boxSizing: 'border-box',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Chief Coordinator / HOD Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editDeptChief}
+                    onChange={e => setEditDeptChief(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Official Contact Email
+                  </label>
+                  <input
+                    type="email"
+                    value={editDeptContact}
+                    onChange={e => setEditDeptContact(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                  Representative Icon
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                  {[
+                    { id: 'Cpu', label: 'Cpu' },
+                    { id: 'Brain', label: 'Brain' },
+                    { id: 'Database', label: 'Data' },
+                    { id: 'Globe', label: 'Globe' },
+                    { id: 'Wrench', label: 'Mech' },
+                    { id: 'Building2', label: 'Civil' },
+                    { id: 'Zap', label: 'Electrical' },
+                    { id: 'Radio', label: 'ECE' },
+                    { id: 'Briefcase', label: 'MBA' },
+                    { id: 'Layers', label: 'General' }
+                  ].map(item => {
+                    const isSelected = editDeptIcon === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setEditDeptIcon(item.id)}
+                        style={{
+                          background: isSelected ? 'rgba(40, 59, 120, 0.65)' : 'rgba(16, 26, 53, 0.8)',
+                          border: isSelected ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.15)',
+                          borderRadius: '8px',
+                          padding: '8px 4px',
+                          color: isSelected ? '#BACEBB' : '#A8B3C2',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.7rem'
+                        }}
+                      >
+                        {renderDeptIcon(item.id, 16)}
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditDepartmentOpen(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(220, 227, 229, 0.2)',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    color: '#DCE3E5',
+                    fontSize: '0.84rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-cyber-primary"
+                  style={{
+                    borderRadius: '8px',
+                    padding: '8px 20px',
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)'
+                  }}
+                >
+                  Save Department Changes
                 </button>
               </div>
             </form>

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Shield, Building2, User, Key, ArrowRight, ArrowLeft, Award, Lock, 
   Sparkles, CheckCircle2, AlertCircle, FileText, CreditCard, QrCode 
 } from 'lucide-react';
 import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
-import { DEPARTMENTS } from '../../data/mockData';
+import { StorageService } from '../../services/storageService';
+import { Department } from '../../types/festronix';
 import { OrganisationalStructureModal } from './OrganisationalStructureModal';
 
 interface AdminLoginViewProps {
@@ -15,6 +16,15 @@ interface AdminLoginViewProps {
 export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, onBackToFest }) => {
   const [activeTab, setActiveTab] = useState<'super_admin' | 'dept' | 'ops'>('super_admin');
   const [isStructureOpen, setIsStructureOpen] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>(() => StorageService.getDepartments());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setDepartments(StorageService.getDepartments());
+    };
+    window.addEventListener('festronix:departments-updated', handleUpdate);
+    return () => window.removeEventListener('festronix:departments-updated', handleUpdate);
+  }, []);
 
   // 1. 3 Super Admins Form (SAC DEAN, CONNECT CLUB, VENCORPIA)
   const [superUsername, setSuperUsername] = useState('');
@@ -498,10 +508,10 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Select Academic Department (9 Official Branches)
+                Select Academic Department ({departments.length} Branches Registered)
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
-                {DEPARTMENTS.map(dept => {
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '6px', marginBottom: '8px' }}>
+                {departments.map(dept => {
                   const isSelected = selectedDept === dept.code;
                   return (
                     <button
@@ -528,7 +538,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 })}
               </div>
               <div style={{ fontSize: '0.74rem', color: '#BACEBB' }}>
-                Selected: <strong>{DEPARTMENTS.find(d => d.code === selectedDept)?.name || selectedDept}</strong>
+                Selected: <strong>{departments.find(d => d.code === selectedDept)?.name || selectedDept}</strong>
               </div>
             </div>
 
