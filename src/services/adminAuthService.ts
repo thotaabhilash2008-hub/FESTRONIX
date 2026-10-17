@@ -41,6 +41,7 @@ export interface AdminUser {
   email: string;
   phone?: string;
   accessBoundary?: string;
+  assignedEvents?: string[];
 }
 
 const STORAGE_KEY_ADMIN_SESSION = 'festronix_admin_session_v1';
@@ -127,7 +128,8 @@ export const PRESET_ADMINS: Array<AdminUser & { password: string }> = [
     departmentName: 'Computer Science & Engineering',
     email: 'eventcoord.fest@vardhaman.org',
     phone: '+91 98480 33001',
-    accessBoundary: 'Assigned event(s) only unless separately authorised'
+    accessBoundary: 'Assigned event(s) only unless separately authorised',
+    assignedEvents: ['evt-cse-01', 'evt-cse-02']
   },
 
   // ==========================================
@@ -258,12 +260,13 @@ export class AdminAuthService {
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
-      const preset = PRESET_ADMINS.find(a => a.id === parsed.id || a.username === parsed.username);
-      if (preset) {
+      const dynamicAdmin = this.getAllAdmins().find(a => a.id === parsed.id || a.username === parsed.username);
+      if (dynamicAdmin) {
         return {
           ...parsed,
-          fullName: preset.fullName,
-          designation: preset.designation
+          fullName: dynamicAdmin.fullName,
+          designation: dynamicAdmin.designation,
+          assignedEvents: dynamicAdmin.assignedEvents || parsed.assignedEvents
         };
       }
       return parsed;

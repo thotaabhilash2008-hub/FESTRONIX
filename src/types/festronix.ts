@@ -135,6 +135,7 @@ export interface Registration {
   source: RegistrationSource;
   registrationDate: string;
   paymentStatus: PaymentStatus;
+  paymentMethod?: string;
   transactionId?: string;
   paymentScreenshotUrl?: string;
   rejectionReason?: string;
