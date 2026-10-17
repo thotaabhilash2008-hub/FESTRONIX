@@ -85,8 +85,8 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setErrorMessage('');
     setLoading(true);
 
-    setTimeout(() => {
-      const res = AdminAuthService.loginCentral(opsUsername, opsPassword);
+    setTimeout(async () => {
+      const res = await AdminAuthService.loginCentral(opsUsername, opsPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);

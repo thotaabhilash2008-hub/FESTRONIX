@@ -34,7 +34,7 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
     setRegistrations(StorageService.getRegistrations());
   };
 
-  const handleScanOrSubmit = (e: React.FormEvent) => {
+  const handleScanOrSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const query = tokenInput.trim();
     if (!query) return;
@@ -78,8 +78,8 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
     }
 
     // Perform Check-in
-    const ok = StorageService.checkInRegistration(reg.id, adminUser.fullName || 'Volunteer Gate Crew');
-    if (ok) {
+    const res = await StorageService.checkInRegistration(reg.id, adminUser.fullName || 'Volunteer Gate Crew');
+    if (res.success) {
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
       const updated = { ...reg, checkedIn: true, checkedInAt: new Date().toLocaleTimeString(), checkedInBy: adminUser.fullName };
       setLastCheckedIn(updated);
@@ -89,6 +89,11 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
       });
       setTokenInput('');
       refreshList();
+    } else {
+      setCheckinStatus({
+        type: 'pending_payment',
+        message: res.message || 'Check-in failed.'
+      });
     }
   };
 

@@ -38,18 +38,18 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
     setRegistrations(StorageService.getRegistrations());
   };
 
-  const handleVerify = (regId: string) => {
-    const ok = StorageService.updatePaymentStatus(regId, 'verified', adminUser.fullName);
+  const handleVerify = async (regId: string) => {
+    const ok = await StorageService.updatePaymentStatus(regId, 'verified', adminUser.fullName);
     if (ok) {
       confetti({ particleCount: 60, spread: 55, origin: { y: 0.6 } });
       refreshData();
     }
   };
 
-  const handleReject = (e: React.FormEvent) => {
+  const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingRegId) return;
-    StorageService.updatePaymentStatus(rejectingRegId, 'rejected', adminUser.fullName, rejectReason || 'Payment screenshot or UTR invalid.');
+    await StorageService.updatePaymentStatus(rejectingRegId, 'rejected', adminUser.fullName, rejectReason || 'Payment screenshot or UTR invalid.');
     setRejectingRegId(null);
     setRejectReason('');
     refreshData();
