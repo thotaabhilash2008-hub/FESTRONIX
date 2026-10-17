@@ -310,133 +310,48 @@ export class AdminAuthService {
       }
     }
 
-    // --- 2. PRESET CREDENTIALS CHECK ---
-    const dean = PRESET_ADMINS.find(a => a.role === 'dean_sac');
-    const connect = PRESET_ADMINS.find(a => a.role === 'connect_club');
-    const vencorpia = PRESET_ADMINS.find(a => a.role === 'vencorpia');
-    const finance = PRESET_ADMINS.find(a => a.role === 'finance_reviewer');
-    const volunteer = PRESET_ADMINS.find(a => a.role === 'volunteer_checkin');
-    const eventCoord = PRESET_ADMINS.find(a => a.role === 'event_coordinator');
+    // --- 2. DYNAMIC ADMINS CHECK ---
+    const allAdmins = this.getAllAdmins();
 
-    // Dean SAC
-    if (dean && (dean.username.toLowerCase() === cleanId || dean.email.toLowerCase() === cleanId)) {
-      if (dean.password === cleanPass) {
+    const matchedAdmin = allAdmins.find(a => {
+      const u = a.username.toLowerCase();
+      const e = a.email.toLowerCase();
+      if (u === cleanId || e === cleanId) return true;
+      if (a.role === 'dean_sac' && (cleanId === 'dean' || cleanId === 'dean_sac')) return true;
+      if (a.role === 'connect_club' && (cleanId === 'connect' || cleanId === 'connect_club')) return true;
+      if (a.role === 'vencorpia' && (cleanId === 'vencorpia' || cleanId === 'vencorpia_club')) return true;
+      if (a.role === 'finance_reviewer' && (cleanId === 'finance' || cleanId === 'finance_reviewer')) return true;
+      if (a.role === 'volunteer_checkin' && (cleanId === 'volunteer' || cleanId === 'volunteer_staff')) return true;
+      if (a.role === 'event_coordinator' && (cleanId === 'eventcoord' || cleanId === 'event_coord')) return true;
+      return false;
+    });
+
+    if (matchedAdmin) {
+      const isPassCorrect = 
+        matchedAdmin.password === cleanPass ||
+        (matchedAdmin.role === 'connect_club' && cleanPass === 'connectclub2026') ||
+        (matchedAdmin.role === 'vencorpia' && cleanPass === 'vencorpia') ||
+        (matchedAdmin.role === 'finance_reviewer' && cleanPass === 'finance2026') ||
+        (matchedAdmin.role === 'volunteer_checkin' && cleanPass === 'volunteer2026') ||
+        (matchedAdmin.role === 'event_coordinator' && cleanPass === 'eventcoord2026');
+
+      if (isPassCorrect) {
         const sessionUser: AdminUser = {
-          id: dean.id,
-          username: dean.username,
-          fullName: dean.fullName,
-          designation: dean.designation,
-          role: dean.role,
-          email: dean.email,
-          phone: dean.phone,
-          accessBoundary: dean.accessBoundary
+          id: matchedAdmin.id,
+          username: matchedAdmin.username,
+          fullName: matchedAdmin.fullName,
+          designation: matchedAdmin.designation,
+          role: matchedAdmin.role,
+          email: matchedAdmin.email,
+          phone: matchedAdmin.phone,
+          departmentCode: matchedAdmin.departmentCode,
+          departmentName: matchedAdmin.departmentName,
+          accessBoundary: matchedAdmin.accessBoundary
         };
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
         return { success: true, user: sessionUser };
       } else {
-        return { success: false, error: 'Incorrect password for Dean SAC.' };
-      }
-    }
-
-    // Connect Club
-    if (connect && (connect.username.toLowerCase() === cleanId || connect.email.toLowerCase() === cleanId || cleanId === 'connect')) {
-      if (connect.password === cleanPass || cleanPass === 'connectclub2026') {
-        const sessionUser: AdminUser = {
-          id: connect.id,
-          username: connect.username,
-          fullName: connect.fullName,
-          designation: connect.designation,
-          role: connect.role,
-          email: connect.email,
-          phone: connect.phone,
-          accessBoundary: connect.accessBoundary
-        };
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: 'Incorrect password for Connect Club.' };
-      }
-    }
-
-    // Vencorpia
-    if (vencorpia && (vencorpia.username.toLowerCase() === cleanId || vencorpia.email.toLowerCase() === cleanId || cleanId === 'vencorpia_club')) {
-      if (vencorpia.password === cleanPass || cleanPass === 'vencorpia' || cleanPass === 'vencorpia2026') {
-        const sessionUser: AdminUser = {
-          id: vencorpia.id,
-          username: vencorpia.username,
-          fullName: vencorpia.fullName,
-          designation: vencorpia.designation,
-          role: vencorpia.role,
-          email: vencorpia.email,
-          phone: vencorpia.phone,
-          accessBoundary: vencorpia.accessBoundary
-        };
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: 'Incorrect password for Vencorpia.' };
-      }
-    }
-
-    // 4. Check Finance Reviewer Credentials
-    if (finance && (finance.username.toLowerCase() === cleanId || cleanId === 'finance' || finance.email.toLowerCase() === cleanId)) {
-      if (finance.password === cleanPass || cleanPass === 'finance2026') {
-        const sessionUser: AdminUser = {
-          id: finance.id,
-          username: finance.username,
-          fullName: finance.fullName,
-          designation: finance.designation,
-          role: finance.role,
-          email: finance.email,
-          phone: finance.phone,
-          accessBoundary: finance.accessBoundary
-        };
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: 'Incorrect password for Finance / Payment Reviewer.' };
-      }
-    }
-
-    // 5. Check Volunteer / Check-in Staff Credentials
-    if (volunteer && (volunteer.username.toLowerCase() === cleanId || cleanId === 'volunteer' || volunteer.email.toLowerCase() === cleanId)) {
-      if (volunteer.password === cleanPass || cleanPass === 'volunteer2026') {
-        const sessionUser: AdminUser = {
-          id: volunteer.id,
-          username: volunteer.username,
-          fullName: volunteer.fullName,
-          designation: volunteer.designation,
-          role: volunteer.role,
-          email: volunteer.email,
-          phone: volunteer.phone,
-          accessBoundary: volunteer.accessBoundary
-        };
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: 'Incorrect password for Volunteer / Check-in Staff.' };
-      }
-    }
-
-    // 6. Check Event Coordinator Credentials
-    if (eventCoord && (eventCoord.username.toLowerCase() === cleanId || cleanId === 'eventcoord' || cleanId === 'event_coord')) {
-      if (eventCoord.password === cleanPass || cleanPass === 'eventcoord2026') {
-        const sessionUser: AdminUser = {
-          id: eventCoord.id,
-          username: eventCoord.username,
-          fullName: eventCoord.fullName,
-          designation: eventCoord.designation,
-          role: eventCoord.role,
-          email: eventCoord.email,
-          phone: eventCoord.phone,
-          departmentCode: eventCoord.departmentCode,
-          departmentName: eventCoord.departmentName,
-          accessBoundary: eventCoord.accessBoundary
-        };
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: 'Incorrect password for Event Coordinator.' };
+        return { success: false, error: `Incorrect password for ${matchedAdmin.fullName || matchedAdmin.username}.` };
       }
     }
 
@@ -517,8 +432,9 @@ export class AdminAuthService {
       }
     }
 
-    // --- 2. PRESET CREDENTIALS CHECK (supports MECHANICAL / MECH aliases) ---
-    const preset = PRESET_ADMINS.find(a => {
+    // --- 2. DYNAMIC DEPT ADMINS & HOD CHECK ---
+    const allAdmins = this.getAllAdmins();
+    const deptAdmins = allAdmins.filter(a => {
       const code = a.departmentCode?.toUpperCase();
       if (code === cleanDept) return true;
       if (cleanDept === 'MECHANICAL' && code === 'MECH') return true;
@@ -526,33 +442,33 @@ export class AdminAuthService {
       return false;
     });
 
-    const isDeptPass = preset && (
-      preset.password === cleanPass ||
-      (cleanDept === 'MECHANICAL' && (cleanPass === 'mech2026' || cleanPass === 'mechanical2026'))
+    const matchingDeptUser = deptAdmins.find(a => 
+      a.username.toLowerCase() === cleanId || 
+      a.email.toLowerCase() === cleanId ||
+      cleanId === cleanDept.toLowerCase() ||
+      (cleanDept === 'MECHANICAL' && (cleanId === 'hod_mech' || cleanId === 'mech'))
     );
-    const isCoordPass = cleanPass === 'festcoord2026' || 
+
+    const isUniversalCoordPass = cleanPass === 'festcoord2026' || 
       cleanPass === `${cleanDept.toLowerCase()}2026` ||
       (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026');
 
-    if (
-      preset &&
-      (cleanId === preset.username.toLowerCase() ||
-        cleanId === preset.email.toLowerCase() ||
-        cleanId === cleanDept.toLowerCase() ||
-        (cleanDept === 'MECHANICAL' && (cleanId === 'hod_mech' || cleanId === 'mech')))
-    ) {
-      if (isDeptPass || isCoordPass) {
+    if (matchingDeptUser) {
+      const isDeptPass = matchingDeptUser.password === cleanPass || 
+        (cleanDept === 'MECHANICAL' && (cleanPass === 'mech2026' || cleanPass === 'mechanical2026'));
+
+      if (isDeptPass || isUniversalCoordPass) {
         const sessionUser: AdminUser = {
-          id: preset.id,
-          username: preset.username,
-          fullName: coordinatorName ? coordinatorName : preset.fullName,
-          designation: coordinatorName ? `Faculty Coordinator (${cleanDept})` : preset.designation,
-          role: preset.role,
-          departmentCode: preset.departmentCode,
-          departmentName: preset.departmentName,
-          email: preset.email,
-          phone: preset.phone,
-          accessBoundary: preset.accessBoundary || "Their department's events"
+          id: matchingDeptUser.id,
+          username: matchingDeptUser.username,
+          fullName: coordinatorName ? coordinatorName : matchingDeptUser.fullName,
+          designation: coordinatorName ? `Faculty Coordinator (${cleanDept})` : matchingDeptUser.designation,
+          role: matchingDeptUser.role,
+          departmentCode: matchingDeptUser.departmentCode,
+          departmentName: matchingDeptUser.departmentName,
+          email: matchingDeptUser.email,
+          phone: matchingDeptUser.phone,
+          accessBoundary: matchingDeptUser.accessBoundary || "Their department's events"
         };
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
         return { success: true, user: sessionUser };
@@ -561,33 +477,7 @@ export class AdminAuthService {
       }
     }
 
-    // Allow custom coordinator login for the department with dept passcode or custom password
-    const customList = this.getCustomCoordinators();
-    const matchingCustom = customList.find(
-      c => c.departmentCode?.toUpperCase() === cleanDept && (c.username.toLowerCase() === cleanId || c.email.toLowerCase() === cleanId)
-    );
-
-    if (matchingCustom) {
-      if (matchingCustom.password === cleanPass || isCoordPass) {
-        const sessionUser: AdminUser = {
-          id: matchingCustom.id,
-          username: matchingCustom.username,
-          fullName: coordinatorName || matchingCustom.fullName,
-          designation: matchingCustom.designation,
-          role: matchingCustom.role,
-          departmentCode: matchingCustom.departmentCode,
-          departmentName: matchingCustom.departmentName,
-          email: matchingCustom.email,
-          phone: matchingCustom.phone
-        };
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: 'Incorrect password for this coordinator account.' };
-      }
-    }
-
-    if (isCoordPass) {
+    if (isUniversalCoordPass) {
       const deptInfo = DEPARTMENTS.find(d => d.code.toUpperCase() === cleanDept);
       const sessionUser: AdminUser = {
         id: `admin_coord_${cleanDept.toLowerCase()}_${Date.now()}`,
@@ -611,8 +501,34 @@ export class AdminAuthService {
   }
 
   // ==========================================
-  // COORDINATORS DIRECTORY & APPOINTMENT CRUD
+  // UNIFIED ADMINS DIRECTORY & CRUD
+  // (Supports Super Admin adding, updating, creating, and deleting HODs, Coordinators & Payment Reviewers)
   // ==========================================
+
+  private static readonly STORAGE_KEY_ADMINS_LIST = 'festronix_all_admins_v2';
+
+  static getAllAdmins(): Array<AdminUser & { password?: string; assignedEvents?: string[] }> {
+    const raw = localStorage.getItem(this.STORAGE_KEY_ADMINS_LIST);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error('Failed to parse managed admins:', e);
+      }
+    }
+    // Backward compatibility: load PRESET_ADMINS + any older custom coordinators
+    const oldCustom = this.getCustomCoordinators();
+    const initialList = [...PRESET_ADMINS, ...oldCustom];
+    localStorage.setItem(this.STORAGE_KEY_ADMINS_LIST, JSON.stringify(initialList));
+    return initialList;
+  }
+
+  static saveAllAdmins(list: Array<AdminUser & { password?: string; assignedEvents?: string[] }>): void {
+    localStorage.setItem(this.STORAGE_KEY_ADMINS_LIST, JSON.stringify(list));
+  }
 
   static getCustomCoordinators(): Array<AdminUser & { password?: string; assignedEvents?: string[] }> {
     const raw = localStorage.getItem('festronix_custom_coordinators_v1');
@@ -625,42 +541,76 @@ export class AdminAuthService {
   }
 
   static getCoordinators(): Array<AdminUser & { password?: string; assignedEvents?: string[] }> {
-    const custom = this.getCustomCoordinators();
-    return [...PRESET_ADMINS, ...custom];
+    return this.getAllAdmins();
+  }
+
+  static addAdmin(
+    admin: Omit<AdminUser, 'id'> & { password?: string; assignedEvents?: string[] }
+  ): AdminUser & { password?: string; assignedEvents?: string[] } {
+    const list = this.getAllAdmins();
+    const prefix = admin.role === 'finance_reviewer'
+      ? 'reviewer'
+      : (admin.role === 'dept_chief_coordinator' || admin.role === 'dept_coordinator')
+      ? `hod_${(admin.departmentCode || 'dept').toLowerCase()}`
+      : admin.role === 'volunteer_checkin'
+      ? 'volunteer'
+      : `coord_${(admin.departmentCode || 'central').toLowerCase()}`;
+
+    const newAdmin = {
+      ...admin,
+      id: `${prefix}_${Date.now().toString().slice(-4)}`
+    };
+    list.push(newAdmin);
+    this.saveAllAdmins(list);
+    return newAdmin;
   }
 
   static addCoordinator(
     coordinator: Omit<AdminUser, 'id'> & { password?: string; assignedEvents?: string[] }
   ): AdminUser & { password?: string; assignedEvents?: string[] } {
-    const customList = this.getCustomCoordinators();
-    const newCoord = {
-      ...coordinator,
-      id: `coord_${(coordinator.departmentCode || 'central').toLowerCase()}_${Date.now().toString().slice(-4)}`
-    };
-    customList.push(newCoord);
-    localStorage.setItem('festronix_custom_coordinators_v1', JSON.stringify(customList));
-    return newCoord;
+    return this.addAdmin(coordinator);
+  }
+
+  static updateAdmin(
+    id: string,
+    updated: Partial<AdminUser & { password?: string; assignedEvents?: string[] }>
+  ): boolean {
+    const list = this.getAllAdmins();
+    const idx = list.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...updated };
+      this.saveAllAdmins(list);
+
+      // If active session matches this user, update active session too
+      const current = this.getCurrentAdmin();
+      if (current && current.id === id) {
+        const refreshedSession: AdminUser = {
+          ...current,
+          ...updated
+        };
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(refreshedSession));
+      }
+      return true;
+    }
+    return false;
   }
 
   static updateCoordinator(
     id: string,
     updated: Partial<AdminUser & { password?: string; assignedEvents?: string[] }>
   ): boolean {
-    const customList = this.getCustomCoordinators();
-    const idx = customList.findIndex(c => c.id === id);
-    if (idx !== -1) {
-      customList[idx] = { ...customList[idx], ...updated };
-      localStorage.setItem('festronix_custom_coordinators_v1', JSON.stringify(customList));
-      return true;
-    }
-    return false;
+    return this.updateAdmin(id, updated);
+  }
+
+  static deleteAdmin(id: string): boolean {
+    const list = this.getAllAdmins();
+    const filtered = list.filter(c => c.id !== id);
+    this.saveAllAdmins(filtered);
+    return true;
   }
 
   static deleteCoordinator(id: string): boolean {
-    const customList = this.getCustomCoordinators();
-    const filtered = customList.filter(c => c.id !== id);
-    localStorage.setItem('festronix_custom_coordinators_v1', JSON.stringify(filtered));
-    return true;
+    return this.deleteAdmin(id);
   }
 
   static async logout(): Promise<void> {

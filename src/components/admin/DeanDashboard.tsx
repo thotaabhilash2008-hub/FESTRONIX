@@ -93,7 +93,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [evtCoordinatorEmail, setEvtCoordinatorEmail] = useState('');
   const [evtPublishStatus, setEvtPublishStatus] = useState<'open' | 'pending_approval'>('open');
 
-  // Form State: Add New Coordinator
+  // Form State: Add New Coordinator / HOD / Staff
   const [coordFullName, setCoordFullName] = useState('');
   const [coordDeptCode, setCoordDeptCode] = useState('CSE');
   const [coordRole, setCoordRole] = useState<AdminRole>('faculty_coord');
@@ -103,6 +103,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [coordUsername, setCoordUsername] = useState('');
   const [coordPassword, setCoordPassword] = useState('festcoord2026');
   const [coordShowPassword, setCoordShowPassword] = useState(false);
+
+  // Form State: Edit Coordinator / HOD / Staff
+  const [isEditCoordinatorOpen, setIsEditCoordinatorOpen] = useState(false);
+  const [editingCoordinator, setEditingCoordinator] = useState<(AdminUser & { password?: string; assignedEvents?: string[] }) | null>(null);
+  const [editCoordFullName, setEditCoordFullName] = useState('');
+  const [editCoordDeptCode, setEditCoordDeptCode] = useState('CSE');
+  const [editCoordRole, setEditCoordRole] = useState<AdminRole>('faculty_coord');
+  const [editCoordDesignation, setEditCoordDesignation] = useState('');
+  const [editCoordEmail, setEditCoordEmail] = useState('');
+  const [editCoordPhone, setEditCoordPhone] = useState('+91 ');
+  const [editCoordUsername, setEditCoordUsername] = useState('');
+  const [editCoordPassword, setEditCoordPassword] = useState('');
+  const [editCoordShowPassword, setEditCoordShowPassword] = useState(false);
 
   const refreshAllData = async () => {
     setStats(StorageService.getStats());
@@ -318,13 +331,17 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     refreshAllData();
   };
 
-  // Create Coordinator Handler
+  // Create Coordinator / HOD / Operational Staff Handler
   const handleCreateCoordinator = (e: React.FormEvent) => {
     e.preventDefault();
     if (!coordFullName.trim() || !coordUsername.trim() || !coordPassword.trim()) {
-      alert('Please fill out all required coordinator credentials.');
+      alert('Please fill out all required credentials.');
       return;
     }
+
+    const deptName = coordRole === 'finance_reviewer'
+      ? 'Central Accounts & Finance Desk'
+      : (DEPARTMENTS.find(d => d.code === coordDeptCode)?.name || coordDeptCode);
 
     AdminAuthService.addCoordinator({
       username: coordUsername.trim().toLowerCase(),
@@ -332,10 +349,17 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       fullName: coordFullName.trim(),
       designation: coordDesignation.trim(),
       role: coordRole,
-      departmentCode: coordDeptCode,
-      departmentName: DEPARTMENTS.find(d => d.code === coordDeptCode)?.name || coordDeptCode,
+      departmentCode: coordRole === 'finance_reviewer' ? 'FINANCE' : coordDeptCode,
+      departmentName: deptName,
       email: coordEmail.trim(),
-      phone: coordPhone.trim()
+      phone: coordPhone.trim(),
+      accessBoundary: coordRole === 'finance_reviewer'
+        ? 'Payment data needed for assigned duties'
+        : (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
+        ? "Their department's events"
+        : coordRole === 'volunteer_checkin'
+        ? 'Limited check-in access'
+        : 'Assigned event(s) only unless separately authorised'
     });
 
     confetti({ particleCount: 80, spread: 60 });
@@ -350,14 +374,66 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     refreshAllData();
   };
 
-  // Delete Coordinator Handler
-  const handleDeleteCoordinator = (coordId: string, name: string) => {
-    const isPreset = !coordId.startsWith('coord_');
-    if (isPreset) {
-      alert('Default system chief coordinator cannot be deleted, but you can assign additional coordinators.');
+  // Open Edit Modal for Coordinator / HOD / Payment Reviewer
+  const handleOpenEditCoordinator = (coord: AdminUser & { password?: string; assignedEvents?: string[] }) => {
+    setEditingCoordinator(coord);
+    setEditCoordFullName(coord.fullName || '');
+    setEditCoordDeptCode(coord.departmentCode || 'CSE');
+    setEditCoordRole(coord.role);
+    setEditCoordDesignation(coord.designation || '');
+    setEditCoordEmail(coord.email || '');
+    setEditCoordPhone(coord.phone || '');
+    setEditCoordUsername(coord.username || '');
+    setEditCoordPassword(coord.password || '');
+    setEditCoordShowPassword(false);
+    setIsEditCoordinatorOpen(true);
+  };
+
+  // Submit Update for Coordinator / HOD / Payment Reviewer
+  const handleUpdateCoordinator = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCoordinator) return;
+    if (!editCoordFullName.trim() || !editCoordUsername.trim() || !editCoordPassword.trim()) {
+      alert('Please fill out all required credentials.');
       return;
     }
-    const confirmed = window.confirm(`Revoke coordinator access for ${name}?`);
+
+    const deptName = editCoordRole === 'finance_reviewer'
+      ? 'Central Accounts & Finance Desk'
+      : (DEPARTMENTS.find(d => d.code === editCoordDeptCode)?.name || editCoordDeptCode);
+
+    AdminAuthService.updateCoordinator(editingCoordinator.id, {
+      fullName: editCoordFullName.trim(),
+      username: editCoordUsername.trim().toLowerCase(),
+      password: editCoordPassword.trim(),
+      designation: editCoordDesignation.trim(),
+      role: editCoordRole,
+      departmentCode: editCoordRole === 'finance_reviewer' ? 'FINANCE' : editCoordDeptCode,
+      departmentName: deptName,
+      email: editCoordEmail.trim(),
+      phone: editCoordPhone.trim(),
+      accessBoundary: editCoordRole === 'finance_reviewer'
+        ? 'Payment data needed for assigned duties'
+        : (editCoordRole === 'dept_chief_coordinator' || editCoordRole === 'dept_coordinator')
+        ? "Their department's events"
+        : editCoordRole === 'volunteer_checkin'
+        ? 'Limited check-in access'
+        : 'Assigned event(s) only unless separately authorised'
+    });
+
+    confetti({ particleCount: 70, spread: 50 });
+    setIsEditCoordinatorOpen(false);
+    setEditingCoordinator(null);
+    refreshAllData();
+  };
+
+  // Delete Coordinator / Staff Handler
+  const handleDeleteCoordinator = (coordId: string, name: string, roleName?: string) => {
+    if (coordId === adminUser.id) {
+      alert('You cannot revoke access for your own currently active Super Admin session.');
+      return;
+    }
+    const confirmed = window.confirm(`Revoke and delete portal access for ${name} (${roleName || 'Staff'})? They will no longer be able to log in.`);
     if (confirmed) {
       AdminAuthService.deleteCoordinator(coordId);
       refreshAllData();
@@ -471,8 +547,14 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       c.email.toLowerCase().includes(coordSearch.toLowerCase()) ||
       (c.phone && c.phone.includes(coordSearch));
     
-    const matchDept = coordDeptFilter === 'all' || (c.departmentCode && c.departmentCode.toUpperCase() === coordDeptFilter.toUpperCase());
-    const matchRole = coordRoleFilter === 'all' || c.role === coordRoleFilter;
+    const matchDept = coordDeptFilter === 'all' || 
+      (c.departmentCode && c.departmentCode.toUpperCase() === coordDeptFilter.toUpperCase()) ||
+      (coordDeptFilter === 'SAC' && (!c.departmentCode || c.departmentCode === 'SAC' || c.departmentCode === 'FINANCE'));
+
+    const matchRole = coordRoleFilter === 'all' || 
+      c.role === coordRoleFilter ||
+      (coordRoleFilter === 'dept_chief_coordinator' && (c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator')) ||
+      (coordRoleFilter === 'finance_reviewer' && c.role === 'finance_reviewer');
 
     return matchSearch && matchDept && matchRole;
   });
@@ -933,6 +1015,85 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         {/* TAB 2: PAYMENT VERIFICATION DESK */}
         {activeTab === 'payments' && (
           <div>
+            {/* Payment Reviewer Operations Desk Banner */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(40, 59, 120, 0.45) 100%)',
+                border: '1px solid rgba(52, 211, 153, 0.35)',
+                borderRadius: '14px',
+                padding: '16px 20px',
+                marginBottom: '20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '14px',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.1rem' }}>💳</span>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#FFFFFF' }}>
+                    Payment Reviewer Operations Desk
+                  </span>
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                    {coordinators.filter(c => c.role === 'finance_reviewer').length} Active Reviewer(s)
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#BACEBB', marginTop: '4px' }}>
+                  Super Admin can create, edit, or revoke Finance Reviewers. Reviewers log in via <em>Operational Staff</em> tab to verify student UTRs.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    setCoordRole('finance_reviewer');
+                    setCoordDeptCode('SAC');
+                    setCoordFullName('');
+                    setCoordDesignation('Central Payment Review Officer');
+                    setCoordEmail('accounts.fest@vardhaman.org');
+                    setCoordPhone('+91 98480 55001');
+                    setCoordUsername('finance_desk_' + Math.floor(100 + Math.random() * 900));
+                    setCoordPassword('finance2026');
+                    setIsAddCoordinatorOpen(true);
+                  }}
+                  className="btn-cyber-primary"
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Plus size={15} />
+                  <span>+ Appoint Payment Reviewer</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setCoordRoleFilter('finance_reviewer');
+                    setActiveTab('coordinators');
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    color: '#DCE3E5',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Manage Reviewers
+                </button>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
@@ -1700,23 +1861,33 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 }}
               >
                 <option value="all">All Roles</option>
-                <option value="dept_coordinator">Department HOD / Chief</option>
+                <option value="dept_chief_coordinator">Department HOD / Chief</option>
+                <option value="finance_reviewer">Payment Reviewer (Finance Desk)</option>
                 <option value="faculty_coord">Faculty Event Convener</option>
                 <option value="student_coord">Student Lead Organizer</option>
-                <option value="dean_sac">Dean SAC Lead</option>
+                <option value="volunteer_checkin">Volunteer Gate Staff</option>
+                <option value="dean_sac">Dean SAC / Super Admin</option>
               </select>
             </div>
 
             {/* Coordinators Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
               {filteredCoordinators.map(coord => {
-                const isCustom = coord.id.startsWith('coord_');
+                const isCustom = coord.id.startsWith('coord_') || coord.id.startsWith('reviewer_') || coord.id.startsWith('hod_') || coord.id.startsWith('volunteer_');
+                const isSelf = coord.id === adminUser.id;
+                const isFinance = coord.role === 'finance_reviewer';
+                const isHod = coord.role === 'dept_chief_coordinator' || coord.role === 'dept_coordinator';
+
                 return (
                   <div
                     key={coord.id}
                     style={{
                       background: 'rgba(20, 31, 62, 0.85)',
-                      border: '1px solid rgba(220, 227, 229, 0.16)',
+                      border: isFinance 
+                        ? '1px solid rgba(52, 211, 153, 0.35)' 
+                        : isHod 
+                        ? '1px solid rgba(168, 85, 247, 0.35)' 
+                        : '1px solid rgba(220, 227, 229, 0.16)',
                       borderRadius: '16px',
                       padding: '20px',
                       display: 'flex',
@@ -1728,7 +1899,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     <div>
                       {/* Top Badges */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           <span
                             style={{
                               fontSize: '0.72rem',
@@ -1740,7 +1911,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               color: '#BACEBB'
                             }}
                           >
-                            {coord.departmentCode || 'CENTRAL'}
+                            {coord.departmentCode || (isFinance ? 'FINANCE' : 'CENTRAL')}
                           </span>
                           <span
                             style={{
@@ -1748,27 +1919,50 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               fontWeight: 700,
                               padding: '3px 8px',
                               borderRadius: '4px',
-                              background: isCustom ? 'rgba(52, 211, 153, 0.15)' : 'rgba(251, 191, 36, 0.15)',
-                              color: isCustom ? '#34D399' : '#FBBF24'
+                              background: isFinance 
+                                ? 'rgba(52, 211, 153, 0.15)' 
+                                : isHod 
+                                ? 'rgba(168, 85, 247, 0.15)' 
+                                : isCustom 
+                                ? 'rgba(52, 211, 153, 0.15)' 
+                                : 'rgba(251, 191, 36, 0.15)',
+                              border: isFinance 
+                                ? '1px solid rgba(52, 211, 153, 0.35)' 
+                                : isHod 
+                                ? '1px solid rgba(168, 85, 247, 0.35)' 
+                                : 'none',
+                              color: isFinance 
+                                ? '#34D399' 
+                                : isHod 
+                                ? '#C084FC' 
+                                : isCustom 
+                                ? '#34D399' 
+                                : '#FBBF24'
                             }}
                           >
-                            {coord.role.toUpperCase().replace('_', ' ')}
+                            {isFinance ? '💳 PAYMENT REVIEWER' : isHod ? '🏛️ DEPT HOD' : coord.role.toUpperCase().replace('_', ' ')}
                           </span>
                         </div>
 
-                        {isCustom && (
+                        {!isSelf && (
                           <button
-                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName)}
+                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isHod ? 'HOD' : isFinance ? 'Payment Reviewer' : 'Staff')}
                             style={{
-                              background: 'none',
-                              border: 'none',
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '6px',
                               color: '#f87171',
                               cursor: 'pointer',
-                              padding: '4px'
+                              padding: '4px 6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.7rem'
                             }}
-                            title="Revoke Coordinator Access"
+                            title="Revoke & Delete Access"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={13} />
+                            <span>Revoke</span>
                           </button>
                         )}
                       </div>
@@ -1777,7 +1971,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 2px' }}>
                         {coord.fullName}
                       </h4>
-                      <p style={{ fontSize: '0.78rem', color: '#BACEBB', margin: '0 0 12px' }}>
+                      <p style={{ fontSize: '0.78rem', color: isHod ? '#C084FC' : isFinance ? '#34D399' : '#BACEBB', margin: '0 0 12px' }}>
                         {coord.designation}
                       </p>
 
@@ -1855,10 +2049,32 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       )}
                     </div>
 
-                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.1)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    {/* Bottom Action Buttons: Edit, Copy, Revoke */}
+                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.1)', display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => handleOpenEditCoordinator(coord)}
+                        style={{
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          border: '1px solid rgba(59, 130, 246, 0.35)',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          color: '#60A5FA',
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer'
+                        }}
+                        title="Update details and password"
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit</span>
+                      </button>
+
                       <button
                         onClick={() => {
-                          const creds = `FESTRONIX 2026 Coordinator Credentials:\nName: ${coord.fullName}\nPortal: http://localhost:5173/#admin\nDepartment: ${coord.departmentCode}\nUsername: ${coord.username}\nPasscode: ${coord.password || `${(coord.departmentCode || 'sac').toLowerCase()}2026`}`;
+                          const creds = `FESTRONIX 2026 Credentials:\nRole: ${coord.role}\nName: ${coord.fullName}\nPortal: http://localhost:5173/#admin\nDepartment: ${coord.departmentCode || 'CENTRAL'}\nUsername: ${coord.username}\nPasscode: ${coord.password || `${(coord.departmentCode || 'sac').toLowerCase()}2026`}`;
                           handleCopyText(creds, coord.id);
                         }}
                         style={{
@@ -1875,7 +2091,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         }}
                       >
                         {copiedId === coord.id ? <Check size={13} /> : <Copy size={13} />}
-                        <span>{copiedId === coord.id ? 'Copied' : 'Copy Credentials'}</span>
+                        <span>{copiedId === coord.id ? 'Copied' : 'Credentials'}</span>
                       </button>
                     </div>
                   </div>
@@ -3301,10 +3517,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
                 <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
-                  Appoint New Event Coordinator
+                  Appoint Coordinator, Department HOD, or Operational Staff
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Create official department credentials to manage events and student check-ins
+                  Create official credentials for Department HODs, Payment Reviewers, Faculty Conveners, or Event Organizers
                 </p>
               </div>
               <button
@@ -3349,13 +3565,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Academic Designation *
+                    Academic / Desk Designation *
                   </label>
                   <input
                     type="text"
                     value={coordDesignation}
                     onChange={e => setCoordDesignation(e.target.value)}
-                    placeholder="Associate Professor & Convener"
+                    placeholder="Associate Professor / Review Officer"
                     required
                     style={{
                       width: '100%',
@@ -3379,7 +3595,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <select
                     value={coordDeptCode}
-                    onChange={e => setCoordDeptCode(e.target.value)}
+                    onChange={e => {
+                      const newDept = e.target.value;
+                      setCoordDeptCode(newDept);
+                      if (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator') {
+                        setCoordDesignation(`Department Chief Coordinator (${newDept})`);
+                        setCoordUsername(`hod_${newDept.toLowerCase()}`);
+                        setCoordPassword(`${newDept.toLowerCase()}2026`);
+                      }
+                    }}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -3394,16 +3618,37 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                     ))}
                     <option value="SAC">SAC Central Team</option>
+                    <option value="FINANCE">Finance & Accounts Desk</option>
                   </select>
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Coordinator Role *
+                    Role Assignment *
                   </label>
                   <select
                     value={coordRole}
-                    onChange={e => setCoordRole(e.target.value as any)}
+                    onChange={e => {
+                      const newRole = e.target.value as AdminRole;
+                      setCoordRole(newRole);
+                      if (newRole === 'finance_reviewer') {
+                        setCoordDeptCode('SAC');
+                        setCoordDesignation('Central Payment Review Officer');
+                        setCoordEmail('accounts.fest@vardhaman.org');
+                        setCoordPhone('+91 98480 55001');
+                        setCoordUsername('finance_reviewer');
+                        setCoordPassword('finance2026');
+                      } else if (newRole === 'dept_chief_coordinator' || newRole === 'dept_coordinator') {
+                        setCoordDesignation(`Department Chief Coordinator (${coordDeptCode})`);
+                        setCoordUsername(`hod_${coordDeptCode.toLowerCase()}`);
+                        setCoordPassword(`${coordDeptCode.toLowerCase()}2026`);
+                        setCoordEmail(`${coordDeptCode.toLowerCase()}.festronix@vardhaman.org`);
+                      } else if (newRole === 'volunteer_checkin') {
+                        setCoordDesignation('Gate Entry & Ticketing Volunteer');
+                        setCoordUsername('volunteer_' + Math.floor(100 + Math.random() * 900));
+                        setCoordPassword('volunteer2026');
+                      }
+                    }}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -3414,10 +3659,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       fontSize: '0.84rem'
                     }}
                   >
-                    <option value="faculty_coord">Faculty Event Convener</option>
-                    <option value="student_coord">Student Lead Organizer</option>
-                    <option value="dept_coordinator">Department HOD / Executive</option>
-                    <option value="dean_sac">SAC Central Representative</option>
+                    <option value="dept_chief_coordinator">🏛️ Department Chief Coordinator (HOD)</option>
+                    <option value="finance_reviewer">💳 Central Payment Reviewer (Finance Desk)</option>
+                    <option value="faculty_coord">⚡ Faculty Event Convener</option>
+                    <option value="student_coord">🎓 Student Lead Organizer</option>
+                    <option value="volunteer_checkin">🎟️ Gate Check-in & Ticketing Volunteer</option>
+                    <option value="event_coordinator">🎯 Event Operations Coordinator</option>
+                    <option value="dean_sac">👑 SAC Central Leadership</option>
                   </select>
                 </div>
               </div>
@@ -3486,7 +3734,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       type="text"
                       value={coordUsername}
                       onChange={e => setCoordUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                      placeholder="e.g. cse_hack_lead"
+                      placeholder="e.g. hod_cse or finance_reviewer"
                       required
                       style={{
                         width: '100%',
@@ -3510,7 +3758,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <button
                         type="button"
                         onClick={() => {
-                          const rand = `${coordDeptCode.toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`;
+                          const rand = `${(coordDeptCode || 'pass').toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`;
                           setCoordPassword(rand);
                         }}
                         style={{ background: 'none', border: 'none', color: '#BACEBB', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
@@ -3586,6 +3834,328 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   }}
                 >
                   Appoint & Grant Access
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: EDIT COORDINATOR / HOD / OPERATIONAL STAFF                          */}
+      {/* ========================================================================= */}
+      {isEditCoordinatorOpen && editingCoordinator && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(10px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            overflowY: 'auto'
+          }}
+          onClick={() => setIsEditCoordinatorOpen(false)}
+        >
+          <div
+            style={{
+              maxWidth: '620px',
+              width: '100%',
+              background: '#142042',
+              borderRadius: '18px',
+              padding: '28px',
+              border: '1px solid rgba(59, 130, 246, 0.45)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
+                  Edit Profile & Access Credentials
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#60A5FA', margin: '2px 0 0' }}>
+                  Updating details for <strong>{editingCoordinator.fullName}</strong> ({editingCoordinator.role})
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditCoordinatorOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#A8B3C2', cursor: 'pointer', fontSize: '1.4rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateCoordinator} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Name & Designation */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editCoordFullName}
+                    onChange={e => setEditCoordFullName(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Academic / Desk Designation *
+                  </label>
+                  <input
+                    type="text"
+                    value={editCoordDesignation}
+                    onChange={e => setEditCoordDesignation(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Department & Role */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Department Division *
+                  </label>
+                  <select
+                    value={editCoordDeptCode}
+                    onChange={e => setEditCoordDeptCode(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem'
+                    }}
+                  >
+                    {DEPARTMENTS.map(d => (
+                      <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
+                    ))}
+                    <option value="SAC">SAC Central Team</option>
+                    <option value="FINANCE">Finance & Accounts Desk</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Role Assignment *
+                  </label>
+                  <select
+                    value={editCoordRole}
+                    onChange={e => setEditCoordRole(e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem'
+                    }}
+                  >
+                    <option value="dept_chief_coordinator">🏛️ Department Chief Coordinator (HOD)</option>
+                    <option value="finance_reviewer">💳 Central Payment Reviewer (Finance Desk)</option>
+                    <option value="faculty_coord">⚡ Faculty Event Convener</option>
+                    <option value="student_coord">🎓 Student Lead Organizer</option>
+                    <option value="volunteer_checkin">🎟️ Gate Check-in & Ticketing Volunteer</option>
+                    <option value="event_coordinator">🎯 Event Operations Coordinator</option>
+                    <option value="dean_sac">👑 SAC Central Leadership</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Email & Phone */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Official Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={editCoordEmail}
+                    onChange={e => setEditCoordEmail(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    Contact Phone *
+                  </label>
+                  <input
+                    type="text"
+                    value={editCoordPhone}
+                    onChange={e => setEditCoordPhone(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Portal Login Credentials */}
+              <div style={{ background: 'rgba(16, 26, 53, 0.7)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                <span style={{ fontSize: '0.82rem', color: '#60A5FA', fontWeight: 700, display: 'block', marginBottom: '8px' }}>
+                  🔑 Portal Access Credentials
+                </span>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#A8B3C2', marginBottom: '4px' }}>
+                      Login Username *
+                    </label>
+                    <input
+                      type="text"
+                      value={editCoordUsername}
+                      onChange={e => setEditCoordUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(20, 31, 62, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        color: '#FFFFFF',
+                        fontFamily: 'monospace',
+                        fontSize: '0.82rem',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
+                        Portal Passcode *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rand = `${(editCoordDeptCode || 'pass').toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`;
+                          setEditCoordPassword(rand);
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#BACEBB', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
+                      >
+                        Auto-Gen
+                      </button>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={editCoordShowPassword ? 'text' : 'password'}
+                        value={editCoordPassword}
+                        onChange={e => setEditCoordPassword(e.target.value)}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '8px 32px 8px 10px',
+                          borderRadius: '6px',
+                          background: 'rgba(20, 31, 62, 0.9)',
+                          border: '1px solid rgba(220, 227, 229, 0.2)',
+                          color: '#34D399',
+                          fontFamily: 'monospace',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditCoordShowPassword(!editCoordShowPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '7px',
+                          background: 'none',
+                          border: 'none',
+                          color: '#A8B3C2',
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        {editCoordShowPassword ? <Unlock size={14} /> : <Lock size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditCoordinatorOpen(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(220, 227, 229, 0.2)',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    color: '#DCE3E5',
+                    fontSize: '0.84rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-cyber-primary"
+                  style={{
+                    borderRadius: '8px',
+                    padding: '8px 20px',
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)'
+                  }}
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
