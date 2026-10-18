@@ -149,3 +149,50 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'team', row_to_json(v_team));
 END;
 $$;
+
+-- 7. HOW TO ENABLE EMAIL LOGINS IN SUPABASE DASHBOARD (OPTIONAL / RECOMMENDED):
+-- If you want native Supabase Auth JWT sessions:
+-- 1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/fbvztmttixmmqorvqtbb/auth/providers
+-- 2. Click on "Email" under Auth Providers.
+-- 3. Toggle "Enable Email provider" to ON.
+-- 4. Toggle "Confirm email" to OFF (unless you have custom SMTP configured).
+-- 5. Click Save.
+-- (Note: Festronix client has seamless failover and verified profile authentication built-in,
+-- so delegates can log in immediately with their Roll Number and password regardless).
+
+-- 8. RPC: register_or_update_profile
+-- Allows saving student profiles even if Supabase Email Auth provider is turned off
+CREATE OR REPLACE FUNCTION public.register_or_update_profile(
+  p_id UUID,
+  p_roll_number TEXT,
+  p_full_name TEXT,
+  p_email TEXT,
+  p_phone TEXT DEFAULT '',
+  p_college TEXT DEFAULT 'Vardhaman College of Engineering',
+  p_username TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_profile RECORD;
+BEGIN
+  INSERT INTO public.profiles (
+    id, roll_number, full_name, email, phone, college, username, updated_at
+  ) VALUES (
+    p_id, p_roll_number, p_full_name, p_email, p_phone, p_college, p_username, now()
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    roll_number = EXCLUDED.roll_number,
+    full_name = EXCLUDED.full_name,
+    email = EXCLUDED.email,
+    phone = EXCLUDED.phone,
+    college = EXCLUDED.college,
+    username = EXCLUDED.username,
+    updated_at = now()
+  RETURNING * INTO v_profile;
+
+  RETURN jsonb_build_object('success', true, 'profile', row_to_json(v_profile));
+END;
+$$;

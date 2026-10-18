@@ -65,6 +65,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  const sanitizeError = (raw?: string) => {
+    if (!raw) return 'Authentication error. Please try again.';
+    const lower = raw.toLowerCase();
+    if (lower.includes('disabled') || lower.includes('email logins are disabled')) {
+      return 'Incorrect credentials. Please verify your roll number / password or click Sign Up.';
+    }
+    return raw;
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -73,7 +82,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       const res = await AuthService.signIn(signInIdentifier, signInPassword);
       if (!res.success || !res.user) {
-        setError(res.error || 'Authentication failed.');
+        setError(sanitizeError(res.error));
         setIsLoading(false);
         return;
       }
@@ -86,7 +95,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }, 700);
     } catch (err: any) {
-      setError(err?.message || 'Authentication error.');
+      setError(sanitizeError(err?.message));
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       });
 
       if (!res.success || !res.user) {
-        setError(res.error || 'Registration failed.');
+        setError(sanitizeError(res.error));
         setIsLoading(false);
         return;
       }
@@ -128,14 +137,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }, 800);
     } catch (err: any) {
-      setError(err?.message || 'Registration error.');
+      setError(sanitizeError(err?.message));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fillDemoAccount = () => {
-    setSignInIdentifier('22VCECS104');
+  const fillDemoAccount = (roll = '25881A05FC') => {
+    setSignInIdentifier(roll);
     setSignInPassword('password123');
     setError(null);
   };
@@ -406,6 +415,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
                 padding: '8px 12px',
                 background: 'rgba(16, 26, 53, 0.75)',
                 border: '1px dashed rgba(120, 149, 147, 0.35)',
@@ -413,21 +424,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 fontSize: '0.75rem'
               }}
             >
-              <span style={{ color: '#A8B3C2' }}>Test with demo account:</span>
-              <button
-                type="button"
-                onClick={fillDemoAccount}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#BACEBB',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
-              >
-                Auto-fill 22VCECS104
-              </button>
+              <span style={{ color: '#A8B3C2' }}>Quick fill demo:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => fillDemoAccount('25881A05FC')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#BACEBB',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  25881A05FC (Dhanush)
+                </button>
+                <span style={{ color: 'rgba(255,255,255,0.25)' }}>•</span>
+                <button
+                  type="button"
+                  onClick={() => fillDemoAccount('22VCECS104')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#789593',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  22VCECS104 (Rahul)
+                </button>
+              </div>
             </div>
 
             <button

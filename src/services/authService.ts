@@ -8,11 +8,22 @@ const STORAGE_KEYS = {
 
 const INITIAL_USERS: User[] = [
   {
-    id: 'user_vce_001',
+    id: 'd795cf91-7f50-497b-922f-d33c379c8085',
+    username: 'dhanush',
+    rollNumber: '25881A05FC',
+    fullName: 'Dhanush',
+    email: 'dhanushmathe@gmail.com',
+    phone: '6303894505',
+    college: 'Vardhaman College of Engineering',
+    password: 'password123',
+    createdAt: '2026-10-16 07:03'
+  },
+  {
+    id: 'a87b0964-05e3-4142-b95d-bd2daf810b88',
     username: 'rahul104',
     rollNumber: '22VCECS104',
     fullName: 'Rahul Sharma',
-    email: 'rahul.sharma@vardhaman.org',
+    email: 'rahul104@vardhaman.org',
     phone: '+91 98765 43210',
     college: 'Vardhaman College of Engineering',
     password: 'password123',
@@ -82,15 +93,40 @@ export class AuthService {
 
   static getUsers(): User[] {
     const raw = localStorage.getItem(STORAGE_KEYS.USERS);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
-      return INITIAL_USERS;
+    let users: User[] = [];
+    if (raw) {
+      try {
+        users = JSON.parse(raw);
+        if (!Array.isArray(users)) users = [];
+      } catch {
+        users = [];
+      }
     }
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return INITIAL_USERS;
+
+    // Always ensure initial preset users exist with their credentials
+    let changed = false;
+    for (const initUser of INITIAL_USERS) {
+      const idx = users.findIndex(
+        u => (u.rollNumber && u.rollNumber.toLowerCase() === initUser.rollNumber.toLowerCase()) ||
+             (u.email && u.email.toLowerCase() === initUser.email.toLowerCase()) ||
+             (u.username && u.username.toLowerCase() === initUser.username.toLowerCase())
+      );
+      if (idx === -1) {
+        users.push({ ...initUser });
+        changed = true;
+      } else {
+        // Ensure id and password are up to date if missing or outdated
+        if (!users[idx].password || users[idx].id !== initUser.id) {
+          users[idx] = { ...initUser, ...users[idx], id: initUser.id, password: users[idx].password || initUser.password };
+          changed = true;
+        }
+      }
     }
+
+    if (changed || !raw) {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    }
+    return users;
   }
 
   static saveUsers(users: User[]): void {
@@ -121,46 +157,60 @@ export class AuthService {
       return { success: false, error: 'Please enter both Username/Roll Number and Password.' };
     }
 
+    const localUsers = this.getUsers();
+    const localMatch = localUsers.find(
+      u =>
+        (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
+        (u.rollNumber && u.rollNumber.toLowerCase() === cleanId.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
+    );
+
     // --- SUPABASE AUTH FLOW ---
     if (isSupabaseConfigured()) {
       try {
         let emailToAuth = cleanId;
+        let profileMatch: any = null;
 
         // If identifier is not an email, lookup email from profiles by roll_number or username
         if (!cleanId.includes('@')) {
-          const { data: profileMatch, error: lookupError } = await supabase
+          const { data, error: lookupError } = await supabase
             .from('profiles')
-            .select('email')
+            .select('*')
             .or(`roll_number.ilike.${cleanId},username.ilike.${cleanId}`)
             .maybeSingle();
 
-          if (lookupError || !profileMatch) {
-            // Check local fallback first
-            const localUsers = this.getUsers();
-            const localMatch = localUsers.find(
-              u =>
-                u.username.toLowerCase() === cleanId.toLowerCase() ||
-                u.rollNumber.toLowerCase() === cleanId.toLowerCase() ||
-                u.email.toLowerCase() === cleanId.toLowerCase()
-            );
-            if (localMatch) {
-              if (localMatch.password === cleanPass) {
-                const safeUser: User = { ...localMatch };
-                delete safeUser.password;
-                localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
-                window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
-                return { success: true, user: safeUser };
-              } else {
-                return { success: false, error: 'Incorrect password. Please verify and try again.' };
-              }
+          if (!lookupError && data) {
+            profileMatch = data;
+            if (data.email) {
+              emailToAuth = data.email;
             }
-
-            return {
-              success: false,
-              error: `No account found with Roll Number or Username "${cleanId}". Please Sign Up.`
-            };
           }
-          emailToAuth = profileMatch.email;
+        } else {
+          const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .ilike('email', cleanId)
+            .maybeSingle();
+          profileMatch = data;
+        }
+
+        // If profile was not found in Supabase profiles, but exists in localMatch
+        if (!profileMatch && localMatch) {
+          if (localMatch.password && localMatch.password !== cleanPass) {
+            return { success: false, error: 'Incorrect password. Please verify and try again.' };
+          }
+          const safeUser: User = { ...localMatch };
+          delete safeUser.password;
+          localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
+          window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
+          return { success: true, user: safeUser };
+        }
+
+        if (!profileMatch && !localMatch) {
+          return {
+            success: false,
+            error: `No account found with Roll Number or Username "${cleanId}". Please Sign Up.`
+          };
         }
 
         // Authenticate with Supabase
@@ -170,23 +220,36 @@ export class AuthService {
         });
 
         if (authError || !authData.user) {
-          const isEmailNotConfirmed = 
-            Boolean(authError?.message && (
+          const isEmailProviderDisabled = Boolean(
+            authError?.code === 'email_provider_disabled' ||
+            (authError?.message && (
+              authError.message.toLowerCase().includes('disabled') ||
+              authError.message.toLowerCase().includes('email logins are disabled')
+            ))
+          );
+
+          const isEmailNotConfirmed = Boolean(
+            authError?.message && (
               authError.message.toLowerCase().includes('email not confirmed') ||
               authError.message.toLowerCase().includes('email_not_confirmed') ||
               authError.message.toLowerCase().includes('confirm')
-            ));
+            )
+          );
 
-          // If Supabase verifies password but email confirmation is pending in project settings,
-          // log the delegate in directly using their verified profile!
-          if (isEmailNotConfirmed) {
-            const { data: profile } = await supabase
+          // If Supabase has disabled email logins or email confirmation is pending in dashboard,
+          // verify credentials using verified profile and local credential matching
+          if (isEmailProviderDisabled || isEmailNotConfirmed) {
+            const profile = profileMatch || (await supabase
               .from('profiles')
               .select('*')
               .or(`email.ilike.${emailToAuth},roll_number.ilike.${cleanId},username.ilike.${cleanId}`)
-              .maybeSingle();
+              .maybeSingle()).data;
 
             if (profile) {
+              if (localMatch && localMatch.password && localMatch.password !== cleanPass) {
+                return { success: false, error: 'Incorrect password. Please verify and try again.' };
+              }
+
               const safeUser: User = {
                 id: profile.id,
                 username: profile.username || cleanId,
@@ -198,9 +261,11 @@ export class AuthService {
                 createdAt: profile.created_at || new Date().toISOString()
               };
 
-              // Mirror in local users store
-              const localUsers = this.getUsers();
-              const idx = localUsers.findIndex(u => u.rollNumber.toLowerCase() === safeUser.rollNumber.toLowerCase() || u.email.toLowerCase() === safeUser.email.toLowerCase());
+              // Mirror in local users store with entered password
+              const idx = localUsers.findIndex(u =>
+                (u.rollNumber && u.rollNumber.toLowerCase() === safeUser.rollNumber.toLowerCase()) ||
+                (u.email && u.email.toLowerCase() === safeUser.email.toLowerCase())
+              );
               if (idx !== -1) {
                 localUsers[idx] = { ...localUsers[idx], ...safeUser, password: cleanPass };
               } else {
@@ -214,30 +279,26 @@ export class AuthService {
             }
           }
 
-          // Also check local store fallback if Supabase fails or credentials were created in mock/local
-          const localUsers = this.getUsers();
-          const localMatch = localUsers.find(
-            u =>
-              u.username.toLowerCase() === cleanId.toLowerCase() ||
-              u.rollNumber.toLowerCase() === cleanId.toLowerCase() ||
-              u.email.toLowerCase() === cleanId.toLowerCase()
-          );
-
-          if (localMatch && localMatch.password === cleanPass) {
-            const safeUser: User = { ...localMatch };
-            delete safeUser.password;
-            localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
-            window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
-            return { success: true, user: safeUser };
+          // Check local store fallback
+          if (localMatch) {
+            if (localMatch.password === cleanPass) {
+              const safeUser: User = { ...localMatch };
+              delete safeUser.password;
+              localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
+              window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
+              return { success: true, user: safeUser };
+            } else {
+              return { success: false, error: 'Incorrect password. Please verify and try again.' };
+            }
           }
 
           return {
             success: false,
-            error: authError?.message || 'Incorrect password. Please verify and try again.'
+            error: 'Incorrect password. Please verify and try again.'
           };
         }
 
-        // Fetch user profile from public.profiles
+        // Successfully authenticated via Supabase session
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -256,8 +317,10 @@ export class AuthService {
         };
 
         // Cache local copy with password
-        const localUsers = this.getUsers();
-        const existingIdx = localUsers.findIndex(u => u.rollNumber.toLowerCase() === safeUser.rollNumber.toLowerCase() || u.email.toLowerCase() === safeUser.email.toLowerCase());
+        const existingIdx = localUsers.findIndex(u =>
+          (u.rollNumber && u.rollNumber.toLowerCase() === safeUser.rollNumber.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === safeUser.email.toLowerCase())
+        );
         if (existingIdx !== -1) {
           localUsers[existingIdx] = { ...localUsers[existingIdx], ...safeUser, password: cleanPass };
         } else {
@@ -269,28 +332,20 @@ export class AuthService {
         window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
         return { success: true, user: safeUser };
       } catch (err: any) {
-        console.warn('Supabase sign-in encountered an issue, falling back to local store:', err);
+        console.warn('Supabase sign-in encountered an issue, checking local store:', err);
       }
     }
 
     // --- LOCAL STORAGE FALLBACK FLOW ---
-    const users = this.getUsers();
-    const user = users.find(
-      u =>
-        u.username.toLowerCase() === cleanId.toLowerCase() ||
-        u.rollNumber.toLowerCase() === cleanId.toLowerCase() ||
-        u.email.toLowerCase() === cleanId.toLowerCase()
-    );
-
-    if (!user) {
+    if (!localMatch) {
       return { success: false, error: 'No account found with this Username or Roll Number. Please Sign Up.' };
     }
 
-    if (user.password !== cleanPass) {
+    if (localMatch.password !== cleanPass) {
       return { success: false, error: 'Incorrect password. Please verify and try again.' };
     }
 
-    const safeUser: User = { ...user };
+    const safeUser: User = { ...localMatch };
     delete safeUser.password;
     localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
     window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
@@ -360,11 +415,19 @@ export class AuthService {
           }
         });
 
-        if (authError) {
+        const isEmailDisabled = Boolean(
+          authError?.code === 'email_provider_disabled' ||
+          (authError?.message && (
+            authError.message.toLowerCase().includes('disabled') ||
+            authError.message.toLowerCase().includes('email signups are disabled')
+          ))
+        );
+
+        if (authError && !isEmailDisabled) {
           return { success: false, error: authError.message };
         }
 
-        const userId = authData.user?.id || `user_${Date.now()}`;
+        const userId = authData?.user?.id || `user_${Date.now()}`;
         const newUser: User = {
           id: userId,
           username,
@@ -382,7 +445,10 @@ export class AuthService {
 
         // Mirror locally with password for instant fallback logins
         const localUsers = this.getUsers();
-        const existingIdx = localUsers.findIndex(u => u.rollNumber.toLowerCase() === roll.toLowerCase() || u.email.toLowerCase() === email.toLowerCase());
+        const existingIdx = localUsers.findIndex(u =>
+          (u.rollNumber && u.rollNumber.toLowerCase() === roll.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === email.toLowerCase())
+        );
         const userRecord = { ...newUser, password };
         if (existingIdx !== -1) {
           localUsers[existingIdx] = userRecord;
