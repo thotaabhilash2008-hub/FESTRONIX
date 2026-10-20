@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Swords, ArrowRight, CirclePlay, Users, QrCode, Rocket, Trophy, Radio } from 'lucide-react';
+import { Flame, Swords, ArrowRight, Users, QrCode, Rocket, Trophy, Radio } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
 import { HeroAnimation } from './animations';
 
 interface HeroSectionProps {
   onExploreEvents: () => void;
-  onOpenIntro: () => void;
+  onOpenIntro?: () => void;
   onRegisterNow: () => void;
 }
 
@@ -232,17 +232,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <ArrowRight size={15} />
           </button>
 
-          <button
-            onClick={onOpenIntro}
-            className="btn-cyber-secondary"
-            style={{
-              padding: '10px 22px',
-              fontSize: '0.86rem'
-            }}
-          >
-            <CirclePlay size={16} color="#F3F0EA" />
-            <span>Watch Teaser Film</span>
-          </button>
 
           <button
             onClick={onRegisterNow}

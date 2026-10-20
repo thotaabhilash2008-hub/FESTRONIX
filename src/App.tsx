@@ -20,7 +20,6 @@ import { FestEvent, Registration, Announcement, User } from './types/festronix';
 import { ScrollAnimationsProvider } from './components/animations';
 import { KineticStage3D } from './components/3d';
 import { AboutSection } from './components/AboutSection';
-import { ShowcaseSection } from './components/ShowcaseSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
 export const App: React.FC = () => {
@@ -282,9 +281,6 @@ export const App: React.FC = () => {
 
         {/* Engineering Departments Overview */}
         <DepartmentsSection />
-
-        {/* Atmospheric Visual Showcase & Video Cinema */}
-        <ShowcaseSection onOpenIntro={() => setIsIntroOpen(true)} />
 
         {/* Mega Cash Prizes & Perks */}
         <PrizesSection />
