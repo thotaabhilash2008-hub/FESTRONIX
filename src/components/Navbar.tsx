@@ -88,15 +88,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         style={{
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          backgroundColor: 'rgba(16, 26, 53, 0.88)',
-          border: '1px solid rgba(220, 227, 229, 0.22)',
+          backgroundColor: 'rgba(8, 9, 13, 0.88)',
+          border: '1px solid rgba(199, 203, 212, 0.16)',
           borderRadius: '9999px',
           height: '66px',
           padding: '0 24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.75), 0 0 25px rgba(40, 59, 120, 0.22), inset 0 1px 0 rgba(220, 227, 229, 0.12)'
+          boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 25px rgba(255, 107, 53, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
         }}
       >
         {/* Brand / Logo */}
@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               width: 'auto',
               maxHeight: '44px',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 10px rgba(120, 149, 147, 0.25))'
+              filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 10px rgba(255, 107, 53, 0.15))'
             }}
           />
 
@@ -129,7 +129,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 fontSize: '1.2rem',
                 fontWeight: 800,
                 letterSpacing: '0.05em',
-                color: '#FFFFFF',
+                color: '#F3F0EA',
                 lineHeight: 1.15
               }}
             >
@@ -138,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span
               style={{
                 fontSize: '0.62rem',
-                color: '#BACEBB',
+                color: '#777F8E',
                 fontWeight: 600,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
@@ -166,10 +166,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
               style={{
-                background: isBrowseDropdownOpen ? 'rgba(40, 59, 120, 0.45)' : 'rgba(40, 59, 120, 0.22)',
-                border: isBrowseDropdownOpen ? '1px solid rgba(120, 149, 147, 0.55)' : '1px solid rgba(220, 227, 229, 0.2)',
+                background: isBrowseDropdownOpen ? 'rgba(255, 107, 53, 0.12)' : 'rgba(21, 24, 32, 0.8)',
+                border: isBrowseDropdownOpen ? '1px solid #FF6B35' : '1px solid rgba(199, 203, 212, 0.18)',
                 borderRadius: '9999px',
-                color: isBrowseDropdownOpen ? '#FFFFFF' : '#DCE3E5',
+                color: isBrowseDropdownOpen ? '#FFFFFF' : '#C7CBD4',
                 fontSize: '0.84rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -183,19 +183,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               onMouseEnter={e => {
                 if (!isBrowseDropdownOpen) {
                   e.currentTarget.style.color = '#FFFFFF';
-                  e.currentTarget.style.borderColor = '#789593';
-                  e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
+                  e.currentTarget.style.borderColor = '#FF6B35';
+                  e.currentTarget.style.background = 'rgba(255, 107, 53, 0.08)';
                 }
               }}
               onMouseLeave={e => {
                 if (!isBrowseDropdownOpen) {
-                  e.currentTarget.style.color = '#DCE3E5';
-                  e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.2)';
-                  e.currentTarget.style.background = 'rgba(40, 59, 120, 0.22)';
+                  e.currentTarget.style.color = '#C7CBD4';
+                  e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.18)';
+                  e.currentTarget.style.background = 'rgba(21, 24, 32, 0.8)';
                 }
               }}
             >
-              <Layers size={14} color="#789593" />
+              <Layers size={14} color="#FF6B35" />
               <span>Browse Events</span>
               <ChevronDown
                 size={13}
@@ -215,11 +215,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   left: '50%',
                   transform: 'translateX(-50%)',
                   width: '380px',
-                  background: 'rgba(16, 26, 53, 0.98)',
-                  border: '1px solid rgba(220, 227, 229, 0.25)',
+                  background: 'rgba(15, 17, 23, 0.98)',
+                  border: '1px solid rgba(199, 203, 212, 0.22)',
                   borderRadius: '16px',
                   padding: '16px',
-                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(40, 59, 120, 0.3)',
+                  boxShadow: '0 24px 60px rgba(0, 0, 0, 0.95), 0 0 30px rgba(255, 107, 53, 0.1)',
                   backdropFilter: 'blur(20px)',
                   zIndex: 100
                 }}
@@ -237,26 +237,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                       justifyContent: 'space-between',
                       padding: '8px 10px',
                       borderRadius: '8px',
-                      background: 'rgba(40, 59, 120, 0.25)',
-                      border: '1px solid rgba(120, 149, 147, 0.3)',
+                      background: 'rgba(255, 107, 53, 0.08)',
+                      border: '1px solid rgba(255, 107, 53, 0.25)',
                       cursor: 'pointer',
                       marginBottom: '8px',
                       transition: 'all 0.2s'
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(40, 59, 120, 0.4)';
+                      e.currentTarget.style.background = 'rgba(255, 107, 53, 0.16)';
                     }}
                     onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(40, 59, 120, 0.25)';
+                      e.currentTarget.style.background = 'rgba(255, 107, 53, 0.08)';
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Building2 size={16} color="#BACEBB" />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>
+                      <Building2 size={16} color="#FF6B35" />
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F3F0EA' }}>
                         Select by Department
                       </span>
                     </div>
-                    <span style={{ fontSize: '0.7rem', color: '#BACEBB', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.7rem', color: '#FF6B35', fontWeight: 600 }}>
                       View All →
                     </span>
                   </div>
@@ -271,11 +271,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsBrowseDropdownOpen(false);
                         }}
                         style={{
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid rgba(220, 227, 229, 0.15)',
+                          background: 'rgba(21, 24, 32, 0.85)',
+                          border: '1px solid rgba(199, 203, 212, 0.14)',
                           borderRadius: '6px',
                           padding: '6px 4px',
-                          color: '#DCE3E5',
+                          color: '#C7CBD4',
                           fontSize: '0.72rem',
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -284,14 +284,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                           fontFamily: "'Space Grotesk', sans-serif"
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = '#789593';
-                          e.currentTarget.style.color = '#BACEBB';
-                          e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
+                          e.currentTarget.style.borderColor = '#FF6B35';
+                          e.currentTarget.style.color = '#FFFFFF';
+                          e.currentTarget.style.background = 'rgba(255, 107, 53, 0.14)';
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.15)';
-                          e.currentTarget.style.color = '#DCE3E5';
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                          e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
+                          e.currentTarget.style.color = '#C7CBD4';
+                          e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
                         }}
                       >
                         {dept.code}
@@ -313,26 +313,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                       justifyContent: 'space-between',
                       padding: '8px 10px',
                       borderRadius: '8px',
-                      background: 'rgba(40, 59, 120, 0.25)',
-                      border: '1px solid rgba(120, 149, 147, 0.3)',
+                      background: 'rgba(255, 107, 53, 0.08)',
+                      border: '1px solid rgba(255, 107, 53, 0.25)',
                       cursor: 'pointer',
                       marginBottom: '8px',
                       transition: 'all 0.2s'
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(40, 59, 120, 0.4)';
+                      e.currentTarget.style.background = 'rgba(255, 107, 53, 0.16)';
                     }}
                     onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(40, 59, 120, 0.25)';
+                      e.currentTarget.style.background = 'rgba(255, 107, 53, 0.08)';
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Sparkles size={16} color="#BACEBB" />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>
+                      <Sparkles size={16} color="#FF6B35" />
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F3F0EA' }}>
                         Select by Event Category
                       </span>
                     </div>
-                    <span style={{ fontSize: '0.7rem', color: '#BACEBB', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.7rem', color: '#FF6B35', fontWeight: 600 }}>
                       View All →
                     </span>
                   </div>
@@ -347,11 +347,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsBrowseDropdownOpen(false);
                         }}
                         style={{
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid rgba(220, 227, 229, 0.15)',
+                          background: 'rgba(21, 24, 32, 0.85)',
+                          border: '1px solid rgba(199, 203, 212, 0.14)',
                           borderRadius: '6px',
                           padding: '5px 9px',
-                          color: '#DCE3E5',
+                          color: '#C7CBD4',
                           fontSize: '0.72rem',
                           fontWeight: 600,
                           cursor: 'pointer',
@@ -359,14 +359,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                           fontFamily: "'Space Grotesk', sans-serif"
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = '#789593';
-                          e.currentTarget.style.color = '#BACEBB';
-                          e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
+                          e.currentTarget.style.borderColor = '#FF6B35';
+                          e.currentTarget.style.color = '#FFFFFF';
+                          e.currentTarget.style.background = 'rgba(255, 107, 53, 0.14)';
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.15)';
-                          e.currentTarget.style.color = '#DCE3E5';
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                          e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
+                          e.currentTarget.style.color = '#C7CBD4';
+                          e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
                         }}
                       >
                         {cat.label}
@@ -385,10 +385,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               onNavigateHyped();
             }}
             style={{
-              background: 'rgba(40, 59, 120, 0.22)',
-              border: '1px solid rgba(120, 149, 147, 0.35)',
+              background: 'rgba(255, 107, 53, 0.08)',
+              border: '1px solid rgba(255, 107, 53, 0.3)',
               borderRadius: '9999px',
-              color: '#BACEBB',
+              color: '#F3F0EA',
               fontSize: '0.84rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -400,19 +400,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               padding: '7px 15px'
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.45)';
-              e.currentTarget.style.borderColor = '#BACEBB';
-              e.currentTarget.style.boxShadow = '0 0 16px rgba(120, 149, 147, 0.35)';
+              e.currentTarget.style.background = 'rgba(255, 107, 53, 0.18)';
+              e.currentTarget.style.borderColor = '#FF6B35';
+              e.currentTarget.style.boxShadow = '0 0 16px rgba(255, 107, 53, 0.35)';
               e.currentTarget.style.color = '#FFFFFF';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.22)';
-              e.currentTarget.style.borderColor = 'rgba(120, 149, 147, 0.35)';
+              e.currentTarget.style.background = 'rgba(255, 107, 53, 0.08)';
+              e.currentTarget.style.borderColor = 'rgba(255, 107, 53, 0.3)';
               e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.color = '#BACEBB';
+              e.currentTarget.style.color = '#F3F0EA';
             }}
           >
-            <Flame size={14} color="#f59e0b" />
+            <Flame size={14} color="#FF6B35" />
             <span>Hyped Events</span>
           </button>
         </div>
@@ -450,11 +450,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   top: '46px',
                   right: 0,
                   width: '320px',
-                  background: '#142042',
-                  border: '1px solid rgba(220, 227, 229, 0.25)',
+                  background: 'rgba(15, 17, 23, 0.98)',
+                  border: '1px solid rgba(199, 203, 212, 0.22)',
                   borderRadius: '14px',
                   padding: '16px',
-                  boxShadow: '0 20px 50px rgba(0,0,0,0.85), 0 0 20px rgba(40, 59, 120, 0.3)',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 20px rgba(255, 107, 53, 0.15)',
                   zIndex: 100
                 }}
               >
@@ -462,7 +462,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span
                     style={{
                       fontSize: '0.78rem',
-                      color: '#BACEBB',
+                      color: '#FF6B35',
                       fontWeight: 700,
                       fontFamily: "'Space Grotesk', sans-serif",
                       letterSpacing: '0.04em'
@@ -472,7 +472,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                   <button
                     onClick={() => setShowAnnouncementsDropdown(false)}
-                    style={{ background: 'none', border: 'none', color: '#A8B3C2', cursor: 'pointer' }}
+                    style={{ background: 'none', border: 'none', color: '#777F8E', cursor: 'pointer' }}
                   >
                     <X size={14} />
                   </button>
@@ -483,15 +483,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                       key={ann.id}
                       style={{
                         padding: '10px 12px',
-                        background: 'rgba(16, 26, 53, 0.75)',
-                        borderLeft: `3px solid ${ann.type === 'urgent' ? '#F43F5E' : '#789593'}`,
+                        background: 'rgba(21, 24, 32, 0.75)',
+                        borderLeft: `3px solid ${ann.type === 'urgent' ? '#FF6B35' : 'rgba(199, 203, 212, 0.4)'}`,
                         borderRadius: '6px'
                       }}
                     >
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '2px' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#F3F0EA', marginBottom: '2px' }}>
                         {ann.title}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#777F8E' }}>
                         {ann.message}
                       </div>
                     </div>
@@ -506,11 +506,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onOpenMultiPass}
             className="desktop-only"
             style={{
-              background: 'rgba(40, 59, 120, 0.35)',
-              border: '1px solid rgba(120, 149, 147, 0.45)',
+              background: 'rgba(21, 24, 32, 0.85)',
+              border: '1px solid rgba(199, 203, 212, 0.2)',
               borderRadius: '9999px',
               padding: '7px 14px',
-              color: '#BACEBB',
+              color: '#C7CBD4',
               fontSize: '0.8rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -522,15 +522,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               whiteSpace: 'nowrap'
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = '#BACEBB';
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.55)';
+              e.currentTarget.style.borderColor = '#FF6B35';
+              e.currentTarget.style.color = '#FFFFFF';
+              e.currentTarget.style.background = 'rgba(255, 107, 53, 0.12)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'rgba(120, 149, 147, 0.45)';
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
+              e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.2)';
+              e.currentTarget.style.color = '#C7CBD4';
+              e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
             }}
           >
-            <ShoppingBag size={14} color="#BACEBB" />
+            <ShoppingBag size={14} color="#FF6B35" />
             <span>Buy Multiple Passes</span>
           </button>
 
@@ -540,11 +542,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 style={{
-                  background: 'rgba(16, 26, 53, 0.85)',
-                  border: '1px solid rgba(120, 149, 147, 0.4)',
+                  background: 'rgba(21, 24, 32, 0.85)',
+                  border: '1px solid rgba(199, 203, 212, 0.25)',
                   borderRadius: '9999px',
                   padding: '5px 12px 5px 6px',
-                  color: '#FFFFFF',
+                  color: '#F3F0EA',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -558,7 +560,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     width: '26px',
                     height: '26px',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #283B78 0%, #789593 100%)',
+                    background: 'linear-gradient(135deg, #FF6B35 0%, #151820 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -570,7 +572,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {currentUser.fullName.charAt(0)}
                 </div>
                 <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>{currentUser.rollNumber}</span>
-                <ChevronDown size={12} color="#A8B3C2" />
+                <ChevronDown size={12} color="#777F8E" />
               </button>
 
               {isUserMenuOpen && (
@@ -580,18 +582,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                     top: '46px',
                     right: 0,
                     width: '260px',
-                    background: '#142042',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    background: 'rgba(15, 17, 23, 0.98)',
+                    border: '1px solid rgba(199, 203, 212, 0.22)',
                     borderRadius: '14px',
                     padding: '16px',
-                    boxShadow: '0 20px 50px rgba(0,0,0,0.85), 0 0 20px rgba(40, 59, 120, 0.3)',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 20px rgba(255, 107, 53, 0.1)',
                     zIndex: 100
                   }}
                 >
-                  <div style={{ marginBottom: '12px', borderBottom: '1px solid rgba(220, 227, 229, 0.1)', paddingBottom: '10px' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF' }}>{currentUser.fullName}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll: {currentUser.rollNumber}</div>
-                    <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '2px' }}>{currentUser.email}</div>
+                  <div style={{ marginBottom: '12px', borderBottom: '1px solid rgba(199, 203, 212, 0.1)', paddingBottom: '10px' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#F3F0EA' }}>{currentUser.fullName}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#FF6B35', fontFamily: 'monospace' }}>Roll: {currentUser.rollNumber}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#777F8E', marginTop: '2px' }}>{currentUser.email}</div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -603,7 +605,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#DCE3E5',
+                        color: '#C7CBD4',
                         textAlign: 'left',
                         padding: '8px 10px',
                         borderRadius: '6px',
@@ -614,10 +616,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                         alignItems: 'center',
                         gap: '8px'
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(40, 59, 120, 0.4)')}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 107, 53, 0.12)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                     >
-                      <Ticket size={14} color="#BACEBB" />
+                      <Ticket size={14} color="#FF6B35" />
                       <span>My Passes ({passesCount})</span>
                     </button>
 
@@ -629,7 +631,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#DCE3E5',
+                        color: '#C7CBD4',
                         textAlign: 'left',
                         padding: '8px 10px',
                         borderRadius: '6px',
@@ -640,10 +642,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                         alignItems: 'center',
                         gap: '8px'
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(40, 59, 120, 0.4)')}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 107, 53, 0.12)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                     >
-                      <ShoppingBag size={14} color="#BACEBB" />
+                      <ShoppingBag size={14} color="#FF6B35" />
                       <span>Buy Multiple Passes</span>
                     </button>
 
@@ -665,7 +667,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
-                        borderTop: '1px solid rgba(220, 227, 229, 0.08)',
+                        borderTop: '1px solid rgba(199, 203, 212, 0.1)',
                         marginTop: '4px'
                       }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)')}
@@ -683,11 +685,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onOpenAuth('signin')}
               className="desktop-only"
               style={{
-                background: 'rgba(220, 227, 229, 0.08)',
-                border: '1px solid rgba(220, 227, 229, 0.25)',
+                background: 'rgba(21, 24, 32, 0.8)',
+                border: '1px solid rgba(199, 203, 212, 0.2)',
                 borderRadius: '9999px',
                 padding: '7px 15px',
-                color: '#FFFFFF',
+                color: '#F3F0EA',
                 fontSize: '0.8rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -699,15 +701,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whiteSpace: 'nowrap'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = '#BACEBB';
-                e.currentTarget.style.color = '#BACEBB';
+                e.currentTarget.style.borderColor = '#FF6B35';
+                e.currentTarget.style.color = '#FFFFFF';
+                e.currentTarget.style.background = 'rgba(255, 107, 53, 0.12)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.25)';
-                e.currentTarget.style.color = '#FFFFFF';
+                e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.2)';
+                e.currentTarget.style.color = '#F3F0EA';
+                e.currentTarget.style.background = 'rgba(21, 24, 32, 0.8)';
               }}
             >
-              <LogIn size={14} color="#BACEBB" />
+              <LogIn size={14} color="#FF6B35" />
               <span>Sign In / Sign Up</span>
             </button>
           )}
@@ -716,45 +720,43 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onOpenPasses}
             style={{
-              background: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #4B63AA 100%)',
-              border: '1px solid rgba(220, 227, 229, 0.35)',
+              background: 'linear-gradient(135deg, #FF6B35 0%, #E8551E 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
               borderRadius: '9999px',
               padding: '7px 16px',
-              color: '#FFFFFF',
+              color: '#08090D',
               fontSize: '0.82rem',
               fontWeight: 800,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: '0 0 20px rgba(40, 59, 120, 0.65), 0 4px 14px rgba(0, 0, 0, 0.4)',
+              boxShadow: '0 0 20px rgba(255, 107, 53, 0.45), 0 4px 14px rgba(0, 0, 0, 0.4)',
               transition: 'all 0.2s ease',
               fontFamily: "'Space Grotesk', sans-serif",
               whiteSpace: 'nowrap'
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.boxShadow = '0 0 28px rgba(120, 149, 147, 0.5), 0 0 20px rgba(40, 59, 120, 0.6)';
+              e.currentTarget.style.boxShadow = '0 0 28px rgba(255, 107, 53, 0.7), 0 0 16px rgba(255, 255, 255, 0.4)';
               e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
-              e.currentTarget.style.borderColor = '#BACEBB';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.boxShadow = '0 0 20px rgba(40, 59, 120, 0.65), 0 4px 14px rgba(0, 0, 0, 0.4)';
+              e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 107, 53, 0.45), 0 4px 14px rgba(0, 0, 0, 0.4)';
               e.currentTarget.style.transform = 'translateY(0) scale(1)';
-              e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.35)';
             }}
           >
-            <Ticket size={14} color="#FFFFFF" />
+            <Ticket size={14} color="#08090D" />
             <span className="desktop-only">Passes</span>
             {passesCount > 0 && (
               <span
                 style={{
-                  background: '#101A35',
-                  color: '#BACEBB',
+                  background: '#08090D',
+                  color: '#FF6B35',
                   fontSize: '0.65rem',
                   fontWeight: 800,
                   padding: '1px 6px',
                   borderRadius: '9999px',
-                  border: '1px solid rgba(120, 149, 147, 0.4)'
+                  border: '1px solid rgba(255, 107, 53, 0.5)'
                 }}
               >
                 {passesCount}
@@ -786,14 +788,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div
           style={{
             marginTop: '10px',
-            background: 'rgba(16, 26, 53, 0.98)',
-            border: '1px solid rgba(220, 227, 229, 0.25)',
+            background: 'rgba(15, 17, 23, 0.98)',
+            border: '1px solid rgba(199, 203, 212, 0.22)',
             borderRadius: '20px',
             padding: '22px',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
-            boxShadow: '0 20px 45px rgba(0,0,0,0.9), 0 0 25px rgba(40, 59, 120, 0.25)'
+            boxShadow: '0 24px 60px rgba(0,0,0,0.95), 0 0 30px rgba(255, 107, 53, 0.12)'
           }}
         >
           {/* Mobile Links */}
@@ -803,10 +805,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               onNavigateHyped();
             }}
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#BACEBB',
-              fontSize: '1rem',
+              background: 'rgba(255, 107, 53, 0.08)',
+              border: '1px solid rgba(255, 107, 53, 0.25)',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              color: '#F3F0EA',
+              fontSize: '0.95rem',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
@@ -815,13 +819,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               cursor: 'pointer'
             }}
           >
-            <Flame size={18} color="#BACEBB" />
+            <Flame size={18} color="#FF6B35" />
             <span>🔥 Hyped Events</span>
           </button>
 
           {/* Mobile Dropdown Options */}
-          <div style={{ borderTop: '1px solid rgba(220, 227, 229, 0.12)', paddingTop: '10px' }}>
-            <div style={{ fontSize: '0.75rem', color: '#A8B3C2', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ borderTop: '1px solid rgba(199, 203, 212, 0.12)', paddingTop: '10px' }}>
+            <div style={{ fontSize: '0.75rem', color: '#777F8E', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Select by Department
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}>
@@ -833,11 +837,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onSelectDepartment(dept.code);
                   }}
                   style={{
-                    background: 'rgba(40, 59, 120, 0.25)',
-                    border: '1px solid rgba(220, 227, 229, 0.2)',
+                    background: 'rgba(21, 24, 32, 0.85)',
+                    border: '1px solid rgba(199, 203, 212, 0.14)',
                     borderRadius: '6px',
                     padding: '8px 4px',
-                    color: '#FFFFFF',
+                    color: '#C7CBD4',
                     fontSize: '0.75rem',
                     fontWeight: 700,
                     cursor: 'pointer'
@@ -848,7 +852,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ))}
             </div>
 
-            <div style={{ fontSize: '0.75rem', color: '#A8B3C2', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{ fontSize: '0.75rem', color: '#777F8E', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Select by Event Category
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -860,11 +864,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onSelectCategory(cat.key);
                   }}
                   style={{
-                    background: 'rgba(40, 59, 120, 0.25)',
-                    border: '1px solid rgba(120, 149, 147, 0.3)',
+                    background: 'rgba(21, 24, 32, 0.85)',
+                    border: '1px solid rgba(199, 203, 212, 0.14)',
                     borderRadius: '6px',
                     padding: '6px 10px',
-                    color: '#BACEBB',
+                    color: '#C7CBD4',
                     fontSize: '0.75rem',
                     fontWeight: 600,
                     cursor: 'pointer'
@@ -877,14 +881,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Mobile Action Buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.12)', paddingTop: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid rgba(199, 203, 212, 0.12)', paddingTop: '12px' }}>
             {/* User Profile / Sign In in Mobile */}
             {currentUser ? (
               <div
                 style={{
                   padding: '12px',
-                  background: 'rgba(40, 59, 120, 0.3)',
-                  border: '1px solid rgba(120, 149, 147, 0.4)',
+                  background: 'rgba(21, 24, 32, 0.85)',
+                  border: '1px solid rgba(199, 203, 212, 0.2)',
                   borderRadius: '10px',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -892,8 +896,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>{currentUser.fullName}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll: {currentUser.rollNumber}</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F3F0EA' }}>{currentUser.fullName}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#FF6B35', fontFamily: 'monospace' }}>Roll: {currentUser.rollNumber}</div>
                 </div>
 
                 <button
@@ -922,11 +926,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onOpenAuth('signin');
                 }}
                 style={{
-                  background: 'rgba(220, 227, 229, 0.08)',
-                  border: '1px solid rgba(220, 227, 229, 0.25)',
+                  background: 'rgba(21, 24, 32, 0.8)',
+                  border: '1px solid rgba(199, 203, 212, 0.2)',
                   borderRadius: '10px',
                   padding: '12px',
-                  color: '#FFFFFF',
+                  color: '#F3F0EA',
                   fontSize: '0.88rem',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -936,7 +940,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   gap: '8px'
                 }}
               >
-                <LogIn size={16} color="#BACEBB" />
+                <LogIn size={16} color="#FF6B35" />
                 <span>Sign In / Sign Up</span>
               </button>
             )}
@@ -948,9 +952,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenMultiPass();
               }}
               style={{
-                background: 'rgba(40, 59, 120, 0.35)',
-                border: '1px solid rgba(120, 149, 147, 0.45)',
-                color: '#BACEBB',
+                background: 'rgba(21, 24, 32, 0.85)',
+                border: '1px solid rgba(199, 203, 212, 0.2)',
+                color: '#C7CBD4',
                 borderRadius: '10px',
                 padding: '12px',
                 fontSize: '0.88rem',
@@ -962,7 +966,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 gap: '8px'
               }}
             >
-              <ShoppingBag size={16} color="#BACEBB" />
+              <ShoppingBag size={16} color="#FF6B35" />
               <span>Buy Multiple Passes</span>
             </button>
 
@@ -973,9 +977,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenPasses();
               }}
               style={{
-                background: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #4B63AA 100%)',
-                color: '#FFFFFF',
-                border: '1px solid rgba(220, 227, 229, 0.35)',
+                background: 'linear-gradient(135deg, #FF6B35 0%, #E8551E 100%)',
+                color: '#08090D',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
                 borderRadius: '10px',
                 padding: '12px',
                 fontSize: '0.9rem',
@@ -985,10 +989,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 0 20px rgba(40, 59, 120, 0.65)'
+                boxShadow: '0 0 20px rgba(255, 107, 53, 0.45)'
               }}
             >
-              <Ticket size={16} color="#FFFFFF" />
+              <Ticket size={16} color="#08090D" />
               <span>View Registration Passes {passesCount > 0 ? `(${passesCount})` : ''}</span>
             </button>
 

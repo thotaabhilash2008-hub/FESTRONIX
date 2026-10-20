@@ -17,6 +17,11 @@ import { GlitterBackground } from './components/GlitterBackground';
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
+import { ScrollAnimationsProvider } from './components/animations';
+import { KineticStage3D } from './components/3d';
+import { AboutSection } from './components/AboutSection';
+import { ShowcaseSection } from './components/ShowcaseSection';
+import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
 export const App: React.FC = () => {
   // Admin View State (supports #admin hash or portal button)
@@ -195,7 +200,11 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <ScrollAnimationsProvider enableSmoothScroll={!isIntroOpen}>
+      <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Background Continuous Scroll-Driven 3D Kinetic Stage */}
+      <KineticStage3D />
+
       {/* Background Glitter Starfield & Cyber Grid */}
       <GlitterBackground />
       <div className="glitter-stardust-layer" />
@@ -205,6 +214,20 @@ export const App: React.FC = () => {
       <FullscreenIntro
         isOpen={isIntroOpen}
         onFinish={() => setIsIntroOpen(false)}
+      />
+
+      {/* Top Margin Obsidian Bar: Ensures 100% solid obsidian background above the floating navbar */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '14px',
+          backgroundColor: '#08090D',
+          zIndex: 49,
+          pointerEvents: 'none'
+        }}
       />
 
       {/* Floating Modern Navbar */}
@@ -226,11 +249,15 @@ export const App: React.FC = () => {
 
       {/* Main Experience View */}
       <main style={{ flex: 1, position: 'relative', zIndex: 10 }}>
+        {/* HERO SECTION: Cinematic Introduction */}
         <HeroSection
           onExploreEvents={handleNavigateExplore}
           onOpenIntro={() => setIsIntroOpen(true)}
           onRegisterNow={handleStartMultiPass}
         />
+
+        {/* ABOUT FESTRONIX: Scroll-Driven Transformation */}
+        <AboutSection />
 
         {/* TOP HYPED EVENTS (Ranked by Total Registrations) */}
         <HypedEventsSection
@@ -256,8 +283,17 @@ export const App: React.FC = () => {
         {/* Engineering Departments Overview */}
         <DepartmentsSection />
 
+        {/* Atmospheric Visual Showcase & Video Cinema */}
+        <ShowcaseSection onOpenIntro={() => setIsIntroOpen(true)} />
+
         {/* Mega Cash Prizes & Perks */}
         <PrizesSection />
+
+        {/* Closing Registration CTA: Final Cinematic Moment */}
+        <RegistrationCtaSection
+          onOpenMultiPass={handleStartMultiPass}
+          onExploreEvents={handleNavigateExplore}
+        />
       </main>
 
       {/* Footer */}
@@ -332,7 +368,8 @@ export const App: React.FC = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </ScrollAnimationsProvider>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Crown, Swords, ArrowRight, Sparkles, CirclePlay, Trophy, Users, QrCode, Star, Rocket } from 'lucide-react';
+import { Flame, Swords, ArrowRight, CirclePlay, Users, QrCode, Rocket, Trophy, Radio } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
+import { HeroAnimation } from './animations';
 
 interface HeroSectionProps {
   onExploreEvents: () => void;
@@ -42,15 +43,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     <section
       style={{
         position: 'relative',
-        minHeight: '92vh',
+        minHeight: 'calc(100vh - 84px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '60px 20px 80px',
+        padding: '12px 20px 20px',
         overflow: 'hidden'
       }}
     >
-      {/* Cinematic Campus Background */}
+      {/* Cinematic Campus Architectural Backing (Subtle, desaturated depth) */}
       <div
         style={{
           position: 'absolute',
@@ -66,32 +67,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            filter: 'blur(0.5px) brightness(0.72) saturate(1.15)',
+            filter: 'grayscale(0.65) brightness(0.28) contrast(1.15)',
             transform: 'scale(1.02)',
             display: 'block'
           }}
         />
-        {/* Balanced cinematic gradient overlay that keeps campus visible while maintaining readability */}
+        {/* Obsidian atmospheric depth gradients */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
             background:
-              'linear-gradient(180deg, rgba(16, 26, 53, 0.35) 0%, rgba(16, 26, 53, 0.25) 25%, rgba(16, 26, 53, 0.6) 65%, rgba(16, 26, 53, 0.96) 100%)'
-          }}
-        />
-        {/* Subtle royal ambient glow from center */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'radial-gradient(ellipse 60% 50% at 50% 40%, rgba(40, 59, 120, 0.22) 0%, transparent 70%)'
+              'linear-gradient(180deg, rgba(8, 9, 13, 0.4) 0%, rgba(8, 9, 13, 0.65) 40%, rgba(8, 9, 13, 0.92) 80%, #08090D 100%)'
           }}
         />
       </div>
 
-      {/* Main Container */}
-      <div
+      {/* Foreground Editorial UI with GSAP Cinematic Reveal */}
+      <HeroAnimation
+        delay={0.1}
+        className="hero-content-wrapper"
         style={{
           position: 'relative',
           zIndex: 10,
@@ -101,11 +96,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '20px',
-          width: '100%'
-        }}
+          gap: 'clamp(8px, 1.4vh, 12px)',
+          width: '100%',
+          pointerEvents: 'auto'
+        } as React.CSSProperties}
       >
-        {/* Top Badge */}
+        {/* Top Architectural Metadata Pill */}
         <div
           style={{
             display: 'inline-flex',
@@ -113,74 +109,83 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             justifyContent: 'center',
             flexWrap: 'wrap',
             gap: '8px',
-            padding: '6px 16px',
+            padding: '5px 16px',
             borderRadius: '9999px',
-            background: 'rgba(20, 31, 62, 0.88)',
-            border: '1px solid rgba(220, 227, 229, 0.25)',
-            backdropFilter: 'blur(16px)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(40, 59, 120, 0.2)',
+            background: 'rgba(21, 24, 32, 0.85)',
+            border: '1px solid rgba(199, 203, 212, 0.22)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
             maxWidth: '100%'
           }}
         >
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <Star size={12} color="#789593" fill="#789593" />
             <span
               style={{
-                fontSize: 'clamp(0.68rem, 2.4vw, 0.78rem)',
-                color: '#DCE3E5',
-                letterSpacing: '0.06em',
-                fontWeight: 600,
-                fontFamily: "'Space Grotesk', sans-serif"
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#FF6B35',
+                boxShadow: '0 0 10px #FF6B35'
+              }}
+            />
+            <span
+              style={{
+                fontSize: 'clamp(0.68rem, 2vw, 0.76rem)',
+                color: '#C7CBD4',
+                letterSpacing: '0.12em',
+                fontWeight: 700,
+                fontFamily: "'Space Grotesk', sans-serif",
+                textTransform: 'uppercase'
               }}
             >
               VARDHAMAN COLLEGE OF ENGINEERING
             </span>
           </div>
+          <span style={{ color: '#777F8E', fontSize: '0.75rem' }}>//</span>
           <span
             style={{
-              fontSize: '0.68rem',
-              background: 'rgba(120, 149, 147, 0.15)',
-              border: '1px solid rgba(120, 149, 147, 0.4)',
-              color: '#BACEBB',
-              padding: '2px 9px',
+              fontSize: '0.7rem',
+              background: 'rgba(255, 107, 53, 0.12)',
+              border: '1px solid rgba(255, 107, 53, 0.4)',
+              color: '#FF6B35',
+              padding: '2px 8px',
               borderRadius: '9999px',
-              fontWeight: 700,
+              fontWeight: 800,
               fontFamily: "'Space Grotesk', sans-serif",
+              letterSpacing: '0.06em',
               whiteSpace: 'nowrap'
             }}
           >
-            OCT 28–29
+            OCT 28–29, 2026
           </span>
         </div>
 
-        {/* Interactive 3D Festronix Chrome Title with Hover Glow & Tilt */}
-        <div style={{ width: '100%', maxWidth: '1000px', padding: '0' }}>
+        {/* 3D Chrome Festronix Identity */}
+        <div style={{ width: '100%', maxWidth: '820px', padding: '0' }}>
           <Festronix3DTitle />
 
-          {/* Year badge */}
+          {/* Edition Tag */}
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              marginTop: '10px',
-              padding: '4px 16px',
+              gap: '6px',
+              marginTop: '4px',
+              padding: '3px 14px',
               borderRadius: '6px',
-              background: 'rgba(40, 59, 120, 0.25)',
-              border: '1px solid rgba(120, 149, 147, 0.4)',
-              boxShadow: '0 0 15px rgba(120, 149, 147, 0.2)'
+              background: 'rgba(21, 24, 32, 0.75)',
+              border: '1px solid rgba(199, 203, 212, 0.22)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)'
             }}
           >
-            <Flame size={14} color="#BACEBB" />
+            <Radio size={12} color="#FF6B35" />
             <span
               style={{
-                fontFamily: "var(--font-heading)",
-                fontWeight: 700,
-                fontSize: '1.15rem',
-                letterSpacing: '0.15em',
-                background: 'linear-gradient(135deg, #FFFFFF, #DCE3E5, #BACEBB)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 800,
+                fontSize: '0.86rem',
+                letterSpacing: '0.18em',
+                color: '#F3F0EA'
               }}
             >
               2026 EDITION
@@ -188,22 +193,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </div>
         </div>
 
-        {/* Description */}
+        {/* Editorial Narrative Subtext */}
         <p
           style={{
-            maxWidth: '650px',
-            fontSize: 'clamp(0.92rem, 1.4vw, 1.05rem)',
-            color: '#A8B3C2',
-            lineHeight: 1.7,
+            maxWidth: '640px',
+            fontSize: 'clamp(0.85rem, 1.2vw, 0.98rem)',
+            color: '#949BA8',
+            lineHeight: 1.55,
             margin: '0 auto',
             fontWeight: 400
           }}
         >
-          The premier arena of collegiate engineering — 30+ adrenaline-fueled technical hackathons,
-          robot combat showdowns, autonomous AI battles, and e-sports championships await.
+          The premier collegiate arena of autonomous robotics, precision algorithmic engineering,
+          and national innovation — uniting 3,500+ competitors across 30+ flagship arenas.
         </p>
 
-        {/* Hero CTAs */}
+        {/* Action CTAs */}
         <div
           style={{
             display: 'flex',
@@ -211,34 +216,40 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: '12px',
-            marginTop: '6px'
+            marginTop: '2px'
           }}
         >
           <button
             onClick={onExploreEvents}
             className="btn-cyber-primary"
-            style={{ padding: '14px 32px', fontSize: '0.95rem' }}
+            style={{
+              padding: '10px 24px',
+              fontSize: '0.88rem'
+            }}
           >
-            <Swords size={17} />
-            <span>Explore 30+ Events</span>
+            <Swords size={16} color="#C7CBD4" />
+            <span>Explore 30+ Arenas</span>
             <ArrowRight size={15} />
           </button>
 
           <button
             onClick={onOpenIntro}
             className="btn-cyber-secondary"
-            style={{ padding: '12px 24px', fontSize: '0.9rem' }}
+            style={{
+              padding: '10px 22px',
+              fontSize: '0.86rem'
+            }}
           >
-            <CirclePlay size={16} color="#DCE3E5" />
-            <span>Watch Intro</span>
+            <CirclePlay size={16} color="#F3F0EA" />
+            <span>Watch Teaser Film</span>
           </button>
 
           <button
             onClick={onRegisterNow}
             className="btn-cyber-gold"
             style={{
-              padding: '12px 26px',
-              fontSize: '0.9rem'
+              padding: '10px 24px',
+              fontSize: '0.88rem'
             }}
           >
             <Rocket size={16} />
@@ -246,57 +257,57 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </button>
         </div>
 
-        {/* Countdown Timer */}
+        {/* Architectural Countdown Metrics */}
         <div
           style={{
-            marginTop: '8px',
+            marginTop: '4px',
             display: 'flex',
             alignItems: 'center',
-            gap: '16px',
-            padding: '12px 28px',
-            background: 'rgba(20, 31, 62, 0.88)',
-            border: '1px solid rgba(220, 227, 229, 0.22)',
-            borderRadius: '14px',
+            gap: '12px',
+            padding: '8px 20px',
+            background: 'rgba(21, 24, 32, 0.88)',
+            border: '1px solid rgba(199, 203, 212, 0.2)',
+            borderRadius: '12px',
             backdropFilter: 'blur(20px)',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(40, 59, 120, 0.2)'
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.8)'
           }}
         >
           <span
             style={{
-              fontSize: '0.72rem',
-              color: '#BACEBB',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
+              fontSize: '0.68rem',
+              color: '#FF6B35',
+              fontWeight: 800,
+              letterSpacing: '0.14em',
               fontFamily: "'Space Grotesk', sans-serif"
             }}
           >
-            STARTS IN
+            ARENA COMMENCES IN
           </span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {[
               { val: timeLeft.days, label: 'DAYS' },
-              { val: timeLeft.hours, label: 'HRS' },
-              { val: timeLeft.minutes, label: 'MIN' },
-              { val: timeLeft.seconds, label: 'SEC' }
+              { val: timeLeft.hours, label: 'HOURS' },
+              { val: timeLeft.minutes, label: 'MINUTES' },
+              { val: timeLeft.seconds, label: 'SECONDS' }
             ].map((unit, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div
                   style={{
-                    background: 'rgba(16, 26, 53, 0.75)',
-                    border: '1px solid rgba(220, 227, 229, 0.2)',
-                    borderRadius: '8px',
-                    padding: '6px 10px',
+                    background: 'rgba(8, 9, 13, 0.85)',
+                    border: '1px solid rgba(199, 203, 212, 0.16)',
+                    borderRadius: '6px',
+                    padding: '4px 8px',
                     textAlign: 'center',
-                    minWidth: '48px'
+                    minWidth: '44px'
                   }}
                 >
                   <div
                     style={{
-                      fontFamily: "var(--font-heading)",
-                      fontWeight: 700,
-                      fontSize: '1.25rem',
-                      color: '#FFFFFF',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontWeight: 800,
+                      fontSize: '1.05rem',
+                      color: '#F3F0EA',
                       lineHeight: 1
                     }}
                   >
@@ -304,83 +315,78 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   </div>
                   <div
                     style={{
-                      fontSize: '0.55rem',
-                      color: '#A8B3C2',
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
+                      fontSize: '0.5rem',
+                      color: '#777F8E',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
                       fontFamily: "'Space Grotesk', sans-serif",
-                      marginTop: '2px'
+                      marginTop: '1px'
                     }}
                   >
                     {unit.label}
                   </div>
                 </div>
                 {i < 3 && (
-                  <span style={{ color: 'rgba(120, 149, 147, 0.45)', fontSize: '1.1rem', fontWeight: 300 }}>:</span>
+                  <span style={{ color: 'rgba(199, 203, 212, 0.3)', fontSize: '0.9rem', fontWeight: 300 }}>:</span>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Feature Highlights */}
+        {/* 4 Feature Highlights - Sleek compact architectural metric strip */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '10px',
             width: '100%',
-            maxWidth: '850px',
-            marginTop: '10px'
+            maxWidth: '880px',
+            marginTop: '2px'
           }}
         >
           {[
-            { icon: <Crown size={20} color="#FBBF24" />, value: '₹5,00,000+', label: 'Prize Pool', accent: '#FBBF24' },
-            { icon: <Users size={20} color="#BACEBB" />, value: '3,500+', label: 'Participants', accent: '#BACEBB' },
-            { icon: <Sparkles size={20} color="#DCE3E5" />, value: '30+ Events', label: '8 Branches', accent: '#DCE3E5' },
-            { icon: <QrCode size={20} color="#789593" />, value: 'QR Pass', label: 'Instant Check-in', accent: '#789593' }
+            { icon: <Trophy size={14} color="#FF6B35" />, value: '₹5,00,000+', label: 'Prize Pool' },
+            { icon: <Users size={14} color="#C7CBD4" />, value: '3,500+', label: 'Competitors' },
+            { icon: <Flame size={14} color="#FF6B35" />, value: '30+ Arenas', label: '8 Branches' },
+            { icon: <QrCode size={14} color="#C7CBD4" />, value: 'Crypto Pass', label: 'Instant Check-in' }
           ].map((item, i) => (
             <div
               key={i}
               style={{
-                background: 'rgba(20, 31, 62, 0.88)',
-                border: '1px solid rgba(220, 227, 229, 0.2)',
-                borderRadius: '12px',
-                padding: '16px',
-                textAlign: 'center',
-                backdropFilter: 'blur(14px)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = '#789593';
-                e.currentTarget.style.boxShadow = '0 8px 24px -6px rgba(120, 149, 147, 0.3)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.2)';
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.transform = 'translateY(0)';
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                background: 'rgba(21, 24, 32, 0.85)',
+                border: '1px solid rgba(199, 203, 212, 0.16)',
+                borderRadius: '8px',
+                backdropFilter: 'blur(16px)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)'
               }}
             >
-              <div style={{ marginBottom: '6px' }}>{item.icon}</div>
-              <div
+              {item.icon}
+              <span
                 style={{
-                  fontFamily: "var(--font-heading)",
-                  fontWeight: 700,
-                  fontSize: '1.3rem',
-                  color: '#FFFFFF',
-                  lineHeight: 1.1
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  color: '#F3F0EA'
                 }}
               >
                 {item.value}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '2px', fontWeight: 500 }}>
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#777F8E', fontWeight: 600 }}>
                 {item.label}
-              </div>
+              </span>
             </div>
           ))}
         </div>
-      </div>
+      </HeroAnimation>
     </section>
   );
 };
+
+export default HeroSection;
