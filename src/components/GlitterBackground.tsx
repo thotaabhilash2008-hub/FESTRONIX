@@ -30,14 +30,14 @@ export const GlitterBackground: React.FC = () => {
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
 
-    // Color palette matching: Cool Silver, Soft Sage, Champagne Gold, Pure White, Cyber Cyan
+    // VCE Official Emblem Palette: VCE Cobalt Blue, VCE Slate Sage, Cool Silver, Pure White
     const GLITTER_COLORS = [
       'rgba(220, 227, 229, ', // Cool Silver
-      'rgba(186, 206, 187, ', // Soft Sage
+      'rgba(186, 206, 187, ', // Soft Sage (VCE)
       'rgba(255, 255, 255, ', // Pure White
-      'rgba(251, 191, 36, ',  // Champagne Gold
-      'rgba(120, 149, 147, ', // Sage Green
-      'rgba(147, 197, 253, '  // Soft Astral Blue
+      'rgba(46, 78, 140, ',   // VCE Cobalt Navy
+      'rgba(111, 150, 147, ', // VCE Slate Sage
+      'rgba(61, 104, 178, '   // VCE Sapphire Blue
     ];
 
     // Determine particle count based on screen size - gentle, moderate ambient glitter

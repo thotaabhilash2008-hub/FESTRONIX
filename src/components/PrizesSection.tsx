@@ -15,9 +15,9 @@ export const PrizesSection: React.FC = () => {
               gap: '8px',
               padding: '6px 18px',
               borderRadius: '9999px',
-              background: 'rgba(255, 107, 53, 0.1)',
-              border: '1px solid rgba(255, 107, 53, 0.35)',
-              color: '#FF6B35',
+              background: 'rgba(46, 78, 140, 0.16)',
+              border: '1px solid rgba(61, 104, 178, 0.35)',
+              color: '#3D68B2',
               fontSize: '0.75rem',
               fontWeight: 800,
               fontFamily: "'Space Grotesk', sans-serif",
@@ -25,7 +25,7 @@ export const PrizesSection: React.FC = () => {
               marginBottom: '12px'
             }}
           >
-            <Crown size={14} color="#FF6B35" />
+            <Crown size={14} color="#3D68B2" />
             <span>06 // REWARD POOL & INCUBATION</span>
           </div>
 
@@ -38,7 +38,7 @@ export const PrizesSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            ₹5,00,000+ IN <span style={{ color: '#FF6B35' }}>AWARDS & GRANTS</span>
+            ₹5,00,000+ IN <span style={{ color: '#3D68B2' }}>AWARDS & GRANTS</span>
           </h2>
 
           <p style={{ color: '#777F8E', maxWidth: '660px', margin: '0 auto', fontSize: '0.96rem', lineHeight: 1.7 }}>
@@ -61,7 +61,7 @@ export const PrizesSection: React.FC = () => {
               className="cyber-card"
               style={{
                 padding: '36px',
-                borderTop: '2px solid #FF6B35',
+                borderTop: '2px solid #3D68B2',
                 background: 'rgba(21, 24, 32, 0.94)',
                 height: '100%',
                 boxSizing: 'border-box'
@@ -70,14 +70,14 @@ export const PrizesSection: React.FC = () => {
               <div
                 style={{
                   padding: '12px',
-                  background: 'rgba(255, 107, 53, 0.12)',
+                  background: 'rgba(46, 78, 140, 0.18)',
                   borderRadius: '12px',
                   display: 'inline-flex',
                   marginBottom: '20px',
-                  border: '1px solid rgba(255, 107, 53, 0.35)'
+                  border: '1px solid rgba(61, 104, 178, 0.35)'
                 }}
               >
-                <Crown size={26} color="#FF6B35" />
+                <Crown size={26} color="#3D68B2" />
               </div>
 
               <h3
@@ -98,7 +98,7 @@ export const PrizesSection: React.FC = () => {
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontSize: '2rem',
                   fontWeight: 800,
-                  color: '#FF6B35',
+                  color: '#3D68B2',
                   marginBottom: '14px',
                   lineHeight: 1
                 }}
@@ -184,14 +184,14 @@ export const PrizesSection: React.FC = () => {
               <div
                 style={{
                   padding: '12px',
-                  background: 'rgba(255, 107, 53, 0.1)',
+                  background: 'rgba(111, 150, 147, 0.14)',
                   borderRadius: '12px',
                   display: 'inline-flex',
                   marginBottom: '20px',
-                  border: '1px solid rgba(255, 107, 53, 0.25)'
+                  border: '1px solid rgba(111, 150, 147, 0.35)'
                 }}
               >
-                <Gem size={26} color="#F3F0EA" />
+                <Gem size={26} color="#88B2AE" />
               </div>
 
               <h3

@@ -28,9 +28,9 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
               gap: '8px',
               padding: '6px 18px',
               borderRadius: '9999px',
-              background: 'rgba(255, 107, 53, 0.1)',
-              border: '1px solid rgba(255, 107, 53, 0.35)',
-              color: '#FF6B35',
+              background: 'rgba(111, 150, 147, 0.12)',
+              border: '1px solid rgba(136, 178, 174, 0.35)',
+              color: '#88B2AE',
               fontSize: '0.75rem',
               fontWeight: 800,
               fontFamily: "'Space Grotesk', sans-serif",
@@ -38,7 +38,7 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
               marginBottom: '12px'
             }}
           >
-            <Camera size={14} color="#FF6B35" />
+            <Camera size={14} color="#88B2AE" />
             <span>05 // SPATIAL ARCHITECTURE</span>
           </div>
 
@@ -51,7 +51,7 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
               display: 'inline-block'
             }}
           >
-            THE VARDHAMAN <span style={{ color: '#FF6B35' }}>CAMPUS ARENA</span>
+            THE VARDHAMAN <span style={{ color: '#88B2AE' }}>CAMPUS ARENA</span>
           </h2>
 
           <p
@@ -124,15 +124,15 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
                     padding: '4px 12px',
                     borderRadius: '9999px',
                     background: 'rgba(8, 9, 13, 0.9)',
-                    border: '1px solid rgba(255, 107, 53, 0.4)',
-                    color: '#FF6B35',
+                    border: '1px solid rgba(136, 178, 174, 0.4)',
+                    color: '#88B2AE',
                     fontSize: '0.72rem',
                     fontWeight: 800,
                     fontFamily: "'Space Grotesk', sans-serif",
                     marginBottom: '10px'
                   }}
                 >
-                  <MapPin size={12} color="#FF6B35" />
+                  <MapPin size={12} color="#88B2AE" />
                   SHAMSHABAD, HYDERABAD
                 </span>
                 <h3
@@ -259,12 +259,12 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
                     width: '60px',
                     height: '60px',
                     borderRadius: '50%',
-                    background: 'rgba(255, 107, 53, 0.2)',
-                    border: '2px solid #FF6B35',
+                    background: 'rgba(46, 78, 140, 0.35)',
+                    border: '2px solid #3D68B2',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 0 25px rgba(255, 107, 53, 0.5)',
+                    boxShadow: '0 0 25px rgba(61, 104, 178, 0.5)',
                     transition: 'transform 0.3s ease'
                   }}
                 >
@@ -280,16 +280,16 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
                     gap: '6px',
                     padding: '4px 12px',
                     borderRadius: '9999px',
-                    background: 'rgba(255, 107, 53, 0.1)',
-                    border: '1px solid rgba(255, 107, 53, 0.35)',
-                    color: '#FF6B35',
+                    background: 'rgba(46, 78, 140, 0.15)',
+                    border: '1px solid rgba(61, 104, 178, 0.4)',
+                    color: '#3D68B2',
                     fontSize: '0.72rem',
                     fontWeight: 800,
                     fontFamily: "'Space Grotesk', sans-serif",
                     marginBottom: '10px'
                   }}
                 >
-                  <Compass size={12} color="#FF6B35" />
+                  <Compass size={12} color="#3D68B2" />
                   CINEMATIC INTRO
                 </span>
                 <h3

@@ -5,15 +5,15 @@ import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
 const iconMap: Record<string, React.ReactNode> = {
-  Cpu: <Cpu size={24} color="#C7CBD4" />,
-  Database: <Database size={24} color="#FF6B35" />,
-  Globe: <Globe size={24} color="#C7CBD4" />,
-  Radio: <Radio size={24} color="#FF6B35" />,
-  Zap: <Zap size={24} color="#C7CBD4" />,
-  Wrench: <Wrench size={24} color="#FF6B35" />,
-  Building: <Building2 size={24} color="#C7CBD4" />,
-  Brain: <BrainCircuit size={24} color="#FF6B35" />,
-  Briefcase: <Briefcase size={24} color="#C7CBD4" />
+  Cpu: <Cpu size={24} color="#DCE3E8" />,
+  Database: <Database size={24} color="#88B2AE" />,
+  Globe: <Globe size={24} color="#DCE3E8" />,
+  Radio: <Radio size={24} color="#3D68B2" />,
+  Zap: <Zap size={24} color="#DCE3E8" />,
+  Wrench: <Wrench size={24} color="#88B2AE" />,
+  Building: <Building2 size={24} color="#DCE3E8" />,
+  Brain: <BrainCircuit size={24} color="#3D68B2" />,
+  Briefcase: <Briefcase size={24} color="#DCE3E8" />
 };
 
 export const DepartmentsSection: React.FC = () => {
@@ -28,9 +28,9 @@ export const DepartmentsSection: React.FC = () => {
               gap: '8px',
               padding: '6px 18px',
               borderRadius: '9999px',
-              background: 'rgba(255, 107, 53, 0.1)',
-              border: '1px solid rgba(255, 107, 53, 0.35)',
-              color: '#FF6B35',
+              background: 'rgba(111, 150, 147, 0.12)',
+              border: '1px solid rgba(111, 150, 147, 0.35)',
+              color: '#88B2AE',
               fontSize: '0.75rem',
               fontWeight: 800,
               fontFamily: "'Space Grotesk', sans-serif",
@@ -38,7 +38,7 @@ export const DepartmentsSection: React.FC = () => {
               marginBottom: '12px'
             }}
           >
-            <BrainCircuit size={14} color="#FF6B35" />
+            <BrainCircuit size={14} color="#88B2AE" />
             <span>04 // PARTICIPATING ENGINEERING FACULTIES</span>
           </div>
 
@@ -51,7 +51,7 @@ export const DepartmentsSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            9 INNOVATION <span style={{ color: '#FF6B35' }}>FACULTIES</span>
+            9 INNOVATION <span style={{ color: '#88B2AE' }}>FACULTIES</span>
           </h2>
 
           <p style={{ color: '#777F8E', maxWidth: '660px', margin: '0 auto', fontSize: '0.96rem', lineHeight: 1.7 }}>
@@ -101,11 +101,11 @@ export const DepartmentsSection: React.FC = () => {
                           fontFamily: "'Space Grotesk', sans-serif",
                           fontSize: '0.85rem',
                           fontWeight: 800,
-                          color: '#FF6B35',
+                          color: '#88B2AE',
                           padding: '3px 10px',
                           borderRadius: '6px',
-                          background: 'rgba(255, 107, 53, 0.1)',
-                          border: '1px solid rgba(255, 107, 53, 0.35)'
+                          background: 'rgba(111, 150, 147, 0.14)',
+                          border: '1px solid rgba(111, 150, 147, 0.35)'
                         }}
                       >
                         {dept.code}
@@ -139,14 +139,14 @@ export const DepartmentsSection: React.FC = () => {
                     <div
                       style={{
                         fontSize: '0.74rem',
-                        color: '#FF6B35',
+                        color: '#88B2AE',
                         marginTop: '5px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '5px'
                       }}
                     >
-                      <Mail size={12} color="#FF6B35" /> {dept.contact}
+                      <Mail size={12} color="#88B2AE" /> {dept.contact}
                     </div>
                   </div>
                 </div>

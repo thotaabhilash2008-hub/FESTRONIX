@@ -124,14 +124,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#FF6B35',
-                boxShadow: '0 0 10px #FF6B35'
+                backgroundColor: '#88B2AE',
+                boxShadow: '0 0 10px #88B2AE'
               }}
             />
             <span
               style={{
                 fontSize: 'clamp(0.68rem, 2vw, 0.76rem)',
-                color: '#C7CBD4',
+                color: '#DCE3E8',
                 letterSpacing: '0.12em',
                 fontWeight: 700,
                 fontFamily: "'Space Grotesk', sans-serif",
@@ -141,13 +141,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               VARDHAMAN COLLEGE OF ENGINEERING
             </span>
           </div>
-          <span style={{ color: '#777F8E', fontSize: '0.75rem' }}>//</span>
+          <span style={{ color: '#7E8D9F', fontSize: '0.75rem' }}>//</span>
           <span
             style={{
               fontSize: '0.7rem',
-              background: 'rgba(255, 107, 53, 0.12)',
-              border: '1px solid rgba(255, 107, 53, 0.4)',
-              color: '#FF6B35',
+              background: 'rgba(111, 150, 147, 0.15)',
+              border: '1px solid rgba(111, 150, 147, 0.45)',
+              color: '#88B2AE',
               padding: '2px 8px',
               borderRadius: '9999px',
               fontWeight: 800,
@@ -178,7 +178,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)'
             }}
           >
-            <Radio size={12} color="#FF6B35" />
+            <Radio size={12} color="#88B2AE" />
             <span
               style={{
                 fontFamily: "'Space Grotesk', sans-serif",
@@ -275,7 +275,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <span
             style={{
               fontSize: '0.68rem',
-              color: '#FF6B35',
+              color: '#88B2AE',
               fontWeight: 800,
               letterSpacing: '0.14em',
               fontFamily: "'Space Grotesk', sans-serif"
@@ -294,8 +294,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div
                   style={{
-                    background: 'rgba(8, 9, 13, 0.85)',
-                    border: '1px solid rgba(199, 203, 212, 0.16)',
+                    background: 'rgba(8, 12, 22, 0.85)',
+                    border: '1px solid rgba(220, 227, 232, 0.16)',
                     borderRadius: '6px',
                     padding: '4px 8px',
                     textAlign: 'center',
@@ -307,7 +307,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                       fontFamily: "'Space Grotesk', sans-serif",
                       fontWeight: 800,
                       fontSize: '1.05rem',
-                      color: '#F3F0EA',
+                      color: '#F0F4F8',
                       lineHeight: 1
                     }}
                   >
@@ -316,7 +316,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   <div
                     style={{
                       fontSize: '0.5rem',
-                      color: '#777F8E',
+                      color: '#7E8D9F',
                       fontWeight: 700,
                       letterSpacing: '0.08em',
                       fontFamily: "'Space Grotesk', sans-serif",
@@ -327,7 +327,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   </div>
                 </div>
                 {i < 3 && (
-                  <span style={{ color: 'rgba(199, 203, 212, 0.3)', fontSize: '0.9rem', fontWeight: 300 }}>:</span>
+                  <span style={{ color: 'rgba(220, 227, 232, 0.3)', fontSize: '0.9rem', fontWeight: 300 }}>:</span>
                 )}
               </div>
             ))}
@@ -348,10 +348,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           {[
-            { icon: <Trophy size={14} color="#FF6B35" />, value: '₹5,00,000+', label: 'Prize Pool' },
-            { icon: <Users size={14} color="#C7CBD4" />, value: '3,500+', label: 'Competitors' },
-            { icon: <Flame size={14} color="#FF6B35" />, value: '30+ Arenas', label: '8 Branches' },
-            { icon: <QrCode size={14} color="#C7CBD4" />, value: 'Crypto Pass', label: 'Instant Check-in' }
+            { icon: <Trophy size={14} color="#88B2AE" />, value: '₹5,00,000+', label: 'Prize Pool' },
+            { icon: <Users size={14} color="#DCE3E8" />, value: '3,500+', label: 'Competitors' },
+            { icon: <Flame size={14} color="#3D68B2" />, value: '30+ Arenas', label: '8 Branches' },
+            { icon: <QrCode size={14} color="#88B2AE" />, value: 'Crypto Pass', label: 'Instant Check-in' }
           ].map((item, i) => (
             <div
               key={i}

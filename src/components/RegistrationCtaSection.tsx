@@ -59,9 +59,9 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 gap: '8px',
                 padding: '6px 18px',
                 borderRadius: '9999px',
-                background: 'rgba(255, 107, 53, 0.12)',
-                border: '1px solid rgba(255, 107, 53, 0.4)',
-                color: '#FF6B35',
+                background: 'rgba(111, 150, 147, 0.12)',
+                border: '1px solid rgba(136, 178, 174, 0.4)',
+                color: '#88B2AE',
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 fontFamily: "'Space Grotesk', sans-serif",
@@ -69,7 +69,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 marginBottom: '20px'
               }}
             >
-              <Ticket size={14} color="#FF6B35" />
+              <Ticket size={14} color="#88B2AE" />
               <span>07 // OFFICIAL FESTIVAL ADMISSION</span>
             </div>
 
@@ -83,7 +83,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 lineHeight: 1.05
               }}
             >
-              CLAIM YOUR <span style={{ color: '#FF6B35' }}>FESTRONIX PASS</span>
+              CLAIM YOUR <span style={{ color: '#88B2AE' }}>FESTRONIX PASS</span>
             </h2>
 
             <p
@@ -109,9 +109,9 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               {[
-                { icon: <QrCode size={15} color="#FF6B35" />, text: 'Cryptographic QR Mobile Pass' },
+                { icon: <QrCode size={15} color="#88B2AE" />, text: 'Cryptographic QR Mobile Pass' },
                 { icon: <Shield size={15} color="#C7CBD4" />, text: 'SAC Official Endorsement' },
-                { icon: <Sparkles size={15} color="#FF6B35" />, text: '₹5,00,000+ Prize Pool Access' }
+                { icon: <Sparkles size={15} color="#3D68B2" />, text: '₹5,00,000+ Prize Pool Access' }
               ].map((perk, i) => (
                 <div
                   key={i}

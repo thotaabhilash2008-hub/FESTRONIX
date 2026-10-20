@@ -135,25 +135,25 @@ const StageChoreographer: React.FC<{ scrollProgress: number; reducedMotion: bool
         castShadow
       />
 
-      {/* 2. Electric Amber Fill Light */}
+      {/* 2. VCE Royal Cobalt Sapphire Fill Light */}
       <pointLight
         ref={amberFillRef}
         position={[-5, -1, 3]}
-        intensity={2.4}
-        color="#FF6B35"
+        intensity={2.6}
+        color="#3D68B2"
         distance={16}
       />
 
-      {/* 3. Liquid Silver Rim Accent */}
+      {/* 3. VCE Sage Rim Accent */}
       <pointLight
         position={[4, -3, -3]}
-        intensity={2.2}
-        color="#C7CBD4"
+        intensity={2.4}
+        color="#6F9693"
         distance={14}
       />
 
       {/* Baseline Ambient baseline */}
-      <ambientLight intensity={0.5} color="#151820" />
+      <ambientLight intensity={0.55} color="#0E1626" />
 
       {/* Studio HDRI Environment for Liquid Silver reflections */}
       <Environment preset="city" />
@@ -197,8 +197,8 @@ export const KineticStage3D: React.FC = () => {
           powerPreference: 'high-performance'
         }}
       >
-        {/* Obsidian Atmospheric Distance Fog */}
-        <fog attach="fog" args={['#08090D', 5, 22]} />
+        {/* VCE Midnight Atmospheric Distance Fog */}
+        <fog attach="fog" args={['#080C16', 5, 22]} />
 
         <Suspense fallback={null}>
           <StageChoreographer

@@ -25,9 +25,9 @@ export const AboutSection: React.FC = () => {
               gap: '8px',
               padding: '6px 18px',
               borderRadius: '9999px',
-              background: 'rgba(255, 107, 53, 0.1)',
-              border: '1px solid rgba(255, 107, 53, 0.35)',
-              color: '#FF6B35',
+              background: 'rgba(111, 150, 147, 0.12)',
+              border: '1px solid rgba(111, 150, 147, 0.35)',
+              color: '#88B2AE',
               fontSize: '0.75rem',
               fontWeight: 800,
               fontFamily: "'Space Grotesk', sans-serif",
@@ -35,7 +35,7 @@ export const AboutSection: React.FC = () => {
               marginBottom: '14px'
             }}
           >
-            <Sparkles size={14} color="#FF6B35" />
+            <Sparkles size={14} color="#88B2AE" />
             <span>01 // THE GENESIS & MISSION</span>
           </div>
 
@@ -49,7 +49,7 @@ export const AboutSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            WHERE ENGINEERING MEETS <span style={{ color: '#FF6B35' }}>RAW ADRENALINE</span>
+            WHERE ENGINEERING MEETS <span style={{ color: '#88B2AE' }}>RAW ADRENALINE</span>
           </h2>
 
           <p
@@ -100,16 +100,16 @@ export const AboutSection: React.FC = () => {
                       width: '46px',
                       height: '46px',
                       borderRadius: '12px',
-                      background: 'rgba(255, 107, 53, 0.12)',
-                      border: '1px solid rgba(255, 107, 53, 0.35)',
+                      background: 'rgba(46, 78, 140, 0.18)',
+                      border: '1px solid rgba(61, 104, 178, 0.35)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
                   >
-                    <Cpu size={22} color="#FF6B35" />
+                    <Cpu size={22} color="#3D68B2" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#FF6B35', fontWeight: 800 }}>
+                  <span className="text-editorial-meta" style={{ color: '#3D68B2', fontWeight: 800 }}>
                     DOSSIER 01
                   </span>
                 </div>
@@ -142,12 +142,12 @@ export const AboutSection: React.FC = () => {
                   alignItems: 'center',
                   gap: '8px',
                   fontSize: '0.78rem',
-                  color: '#C7CBD4',
+                  color: '#DCE3E8',
                   fontWeight: 700,
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <Terminal size={14} color="#FF6B35" />
+                <Terminal size={14} color="#3D68B2" />
                 <span>30+ COMPETITIVE ARENAS</span>
               </div>
             </div>
@@ -252,16 +252,16 @@ export const AboutSection: React.FC = () => {
                       width: '46px',
                       height: '46px',
                       borderRadius: '12px',
-                      background: 'rgba(255, 107, 53, 0.12)',
-                      border: '1px solid rgba(255, 107, 53, 0.35)',
+                      background: 'rgba(111, 150, 147, 0.16)',
+                      border: '1px solid rgba(111, 150, 147, 0.35)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
                   >
-                    <Rocket size={22} color="#FF6B35" />
+                    <Rocket size={22} color="#88B2AE" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#FF6B35', fontWeight: 800 }}>
+                  <span className="text-editorial-meta" style={{ color: '#88B2AE', fontWeight: 800 }}>
                     DOSSIER 03
                   </span>
                 </div>
@@ -294,12 +294,12 @@ export const AboutSection: React.FC = () => {
                   alignItems: 'center',
                   gap: '8px',
                   fontSize: '0.78rem',
-                  color: '#FF6B35',
+                  color: '#88B2AE',
                   fontWeight: 700,
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <Rocket size={14} color="#FF6B35" />
+                <Rocket size={14} color="#88B2AE" />
                 <span>₹5,00,000+ AWARDS & CIE GRANTS</span>
               </div>
             </div>

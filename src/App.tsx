@@ -224,7 +224,7 @@ export const App: React.FC = () => {
           left: 0,
           right: 0,
           height: '14px',
-          backgroundColor: '#08090D',
+          backgroundColor: '#080C16',
           zIndex: 49,
           pointerEvents: 'none'
         }}
