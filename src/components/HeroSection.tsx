@@ -51,7 +51,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         overflow: 'hidden'
       }}
     >
-      {/* Cinematic Campus Architectural Backing (Subtle, desaturated depth) */}
+      {/* Lightened, Vivid Campus Architectural Backing */}
       <div
         style={{
           position: 'absolute',
@@ -67,18 +67,34 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            filter: 'grayscale(0.65) brightness(0.28) contrast(1.15)',
+            filter: 'grayscale(0.18) brightness(0.72) contrast(1.08)',
             transform: 'scale(1.02)',
             display: 'block'
           }}
         />
-        {/* Obsidian atmospheric depth gradients */}
+        {/* Soft, lightened atmospheric gradient: preserves clean visibility of campus while transitioning seamlessly at bottom */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
             background:
-              'linear-gradient(180deg, rgba(8, 9, 13, 0.4) 0%, rgba(8, 9, 13, 0.65) 40%, rgba(8, 9, 13, 0.92) 80%, #08090D 100%)'
+              'linear-gradient(180deg, rgba(8, 12, 22, 0.12) 0%, rgba(8, 12, 22, 0.22) 40%, rgba(8, 12, 22, 0.58) 78%, #080C16 100%)'
+          }}
+        />
+        {/* Subtle luminous ambient glow to illuminate the 3D logo and title area */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '32%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '88%',
+            maxWidth: '1000px',
+            height: '420px',
+            background:
+              'radial-gradient(ellipse at center, rgba(61, 104, 178, 0.2) 0%, rgba(136, 178, 174, 0.09) 45%, transparent 75%)',
+            pointerEvents: 'none',
+            filter: 'blur(35px)'
           }}
         />
       </div>
@@ -111,7 +127,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             gap: '8px',
             padding: '5px 16px',
             borderRadius: '9999px',
-            background: 'rgba(21, 24, 32, 0.85)',
+            background: 'rgba(21, 24, 32, 0.88)',
             border: '1px solid rgba(199, 203, 212, 0.22)',
             backdropFilter: 'blur(20px)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
@@ -198,10 +214,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           style={{
             maxWidth: '640px',
             fontSize: 'clamp(0.85rem, 1.2vw, 0.98rem)',
-            color: '#949BA8',
+            color: '#CBD5E1',
             lineHeight: 1.55,
             margin: '0 auto',
-            fontWeight: 400
+            fontWeight: 400,
+            textShadow: '0 2px 10px rgba(0, 0, 0, 0.85)'
           }}
         >
           The premier collegiate arena of autonomous robotics, precision algorithmic engineering,
@@ -231,7 +248,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <span>Explore 30+ Arenas</span>
             <ArrowRight size={15} />
           </button>
-
 
           <button
             onClick={onRegisterNow}
