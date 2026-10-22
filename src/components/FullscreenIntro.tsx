@@ -26,7 +26,7 @@ const getIntroVideoSrc = (): string => {
   const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
 
   if (isNineSixteenOrPortrait || isMobileOrTabletScreen || (isMobileUserAgent && isTouchDevice)) {
-    return '/intro_phone.mp4';
+    return '/intro_mobile.mp4';
   }
 
   // Desktop landscape devices
@@ -141,7 +141,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         overscrollBehavior: 'none'
       }}
     >
-      {/* Fullscreen Video (intro_phone.mp4 for mobile/tablet/9:16 devices, intro_final2.mp4 for desktop) */}
+      {/* Fullscreen Video (intro_mobile.mp4 for mobile/tablet/9:16 devices, intro_final2.mp4 for desktop) */}
       <video
         ref={videoRef}
         key={videoSrc}

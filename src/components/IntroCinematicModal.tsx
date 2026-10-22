@@ -27,7 +27,7 @@ const getIntroVideoSrc = (): string => {
   const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
 
   if (isNineSixteenOrPortrait || isMobileOrTabletScreen || (isMobileUserAgent && isTouchDevice)) {
-    return '/intro_phone.mp4';
+    return '/intro_mobile.mp4';
   }
 
   // Desktop landscape devices
@@ -124,7 +124,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
     }
   };
 
-  const isPortraitMode = videoSrc === '/intro_phone.mp4';
+  const isPortraitMode = videoSrc === '/intro_mobile.mp4';
 
   return (
     <div 
