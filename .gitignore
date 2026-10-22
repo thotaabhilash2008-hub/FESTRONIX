@@ -28,3 +28,6 @@ dist-ssr
 .env.local
 .env.*.local
 check_db.mjs
+
+# Local loose media files
+/intro phone.mp4

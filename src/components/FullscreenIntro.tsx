@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { Volume2, VolumeX, ArrowRight } from 'lucide-react';
 
 interface FullscreenIntroProps {
@@ -6,12 +6,55 @@ interface FullscreenIntroProps {
   onFinish: () => void;
 }
 
+// Determines if device is mobile, tablet, or 9:16 portrait display
+const getIntroVideoSrc = (): string => {
+  if (typeof window === 'undefined') return '/intro_final2.mp4';
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const aspectRatio = width / (height || 1);
+
+  // 9:16 aspect ratio or vertical portrait devices (e.g. phones in portrait)
+  const isNineSixteenOrPortrait = aspectRatio <= 0.85 ||
+    (window.matchMedia && window.matchMedia('(orientation: portrait)').matches);
+
+  // Mobile or tablet detection (screens <= 1024px or mobile touch devices)
+  const isMobileOrTabletScreen = width <= 1024;
+  const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Tablet/i.test(
+    navigator.userAgent
+  );
+  const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+
+  if (isNineSixteenOrPortrait || isMobileOrTabletScreen || (isMobileUserAgent && isTouchDevice)) {
+    return '/intro_phone.mp4';
+  }
+
+  // Desktop landscape devices
+  return '/intro_final2.mp4';
+};
+
 export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
   isOpen,
   onFinish
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isMuted, setIsMuted] = useState(true);
+  const [videoSrc, setVideoSrc] = useState<string>(getIntroVideoSrc);
+
+  // Dynamically update source if screen orientation or viewport changes
+  useEffect(() => {
+    const handleResize = () => {
+      const nextSrc = getIntroVideoSrc();
+      setVideoSrc(prev => (prev !== nextSrc ? nextSrc : prev));
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -50,7 +93,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
       document.body.style.touchAction = prevBodyTouchAction;
       window.removeEventListener('touchmove', preventDefaultTouch);
     };
-  }, [isOpen]);
+  }, [isOpen, videoSrc]);
 
   if (!isOpen) return null;
 
@@ -98,10 +141,11 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         overscrollBehavior: 'none'
       }}
     >
-      {/* Fullscreen Video */}
+      {/* Fullscreen Video (intro_phone.mp4 for mobile/tablet/9:16 devices, intro_final2.mp4 for desktop) */}
       <video
         ref={videoRef}
-        src="/intro_final2.mp4"
+        key={videoSrc}
+        src={videoSrc}
         autoPlay
         playsInline
         muted={isMuted}
@@ -116,7 +160,9 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           display: 'block',
           pointerEvents: 'none'
         }}
-      />
+      >
+        <source src={videoSrc} type="video/mp4" />
+      </video>
 
       {/* Bottom ambient gradient */}
       <div

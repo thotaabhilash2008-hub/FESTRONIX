@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { Play, Volume2, VolumeX, X, Maximize2, Sparkles, ArrowRight } from 'lucide-react';
 
 interface IntroCinematicModalProps {
@@ -6,6 +6,33 @@ interface IntroCinematicModalProps {
   onClose: () => void;
   isInitialGreeting?: boolean;
 }
+
+// Determines if device is mobile, tablet, or 9:16 portrait display
+const getIntroVideoSrc = (): string => {
+  if (typeof window === 'undefined') return '/intro_final2.mp4';
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const aspectRatio = width / (height || 1);
+
+  // 9:16 aspect ratio or vertical portrait devices
+  const isNineSixteenOrPortrait = aspectRatio <= 0.85 ||
+    (window.matchMedia && window.matchMedia('(orientation: portrait)').matches);
+
+  // Mobile or tablet detection (screens <= 1024px or mobile touch devices)
+  const isMobileOrTabletScreen = width <= 1024;
+  const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Tablet/i.test(
+    navigator.userAgent
+  );
+  const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+
+  if (isNineSixteenOrPortrait || isMobileOrTabletScreen || (isMobileUserAgent && isTouchDevice)) {
+    return '/intro_phone.mp4';
+  }
+
+  // Desktop landscape devices
+  return '/intro_final2.mp4';
+};
 
 export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
   isOpen,
@@ -17,6 +44,21 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [videoSrc, setVideoSrc] = useState<string>(getIntroVideoSrc);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const nextSrc = getIntroVideoSrc();
+      setVideoSrc(prev => (prev !== nextSrc ? nextSrc : prev));
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -38,7 +80,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
       document.body.style.overflow = prevOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
     };
-  }, [isOpen]);
+  }, [isOpen, videoSrc]);
 
   if (!isOpen) return null;
 
@@ -82,25 +124,31 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
     }
   };
 
+  const isPortraitMode = videoSrc === '/intro_phone.mp4';
+
   return (
     <div 
       className="modal-backdrop" 
       style={{ 
         zIndex: 9999, 
         backgroundColor: 'rgba(3, 5, 14, 0.96)', 
-        padding: '16px' 
+        padding: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
     >
       <div 
         style={{
           width: '100%',
-          maxWidth: '1100px',
+          maxWidth: isPortraitMode ? '480px' : '1100px',
           background: '#101A35',
           border: '1px solid rgba(120, 149, 147, 0.4)',
           borderRadius: '20px',
           overflow: 'hidden',
           boxShadow: '0 0 60px rgba(40, 59, 120, 0.4), 0 0 80px rgba(120, 149, 147, 0.2)',
-          position: 'relative'
+          position: 'relative',
+          transition: 'max-width 0.3s ease'
         }}
       >
         {/* Top Header Bar */}
@@ -127,9 +175,6 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
             <span className="font-display" style={{ fontSize: '0.88rem', color: '#FFFFFF', letterSpacing: '0.08em' }}>
               FESTRONIX 2026 // OFFICIAL CINEMATIC INTRO
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#A8B3C2', marginLeft: '6px' }}>
-              Vardhaman College of Engineering
-            </span>
           </div>
 
           <button
@@ -152,10 +197,17 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
         </div>
 
         {/* Video Player Container */}
-        <div style={{ position: 'relative', width: '100%', backgroundColor: '#000', aspectRatio: '16/9' }}>
+        <div style={{ 
+          position: 'relative', 
+          width: '100%', 
+          backgroundColor: '#000', 
+          aspectRatio: isPortraitMode ? '9/16' : '16/9',
+          maxHeight: isPortraitMode ? '75vh' : 'auto'
+        }}>
           <video
             ref={videoRef}
-            src="/intro_final2.mp4"
+            key={videoSrc}
+            src={videoSrc}
             autoPlay
             playsInline
             muted={isMuted}
@@ -167,7 +219,9 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
               objectFit: 'cover',
               display: 'block'
             }}
-          />
+          >
+            <source src={videoSrc} type="video/mp4" />
+          </video>
 
           {/* Video Floating Controls Overlay */}
           <div 
@@ -242,7 +296,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                   }}
                 >
                   {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                  <span>{isMuted ? 'Unmute Audio 🔊' : 'Audio On'}</span>
+                  <span>{isMuted ? 'Unmute Audio' : 'Audio On'}</span>
                 </button>
               </div>
 
