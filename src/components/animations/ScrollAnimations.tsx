@@ -30,12 +30,13 @@ export const ScrollAnimationsProvider: React.FC<ScrollAnimationsProviderProps> =
     }
 
     const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      duration: 0.95,
+      easing: (t: number) => 1 - Math.pow(1 - t, 3), // cubic ease-out for immediate, responsive control
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      touchMultiplier: 1.5
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.2
     });
 
     lenisRef.current = lenis;

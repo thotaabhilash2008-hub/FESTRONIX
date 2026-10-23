@@ -353,10 +353,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           {[
-            { icon: <Trophy size={14} color="#88B2AE" />, value: '₹5,00,000+', label: 'Prize Pool' },
-            { icon: <Users size={14} color="#DCE3E8" />, value: '3,500+', label: 'Competitors' },
-            { icon: <Flame size={14} color="#3D68B2" />, value: '30+ Arenas', label: '8 Branches' },
-            { icon: <QrCode size={14} color="#88B2AE" />, value: 'Crypto Pass', label: 'Instant Check-in' }
+            { icon: <Trophy size={14} color="#FBBF24" />, value: '₹5,00,000+', label: 'Prize Pool' },
+            { icon: <Users size={14} color="#38BDF8" />, value: '3,500+', label: 'Competitors' },
+            { icon: <Flame size={14} color="#38BDF8" />, value: '30+ Arenas', label: '9 Branches' },
+            { icon: <QrCode size={14} color="#34D399" />, value: 'Crypto Pass', label: 'Instant Check-in' }
           ].map((item, i) => (
             <div
               key={i}
@@ -365,11 +365,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 alignItems: 'center',
                 gap: '8px',
                 padding: '6px 14px',
-                background: 'rgba(21, 24, 32, 0.85)',
-                border: '1px solid rgba(199, 203, 212, 0.16)',
+                background: 'rgba(15, 22, 38, 0.9)',
+                border: '1px solid rgba(148, 163, 184, 0.22)',
                 borderRadius: '8px',
                 backdropFilter: 'blur(16px)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)'
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.7)'
               }}
             >
               {item.icon}
@@ -378,12 +378,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontWeight: 800,
                   fontSize: '0.85rem',
-                  color: '#F3F0EA'
+                  color: '#FFFFFF'
                 }}
               >
                 {item.value}
               </span>
-              <span style={{ fontSize: '0.72rem', color: '#777F8E', fontWeight: 600 }}>
+              <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>
                 {item.label}
               </span>
             </div>

@@ -16,7 +16,7 @@ export const AboutSection: React.FC = () => {
       }}
     >
       {/* Editorial Header */}
-      <ScrollReveal threshold="top 85%" duration={0.9}>
+      <ScrollReveal threshold="top 85%" duration={0.8}>
         <div style={{ textAlign: 'center', marginBottom: '56px' }}>
           <div
             style={{
@@ -25,17 +25,18 @@ export const AboutSection: React.FC = () => {
               gap: '8px',
               padding: '6px 18px',
               borderRadius: '9999px',
-              background: 'rgba(111, 150, 147, 0.12)',
-              border: '1px solid rgba(111, 150, 147, 0.35)',
-              color: '#88B2AE',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              color: '#38BDF8',
               fontSize: '0.75rem',
               fontWeight: 800,
               fontFamily: "'Space Grotesk', sans-serif",
               letterSpacing: '0.16em',
-              marginBottom: '14px'
+              marginBottom: '14px',
+              boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
             }}
           >
-            <Sparkles size={14} color="#88B2AE" />
+            <Sparkles size={14} color="#38BDF8" />
             <span>01 // THE GENESIS & MISSION</span>
           </div>
 
@@ -45,20 +46,21 @@ export const AboutSection: React.FC = () => {
               fontSize: 'clamp(2.4rem, 5.5vw, 3.8rem)',
               fontWeight: 800,
               margin: '0 0 16px 0',
-              lineHeight: 1.1,
+              lineHeight: 1.15,
               display: 'inline-block'
             }}
           >
-            WHERE ENGINEERING MEETS <span style={{ color: '#88B2AE' }}>RAW ADRENALINE</span>
+            WHERE ENGINEERING MEETS <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>RAW ADRENALINE</span>
           </h2>
 
           <p
             style={{
-              color: '#777F8E',
+              color: '#CBD5E1',
               maxWidth: '740px',
               margin: '0 auto',
-              fontSize: 'clamp(0.98rem, 1.4vw, 1.1rem)',
-              lineHeight: 1.75
+              fontSize: 'clamp(0.98rem, 1.4vw, 1.12rem)',
+              lineHeight: 1.75,
+              textShadow: '0 1px 4px rgba(0,0,0,0.8)'
             }}
           >
             Orchestrated by the Student Affairs Council (SAC) at Vardhaman College of Engineering,
@@ -69,7 +71,7 @@ export const AboutSection: React.FC = () => {
       </ScrollReveal>
 
       {/* Numbered Editorial Dossier Cards */}
-      <ScrollReveal threshold="top 80%" stagger={0.12} duration={0.9}>
+      <ScrollReveal threshold="top 80%" stagger={0.12} duration={0.8}>
         <div
           style={{
             display: 'grid',
@@ -84,8 +86,10 @@ export const AboutSection: React.FC = () => {
               style={{
                 padding: '36px',
                 borderRadius: '20px',
-                background: 'rgba(21, 24, 32, 0.92)',
-                border: '1px solid rgba(199, 203, 212, 0.18)',
+                background: 'rgba(15, 22, 38, 0.94)',
+                border: '1px solid rgba(148, 163, 184, 0.22)',
+                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 24px rgba(56, 189, 248, 0.08)',
+                backdropFilter: 'blur(20px)',
                 height: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -100,16 +104,16 @@ export const AboutSection: React.FC = () => {
                       width: '46px',
                       height: '46px',
                       borderRadius: '12px',
-                      background: 'rgba(46, 78, 140, 0.18)',
-                      border: '1px solid rgba(61, 104, 178, 0.35)',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
                   >
-                    <Cpu size={22} color="#3D68B2" />
+                    <Cpu size={22} color="#38BDF8" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#3D68B2', fontWeight: 800 }}>
+                  <span className="text-editorial-meta" style={{ color: '#38BDF8', fontWeight: 800 }}>
                     DOSSIER 01
                   </span>
                 </div>
@@ -119,7 +123,7 @@ export const AboutSection: React.FC = () => {
                     fontFamily: "'Space Grotesk', sans-serif",
                     fontSize: '1.35rem',
                     fontWeight: 800,
-                    color: '#F3F0EA',
+                    color: '#FFFFFF',
                     marginBottom: '10px',
                     letterSpacing: '-0.02em'
                   }}
@@ -127,7 +131,7 @@ export const AboutSection: React.FC = () => {
                   Battle-Hardened Arenas
                 </h3>
 
-                <p style={{ color: '#777F8E', fontSize: '0.92rem', lineHeight: 1.7 }}>
+                <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
                   From heavy steel combat RoboWars and autonomous drone obstacle courses to 24-hour non-stop
                   hackathons, every arena is supervised by expert faculty juries and verified technical standards.
                 </p>
@@ -137,17 +141,17 @@ export const AboutSection: React.FC = () => {
                 style={{
                   marginTop: '24px',
                   paddingTop: '18px',
-                  borderTop: '1px solid rgba(199, 203, 212, 0.1)',
+                  borderTop: '1px solid rgba(148, 163, 184, 0.16)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   fontSize: '0.78rem',
-                  color: '#DCE3E8',
+                  color: '#38BDF8',
                   fontWeight: 700,
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <Terminal size={14} color="#3D68B2" />
+                <Terminal size={14} color="#38BDF8" />
                 <span>30+ COMPETITIVE ARENAS</span>
               </div>
             </div>
@@ -160,8 +164,10 @@ export const AboutSection: React.FC = () => {
               style={{
                 padding: '36px',
                 borderRadius: '20px',
-                background: 'rgba(21, 24, 32, 0.92)',
-                border: '1px solid rgba(199, 203, 212, 0.18)',
+                background: 'rgba(15, 22, 38, 0.94)',
+                border: '1px solid rgba(148, 163, 184, 0.22)',
+                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 24px rgba(56, 189, 248, 0.08)',
+                backdropFilter: 'blur(20px)',
                 height: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -176,16 +182,16 @@ export const AboutSection: React.FC = () => {
                       width: '46px',
                       height: '46px',
                       borderRadius: '12px',
-                      background: 'rgba(199, 203, 212, 0.12)',
-                      border: '1px solid rgba(199, 203, 212, 0.3)',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
                   >
-                    <ShieldCheck size={22} color="#C7CBD4" />
+                    <ShieldCheck size={22} color="#FFFFFF" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#C7CBD4', fontWeight: 800 }}>
+                  <span className="text-editorial-meta" style={{ color: '#E2E8F0', fontWeight: 800 }}>
                     DOSSIER 02
                   </span>
                 </div>
@@ -195,7 +201,7 @@ export const AboutSection: React.FC = () => {
                     fontFamily: "'Space Grotesk', sans-serif",
                     fontSize: '1.35rem',
                     fontWeight: 800,
-                    color: '#F3F0EA',
+                    color: '#FFFFFF',
                     marginBottom: '10px',
                     letterSpacing: '-0.02em'
                   }}
@@ -203,7 +209,7 @@ export const AboutSection: React.FC = () => {
                   Autonomous Vanguard
                 </h3>
 
-                <p style={{ color: '#777F8E', fontSize: '0.92rem', lineHeight: 1.7 }}>
+                <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
                   Hosted across Vardhaman College of Engineering's 20+ acre campus in Shamshabad, Hyderabad.
                   Recognized with NAAC 'A++' Grade and NBA Accreditation for high-precision technical education.
                 </p>
@@ -213,17 +219,17 @@ export const AboutSection: React.FC = () => {
                 style={{
                   marginTop: '24px',
                   paddingTop: '18px',
-                  borderTop: '1px solid rgba(199, 203, 212, 0.1)',
+                  borderTop: '1px solid rgba(148, 163, 184, 0.16)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   fontSize: '0.78rem',
-                  color: '#C7CBD4',
+                  color: '#E2E8F0',
                   fontWeight: 700,
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <ShieldCheck size={14} color="#C7CBD4" />
+                <ShieldCheck size={14} color="#38BDF8" />
                 <span>NAAC A++ • SHAMSHABAD HYDERABAD</span>
               </div>
             </div>
@@ -236,8 +242,10 @@ export const AboutSection: React.FC = () => {
               style={{
                 padding: '36px',
                 borderRadius: '20px',
-                background: 'rgba(21, 24, 32, 0.92)',
-                border: '1px solid rgba(199, 203, 212, 0.18)',
+                background: 'rgba(15, 22, 38, 0.94)',
+                border: '1px solid rgba(148, 163, 184, 0.22)',
+                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 24px rgba(56, 189, 248, 0.08)',
+                backdropFilter: 'blur(20px)',
                 height: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -252,16 +260,16 @@ export const AboutSection: React.FC = () => {
                       width: '46px',
                       height: '46px',
                       borderRadius: '12px',
-                      background: 'rgba(111, 150, 147, 0.16)',
-                      border: '1px solid rgba(111, 150, 147, 0.35)',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}
                   >
-                    <Rocket size={22} color="#88B2AE" />
+                    <Rocket size={22} color="#38BDF8" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#88B2AE', fontWeight: 800 }}>
+                  <span className="text-editorial-meta" style={{ color: '#38BDF8', fontWeight: 800 }}>
                     DOSSIER 03
                   </span>
                 </div>
@@ -271,7 +279,7 @@ export const AboutSection: React.FC = () => {
                     fontFamily: "'Space Grotesk', sans-serif",
                     fontSize: '1.35rem',
                     fontWeight: 800,
-                    color: '#F3F0EA',
+                    color: '#FFFFFF',
                     marginBottom: '10px',
                     letterSpacing: '-0.02em'
                   }}
@@ -279,7 +287,7 @@ export const AboutSection: React.FC = () => {
                   CIE Capital & Grants
                 </h3>
 
-                <p style={{ color: '#777F8E', fontSize: '0.92rem', lineHeight: 1.7 }}>
+                <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
                   Winners gain direct access to CIE incubation seed capital, institutional patent mentoring,
                   and live cloud credits, plus automated digital cryptographic pass issuance for every attendee.
                 </p>
@@ -289,17 +297,17 @@ export const AboutSection: React.FC = () => {
                 style={{
                   marginTop: '24px',
                   paddingTop: '18px',
-                  borderTop: '1px solid rgba(199, 203, 212, 0.1)',
+                  borderTop: '1px solid rgba(148, 163, 184, 0.16)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   fontSize: '0.78rem',
-                  color: '#88B2AE',
+                  color: '#38BDF8',
                   fontWeight: 700,
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <Rocket size={14} color="#88B2AE" />
+                <Rocket size={14} color="#38BDF8" />
                 <span>₹5,00,000+ AWARDS & CIE GRANTS</span>
               </div>
             </div>

@@ -23,28 +23,28 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
         zIndex: 10
       }}
     >
-      <ScrollReveal threshold="top 85%" duration={0.9}>
+      <ScrollReveal threshold="top 85%" duration={0.8}>
         <Tilt3DCard maxTilt={3} scale={1.01}>
           <div
             className="cyber-card"
             style={{
               position: 'relative',
               borderRadius: '26px',
-              padding: 'clamp(36px, 6vw, 68px)',
-              background: 'linear-gradient(135deg, rgba(21, 24, 32, 0.96) 0%, rgba(14, 16, 22, 0.98) 100%)',
-              border: '1px solid rgba(199, 203, 212, 0.28)',
-              boxShadow: '0 24px 70px -15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 107, 53, 0.15)',
+              padding: 'clamp(40px, 6vw, 72px)',
+              background: 'linear-gradient(135deg, rgba(15, 22, 38, 0.96) 0%, rgba(10, 15, 26, 0.98) 100%)',
+              border: '1px solid rgba(148, 163, 184, 0.25)',
+              boxShadow: '0 24px 70px -15px rgba(0, 0, 0, 0.95), 0 0 40px rgba(56, 189, 248, 0.12)',
               backdropFilter: 'blur(24px)',
               overflow: 'hidden',
               textAlign: 'center'
             }}
           >
-            {/* Subtle Amber Light Sweep across the Monolith */}
+            {/* Subtle Light Sweep across the Monolith */}
             <div
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.08) 48%, rgba(255, 107, 53, 0.18) 50%, transparent 60%)',
+                background: 'linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.06) 48%, rgba(56, 189, 248, 0.15) 50%, transparent 60%)',
                 backgroundSize: '200% 100%',
                 animation: 'gleamSweep 4.5s infinite linear',
                 pointerEvents: 'none'
@@ -59,17 +59,18 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 gap: '8px',
                 padding: '6px 18px',
                 borderRadius: '9999px',
-                background: 'rgba(111, 150, 147, 0.12)',
-                border: '1px solid rgba(136, 178, 174, 0.4)',
-                color: '#88B2AE',
+                background: 'rgba(56, 189, 248, 0.12)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                color: '#38BDF8',
                 fontSize: '0.75rem',
                 fontWeight: 800,
                 fontFamily: "'Space Grotesk', sans-serif",
                 letterSpacing: '0.16em',
-                marginBottom: '20px'
+                marginBottom: '20px',
+                boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
               }}
             >
-              <Ticket size={14} color="#88B2AE" />
+              <Ticket size={14} color="#38BDF8" />
               <span>07 // OFFICIAL FESTIVAL ADMISSION</span>
             </div>
 
@@ -77,22 +78,24 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
             <h2
               className="text-editorial-headline"
               style={{
-                fontSize: 'clamp(2.5rem, 6vw, 4.2rem)',
+                fontSize: 'clamp(2.4rem, 5.5vw, 4.0rem)',
                 fontWeight: 800,
                 margin: '0 0 18px 0',
-                lineHeight: 1.05
+                lineHeight: 1.15,
+                padding: '4px 0'
               }}
             >
-              CLAIM YOUR <span style={{ color: '#88B2AE' }}>FESTRONIX PASS</span>
+              CLAIM YOUR <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>FESTRONIX PASS</span>
             </h2>
 
             <p
               style={{
-                color: '#777F8E',
+                color: '#CBD5E1',
                 maxWidth: '680px',
                 margin: '0 auto 38px',
-                fontSize: 'clamp(0.96rem, 1.4vw, 1.1rem)',
-                lineHeight: 1.7
+                fontSize: 'clamp(0.98rem, 1.4vw, 1.12rem)',
+                lineHeight: 1.75,
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)'
               }}
             >
               Step directly into the arena. Book your all-access multi-event pass or reserve squad slots in individual technical championships.
@@ -109,9 +112,9 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               {[
-                { icon: <QrCode size={15} color="#88B2AE" />, text: 'Cryptographic QR Mobile Pass' },
-                { icon: <Shield size={15} color="#C7CBD4" />, text: 'SAC Official Endorsement' },
-                { icon: <Sparkles size={15} color="#3D68B2" />, text: '₹5,00,000+ Prize Pool Access' }
+                { icon: <QrCode size={16} color="#38BDF8" />, text: 'Cryptographic QR Mobile Pass' },
+                { icon: <Shield size={16} color="#34D399" />, text: 'SAC Official Endorsement' },
+                { icon: <Sparkles size={16} color="#FBBF24" />, text: '₹5,00,000+ Prize Pool Access' }
               ].map((perk, i) => (
                 <div
                   key={i}
@@ -119,12 +122,12 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    padding: '8px 18px',
+                    padding: '9px 20px',
                     borderRadius: '10px',
-                    background: 'rgba(8, 9, 13, 0.85)',
-                    border: '1px solid rgba(199, 203, 212, 0.16)',
-                    fontSize: '0.82rem',
-                    color: '#C7CBD4',
+                    background: 'rgba(8, 12, 22, 0.85)',
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    fontSize: '0.84rem',
+                    color: '#FFFFFF',
                     fontWeight: 700,
                     fontFamily: "'Space Grotesk', sans-serif"
                   }}
@@ -169,10 +172,11 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                   fontSize: '0.92rem',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '10px'
+                  gap: '10px',
+                  color: '#FFFFFF'
                 }}
               >
-                <Ticket size={17} color="#C7CBD4" />
+                <Ticket size={17} color="#38BDF8" />
                 <span>Browse Individual Events</span>
               </button>
             </div>

@@ -12,113 +12,113 @@ import { useWebGLSupport } from '../../hooks/useWebGLSupport';
  * Drives continuous macro -> spatial -> architectural -> focal camera movement
  * tied directly to GSAP ScrollTrigger progress.
  */
-const StageChoreographer: React.FC<{ scrollProgress: number; reducedMotion: boolean }> = ({
-  scrollProgress,
+const StageChoreographer: React.FC<{ reducedMotion: boolean }> = ({
   reducedMotion
 }) => {
-  const currentPos = useRef(new THREE.Vector3(0.15, 0.08, 2.7));
-  const currentTarget = useRef(new THREE.Vector3(0, 0.05, 0));
+  const smoothP = useRef(0);
+  const currentPos = useRef(new THREE.Vector3(0, -0.55, 6.6));
+  const currentTarget = useRef(new THREE.Vector3(0, -0.3, 0));
   const artifactGroupRef = useRef<THREE.Group>(null);
   const keyLightRef = useRef<THREE.DirectionalLight>(null);
   const amberFillRef = useRef<THREE.PointLight>(null);
 
   useFrame((state) => {
     const { camera, pointer } = state;
-    const p = Math.max(0, Math.min(1, scrollProgress));
 
-    // Dynamic Waypoint Interpolation:
-    // 0.00 - 0.16: Sequence A (Hero Macro -> Authority Pull-back)
-    // 0.16 - 0.36: Sequence B (About Lateral Sweep, Left Flank)
-    // 0.36 - 0.56: Sequence C (Event Discovery High Architectural Angle)
-    // 0.56 - 0.76: Sequence D (Technical Showcase Dynamic Low Angle)
-    // 0.76 - 0.90: Sequence E (Campus Gallery Multi-layer Parallax)
-    // 0.90 - 1.00: Sequence F (Registration Finale Direct Optical Alignment)
+    // Direct scroll interpolation: Silky smooth 60fps tracking with zero React re-render churn
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const targetScroll = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+    smoothP.current = THREE.MathUtils.lerp(smoothP.current, targetScroll, 0.08);
+    const p = smoothP.current;
 
+    // Fluid Peripheral Waypoint Trajectory:
+    // Guarantees the kinetic artifact stays on margins and deep in space, NEVER obstructing text
     let targetX = 0;
-    let targetY = 0.18;
-    let targetZ = 4.6;
+    let targetY = -0.55;
+    let targetZ = 6.6;
     let lookX = 0;
-    let lookY = -0.22;
-    let rotY = p * Math.PI * 2.2;
+    let lookY = -0.3;
+    let rotY = p * Math.PI * 2.4;
     let keyIntensity = 2.4;
     let amberIntensity = 2.4;
 
     if (p < 0.16) {
-      // Sequence A: Hero View (Centered lower with clean headroom below navbar)
+      // Sequence A: Hero View (Anchored low center as architectural pedestal below title)
       const f = p / 0.16;
-      targetX = THREE.MathUtils.lerp(0, 0, f);
-      targetY = THREE.MathUtils.lerp(0.18, 0.15, f);
-      targetZ = THREE.MathUtils.lerp(4.6, 5.2, f);
+      targetX = 0;
+      targetY = THREE.MathUtils.lerp(-0.55, -0.45, f);
+      targetZ = THREE.MathUtils.lerp(6.6, 6.8, f);
       lookX = 0;
-      lookY = THREE.MathUtils.lerp(-0.22, 0, f);
-      keyIntensity = THREE.MathUtils.lerp(2.2, 2.8, f);
+      lookY = THREE.MathUtils.lerp(-0.3, -0.2, f);
+      keyIntensity = THREE.MathUtils.lerp(2.2, 2.6, f);
     } else if (p < 0.36) {
-      // Sequence B: Transition into About (Camera sweeps left, framing right)
+      // Sequence B: About Section (Sweeps to the right flank; text on left/center is 100% unobstructed)
       const f = (p - 0.16) / 0.20;
-      targetX = THREE.MathUtils.lerp(0, -2.1, f);
-      targetY = THREE.MathUtils.lerp(0.15, 0.3, f);
-      targetZ = THREE.MathUtils.lerp(5.2, 4.4, f);
-      lookX = THREE.MathUtils.lerp(0, 0.75, f);
-      lookY = THREE.MathUtils.lerp(0, 0.05, f);
-      keyIntensity = 3.0;
+      targetX = THREE.MathUtils.lerp(0, 2.4, f);
+      targetY = THREE.MathUtils.lerp(-0.45, 0.15, f);
+      targetZ = THREE.MathUtils.lerp(6.8, 7.0, f);
+      lookX = THREE.MathUtils.lerp(0, 0.6, f);
+      lookY = THREE.MathUtils.lerp(-0.2, 0.0, f);
+      keyIntensity = 2.8;
     } else if (p < 0.56) {
-      // Sequence C: Event Discovery (High architectural bird's eye angle)
+      // Sequence C: Hyped Events & Catalog (Sweeps to high left periphery; catalog cards take center stage)
       const f = (p - 0.36) / 0.20;
-      targetX = THREE.MathUtils.lerp(-2.1, 1.8, f);
-      targetY = THREE.MathUtils.lerp(0.3, 1.4, f);
-      targetZ = THREE.MathUtils.lerp(4.4, 5.4, f);
-      lookX = THREE.MathUtils.lerp(0.75, -0.4, f);
-      lookY = THREE.MathUtils.lerp(0.05, -0.3, f);
-      keyIntensity = 3.2;
-      amberIntensity = 3.0;
+      targetX = THREE.MathUtils.lerp(2.4, -2.3, f);
+      targetY = THREE.MathUtils.lerp(0.15, 0.85, f);
+      targetZ = THREE.MathUtils.lerp(7.0, 7.4, f);
+      lookX = THREE.MathUtils.lerp(0.6, -0.5, f);
+      lookY = THREE.MathUtils.lerp(0.0, 0.1, f);
+      keyIntensity = 3.0;
+      amberIntensity = 2.8;
     } else if (p < 0.76) {
-      // Sequence D: Technical Showcase / Departments (Low dynamic angle looking up)
+      // Sequence D: Engineering Faculties (Frames right margin at dynamic lower angle)
       const f = (p - 0.56) / 0.20;
-      targetX = THREE.MathUtils.lerp(1.8, -1.6, f);
-      targetY = THREE.MathUtils.lerp(1.4, -0.6, f);
-      targetZ = THREE.MathUtils.lerp(5.4, 4.6, f);
-      lookX = THREE.MathUtils.lerp(-0.4, 0.45, f);
-      lookY = THREE.MathUtils.lerp(-0.3, 0.2, f);
-      amberIntensity = 3.5;
+      targetX = THREE.MathUtils.lerp(-2.3, 2.2, f);
+      targetY = THREE.MathUtils.lerp(0.85, -0.4, f);
+      targetZ = THREE.MathUtils.lerp(7.4, 7.2, f);
+      lookX = THREE.MathUtils.lerp(-0.5, 0.5, f);
+      lookY = THREE.MathUtils.lerp(0.1, -0.05, f);
+      amberIntensity = 3.2;
     } else if (p < 0.90) {
-      // Sequence E: Gallery & Campus Arena (Lateral spatial depth)
+      // Sequence E: Cash Prizes & Awards (Frames left flank with vivid electric rim lighting)
       const f = (p - 0.76) / 0.14;
-      targetX = THREE.MathUtils.lerp(-1.6, 1.4, f);
-      targetY = THREE.MathUtils.lerp(-0.6, 0.35, f);
-      targetZ = THREE.MathUtils.lerp(4.6, 4.8, f);
-      lookX = THREE.MathUtils.lerp(0.45, -0.4, f);
-      lookY = THREE.MathUtils.lerp(0.2, 0.05, f);
+      targetX = THREE.MathUtils.lerp(2.2, -2.1, f);
+      targetY = THREE.MathUtils.lerp(-0.4, 0.2, f);
+      targetZ = THREE.MathUtils.lerp(7.2, 7.0, f);
+      lookX = THREE.MathUtils.lerp(0.5, -0.45, f);
+      lookY = THREE.MathUtils.lerp(-0.05, 0.05, f);
+      amberIntensity = 3.4;
     } else {
-      // Sequence F: Registration Finale (Direct optical center-line aperture)
+      // Sequence F: Registration Finale (Centered comfortably in lower atmosphere below CTA card)
       const f = (p - 0.90) / 0.10;
-      targetX = THREE.MathUtils.lerp(1.4, 0, f);
-      targetY = THREE.MathUtils.lerp(0.35, 0.05, f);
-      targetZ = THREE.MathUtils.lerp(4.8, 3.4, f);
-      lookX = 0;
-      lookY = 0;
-      keyIntensity = THREE.MathUtils.lerp(3.0, 3.8, f);
-      amberIntensity = THREE.MathUtils.lerp(2.5, 4.2, f);
+      targetX = THREE.MathUtils.lerp(-2.1, 0, f);
+      targetY = THREE.MathUtils.lerp(0.2, -0.45, f);
+      targetZ = THREE.MathUtils.lerp(7.0, 6.4, f);
+      lookX = THREE.MathUtils.lerp(-0.45, 0, f);
+      lookY = THREE.MathUtils.lerp(0.05, -0.2, f);
+      keyIntensity = THREE.MathUtils.lerp(2.8, 3.4, f);
+      amberIntensity = THREE.MathUtils.lerp(2.6, 3.6, f);
     }
 
-    // Gentle mouse parallax damping
+    // Subtle pointer parallax
     if (!reducedMotion) {
-      targetX += pointer.x * 0.35;
-      targetY += pointer.y * 0.25;
+      targetX += pointer.x * 0.25;
+      targetY += pointer.y * 0.2;
     }
 
     // Smooth lerp camera movement
-    currentPos.current.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.055);
-    currentTarget.current.lerp(new THREE.Vector3(lookX, lookY, 0), 0.055);
+    currentPos.current.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.065);
+    currentTarget.current.lerp(new THREE.Vector3(lookX, lookY, 0), 0.065);
 
     camera.position.copy(currentPos.current);
     camera.lookAt(currentTarget.current);
 
-    // Apply scroll-induced rotation to central artifact
+    // Continuous artifact rotation
     if (artifactGroupRef.current && !reducedMotion) {
       artifactGroupRef.current.rotation.y = rotY;
     }
 
-    // Update light intensities
+    // Dynamic light updating
     if (keyLightRef.current) keyLightRef.current.intensity = keyIntensity;
     if (amberFillRef.current) amberFillRef.current.intensity = amberIntensity;
   });
@@ -126,39 +126,39 @@ const StageChoreographer: React.FC<{ scrollProgress: number; reducedMotion: bool
   return (
     <>
       {/* Precision Studio Three-Point Lighting */}
-      {/* 1. Warm White Key Light */}
+      {/* 1. Crisp White Key Light */}
       <directionalLight
         ref={keyLightRef}
-        position={[5, 8, 5]}
-        intensity={2.8}
-        color="#F3F0EA"
+        position={[6, 9, 6]}
+        intensity={2.6}
+        color="#F8FAFC"
         castShadow
       />
 
-      {/* 2. VCE Royal Cobalt Sapphire Fill Light */}
+      {/* 2. Electric Sapphire Fill Light */}
       <pointLight
         ref={amberFillRef}
-        position={[-5, -1, 3]}
-        intensity={2.6}
-        color="#3D68B2"
+        position={[-6, -1, 4]}
+        intensity={2.8}
+        color="#38BDF8"
+        distance={18}
+      />
+
+      {/* 3. Cyan Rim Accent Light */}
+      <pointLight
+        position={[5, -3, -3]}
+        intensity={2.4}
+        color="#0284C7"
         distance={16}
       />
 
-      {/* 3. VCE Sage Rim Accent */}
-      <pointLight
-        position={[4, -3, -3]}
-        intensity={2.4}
-        color="#6F9693"
-        distance={14}
-      />
+      {/* Baseline Ambient */}
+      <ambientLight intensity={0.6} color="#0B132B" />
 
-      {/* Baseline Ambient baseline */}
-      <ambientLight intensity={0.55} color="#0E1626" />
-
-      {/* Studio HDRI Environment for Liquid Silver reflections */}
+      {/* Studio HDRI Environment */}
       <Environment preset="city" />
 
-      {/* Choreographed Bespoke Kinetic Artifact */}
+      {/* Choreographed Kinetic Artifact */}
       <group ref={artifactGroupRef}>
         <KineticArtifact reducedMotion={reducedMotion} />
       </group>
@@ -167,7 +167,6 @@ const StageChoreographer: React.FC<{ scrollProgress: number; reducedMotion: bool
 };
 
 export const KineticStage3D: React.FC = () => {
-  const scrollProgress = useScrollStory();
   const reducedMotion = useReducedMotion();
   const { isSupported: webglSupported, isChecking } = useWebGLSupport();
 
@@ -184,12 +183,23 @@ export const KineticStage3D: React.FC = () => {
         zIndex: 0,
         pointerEvents: 'none',
         overflow: 'hidden',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 80px, black 135px)',
-        maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 80px, black 135px)'
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 60px, black 120px)',
+        maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 60px, black 120px)'
       }}
     >
+      {/* Dark Ambient Readability Shield: Diffuses center background to ensure 100% crisp text readability */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(ellipse 90% 70% at 50% 50%, rgba(8, 12, 22, 0.55) 0%, rgba(8, 12, 22, 0.2) 65%, transparent 100%)',
+          pointerEvents: 'none',
+          zIndex: 1
+        }}
+      />
+
       <Canvas
-        camera={{ position: [0, -0.32, 4.4], fov: 42 }}
+        camera={{ position: [0, -0.55, 6.6], fov: 40 }}
         dpr={[1, 1.8]}
         gl={{
           antialias: true,
@@ -197,14 +207,11 @@ export const KineticStage3D: React.FC = () => {
           powerPreference: 'high-performance'
         }}
       >
-        {/* VCE Midnight Atmospheric Distance Fog */}
-        <fog attach="fog" args={['#080C16', 5, 22]} />
+        {/* Distance Fog to blend deep into obsidian space */}
+        <fog attach="fog" args={['#080C16', 6, 22]} />
 
         <Suspense fallback={null}>
-          <StageChoreographer
-            scrollProgress={scrollProgress}
-            reducedMotion={reducedMotion}
-          />
+          <StageChoreographer reducedMotion={reducedMotion} />
         </Suspense>
       </Canvas>
     </div>

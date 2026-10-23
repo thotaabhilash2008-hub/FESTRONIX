@@ -5,15 +5,15 @@ import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
 const iconMap: Record<string, React.ReactNode> = {
-  Cpu: <Cpu size={24} color="#DCE3E8" />,
-  Database: <Database size={24} color="#88B2AE" />,
-  Globe: <Globe size={24} color="#DCE3E8" />,
-  Radio: <Radio size={24} color="#3D68B2" />,
-  Zap: <Zap size={24} color="#DCE3E8" />,
-  Wrench: <Wrench size={24} color="#88B2AE" />,
-  Building: <Building2 size={24} color="#DCE3E8" />,
-  Brain: <BrainCircuit size={24} color="#3D68B2" />,
-  Briefcase: <Briefcase size={24} color="#DCE3E8" />
+  Cpu: <Cpu size={24} color="#38BDF8" />,
+  Database: <Database size={24} color="#38BDF8" />,
+  Globe: <Globe size={24} color="#38BDF8" />,
+  Radio: <Radio size={24} color="#38BDF8" />,
+  Zap: <Zap size={24} color="#38BDF8" />,
+  Wrench: <Wrench size={24} color="#38BDF8" />,
+  Building: <Building2 size={24} color="#38BDF8" />,
+  Brain: <BrainCircuit size={24} color="#38BDF8" />,
+  Briefcase: <Briefcase size={24} color="#38BDF8" />
 };
 
 export const DepartmentsSection: React.FC = () => {
@@ -28,17 +28,18 @@ export const DepartmentsSection: React.FC = () => {
               gap: '8px',
               padding: '6px 18px',
               borderRadius: '9999px',
-              background: 'rgba(111, 150, 147, 0.12)',
-              border: '1px solid rgba(111, 150, 147, 0.35)',
-              color: '#88B2AE',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              color: '#38BDF8',
               fontSize: '0.75rem',
               fontWeight: 800,
               fontFamily: "'Space Grotesk', sans-serif",
               letterSpacing: '0.14em',
-              marginBottom: '12px'
+              marginBottom: '12px',
+              boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
             }}
           >
-            <BrainCircuit size={14} color="#88B2AE" />
+            <BrainCircuit size={14} color="#38BDF8" />
             <span>04 // PARTICIPATING ENGINEERING FACULTIES</span>
           </div>
 
@@ -51,10 +52,10 @@ export const DepartmentsSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            9 INNOVATION <span style={{ color: '#88B2AE' }}>FACULTIES</span>
+            9 INNOVATION <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>FACULTIES</span>
           </h2>
 
-          <p style={{ color: '#777F8E', maxWidth: '660px', margin: '0 auto', fontSize: '0.96rem', lineHeight: 1.7 }}>
+          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
             Premier academic departments powering specialized tournament arenas and technical juries.
           </p>
         </div>
@@ -78,8 +79,11 @@ export const DepartmentsSection: React.FC = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    borderTop: '2px solid rgba(199, 203, 212, 0.3)',
-                    background: 'rgba(21, 24, 32, 0.92)',
+                    borderTop: '2px solid rgba(56, 189, 248, 0.5)',
+                    background: 'rgba(15, 22, 38, 0.94)',
+                    border: '1px solid rgba(148, 163, 184, 0.22)',
+                    boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
+                    backdropFilter: 'blur(20px)',
                     height: '100%',
                     boxSizing: 'border-box'
                   }}
@@ -89,23 +93,23 @@ export const DepartmentsSection: React.FC = () => {
                       <div
                         style={{
                           padding: '10px',
-                          background: 'rgba(8, 9, 13, 0.8)',
+                          background: 'rgba(8, 12, 22, 0.85)',
                           borderRadius: '10px',
-                          border: '1px solid rgba(199, 203, 212, 0.18)'
+                          border: '1px solid rgba(148, 163, 184, 0.2)'
                         }}
                       >
-                        {iconMap[dept.iconName] || <Cpu size={24} color="#C7CBD4" />}
+                        {iconMap[dept.iconName] || <Cpu size={24} color="#38BDF8" />}
                       </div>
                       <span
                         style={{
                           fontFamily: "'Space Grotesk', sans-serif",
                           fontSize: '0.85rem',
                           fontWeight: 800,
-                          color: '#88B2AE',
-                          padding: '3px 10px',
+                          color: '#38BDF8',
+                          padding: '4px 12px',
                           borderRadius: '6px',
-                          background: 'rgba(111, 150, 147, 0.14)',
-                          border: '1px solid rgba(111, 150, 147, 0.35)'
+                          background: 'rgba(56, 189, 248, 0.14)',
+                          border: '1px solid rgba(56, 189, 248, 0.4)'
                         }}
                       >
                         {dept.code}
@@ -115,38 +119,39 @@ export const DepartmentsSection: React.FC = () => {
                     <h3
                       style={{
                         fontFamily: "'Space Grotesk', sans-serif",
-                        fontSize: '1.2rem',
+                        fontSize: '1.25rem',
                         fontWeight: 800,
-                        color: '#F3F0EA',
+                        color: '#FFFFFF',
                         marginBottom: '8px',
                         letterSpacing: '-0.02em'
                       }}
                     >
                       {dept.name}
                     </h3>
-                    <p style={{ fontSize: '0.85rem', color: '#777F8E', lineHeight: 1.6, marginBottom: '18px' }}>
+                    <p style={{ fontSize: '0.88rem', color: '#CBD5E1', lineHeight: 1.65, marginBottom: '18px' }}>
                       {dept.description}
                     </p>
                   </div>
 
-                  <div style={{ paddingTop: '14px', borderTop: '1px solid rgba(199, 203, 212, 0.1)' }}>
-                    <div style={{ fontSize: '0.68rem', color: '#777F8E', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <div style={{ paddingTop: '14px', borderTop: '1px solid rgba(148, 163, 184, 0.16)' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
                       Chief Coordinator
                     </div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#C7CBD4', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>
                       {dept.chiefCoordinator}
                     </div>
                     <div
                       style={{
-                        fontSize: '0.74rem',
-                        color: '#88B2AE',
+                        fontSize: '0.76rem',
+                        color: '#38BDF8',
                         marginTop: '5px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '5px'
+                        gap: '6px',
+                        fontWeight: 600
                       }}
                     >
-                      <Mail size={12} color="#88B2AE" /> {dept.contact}
+                      <Mail size={12} color="#38BDF8" /> {dept.contact}
                     </div>
                   </div>
                 </div>

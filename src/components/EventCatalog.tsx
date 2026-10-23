@@ -88,15 +88,15 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            color: '#88B2AE',
+            color: '#38BDF8',
             fontSize: '0.78rem',
             fontFamily: "'Space Grotesk', sans-serif",
             letterSpacing: '0.15em',
             marginBottom: '8px',
-            fontWeight: 700
+            fontWeight: 800
           }}
         >
-          <Flame size={14} color="#88B2AE" />
+          <Flame size={14} color="#38BDF8" />
           <span>FESTRONIX ARENA 2026</span>
         </div>
 
@@ -104,20 +104,18 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
           style={{
             fontFamily: "var(--font-heading)",
             fontSize: 'clamp(2rem, 4vw, 3.2rem)',
-            fontWeight: 700,
+            fontWeight: 800,
             margin: '0 0 10px 0',
             letterSpacing: '0.02em',
             display: 'inline-block',
-            background: 'linear-gradient(135deg, #F3F0EA 0%, #C7CBD4 50%, #777F8E 100%)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
+            color: '#FFFFFF',
+            textShadow: '0 2px 16px rgba(0,0,0,0.85)'
           }}
         >
           EVENT DIRECTORY
         </h2>
 
-        <p style={{ color: '#777F8E', maxWidth: '600px', margin: '0 auto', fontSize: '0.95rem' }}>
+        <p style={{ color: '#CBD5E1', maxWidth: '640px', margin: '0 auto', fontSize: '0.98rem', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
           Explore competitions across 9 departments or filter directly by department and category.
         </p>
 
@@ -239,7 +237,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: selectedDept === 'all' ? '#88B2AE' : '#777F8E',
+                  color: selectedDept === 'all' ? '#38BDF8' : '#94A3B8',
                   fontSize: '0.78rem',
                   fontWeight: 600,
                   cursor: 'pointer'
@@ -267,15 +265,15 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     onClick={() => setSelectedDept(dept.code)}
                     style={{
                       background: isSelected
-                        ? 'rgba(46, 78, 140, 0.25)'
-                        : 'rgba(21, 24, 32, 0.8)',
-                      border: isSelected ? '1px solid #3D68B2' : '1px solid rgba(199, 203, 212, 0.14)',
+                        ? 'rgba(56, 189, 248, 0.18)'
+                        : 'rgba(15, 22, 38, 0.85)',
+                      border: isSelected ? '1px solid #38BDF8' : '1px solid rgba(148, 163, 184, 0.18)',
                       borderRadius: '10px',
                       padding: '12px 8px',
                       cursor: 'pointer',
                       textAlign: 'center',
                       transition: 'all 0.2s',
-                      boxShadow: isSelected ? '0 0 16px rgba(61, 104, 178, 0.35)' : 'none'
+                      boxShadow: isSelected ? '0 0 16px rgba(56, 189, 248, 0.35)' : 'none'
                     }}
                   >
                     <div
@@ -283,13 +281,13 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                         fontFamily: "'Space Grotesk', sans-serif",
                         fontWeight: 800,
                         fontSize: '1.2rem',
-                        color: isSelected ? '#FFFFFF' : '#C7CBD4',
+                        color: isSelected ? '#FFFFFF' : '#CBD5E1',
                         letterSpacing: '0.05em'
                       }}
                     >
                       {dept.code}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: isSelected ? '#88B2AE' : '#777F8E', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.7rem', color: isSelected ? '#38BDF8' : '#94A3B8', marginTop: '2px', fontWeight: 600 }}>
                       {deptCount} {deptCount === 1 ? 'Event' : 'Events'}
                     </div>
                   </button>
@@ -314,7 +312,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Flame size={18} color="#3D68B2" />
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#F3F0EA', fontFamily: "'Space Grotesk', sans-serif" }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#FFFFFF', fontFamily: "'Space Grotesk', sans-serif" }}>
                   BROWSE BY EVENT CATEGORY
                 </span>
               </div>
@@ -323,7 +321,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: selectedCategory === 'all' ? '#88B2AE' : '#777F8E',
+                  color: selectedCategory === 'all' ? '#38BDF8' : '#94A3B8',
                   fontSize: '0.78rem',
                   fontWeight: 600,
                   cursor: 'pointer'
@@ -351,9 +349,9 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     onClick={() => setSelectedCategory(cat.key)}
                     style={{
                       background: isSelected
-                        ? 'rgba(46, 78, 140, 0.25)'
-                        : 'rgba(21, 24, 32, 0.8)',
-                      border: isSelected ? '1px solid #3D68B2' : '1px solid rgba(199, 203, 212, 0.14)',
+                        ? 'rgba(56, 189, 248, 0.18)'
+                        : 'rgba(15, 22, 38, 0.85)',
+                      border: isSelected ? '1px solid #38BDF8' : '1px solid rgba(148, 163, 184, 0.18)',
                       borderRadius: '10px',
                       padding: '14px 12px',
                       cursor: 'pointer',
@@ -361,17 +359,17 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                       alignItems: 'center',
                       gap: '10px',
                       transition: 'all 0.2s',
-                      boxShadow: isSelected ? '0 0 16px rgba(61, 104, 178, 0.35)' : 'none'
+                      boxShadow: isSelected ? '0 0 16px rgba(56, 189, 248, 0.35)' : 'none'
                     }}
                   >
-                    <div style={{ color: isSelected ? '#88B2AE' : '#777F8E' }}>
+                    <div style={{ color: isSelected ? '#38BDF8' : '#94A3B8' }}>
                       {cat.icon}
                     </div>
                     <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isSelected ? '#FFFFFF' : '#C7CBD4' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isSelected ? '#FFFFFF' : '#CBD5E1' }}>
                         {cat.label}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: isSelected ? '#88B2AE' : '#777F8E' }}>
+                      <div style={{ fontSize: '0.7rem', color: isSelected ? '#38BDF8' : '#94A3B8', fontWeight: 600 }}>
                         {catCount} {catCount === 1 ? 'Event' : 'Events'}
                       </div>
                     </div>
@@ -426,7 +424,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   transform: 'translateY(-50%)',
                   background: 'none',
                   border: 'none',
-                  color: '#777F8E',
+                  color: '#94A3B8',
                   cursor: 'pointer'
                 }}
               >
@@ -437,7 +435,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
 
           {/* Quick Format Filter Buttons: Solo, Duo, Team */}
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', color: '#777F8E', textTransform: 'uppercase', marginRight: '4px' }}>
+            <span style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', marginRight: '4px', fontWeight: 700 }}>
               Format:
             </span>
             {[
@@ -452,11 +450,11 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                 style={{
                   padding: '5px 12px',
                   borderRadius: '6px',
-                  border: selectedFormat === f.key ? '1px solid #3D68B2' : '1px solid rgba(199, 203, 212, 0.15)',
-                  background: selectedFormat === f.key ? 'rgba(46, 78, 140, 0.3)' : 'rgba(21, 24, 32, 0.6)',
-                  color: selectedFormat === f.key ? '#FFFFFF' : '#777F8E',
+                  border: selectedFormat === f.key ? '1px solid #38BDF8' : '1px solid rgba(148, 163, 184, 0.18)',
+                  background: selectedFormat === f.key ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 22, 38, 0.8)',
+                  color: selectedFormat === f.key ? '#FFFFFF' : '#94A3B8',
                   fontSize: '0.75rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: 'pointer',
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
@@ -471,11 +469,11 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                 style={{
                   padding: '5px 10px',
                   borderRadius: '6px',
-                  border: '1px solid rgba(136, 178, 174, 0.4)',
-                  background: 'rgba(111, 150, 147, 0.12)',
-                  color: '#88B2AE',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  color: '#38BDF8',
                   fontSize: '0.75rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -491,15 +489,15 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
         </div>
 
         {/* Results Counter Bar */}
-        <div style={{ marginTop: '14px', fontSize: '0.78rem', color: '#777F8E', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>Showing <strong style={{ color: '#F3F0EA' }}>{filteredEvents.length}</strong> of {events.length} events</span>
+        <div style={{ marginTop: '14px', fontSize: '0.78rem', color: '#CBD5E1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>Showing <strong style={{ color: '#FFFFFF' }}>{filteredEvents.length}</strong> of {events.length} events</span>
           {selectedDept !== 'all' && (
-            <span style={{ background: 'rgba(111, 150, 147, 0.12)', color: '#88B2AE', border: '1px solid rgba(136, 178, 174, 0.3)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.72rem' }}>
+            <span style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>
               Dept: {selectedDept}
             </span>
           )}
           {selectedCategory !== 'all' && (
-            <span style={{ background: 'rgba(111, 150, 147, 0.12)', color: '#88B2AE', border: '1px solid rgba(136, 178, 174, 0.3)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.72rem' }}>
+            <span style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38BDF8', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>
               Category: {selectedCategory}
             </span>
           )}
@@ -613,32 +611,32 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     <p
                       style={{
                         fontSize: '0.85rem',
-                        color: '#777F8E',
+                        color: '#CBD5E1',
                         marginBottom: '14px',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
-                        lineHeight: 1.5
+                        lineHeight: 1.55
                       }}
                     >
                       {event.description}
                     </p>
 
                     {/* Metadata Rows */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#C7CBD4' }}>
-                        <CalendarDays size={13} color="#88B2AE" />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#E2E8F0' }}>
+                        <CalendarDays size={13} color="#38BDF8" />
                         <span>{event.date} • {event.time}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#C7CBD4' }}>
-                        <MapPin size={13} color="#88B2AE" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#E2E8F0' }}>
+                        <MapPin size={13} color="#38BDF8" />
                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {event.venue}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#C7CBD4' }}>
-                        <Users size={13} color="#88B2AE" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#E2E8F0' }}>
+                        <Users size={13} color="#38BDF8" />
                         <span>
                           {event.format === 'individual'
                             ? 'Solo Participation'
@@ -654,8 +652,8 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                       style={{
                         padding: '8px 12px',
                         borderRadius: '8px',
-                        background: 'rgba(21, 24, 32, 0.85)',
-                        border: '1px solid rgba(61, 104, 178, 0.35)',
+                        background: 'rgba(8, 12, 22, 0.85)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -663,12 +661,12 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Crown size={13} color="#3D68B2" />
-                        <span style={{ fontSize: '0.73rem', color: '#88B2AE', fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>
+                        <Crown size={13} color="#FBBF24" />
+                        <span style={{ fontSize: '0.73rem', color: '#FBBF24', fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
                           1st Prize
                         </span>
                       </div>
-                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#F3F0EA', fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#FFFFFF', fontFamily: "'Space Grotesk', sans-serif" }}>
                         {event.prizes.first}
                       </span>
                     </div>
@@ -676,8 +674,8 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                     {/* Capacity Bar */}
                     <div style={{ marginBottom: '14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '4px' }}>
-                        <span style={{ color: '#777F8E', fontFamily: "'Space Grotesk', sans-serif" }}>Slots Enrolled</span>
-                        <span style={{ color: isFull ? '#FB7185' : '#88B2AE', fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>
+                        <span style={{ color: '#CBD5E1', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>Slots Enrolled</span>
+                        <span style={{ color: isFull ? '#FB7185' : '#38BDF8', fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
                           {event.registeredCount} / {event.capacity} ({fillPercentage}%)
                         </span>
                       </div>
@@ -685,7 +683,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                         style={{
                           width: '100%',
                           height: '6px',
-                          backgroundColor: 'rgba(15, 17, 23, 0.9)',
+                          backgroundColor: 'rgba(8, 12, 22, 0.9)',
                           borderRadius: '9999px',
                           overflow: 'hidden'
                         }}
@@ -696,8 +694,8 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                             height: '100%',
                             background: isFull
                               ? '#F43F5E'
-                              : 'linear-gradient(90deg, #2E4E8C 0%, #6F9693 100%)',
-                            boxShadow: '0 0 10px rgba(46, 78, 140, 0.5)',
+                              : 'linear-gradient(90deg, #1E3A8A 0%, #2563EB 50%, #38BDF8 100%)',
+                            boxShadow: '0 0 10px rgba(56, 189, 248, 0.5)',
                             borderRadius: '9999px',
                             transition: 'width 0.5s ease'
                           }}
@@ -710,22 +708,22 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   <div
                     style={{
                       paddingTop: '12px',
-                      borderTop: '1px solid rgba(199, 203, 212, 0.12)',
+                      borderTop: '1px solid rgba(148, 163, 184, 0.16)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '0.65rem', color: '#777F8E', textTransform: 'uppercase', fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <div style={{ fontSize: '0.65rem', color: '#94A3B8', textTransform: 'uppercase', fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700 }}>
                         Entry Fee
                       </div>
                       <div
                         style={{
                           fontFamily: "var(--font-heading)",
-                          fontWeight: 700,
+                          fontWeight: 800,
                           fontSize: '1.15rem',
-                          color: event.fee === 0 ? '#88B2AE' : '#F3F0EA'
+                          color: event.fee === 0 ? '#38BDF8' : '#FFFFFF'
                         }}
                       >
                         {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
@@ -748,7 +746,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                           background: isFull
                             ? 'rgba(255, 255, 255, 0.05)'
                             : 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
-                          color: isFull ? '#777F8E' : '#FFFFFF',
+                          color: isFull ? '#94A3B8' : '#FFFFFF',
                           border: isFull ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.25)',
                           borderRadius: '10px',
                           padding: '8px 16px',

@@ -139,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span
                 style={{
                   fontSize: '0.58rem',
-                  color: '#777F8E',
+                  color: '#94A3B8',
                   fontWeight: 600,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
@@ -566,7 +566,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                   <button
                     onClick={() => setShowAnnouncementsDropdown(false)}
-                    style={{ background: 'none', border: 'none', color: '#777F8E', cursor: 'pointer' }}
+                    style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
                   >
                     <X size={14} />
                   </button>
@@ -585,7 +585,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#F3F0EA', marginBottom: '2px' }}>
                         {ann.title}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#777F8E' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#CBD5E1' }}>
                         {ann.message}
                       </div>
                     </div>
@@ -666,7 +666,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {currentUser.fullName.charAt(0)}
                 </div>
                 <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>{currentUser.rollNumber}</span>
-                <ChevronDown size={12} color="#777F8E" />
+                <ChevronDown size={12} color="#94A3B8" />
               </button>
 
               {isUserMenuOpen && (
@@ -687,7 +687,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div style={{ marginBottom: '12px', borderBottom: '1px solid rgba(199, 203, 212, 0.1)', paddingBottom: '10px' }}>
                     <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#F3F0EA' }}>{currentUser.fullName}</div>
                     <div style={{ fontSize: '0.75rem', color: '#88B2AE', fontFamily: 'monospace' }}>Roll: {currentUser.rollNumber}</div>
-                    <div style={{ fontSize: '0.72rem', color: '#777F8E', marginTop: '2px' }}>{currentUser.email}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#CBD5E1', marginTop: '2px' }}>{currentUser.email}</div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -919,7 +919,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Mobile Dropdown Options */}
           <div style={{ borderTop: '1px solid rgba(199, 203, 212, 0.12)', paddingTop: '10px' }}>
-            <div style={{ fontSize: '0.75rem', color: '#777F8E', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
               Select by Department
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}>
@@ -946,7 +946,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ))}
             </div>
 
-            <div style={{ fontSize: '0.75rem', color: '#777F8E', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
               Select by Event Category
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>

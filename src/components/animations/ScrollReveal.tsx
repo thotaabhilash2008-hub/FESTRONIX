@@ -43,19 +43,19 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
         el.children,
         {
           opacity: 0,
-          y: yOffset,
-          filter: 'blur(4px)'
+          y: Math.min(yOffset, 24),
+          scale: 0.985
         },
         {
           opacity: 1,
           y: 0,
-          filter: 'blur(0px)',
-          duration,
+          scale: 1,
+          duration: Math.min(duration, 0.75),
           stagger,
-          ease: 'power2.out',
+          ease: 'power3.out',
           scrollTrigger: {
             trigger: el,
-            start: threshold,
+            start: threshold || 'top 88%',
             toggleActions: 'play none none none',
             once: true
           }

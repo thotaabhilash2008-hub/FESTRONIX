@@ -60,27 +60,27 @@ export const KineticArtifact: React.FC<KineticArtifactProps> = ({ reducedMotion 
   });
 
   return (
-    <group position={[0, -0.42, 0]} scale={0.88}>
+    <group position={[0, -0.3, 0]} scale={0.72}>
       {/* ========================================================
           1. GROUND COLLIMATOR PEDESTAL (Graphite + Liquid Silver)
           ======================================================== */}
-      <group position={[0, -1.9, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <group position={[0, -1.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         {/* Monolithic Graphite Base Disc */}
         <mesh receiveShadow>
-          <circleGeometry args={[4.2, 64]} />
+          <circleGeometry args={[2.7, 64]} />
           <meshStandardMaterial
-            color="#0E1017"
-            roughness={0.25}
-            metalness={0.9}
+            color="#0B0E17"
+            roughness={0.3}
+            metalness={0.92}
             envMapIntensity={1.4}
           />
         </mesh>
 
         {/* Polished Liquid Silver Perimeter Chamfer */}
         <mesh position={[0, 0, 0.01]}>
-          <ringGeometry args={[3.95, 4.2, 64]} />
+          <ringGeometry args={[2.55, 2.7, 64]} />
           <meshPhysicalMaterial
-            color="#C7CBD4"
+            color="#DCE3E8"
             roughness={0.08}
             metalness={0.98}
             clearcoat={1.0}
@@ -88,50 +88,50 @@ export const KineticArtifact: React.FC<KineticArtifactProps> = ({ reducedMotion 
           />
         </mesh>
 
-        {/* Recessed VCE Sage Green Laser Channel */}
+        {/* Recessed Electric Laser Channel */}
         <mesh ref={pedestalRef} position={[0, 0, 0.02]}>
-          <ringGeometry args={[2.8, 2.84, 64]} />
+          <ringGeometry args={[1.85, 1.88, 64]} />
           <meshStandardMaterial
-            color="#6F9693"
-            emissive="#6F9693"
-            emissiveIntensity={1.8}
-            roughness={0.2}
+            color="#38BDF8"
+            emissive="#38BDF8"
+            emissiveIntensity={2.2}
+            roughness={0.15}
           />
         </mesh>
 
         {/* Inner Liquid Silver Alignment Ring */}
         <mesh position={[0, 0, 0.025]}>
-          <ringGeometry args={[1.5, 1.52, 64]} />
+          <ringGeometry args={[1.05, 1.07, 64]} />
           <meshStandardMaterial
-            color="#DCE3E8"
-            roughness={0.15}
-            metalness={0.95}
+            color="#E2E8F0"
+            roughness={0.12}
+            metalness={0.96}
           />
         </mesh>
       </group>
 
       {/* ========================================================
-          2. KINETIC CORE & GIMBALS (VCE Royal Cobalt & Sage)
+          2. KINETIC CORE & GIMBALS (VCE Electric Sapphire & Silver)
           ======================================================== */}
       <group ref={coreRef}>
-        {/* Internal Glowing VCE Royal Cobalt Singularity Core */}
+        {/* Internal Glowing Electric Sapphire Core */}
         <mesh ref={amberSingularityRef}>
-          <sphereGeometry args={[0.42, 32, 32]} />
+          <sphereGeometry args={[0.38, 32, 32]} />
           <meshStandardMaterial
-            color="#3D68B2"
-            emissive="#243C74"
-            emissiveIntensity={2.8}
-            roughness={0.1}
+            color="#38BDF8"
+            emissive="#1D4ED8"
+            emissiveIntensity={2.6}
+            roughness={0.08}
           />
         </mesh>
 
         {/* Faceted Liquid Silver Polyhedral Armature */}
         <mesh castShadow receiveShadow>
-          <icosahedronGeometry args={[0.95, 0]} />
+          <icosahedronGeometry args={[0.92, 0]} />
           <meshPhysicalMaterial
-            color="#F0F4F8"
+            color="#F1F5F9"
             emissive="#080C16"
-            emissiveIntensity={0.1}
+            emissiveIntensity={0.08}
             roughness={0.06}
             metalness={0.98}
             clearcoat={1.0}
@@ -141,11 +141,11 @@ export const KineticArtifact: React.FC<KineticArtifactProps> = ({ reducedMotion 
           />
         </mesh>
 
-        {/* Precision Beveled Academic Blue Outer Frame */}
+        {/* Precision Beveled Deep Frame */}
         <mesh>
-          <octahedronGeometry args={[1.18, 0]} />
+          <octahedronGeometry args={[1.14, 0]} />
           <meshStandardMaterial
-            color="#18243B"
+            color="#1E293B"
             wireframe
             wireframeLinewidth={2}
             roughness={0.3}
@@ -155,9 +155,9 @@ export const KineticArtifact: React.FC<KineticArtifactProps> = ({ reducedMotion 
 
         {/* Precision Chamfered Liquid Silver Gimbal Ring */}
         <mesh ref={outerGimbalRef}>
-          <torusGeometry args={[1.65, 0.045, 16, 96]} />
+          <torusGeometry args={[1.52, 0.038, 16, 96]} />
           <meshPhysicalMaterial
-            color="#DCE3E8"
+            color="#E2E8F0"
             roughness={0.08}
             metalness={0.98}
             clearcoat={1.0}
@@ -165,25 +165,25 @@ export const KineticArtifact: React.FC<KineticArtifactProps> = ({ reducedMotion 
           />
         </mesh>
 
-        {/* Counter-Rotating VCE Sapphire Inner Gimbal Ring */}
+        {/* Counter-Rotating Sapphire Inner Gimbal Ring */}
         <mesh ref={innerGimbalRef}>
-          <torusGeometry args={[1.35, 0.03, 16, 80]} />
+          <torusGeometry args={[1.24, 0.026, 16, 80]} />
           <meshStandardMaterial
-            color="#1E2E4E"
-            emissive="#3D68B2"
-            emissiveIntensity={0.5}
+            color="#0F172A"
+            emissive="#2563EB"
+            emissiveIntensity={0.6}
             roughness={0.25}
             metalness={0.9}
           />
         </mesh>
 
-        {/* Equatorial VCE Sage Laser Tick Horizon */}
+        {/* Equatorial Laser Tick Horizon */}
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[2.0, 2.02, 64]} />
+          <ringGeometry args={[1.82, 1.84, 64]} />
           <meshBasicMaterial
-            color="#6F9693"
+            color="#38BDF8"
             transparent
-            opacity={0.55}
+            opacity={0.6}
             side={THREE.DoubleSide}
           />
         </mesh>
