@@ -99,58 +99,152 @@ export const Navbar: React.FC<NavbarProps> = ({
           boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 25px rgba(255, 107, 53, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
         }}
       >
-        {/* Brand / Logo */}
-        <a
-          href="#"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            textDecoration: 'none'
-          }}
-          title="Vardhaman College of Engineering"
-        >
-          <img
-            src="/vce_logo.png"
-            alt="VCE Logo"
+        {/* Brand / Logos Cluster: Vardhaman + Connect Club + Vencorpia */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <a
+            href="#"
             style={{
-              height: '42px',
-              width: 'auto',
-              maxHeight: '44px',
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 10px rgba(255, 107, 53, 0.15))'
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              textDecoration: 'none'
+            }}
+            title="Vardhaman College of Engineering"
+          >
+            <img
+              src="/vce_logo.png"
+              alt="VCE Logo"
+              style={{
+                height: '40px',
+                width: 'auto',
+                maxHeight: '42px',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 10px rgba(255, 107, 53, 0.15))'
+              }}
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: '1.12rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  color: '#F3F0EA',
+                  lineHeight: 1.15
+                }}
+              >
+                VARDHAMAN
+              </span>
+              <span
+                style={{
+                  fontSize: '0.58rem',
+                  color: '#777F8E',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  lineHeight: 1.1,
+                  marginTop: '1px'
+                }}
+              >
+                College of Engineering
+              </span>
+            </div>
+          </a>
+
+          {/* Vertical Divider */}
+          <div
+            className="desktop-only"
+            style={{
+              height: '24px',
+              width: '1px',
+              background: 'linear-gradient(to bottom, transparent, rgba(199, 203, 212, 0.28), transparent)',
+              margin: '0 2px'
             }}
           />
 
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <span
+          {/* Partner Logos: Connect Club & Vencorpia */}
+          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Connect Club */}
+            <a
+              href="https://connectclub.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Connect Club"
               style={{
-                fontFamily: "var(--font-heading)",
-                fontSize: '1.2rem',
-                fontWeight: 800,
-                letterSpacing: '0.05em',
-                color: '#F3F0EA',
-                lineHeight: 1.15
+                display: 'flex',
+                alignItems: 'center',
+                padding: '3px 6px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                transition: 'all 0.2s ease',
+                textDecoration: 'none'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              VARDHAMAN
-            </span>
-            <span
+              <img
+                src="/connect_club_transparent.png"
+                alt="Connect Club"
+                style={{
+                  height: '28px',
+                  width: 'auto',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.2))'
+                }}
+              />
+            </a>
+
+            {/* Vencorpia */}
+            <a
+              href="https://vencorpia.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Vencorpia — One Stop for Effortless Events"
               style={{
-                fontSize: '0.62rem',
-                color: '#777F8E',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                fontFamily: "'Space Grotesk', sans-serif",
-                lineHeight: 1.1,
-                marginTop: '1px'
+                display: 'flex',
+                alignItems: 'center',
+                padding: '3px 6px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                transition: 'all 0.2s ease',
+                textDecoration: 'none'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(0, 194, 255, 0.35)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              College of Engineering
-            </span>
+              <img
+                src="/vencorpia_transparent.png"
+                alt="Vencorpia"
+                style={{
+                  height: '26px',
+                  width: 'auto',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 0 6px rgba(0, 194, 255, 0.25))'
+                }}
+              />
+            </a>
           </div>
-        </a>
+        </div>
 
         {/* Desktop Nav Links */}
         <div
