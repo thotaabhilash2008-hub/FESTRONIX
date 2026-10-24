@@ -513,35 +513,67 @@ body {
 
 @media (max-width: 768px) {
   .navbar-pill-container {
-    padding: 0 12px !important;
-  }
-  /* On mobile navbar pill, hide partner logos & divider to eliminate overcrowding */
-  .navbar-partner-divider,
-  .navbar-partner-logos {
-    display: none !important;
-  }
-  .navbar-brand-vce-text {
-    font-size: 0.98rem !important;
-  }
-  .navbar-brand-vce-subtext {
-    display: none !important;
-  }
-  .navbar-brand-logo {
-    height: 34px !important;
-    max-height: 34px !important;
-  }
-}
-
-@media (max-width: 420px) {
-  .navbar-pill-container {
     padding: 0 10px !important;
   }
   .navbar-brand-vce-text {
     font-size: 0.88rem !important;
   }
+  .navbar-brand-vce-subtext {
+    display: none !important;
+  }
   .navbar-brand-logo {
     height: 30px !important;
     max-height: 30px !important;
+  }
+  /* Show Connect Club and Vencorpia logos beside Vardhaman in mobile navbar */
+  .navbar-partner-divider {
+    display: block !important;
+    height: 18px !important;
+    margin: 0 4px !important;
+  }
+  .navbar-partner-logos {
+    display: flex !important;
+    align-items: center;
+    gap: 4px !important;
+  }
+  .navbar-partner-badge {
+    padding: 2px 4px !important;
+    border-radius: 6px !important;
+  }
+  .navbar-partner-img-connect {
+    height: 20px !important;
+  }
+  .navbar-partner-img-vencorpia {
+    height: 18px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .navbar-pill-container {
+    padding: 0 8px !important;
+  }
+  .navbar-brand-vce-text {
+    font-size: 0.8rem !important;
+  }
+  .navbar-brand-logo {
+    height: 26px !important;
+    max-height: 26px !important;
+  }
+  .navbar-partner-divider {
+    margin: 0 2px !important;
+    height: 16px !important;
+  }
+  .navbar-partner-logos {
+    gap: 3px !important;
+  }
+  .navbar-partner-badge {
+    padding: 1px 3px !important;
+  }
+  .navbar-partner-img-connect {
+    height: 17px !important;
+  }
+  .navbar-partner-img-vencorpia {
+    height: 15px !important;
   }
 }
 

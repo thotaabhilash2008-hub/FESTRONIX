@@ -293,45 +293,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             <button
               type="button"
               className="admin-preset-chip"
-              onClick={() => handleApplyPreset({ label: 'Dean SAC', tab: 'super_admin', user: 'dean_sac', pass: 'deansac2026' })}
-              title="Super Admin Fest-wide Administration"
-            >
-              <span>👑</span>
-              <div>
-                <div style={{ color: '#FBBF24', fontWeight: 700 }}>Dean SAC</div>
-                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Super Admin</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="admin-preset-chip"
-              onClick={() => handleApplyPreset({ label: 'Connect Club', tab: 'super_admin', user: 'connect_club', pass: 'connect2026' })}
-              title="Super Admin Connect Club Lead"
-            >
-              <span>⚡</span>
-              <div>
-                <div style={{ color: '#38BDF8', fontWeight: 700 }}>Connect Club</div>
-                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Super Admin</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="admin-preset-chip"
-              onClick={() => handleApplyPreset({ label: 'Vencorpia', tab: 'super_admin', user: 'vencorpia', pass: 'vencorpia2026' })}
-              title="Super Admin Vencorpia Board"
-            >
-              <span>💎</span>
-              <div>
-                <div style={{ color: '#A78BFA', fontWeight: 700 }}>Vencorpia</div>
-                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Super Admin</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="admin-preset-chip"
               onClick={() => handleApplyPreset({ label: 'CSE HOD', tab: 'dept', dept: 'CSE', user: 'hod_cse', pass: 'csefest2026' })}
               title="Department Chief Coordinator"
             >
@@ -396,7 +357,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             style={{ justifyContent: 'center' }}
           >
             <Award size={15} color={activeTab === 'super_admin' ? '#FBBF24' : '#94A3B8'} />
-            <span>1. SUPER ADMINS</span>
+            <span>1. SUPER ADMIN</span>
           </button>
 
           {/* Tab 2: Dept Chief & Event Coordinators */}
@@ -452,31 +413,10 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         {/* TAB 1: 3 SUPER ADMINS (SAC DEAN, CONNECT CLUB, VENCORPIA) */}
         {activeTab === 'super_admin' && (
           <form onSubmit={handleSuperSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div
-              style={{
-                padding: '14px 16px',
-                borderRadius: '14px',
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.28)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}
-            >
-              <Award size={24} color="#FBBF24" style={{ flexShrink: 0 }} />
-              <div>
-                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  👑 3 Super Admins • Fest-wide Central Command
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#CBD5E1', marginTop: '2px', lineHeight: 1.4 }}>
-                  Authority for <strong>SAC DEAN</strong>, <strong>CONNECT CLUB</strong>, and <strong>VENCORPIA</strong>. Manage departments, approvals, coordinators, broadcasts, and system configs.
-                </div>
-              </div>
-            </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Super Admin Identifier / Username
+                Username
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
@@ -484,7 +424,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type="text"
                   value={superUsername}
                   onChange={e => setSuperUsername(e.target.value)}
-                  placeholder="e.g. dean_sac, connect_club, or vencorpia"
+                  placeholder="Enter username"
                   required
                   className="admin-form-input"
                 />
@@ -493,7 +433,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Secret Access Passcode
+                Password
               </label>
               <div style={{ position: 'relative' }}>
                 <Key size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
@@ -501,7 +441,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type={showSuperPassword ? 'text' : 'password'}
                   value={superPassword}
                   onChange={e => setSuperPassword(e.target.value)}
-                  placeholder="Enter encrypted passcode"
+                  placeholder="Enter password"
                   required
                   className="admin-form-input"
                   style={{ paddingRight: '42px' }}
@@ -542,7 +482,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Enter Fest-Wide Executive Console</span>
+                  <span>Sign In as Super Admin</span>
                   <ArrowRight size={16} />
                 </>
               )}

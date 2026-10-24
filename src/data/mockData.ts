@@ -946,9 +946,7 @@ export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
     responsibilities: 'Oversee fest, departments, assignments, accounts, roles, content and reports.',
     accessBoundary: 'Fest-wide administration.',
     accounts: [
-      '1. SAC DEAN (dean_sac / deansac2026)',
-      '2. CONNECT CLUB (connect_club / connect2026)',
-      '3. VENCORPIA (vencorpia / vencorpia2026)'
+      'Confidential Central Authority Credentials'
     ]
   },
   {

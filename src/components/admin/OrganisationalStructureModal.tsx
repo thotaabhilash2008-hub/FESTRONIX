@@ -104,45 +104,6 @@ export const OrganisationalStructureModal: React.FC<OrganisationalStructureModal
           </button>
         </div>
 
-        {/* 3 Super Admins Spotlight Banner */}
-        <div
-          style={{
-            background: 'linear-gradient(135deg, rgba(40, 59, 120, 0.45) 0%, rgba(20, 31, 62, 0.75) 100%)',
-            border: '1px solid rgba(120, 149, 147, 0.45)',
-            borderRadius: '14px',
-            padding: '16px 20px',
-            marginBottom: '22px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: 800, letterSpacing: '0.05em' }}>
-              CENTRAL FEST-WIDE GOVERNANCE • 3 SUPER ADMIN BODIES
-            </div>
-            <div style={{ fontSize: '0.92rem', color: '#FFFFFF', fontWeight: 700, marginTop: '2px' }}>
-              1. SAC DEAN &nbsp;•&nbsp; 2. CONNECT CLUB &nbsp;•&nbsp; 3. VENCORPIA
-            </div>
-            <div style={{ fontSize: '0.78rem', color: '#BACEBB', marginTop: '2px' }}>
-              Endowed with complete Fest-wide Administration authority across all 9 departments, finance, content, and accounts.
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(16, 26, 53, 0.9)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#DCE3E5' }}>
-              <strong>SAC DEAN:</strong> dean_sac
-            </span>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(16, 26, 53, 0.9)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#DCE3E5' }}>
-              <strong>CONNECT CLUB:</strong> connect_club
-            </span>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(16, 26, 53, 0.9)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#DCE3E5' }}>
-              <strong>VENCORPIA:</strong> vencorpia
-            </span>
-          </div>
-        </div>
-
         {/* Roles Table */}
         <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(220, 227, 229, 0.15)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
