@@ -1,11 +1,12 @@
 import React from 'react';
-import { ShieldCheck, MapPin, Phone, Mail, Globe, Sparkles, Shield } from 'lucide-react';
+import { ShieldCheck, MapPin, Phone, Mail, Globe, Sparkles, Shield, Rocket } from 'lucide-react';
 
 interface FooterProps {
   onOpenAdmin?: () => void;
+  onOpenPartners?: (tab?: 'sponsors' | 'ambassadors') => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenPartners }) => {
   return (
     <footer
       style={{
@@ -215,7 +216,57 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
               </div>
             </div>
 
-            {onOpenAdmin && (
+            
+            {onOpenPartners && (
+              <div style={{ marginTop: '8px' }}>
+                <button
+                  onClick={() => onOpenPartners('sponsors')}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%)',
+                    border: '1px solid rgba(168, 85, 247, 0.45)',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    color: '#E9D5FF',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontFamily: "'Space Grotesk', sans-serif"
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(56, 189, 248, 0.35) 100%)';
+                    e.currentTarget.style.color = '#FFFFFF';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%)';
+                    e.currentTarget.style.color = '#E9D5FF';
+                  }}
+                >
+                  <Rocket size={14} color="#C084FC" />
+                  <span>Sponsor & Ambassador Portal</span>
+                </button>
+              </div>
+            )}
+
+            
+          {onOpenPartners && (
+            <button
+              onClick={() => onOpenPartners('sponsors')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#C084FC',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Sponsors & Campus Ambassadors
+            </button>
+          )}
+          {onOpenAdmin && (
               <div style={{ marginTop: '6px' }}>
                 <button
                   onClick={onOpenAdmin}

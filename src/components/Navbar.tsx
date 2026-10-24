@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck } from 'lucide-react';
+import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck, Rocket } from 'lucide-react';
 import { Announcement, User as UserType } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
@@ -17,6 +17,7 @@ interface NavbarProps {
   onSelectDepartment: (deptCode: string) => void;
   onSelectCategory: (categoryKey: string) => void;
   onOpenAdmin?: () => void;
+  onOpenPartners?: (tab?: 'sponsors' | 'ambassadors') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,7 +33,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateHyped,
   onSelectDepartment,
   onSelectCategory,
-  onOpenAdmin
+  onOpenAdmin,
+  onOpenPartners
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAnnouncementsDropdown, setShowAnnouncementsDropdown] = useState(false);
@@ -625,6 +627,45 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Buy Multiple Passes</span>
           </button>
 
+          
+          {/* Sponsors & Campus Ambassadors Quick Link */}
+          {onOpenPartners && (
+            <button
+              onClick={() => onOpenPartners('sponsors')}
+              className="desktop-only"
+              style={{
+                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(56, 189, 248, 0.12) 100%)',
+                border: '1px solid rgba(168, 85, 247, 0.35)',
+                borderRadius: '9999px',
+                padding: '7px 13px',
+                color: '#E9D5FF',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease',
+                fontFamily: "'Space Grotesk', sans-serif",
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.6)';
+                e.currentTarget.style.color = '#FFFFFF';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.35)';
+                e.currentTarget.style.color = '#E9D5FF';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+              title="Sponsors & Campus Ambassadors Portal"
+            >
+              <Rocket size={14} color="#C084FC" />
+              <span>Partner & CA Hub</span>
+            </button>
+          )}
+
           {/* Admin Console Quick Link */}
           {onOpenAdmin && (
             <button
@@ -1137,6 +1178,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <ShieldCheck size={16} color="#38BDF8" />
                 <span>Admin Console (SAC / HOD)</span>
+              </button>
+            )}
+
+            
+            {/* Sponsors & Campus Ambassadors Mobile Link */}
+            {onOpenPartners && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenPartners('sponsors');
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(56, 189, 248, 0.15) 100%)',
+                  color: '#E9D5FF',
+                  border: '1px solid rgba(168, 85, 247, 0.4)',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Rocket size={16} color="#C084FC" />
+                <span>Sponsors & Ambassadors Portal</span>
               </button>
             )}
 

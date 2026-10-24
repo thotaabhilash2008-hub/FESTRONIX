@@ -13,6 +13,7 @@ import { DigitalPassModal } from './components/DigitalPassModal';
 import { AuthModal } from './components/AuthModal';
 import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
+import { PartnerPortal } from './components/partners/PartnerPortal';
 import { GlitterBackground } from './components/GlitterBackground';
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
@@ -39,6 +40,46 @@ export const App: React.FC = () => {
   };
 
   const [isAdminView, setIsAdminView] = useState<boolean>(checkIsAdmin);
+
+  // Partner & Ambassador View State (supports #partners, #sponsors, #ambassadors, /partners, etc.)
+  const checkIsPartner = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    return (
+      hash === '#partners' ||
+      hash === '#sponsors' ||
+      hash === '#ambassadors' ||
+      path === '/partners' ||
+      path === '/partners/' ||
+      path === '/sponsors' ||
+      path === '/sponsors/' ||
+      path === '/ambassadors' ||
+      path === '/ambassadors/' ||
+      path.startsWith('/partners') ||
+      path.startsWith('/sponsors') ||
+      path.startsWith('/ambassadors') ||
+      search.includes('partners=true') ||
+      search.includes('sponsors=true') ||
+      search.includes('ambassadors=true')
+    );
+  };
+
+  const getInitialPartnerTab = (): 'sponsors' | 'ambassadors' => {
+    if (typeof window === 'undefined') return 'sponsors';
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    if (hash.includes('ambassador') || path.includes('ambassador') || search.includes('ambassador')) {
+      return 'ambassadors';
+    }
+    return 'sponsors';
+  };
+
+  const [isPartnerView, setIsPartnerView] = useState<boolean>(checkIsPartner);
+  const [partnerInitialTab, setPartnerInitialTab] = useState<'sponsors' | 'ambassadors'>(getInitialPartnerTab);
+
 
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
@@ -132,6 +173,25 @@ export const App: React.FC = () => {
     setIsAdminView(true);
   };
 
+  const handleOpenPartners = (tab: 'sponsors' | 'ambassadors' = 'sponsors') => {
+    setPartnerInitialTab(tab);
+    window.location.hash = tab === 'sponsors' ? '#partners' : '#ambassadors';
+    setIsPartnerView(true);
+  };
+
+  const handleBackFromPartners = () => {
+    if (
+      window.location.pathname.toLowerCase().startsWith('/partners') ||
+      window.location.pathname.toLowerCase().startsWith('/sponsors') ||
+      window.location.pathname.toLowerCase().startsWith('/ambassadors')
+    ) {
+      window.history.pushState(null, '', '/');
+    }
+    window.location.hash = '';
+    setIsPartnerView(false);
+    refreshData();
+  };
+
   const handleBackFromAdmin = () => {
     if (window.location.pathname.toLowerCase().startsWith('/admin')) {
       window.history.pushState(null, '', '/');
@@ -210,6 +270,16 @@ export const App: React.FC = () => {
     setIsAuthModalOpen(true);
   };
 
+  // Render Partner & Ambassador Portal if in #partners or #ambassadors view
+  if (isPartnerView) {
+    return (
+      <PartnerPortal 
+        initialTab={partnerInitialTab} 
+        onBackToFest={handleBackFromPartners} 
+      />
+    );
+  }
+
   // Render Admin Console if in #admin view
   if (isAdminView) {
     return (
@@ -263,6 +333,7 @@ export const App: React.FC = () => {
         onSelectDepartment={handleSelectDepartment}
         onSelectCategory={handleSelectCategory}
         onOpenAdmin={handleOpenAdmin}
+        onOpenPartners={handleOpenPartners}
       />
 
       {/* Main Experience View */}
