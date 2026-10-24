@@ -13,7 +13,7 @@ import { DigitalPassModal } from './components/DigitalPassModal';
 import { AuthModal } from './components/AuthModal';
 import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
-import { PartnerPortal } from './components/partners/PartnerPortal';
+import { PublicSponsorsPage } from './components/PublicSponsorsPage';
 import { GlitterBackground } from './components/GlitterBackground';
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
@@ -41,44 +41,27 @@ export const App: React.FC = () => {
 
   const [isAdminView, setIsAdminView] = useState<boolean>(checkIsAdmin);
 
-  // Partner & Ambassador View State (supports #partners, #sponsors, #ambassadors, /partners, etc.)
-  const checkIsPartner = () => {
+    // Public Sponsors Page View State (supports #sponsors, #partners, /sponsors, /partners)
+  const checkIsSponsorsPage = () => {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
     const search = window.location.search.toLowerCase();
     return (
-      hash === '#partners' ||
       hash === '#sponsors' ||
-      hash === '#ambassadors' ||
-      path === '/partners' ||
-      path === '/partners/' ||
+      hash === '#partners' ||
       path === '/sponsors' ||
       path === '/sponsors/' ||
-      path === '/ambassadors' ||
-      path === '/ambassadors/' ||
-      path.startsWith('/partners') ||
+      path === '/partners' ||
+      path === '/partners/' ||
       path.startsWith('/sponsors') ||
-      path.startsWith('/ambassadors') ||
-      search.includes('partners=true') ||
+      path.startsWith('/partners') ||
       search.includes('sponsors=true') ||
-      search.includes('ambassadors=true')
+      search.includes('partners=true')
     );
   };
 
-  const getInitialPartnerTab = (): 'sponsors' | 'ambassadors' => {
-    if (typeof window === 'undefined') return 'sponsors';
-    const path = window.location.pathname.toLowerCase();
-    const hash = window.location.hash.toLowerCase();
-    const search = window.location.search.toLowerCase();
-    if (hash.includes('ambassador') || path.includes('ambassador') || search.includes('ambassador')) {
-      return 'ambassadors';
-    }
-    return 'sponsors';
-  };
-
-  const [isPartnerView, setIsPartnerView] = useState<boolean>(checkIsPartner);
-  const [partnerInitialTab, setPartnerInitialTab] = useState<'sponsors' | 'ambassadors'>(getInitialPartnerTab);
+  const [isSponsorsPageOpen, setIsSponsorsPageOpen] = useState<boolean>(checkIsSponsorsPage);
 
 
   // User Authentication State
@@ -173,22 +156,20 @@ export const App: React.FC = () => {
     setIsAdminView(true);
   };
 
-  const handleOpenPartners = (tab: 'sponsors' | 'ambassadors' = 'sponsors') => {
-    setPartnerInitialTab(tab);
-    window.location.hash = tab === 'sponsors' ? '#partners' : '#ambassadors';
-    setIsPartnerView(true);
+  const handleOpenSponsorsPage = () => {
+    window.location.hash = '#sponsors';
+    setIsSponsorsPageOpen(true);
   };
 
-  const handleBackFromPartners = () => {
+  const handleBackFromSponsorsPage = () => {
     if (
-      window.location.pathname.toLowerCase().startsWith('/partners') ||
       window.location.pathname.toLowerCase().startsWith('/sponsors') ||
-      window.location.pathname.toLowerCase().startsWith('/ambassadors')
+      window.location.pathname.toLowerCase().startsWith('/partners')
     ) {
       window.history.pushState(null, '', '/');
     }
     window.location.hash = '';
-    setIsPartnerView(false);
+    setIsSponsorsPageOpen(false);
     refreshData();
   };
 
@@ -270,12 +251,16 @@ export const App: React.FC = () => {
     setIsAuthModalOpen(true);
   };
 
-  // Render Partner & Ambassador Portal if in #partners or #ambassadors view
-  if (isPartnerView) {
+  // Render Public Sponsors Page if in #sponsors or #partners view
+  if (isSponsorsPageOpen) {
     return (
-      <PartnerPortal 
-        initialTab={partnerInitialTab} 
-        onBackToFest={handleBackFromPartners} 
+      <PublicSponsorsPage
+        onBackToHome={handleBackFromSponsorsPage}
+        onExploreEvents={() => {
+          handleBackFromSponsorsPage();
+          setTimeout(() => handleNavigateExplore(), 100);
+        }}
+        onRegisterNow={handleStartMultiPass}
       />
     );
   }
@@ -333,7 +318,7 @@ export const App: React.FC = () => {
         onSelectDepartment={handleSelectDepartment}
         onSelectCategory={handleSelectCategory}
         onOpenAdmin={handleOpenAdmin}
-        onOpenPartners={handleOpenPartners}
+        onOpenSponsors={handleOpenSponsorsPage}
       />
 
       {/* Main Experience View */}

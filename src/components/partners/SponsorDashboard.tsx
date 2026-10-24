@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, 
   CheckCircle2, 
@@ -19,20 +19,61 @@ import {
   ChevronRight,
   Send
 } from 'lucide-react';
-import { SponsorProfile, SPONSOR_PROFILES, SponsorDeliverable } from './partnerData';
+import { SponsorProfile, SponsorDeliverable } from './partnerData';
+import { PartnerStorageService } from '../../services/partnerStorageService';
 
 interface SponsorDashboardProps {
   onBackToFest: () => void;
 }
 
 export const SponsorDashboard: React.FC<SponsorDashboardProps> = ({ onBackToFest }) => {
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('connect_club');
+  const [sponsors, setSponsors] = useState<SponsorProfile[]>(() => PartnerStorageService.getSponsors());
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(() => {
+    const list = PartnerStorageService.getSponsors();
+    return list[0]?.id || 'connect_club';
+  });
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
   const [supportMessage, setSupportMessage] = useState<string>('');
   const [supportSent, setSupportSent] = useState<boolean>(false);
 
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (Array.isArray(e.detail)) {
+        setSponsors(e.detail);
+      }
+    };
+    window.addEventListener('festronix:sponsors-updated', handleUpdate);
+    return () => window.removeEventListener('festronix:sponsors-updated', handleUpdate);
+  }, []);
+
   const currentSponsor: SponsorProfile = 
-    SPONSOR_PROFILES.find(p => p.id === selectedProfileId) || SPONSOR_PROFILES[0];
+    sponsors.find(p => p.id === selectedProfileId) || sponsors[0] || {
+      id: 'default',
+      companyName: 'Official Partner',
+      tagline: 'Event Sponsor',
+      tier: 'Official Event Partner',
+      tierBadgeColor: '#38BDF8',
+      logo: '/vce_logo.png',
+      website: 'https://vardhaman.org',
+      pocName: 'SAC Corporate Desk',
+      pocRole: 'Liaison',
+      pocContact: '+91 98480 99112',
+      pocEmail: 'festronix@vardhaman.org',
+      sacLeadName: 'Dean SAC',
+      sacLeadContact: '+91 98480 99112',
+      stallLocation: 'Central Block Atrium',
+      stallNumber: 'Stall #A-01',
+      mouStatus: 'Signed & Executed',
+      invoiceStatus: 'Paid & Cleared',
+      deliverables: [],
+      metrics: {
+        stageKeynoteTime: 'Day 1 • 11:30 AM',
+        brandedBannersAllocated: 10,
+        vipLoungePasses: 15,
+        estimatedReach: '35,000+',
+        impressionsCount: '1.2M'
+      }
+    };
 
   const filteredDeliverables = currentSponsor.deliverables.filter(item => {
     if (activeCategoryFilter === 'all') return true;
@@ -40,7 +81,9 @@ export const SponsorDashboard: React.FC<SponsorDashboardProps> = ({ onBackToFest
   });
 
   const completedCount = currentSponsor.deliverables.filter(d => d.status === 'completed').length;
-  const progressPercent = Math.round((completedCount / currentSponsor.deliverables.length) * 100);
+  const progressPercent = currentSponsor.deliverables.length > 0 
+    ? Math.round((completedCount / currentSponsor.deliverables.length) * 100) 
+    : 0;
 
   const handleSendSupport = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +136,7 @@ export const SponsorDashboard: React.FC<SponsorDashboardProps> = ({ onBackToFest
         {/* Profile Selector Chips */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 600 }}>Active Partner:</span>
-          {SPONSOR_PROFILES.map(profile => (
+          {sponsors.map(profile => (
             <button
               key={profile.id}
               onClick={() => setSelectedProfileId(profile.id)}

@@ -3,10 +3,10 @@ import { ShieldCheck, MapPin, Phone, Mail, Globe, Sparkles, Shield, Rocket } fro
 
 interface FooterProps {
   onOpenAdmin?: () => void;
-  onOpenPartners?: (tab?: 'sponsors' | 'ambassadors') => void;
+  onOpenSponsors?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenPartners }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) => {
   return (
     <footer
       style={{
@@ -217,10 +217,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenPartners }) =
             </div>
 
             
-            {onOpenPartners && (
+            {onOpenSponsors && (
               <div style={{ marginTop: '8px' }}>
                 <button
-                  onClick={() => onOpenPartners('sponsors')}
+                  onClick={onOpenSponsors}
                   style={{
                     background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%)',
                     border: '1px solid rgba(168, 85, 247, 0.45)',
@@ -245,15 +245,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenPartners }) =
                   }}
                 >
                   <Rocket size={14} color="#C084FC" />
-                  <span>Sponsor & Ambassador Portal</span>
+                  <span>View All Sponsors & Partners</span>
                 </button>
               </div>
             )}
 
             
-          {onOpenPartners && (
+          {onOpenSponsors && (
             <button
-              onClick={() => onOpenPartners('sponsors')}
+              onClick={onOpenSponsors}
               style={{
                 background: 'none',
                 border: 'none',

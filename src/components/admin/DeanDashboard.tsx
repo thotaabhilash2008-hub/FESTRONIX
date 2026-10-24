@@ -20,6 +20,7 @@ import { AdminSidebar, AdminNavTab } from './AdminSidebar';
 import { AdminTopNav } from './AdminTopNav';
 import { AdminHeroBanner } from './AdminHeroBanner';
 import { AdminKpiCards } from './AdminKpiCards';
+import { SponsorManagerTab } from './SponsorManagerTab';
 
 interface DeanDashboardProps {
   adminUser: AdminUser;
@@ -806,6 +807,14 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('sponsors')}
+                  className="admin-action-chip-item"
+                >
+                  <Briefcase size={15} color="#38BDF8" />
+                  <span>Sponsors & Partners</span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('structure')}
                   className="admin-action-chip-item"
                 >
@@ -1017,6 +1026,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 })}
               </div>
             </div>
+          )}
+
+          {/* TAB: SPONSORS & STRATEGIC PARTNERS */}
+          {activeTab === 'sponsors' && (
+            <SponsorManagerTab adminUser={adminUser} />
           )}
 
           {/* TAB 1: DEPARTMENT LEADERBOARD */}

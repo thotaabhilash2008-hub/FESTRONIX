@@ -17,7 +17,7 @@ interface NavbarProps {
   onSelectDepartment: (deptCode: string) => void;
   onSelectCategory: (categoryKey: string) => void;
   onOpenAdmin?: () => void;
-  onOpenPartners?: (tab?: 'sponsors' | 'ambassadors') => void;
+  onOpenSponsors?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectDepartment,
   onSelectCategory,
   onOpenAdmin,
-  onOpenPartners
+  onOpenSponsors
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAnnouncementsDropdown, setShowAnnouncementsDropdown] = useState(false);
@@ -628,17 +628,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           
-          {/* Sponsors & Campus Ambassadors Quick Link */}
-          {onOpenPartners && (
+          {/* Public Sponsors & Partners Nav Link */}
+          {onOpenSponsors && (
             <button
-              onClick={() => onOpenPartners('sponsors')}
+              onClick={onOpenSponsors}
               className="desktop-only"
               style={{
-                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(56, 189, 248, 0.12) 100%)',
-                border: '1px solid rgba(168, 85, 247, 0.35)',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '9999px',
-                padding: '7px 13px',
-                color: '#E9D5FF',
+                padding: '7px 14px',
+                color: '#C7CBD4',
                 fontSize: '0.8rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -650,19 +650,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 whiteSpace: 'nowrap'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.6)';
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.5)';
                 e.currentTarget.style.color = '#FFFFFF';
-                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.35)';
-                e.currentTarget.style.color = '#E9D5FF';
-                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.color = '#C7CBD4';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
               }}
-              title="Sponsors & Campus Ambassadors Portal"
+              title="View Official Sponsors and Strategic Partners"
             >
-              <Rocket size={14} color="#C084FC" />
-              <span>Partner & CA Hub</span>
+              <Building2 size={14} color="#38BDF8" />
+              <span>Sponsors & Partners</span>
             </button>
           )}
 
@@ -1182,17 +1182,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             
-            {/* Sponsors & Campus Ambassadors Mobile Link */}
-            {onOpenPartners && (
+            {/* Public Sponsors & Partners Mobile Link */}
+            {onOpenSponsors && (
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  onOpenPartners('sponsors');
+                  onOpenSponsors();
                 }}
                 style={{
-                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(56, 189, 248, 0.15) 100%)',
-                  color: '#E9D5FF',
-                  border: '1px solid rgba(168, 85, 247, 0.4)',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  color: '#38BDF8',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
                   borderRadius: '10px',
                   padding: '12px',
                   fontSize: '0.9rem',
@@ -1204,8 +1204,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   gap: '8px'
                 }}
               >
-                <Rocket size={16} color="#C084FC" />
-                <span>Sponsors & Ambassadors Portal</span>
+                <Building2 size={16} color="#38BDF8" />
+                <span>View Sponsors & Partners Page</span>
               </button>
             )}
 

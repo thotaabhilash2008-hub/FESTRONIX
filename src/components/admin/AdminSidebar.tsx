@@ -1,12 +1,13 @@
 import React from 'react';
 import { 
   Home, Building2, ClipboardList, CreditCard, Calendar, Users, 
-  QrCode, Bell, BarChart3, UserCog, Settings, Layers, ShieldCheck
+  QrCode, Bell, BarChart3, UserCog, Settings, Layers, ShieldCheck, Briefcase
 } from 'lucide-react';
 
 export type AdminNavTab = 
   | 'dashboard' 
   | 'departments' 
+  | 'sponsors'
   | 'registrations' 
   | 'payments' 
   | 'events' 
@@ -35,6 +36,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const menuItems = [
     { id: 'dashboard' as AdminNavTab, label: 'Dashboard', icon: Home },
     { id: 'departments' as AdminNavTab, label: 'Departments', icon: Building2 },
+    { id: 'sponsors' as AdminNavTab, label: 'Sponsors & Partners', icon: Briefcase },
     { id: 'registrations' as AdminNavTab, label: 'Registrations', icon: ClipboardList },
     { 
       id: 'payments' as AdminNavTab, 
