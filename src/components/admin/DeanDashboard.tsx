@@ -4,7 +4,8 @@ import {
   Download, Bell, Plus, Trash2, Edit3, LogOut, Globe, 
   Layers, Eye, RefreshCw, Building2,
   UserCheck, UserPlus, Phone, Mail, Copy, Check,
-  Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key
+  Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key,
+  Calendar, ArrowRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
@@ -14,6 +15,11 @@ import {
   EventCategory, EventFormat, Department
 } from '../../types/festronix';
 import { DEPARTMENTS, ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
+import { AdminHeader } from './AdminHeader';
+import { AdminSidebar, AdminNavTab } from './AdminSidebar';
+import { AdminTopNav } from './AdminTopNav';
+import { AdminHeroBanner } from './AdminHeroBanner';
+import { AdminKpiCards } from './AdminKpiCards';
 
 interface DeanDashboardProps {
   adminUser: AdminUser;
@@ -22,7 +28,9 @@ interface DeanDashboardProps {
 }
 
 export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogout, onSwitchToFest }) => {
-  const [activeTab, setActiveTab] = useState<'leaderboard' | 'payments' | 'events' | 'coordinators' | 'bulletins' | 'roster' | 'structure'>('leaderboard');
+  const [activeTab, setActiveTab] = useState<AdminNavTab>('dashboard');
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [selectedTimeScope, setSelectedTimeScope] = useState<'day' | 'week' | 'month' | 'year'>('day');
   
   const [stats, setStats] = useState<FestStats>(StorageService.getStats());
   const [events, setEvents] = useState<FestEvent[]>(StorageService.getEvents());
@@ -702,283 +710,317 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     return matchSearch && matchDept && matchRole;
   });
 
+  const handleExportRosterCSV = () => {
+    const headers = ['Registration ID', 'Event Name', 'Participant / Leader Name', 'Roll Number', 'Email', 'College', 'Department / Section', 'Phone', 'Payment Status', 'Gate Checked In'];
+    const rows = registrations.map(r => {
+      const ev = events.find(e => e.id === r.eventId);
+      return [
+        r.id,
+        `"${ev?.title || r.eventTitle || 'Unknown'}"`,
+        `"${r.leaderName || ''}"`,
+        r.leaderRoll || '',
+        r.leaderEmail || '',
+        `"${r.leaderCollege || ''}"`,
+        `"${r.deptSection || r.departmentCode || ''}"`,
+        r.leaderPhone || '',
+        r.paymentStatus,
+        r.checkedIn ? 'YES' : 'NO'
+      ].join(',');
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `FESTRONIX_2026_MASTER_ROSTER_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'transparent', color: '#FFFFFF', paddingBottom: '60px' }}>
-      {/* Top Dean Executive Header */}
-      <header
-        style={{
-          backgroundColor: 'rgba(20, 31, 62, 0.95)',
-          borderBottom: '1px solid rgba(220, 227, 229, 0.22)',
-          padding: '16px 28px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '16px',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          backdropFilter: 'blur(20px)'
+    <div className="admin-shell-layout">
+      {/* 1. Left Vertical Sidebar Navigation */}
+      <AdminSidebar
+        activeTab={activeTab}
+        onSelectTab={tab => {
+          if (tab === 'reports') {
+            handleExportRosterCSV();
+          } else {
+            setActiveTab(tab);
+          }
         }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #789593 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(120, 149, 147, 0.4)'
-            }}
-          >
-            <Award size={22} color="#FFFFFF" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 className="font-title" style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#FFFFFF' }}>
-                {adminUser.role === 'vencorpia'
-                  ? 'VENCORPIA EXECUTIVE CONSOLE'
-                  : adminUser.role === 'connect_club'
-                  ? 'CONNECT CLUB EXECUTIVE CONSOLE'
-                  : 'DEAN SAC EXECUTIVE CONSOLE'}
-              </h1>
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  padding: '3px 9px',
-                  borderRadius: '9999px',
-                  background: 'rgba(245, 158, 11, 0.2)',
-                  border: '1px solid rgba(245, 158, 11, 0.45)',
-                  color: '#fbbf24',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em'
-                }}
-              >
-                👑 SUPER ADMIN • FEST-WIDE ADMINISTRATION
-              </span>
-            </div>
-            <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-              {adminUser.fullName} • {adminUser.designation} • Vardhaman College of Engineering
-            </p>
-          </div>
-        </div>
+        pendingPaymentsCount={stats.pendingCount}
+        totalEventsCount={events.length}
+      />
 
-        {/* Header Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={onSwitchToFest}
-            style={{
-              background: 'rgba(40, 59, 120, 0.35)',
-              border: '1px solid rgba(120, 149, 147, 0.4)',
-              borderRadius: '9999px',
-              padding: '7px 16px',
-              color: '#BACEBB',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.6)';
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
-              e.currentTarget.style.color = '#BACEBB';
-            }}
-          >
-            <Globe size={14} />
-            <span>Go to Fest Site</span>
-          </button>
+      {/* 2. Main Viewport Canvas */}
+      <div className="admin-main-viewport">
+        {/* Top Header Bar */}
+        <AdminTopNav
+          adminUser={adminUser}
+          onLogout={onLogout}
+          onSwitchToFest={onSwitchToFest}
+          searchQuery={globalSearch}
+          onSearchChange={setGlobalSearch}
+        />
 
-          <button
-            onClick={onLogout}
-            style={{
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              borderRadius: '9999px',
-              padding: '7px 16px',
-              color: '#f87171',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)')}
-          >
-            <LogOut size={14} />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </header>
+        {/* Content Container */}
+        <main style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
+          {/* Main Dashboard Overview Screen (Matching Reference Image) */}
+          {activeTab === 'dashboard' && (
+            <div className="admin-tab-pane">
+              {/* Hero Welcome Banner */}
+              <AdminHeroBanner adminUser={adminUser} />
 
-      {/* Main Container */}
-      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px' }}>
-        
-        {/* 4 Stat KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-          {/* Card 1: Registrations */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                Total Registrations
-              </span>
-              <Users size={18} color="#789593" />
-            </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1 }}>
-              {stats.totalRegistrations}
-            </div>
-            <div style={{ fontSize: '0.74rem', color: '#BACEBB', marginTop: '6px' }}>
-              {stats.onlineCount} Online • {stats.spotCount} Spot Registrations
-            </div>
-          </div>
+              {/* 4 Neon KPI Cards with Sparklines & Radial Gauge */}
+              <AdminKpiCards stats={stats} />
 
-          {/* Card 2: Revenue */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                Revenue Collected
-              </span>
-              <IndianRupee size={18} color="#BACEBB" />
-            </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#BACEBB', lineHeight: 1.1 }}>
-              ₹{stats.totalCollected.toLocaleString()}
-            </div>
-            <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '6px' }}>
-              Across all engineering departments
-            </div>
-          </div>
+              {/* Quick Action Buttons Strip */}
+              <div className="admin-quick-actions-bar">
+                <button
+                  onClick={() => setIsAddDepartmentOpen(true)}
+                  className="admin-action-btn-glow"
+                >
+                  <Plus size={16} />
+                  <span>Create Department</span>
+                </button>
 
-          {/* Card 3: Verification Queue */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                Pending Verification
-              </span>
-              <Clock size={18} color="#FBBF24" />
-            </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#FBBF24', lineHeight: 1.1 }}>
-              {stats.pendingCount}
-            </div>
-            <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '6px' }}>
-              {stats.verifiedCount} verified • {stats.rejectedCount} rejected
-            </div>
-          </div>
+                <button
+                  onClick={() => setActiveTab('payments')}
+                  className="admin-action-chip-item"
+                >
+                  <Clock size={15} color="#FBBF24" />
+                  <span>Payment Approvals</span>
+                  <span className="admin-sidebar-badge">{stats.pendingCount}</span>
+                </button>
 
-          {/* Card 4: Check-in Attendance */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                Gate Check-In Rate
-              </span>
-              <CheckCircle2 size={18} color="#34D399" />
-            </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#34D399', lineHeight: 1.1 }}>
-              {stats.checkedInCount} / {stats.totalRegistrations}
-            </div>
-            <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '6px' }}>
-              {stats.totalRegistrations > 0 ? Math.round((stats.checkedInCount / stats.totalRegistrations) * 100) : 0}% Attendees Checked In
-            </div>
-          </div>
-        </div>
+                <button
+                  onClick={() => setActiveTab('events')}
+                  className="admin-action-chip-item"
+                >
+                  <Layers size={15} color="#38BDF8" />
+                  <span>View Fest Events</span>
+                  <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38BDF8', padding: '1px 7px', borderRadius: '9999px', fontWeight: 800 }}>
+                    {events.length}
+                  </span>
+                </button>
 
-        {/* Tab Navigation */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            borderBottom: '1px solid rgba(220, 227, 229, 0.15)',
-            marginBottom: '24px',
-            overflowX: 'auto',
-            paddingBottom: '2px'
-          }}
-        >
-          {[
-            { id: 'leaderboard', label: 'Department Leaderboard', icon: Building2 },
-            { id: 'payments', label: `Payment Approvals (${stats.pendingCount})`, icon: Clock },
-            { id: 'events', label: `Fest Events (${events.length})`, icon: Layers },
-            { id: 'coordinators', label: `Event Coordinators (${coordinators.length})`, icon: UserCheck },
-            { id: 'bulletins', label: 'Campus Bulletins', icon: Bell },
-            { id: 'roster', label: `Master Student Roster (${registrations.length})`, icon: Users },
-            { id: 'structure', label: 'Users & Org Structure', icon: Award }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                style={{
-                  background: isActive ? 'rgba(40, 59, 120, 0.45)' : 'transparent',
-                  border: 'none',
-                  borderBottom: isActive ? '2px solid #789593' : '2px solid transparent',
-                  padding: '12px 18px',
-                  color: isActive ? '#FFFFFF' : '#A8B3C2',
-                  fontWeight: isActive ? 700 : 500,
-                  fontSize: '0.86rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                  fontFamily: "'Space Grotesk', sans-serif"
-                }}
-              >
-                <Icon size={16} color={isActive ? '#BACEBB' : '#A8B3C2'} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+                <button
+                  onClick={() => setActiveTab('structure')}
+                  className="admin-action-chip-item"
+                >
+                  <Users size={15} color="#A78BFA" />
+                  <span>User Management</span>
+                </button>
 
-        {/* TAB 1: DEPARTMENT LEADERBOARD */}
-        {activeTab === 'leaderboard' && (
+                <button
+                  onClick={handleExportRosterCSV}
+                  className="admin-action-chip-item"
+                >
+                  <Download size={15} color="#34D399" />
+                  <span>Generate Reports</span>
+                </button>
+              </div>
+
+              {/* Engineering Department Performance Matrix Header & Filters */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '14px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Building2 size={16} color="#38BDF8" />
+                    </div>
+                    <h3 style={{ fontFamily: "var(--font-title, 'Space Grotesk', sans-serif)", fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+                      Engineering Department Performance Matrix
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0 38px' }}>
+                    Live aggregate metrics across all academic divisions for FESTRONIX 2026.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {/* Department Filter Select */}
+                  <select
+                    className="admin-form-input"
+                    style={{ width: 'auto', padding: '7px 12px', fontSize: '0.78rem' }}
+                  >
+                    <option value="all">All Departments</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.code}>{d.code} - {d.name}</option>
+                    ))}
+                  </select>
+
+                  {/* Time Scope Pills */}
+                  <div style={{ display: 'flex', background: 'rgba(14, 21, 38, 0.85)', padding: '3px', borderRadius: '10px', border: '1px solid rgba(220, 227, 232, 0.12)' }}>
+                    {(['day', 'week', 'month', 'year'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setSelectedTimeScope(t)}
+                        style={{
+                          padding: '4px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: selectedTimeScope === t ? 'linear-gradient(135deg, #2563EB, #7C3AED)' : 'transparent',
+                          color: selectedTimeScope === t ? '#FFFFFF' : '#94A3B8',
+                          fontSize: '0.72rem',
+                          fontWeight: selectedTimeScope === t ? 700 : 500,
+                          cursor: 'pointer',
+                          textTransform: 'capitalize'
+                        }}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Department Cards Grid (4 columns, matching reference image) */}
+              <div className="admin-dept-matrix-grid">
+                {departments.map(dept => {
+                  const deptEvents = events.filter(e => e.departmentCode.toUpperCase() === dept.code.toUpperCase());
+                  const deptRegs = registrations.filter(r => deptEvents.some(e => e.id === r.eventId));
+                  const verifiedRegs = deptRegs.filter(r => r.paymentStatus === 'verified');
+                  const checkedInCount = deptRegs.filter(r => r.checkedIn).length;
+                  const totalCollected = verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
+                  const deptCoords = coordinators.filter(c => c.departmentCode?.toUpperCase() === dept.code.toUpperCase());
+
+                  const deptColorConfig: Record<string, { border: string; glow: string; text: string; bg: string; icon: any }> = {
+                    CSE: { border: 'rgba(56, 189, 248, 0.45)', glow: 'rgba(56, 189, 248, 0.14)', text: '#38BDF8', bg: 'rgba(56, 189, 248, 0.15)', icon: Cpu },
+                    CSD: { border: 'rgba(168, 85, 247, 0.45)', glow: 'rgba(168, 85, 247, 0.14)', text: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)', icon: Database },
+                    CSM: { border: 'rgba(245, 158, 11, 0.45)', glow: 'rgba(245, 158, 11, 0.14)', text: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)', icon: Brain },
+                    IT: { border: 'rgba(6, 182, 212, 0.45)', glow: 'rgba(6, 182, 212, 0.14)', text: '#06B6D4', bg: 'rgba(6, 182, 212, 0.15)', icon: Globe },
+                    MECHANICAL: { border: 'rgba(239, 68, 68, 0.45)', glow: 'rgba(239, 68, 68, 0.14)', text: '#F87171', bg: 'rgba(239, 68, 68, 0.15)', icon: Wrench },
+                    CIVIL: { border: 'rgba(16, 185, 129, 0.45)', glow: 'rgba(16, 185, 129, 0.14)', text: '#34D399', bg: 'rgba(16, 185, 129, 0.15)', icon: Building },
+                    EEE: { border: 'rgba(234, 179, 8, 0.45)', glow: 'rgba(234, 179, 8, 0.14)', text: '#FACC15', bg: 'rgba(234, 179, 8, 0.15)', icon: Zap },
+                    ECE: { border: 'rgba(99, 102, 241, 0.45)', glow: 'rgba(99, 102, 241, 0.14)', text: '#818CF8', bg: 'rgba(99, 102, 241, 0.15)', icon: Radio },
+                    MBA: { border: 'rgba(236, 72, 153, 0.45)', glow: 'rgba(236, 72, 153, 0.14)', text: '#F472B6', bg: 'rgba(236, 72, 153, 0.15)', icon: Briefcase },
+                  };
+
+                  const theme = deptColorConfig[dept.code.toUpperCase()] || deptColorConfig.CSE;
+                  const IconComp = theme.icon;
+
+                  return (
+                    <div 
+                      key={dept.id} 
+                      className="admin-dept-matrix-card"
+                      style={{
+                        borderColor: theme.border,
+                        boxShadow: `0 12px 36px rgba(0, 0, 0, 0.55), 0 0 18px ${theme.glow}`
+                      }}
+                    >
+                      {/* Watermark Department Icon */}
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          right: '-10px',
+                          top: '-10px',
+                          opacity: 0.08,
+                          color: theme.text,
+                          pointerEvents: 'none',
+                          transform: 'rotate(-8deg)'
+                        }}
+                      >
+                        <IconComp size={90} />
+                      </div>
+
+                      <div>
+                        {/* Header Row */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', position: 'relative', zIndex: 1 }}>
+                          <span 
+                            className="admin-dept-code-tag"
+                            style={{
+                              background: theme.bg,
+                              borderColor: theme.border,
+                              color: theme.text
+                            }}
+                          >
+                            {dept.code}
+                          </span>
+                          <span className="admin-dept-active-badge">
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
+                            <span>HOD Active</span>
+                          </span>
+                        </div>
+
+                        {/* Title & Tagline */}
+                        <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px', position: 'relative', zIndex: 1 }}>
+                          {dept.name}
+                        </h4>
+                        <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: '0 0 10px', lineHeight: 1.35, minHeight: '36px', position: 'relative', zIndex: 1 }}>
+                          {dept.description}
+                        </p>
+                        <div style={{ fontSize: '0.76rem', color: '#CBD5E1', marginBottom: '14px', position: 'relative', zIndex: 1 }}>
+                          Chief: <strong style={{ color: '#FFFFFF' }}>{dept.chiefCoordinator}</strong>
+                        </div>
+                      </div>
+
+                      <div style={{ position: 'relative', zIndex: 1 }}>
+                        {/* Metrics Block */}
+                        <div style={{ background: 'rgba(10, 16, 32, 0.7)', borderRadius: '12px', padding: '10px 14px', border: '1px solid rgba(220, 227, 232, 0.08)', marginBottom: '14px' }}>
+                          <div className="admin-dept-stat-row">
+                            <span style={{ color: '#94A3B8' }}>Registrations</span>
+                            <strong style={{ color: '#FFFFFF' }}>{deptRegs.length} students</strong>
+                          </div>
+                          <div className="admin-dept-stat-row">
+                            <span style={{ color: '#94A3B8' }}>Funds Collected</span>
+                            <strong style={{ color: '#34D399' }}>₹{totalCollected.toLocaleString()}</strong>
+                          </div>
+                          <div className="admin-dept-stat-row">
+                            <span style={{ color: '#94A3B8' }}>Gate Attendance</span>
+                            <strong style={{ color: checkedInCount > 0 ? '#34D399' : '#94A3B8' }}>{checkedInCount} checked-in</strong>
+                          </div>
+                          <div className="admin-dept-stat-row" style={{ borderBottom: 'none' }}>
+                            <span style={{ color: '#94A3B8' }}>Active Coordinators</span>
+                            <strong style={{ color: '#38BDF8' }}>{Math.max(1, deptCoords.length)} appointed</strong>
+                          </div>
+                        </div>
+
+                        {/* Card Buttons */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 38px', gap: '6px' }}>
+                          <button
+                            onClick={() => {
+                              setEventDeptFilter(dept.code);
+                              setActiveTab('events');
+                            }}
+                            className="admin-btn admin-btn-ghost"
+                            style={{ padding: '7px 8px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                          >
+                            <Calendar size={13} color="#94A3B8" />
+                            <span>Events ({deptEvents.length})</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRosterDeptFilter(dept.code);
+                              setActiveTab('roster');
+                            }}
+                            className="admin-btn admin-btn-ghost"
+                            style={{ padding: '7px 8px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                          >
+                            <Users size={13} color="#94A3B8" />
+                            <span>Roster ({deptRegs.length})</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleOpenEditDepartment(dept);
+                            }}
+                            className="admin-btn admin-btn-ghost"
+                            style={{ padding: '7px 0', fontSize: '0.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            title="Edit Department"
+                          >
+                            <ArrowRight size={14} color="#94A3B8" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 1: DEPARTMENT LEADERBOARD */}
+          {activeTab === 'departments' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
@@ -2832,7 +2874,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         )}
 
         {/* TAB 6: MASTER STUDENT ROSTER & GATE ATTENDANCE */}
-        {activeTab === 'roster' && (
+        {(activeTab === 'roster' || activeTab === 'registrations') && (
           <div>
             <div
               style={{
@@ -3060,7 +3102,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         )}
 
         {/* TAB 6: 3. USERS AND ORGANISATIONAL STRUCTURE */}
-        {activeTab === 'structure' && (
+        {(activeTab === 'structure' || activeTab === 'users') && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
@@ -5275,6 +5317,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
+

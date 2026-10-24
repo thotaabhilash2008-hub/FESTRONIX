@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Shield, Building2, User, Key, ArrowRight, ArrowLeft, Award, Lock, 
-  Sparkles, CheckCircle2, AlertCircle, FileText, CreditCard, QrCode 
+  Shield, Building2, User, Key, ArrowRight, ArrowLeft, Award, Lock, Unlock,
+  Sparkles, CheckCircle2, AlertCircle, FileText, CreditCard, QrCode, Eye, EyeOff,
+  Zap, Check, ShieldCheck
 } from 'lucide-react';
 import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
@@ -17,6 +18,14 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const [activeTab, setActiveTab] = useState<'super_admin' | 'dept' | 'ops'>('super_admin');
   const [isStructureOpen, setIsStructureOpen] = useState(false);
   const [departments, setDepartments] = useState<Department[]>(() => StorageService.getDepartments());
+
+  // Password visibility toggles
+  const [showSuperPassword, setShowSuperPassword] = useState(false);
+  const [showDeptPassword, setShowDeptPassword] = useState(false);
+  const [showOpsPassword, setShowOpsPassword] = useState(false);
+
+  // Quick preset feedback toast
+  const [presetFeedback, setPresetFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -47,6 +56,33 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const handleDeptSelect = (deptCode: string) => {
     setSelectedDept(deptCode);
     setErrorMessage('');
+  };
+
+  // Quick Preset Loader
+  const handleApplyPreset = (preset: {
+    label: string;
+    tab: 'super_admin' | 'dept' | 'ops';
+    user: string;
+    pass: string;
+    dept?: string;
+    role?: 'finance' | 'volunteer';
+  }) => {
+    setActiveTab(preset.tab);
+    setErrorMessage('');
+    if (preset.tab === 'super_admin') {
+      setSuperUsername(preset.user);
+      setSuperPassword(preset.pass);
+    } else if (preset.tab === 'dept') {
+      if (preset.dept) setSelectedDept(preset.dept);
+      setDeptUsername(preset.user);
+      setDeptPassword(preset.pass);
+    } else if (preset.tab === 'ops') {
+      if (preset.role) setOpsRole(preset.role);
+      setOpsUsername(preset.user);
+      setOpsPassword(preset.pass);
+    }
+    setPresetFeedback(`Autofilled credentials for: ${preset.label}`);
+    setTimeout(() => setPresetFeedback(null), 3000);
   };
 
   // Submit Handler: 3 Super Admins
@@ -114,250 +150,281 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
       style={{
         minHeight: '100vh',
         backgroundColor: 'transparent',
-        backgroundImage: 'radial-gradient(circle at 50% 20%, rgba(40, 59, 120, 0.25) 0%, transparent 80%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px 16px',
-        position: 'relative'
+        padding: '36px 16px',
+        position: 'relative',
+        zIndex: 10
       }}
     >
-      {/* Top Bar with Return link & Organisational Structure Specification modal trigger */}
+      {/* Top Header Bar */}
       <div
         style={{
           width: '100%',
-          maxWidth: '620px',
+          maxWidth: '680px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '10px',
+          gap: '12px',
           marginBottom: '20px'
         }}
       >
         <button
           onClick={onBackToFest}
+          className="admin-btn admin-btn-ghost"
           style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(220, 227, 229, 0.25)',
+            padding: '8px 16px',
             borderRadius: '9999px',
-            padding: '7px 16px',
-            color: '#DCE3E5',
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s',
-            fontFamily: "'Space Grotesk', sans-serif"
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.color = '#FFFFFF';
-            e.currentTarget.style.borderColor = '#789593';
-            e.currentTarget.style.background = 'rgba(40, 59, 120, 0.4)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.color = '#DCE3E5';
-            e.currentTarget.style.borderColor = 'rgba(220, 227, 229, 0.25)';
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+            fontSize: '0.8rem'
           }}
         >
           <ArrowLeft size={14} />
-          <span>Return to Festronix 2026 Portal</span>
+          <span>Return to Festronix Public Portal</span>
         </button>
 
         <button
           onClick={() => setIsStructureOpen(true)}
+          className="admin-btn admin-btn-primary"
           style={{
-            background: 'rgba(40, 59, 120, 0.45)',
-            border: '1px solid rgba(120, 149, 147, 0.4)',
+            padding: '8px 16px',
             borderRadius: '9999px',
-            padding: '7px 14px',
-            color: '#BACEBB',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.15s'
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.color = '#FFFFFF';
-            e.currentTarget.style.background = 'rgba(40, 59, 120, 0.7)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.color = '#BACEBB';
-            e.currentTarget.style.background = 'rgba(40, 59, 120, 0.45)';
+            fontSize: '0.8rem',
+            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.4) 0%, rgba(56, 189, 248, 0.25) 100%)',
+            borderColor: 'rgba(56, 189, 248, 0.4)'
           }}
         >
           <FileText size={14} />
-          <span>3. Users & Org Structure</span>
+          <span>Users & Org Structure Guide</span>
         </button>
       </div>
 
-      {/* Main Login Card */}
+      {/* Main Terminal Card */}
       <div
+        className="admin-card"
         style={{
           width: '100%',
-          maxWidth: '620px',
-          background: 'linear-gradient(145deg, rgba(20, 31, 62, 0.96) 0%, rgba(16, 26, 53, 0.98) 100%)',
-          border: '1px solid rgba(220, 227, 229, 0.22)',
-          borderRadius: '24px',
-          padding: '32px 28px',
-          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.85), 0 0 35px rgba(40, 59, 120, 0.35)',
-          backdropFilter: 'blur(20px)',
-          position: 'relative',
-          overflow: 'hidden'
+          maxWidth: '680px',
+          padding: '36px 32px',
+          position: 'relative'
         }}
       >
-        {/* Glowing Top accent */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: '10%',
-            right: '10%',
-            height: '2px',
-            background: 'linear-gradient(90deg, transparent, #789593, #DCE3E5, #789593, transparent)'
-          }}
-        />
+        <div className="admin-card-top-accent" />
 
         {/* Portal Header */}
-        <div style={{ textAlign: 'center', marginBottom: '22px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '26px' }}>
           <div
             style={{
-              width: '54px',
-              height: '54px',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #789593 100%)',
+              position: 'relative',
+              width: '64px',
+              height: '64px',
+              borderRadius: '20px',
+              background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #0284C7 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 12px',
-              boxShadow: '0 0 25px rgba(120, 149, 147, 0.45)'
+              margin: '0 auto 16px',
+              boxShadow: '0 0 35px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
             }}
           >
-            <Shield size={26} color="#FFFFFF" />
+            {/* Ambient rotating ring */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: '-4px',
+                borderRadius: '24px',
+                border: '1.5px dashed rgba(56, 189, 248, 0.6)',
+                animation: 'adminRotateContinuous 25s linear infinite'
+              }}
+            />
+            <Shield size={30} color="#FFFFFF" />
+          </div>
+
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+            <span className="admin-live-beacon">
+              <span className="admin-live-beacon-dot" />
+              <span>COMMAND TERMINAL • AIR-GAPPED VERIFICATION</span>
+            </span>
           </div>
 
           <h2
-            className="font-title"
             style={{
-              fontSize: '1.5rem',
+              fontFamily: "var(--font-title, 'Space Grotesk', sans-serif)",
+              fontSize: '1.65rem',
               fontWeight: 800,
               color: '#FFFFFF',
-              margin: '0 0 4px',
-              letterSpacing: '0.04em'
+              margin: '0 0 6px',
+              letterSpacing: '0.03em'
             }}
           >
             FESTRONIX '26 ADMIN CONSOLE
           </h2>
-          <p style={{ color: '#A8B3C2', fontSize: '0.8rem', margin: 0 }}>
+          <p style={{ color: '#94A3B8', fontSize: '0.82rem', margin: 0 }}>
             Vardhaman College of Engineering • Student Activity Council (SAC)
           </p>
         </div>
 
-        {/* 3-Tab Organisational Navigation */}
+        {/* Quick Demo Credentials Matrix */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '6px',
-            padding: '5px',
-            background: 'rgba(16, 26, 53, 0.8)',
-            border: '1px solid rgba(220, 227, 229, 0.15)',
+            background: 'rgba(12, 18, 34, 0.75)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
             borderRadius: '14px',
+            padding: '12px 14px',
             marginBottom: '22px'
           }}
         >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Zap size={12} color="#38BDF8" />
+              <span>Fast 1-Click Credential Autofill</span>
+            </span>
+            {presetFeedback && (
+              <span style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Check size={12} />
+                <span>{presetFeedback}</span>
+              </span>
+            )}
+          </div>
+
+          <div className="admin-preset-grid">
+            <button
+              type="button"
+              className="admin-preset-chip"
+              onClick={() => handleApplyPreset({ label: 'Dean SAC', tab: 'super_admin', user: 'dean_sac', pass: 'deansac2026' })}
+              title="Super Admin Fest-wide Administration"
+            >
+              <span>👑</span>
+              <div>
+                <div style={{ color: '#FBBF24', fontWeight: 700 }}>Dean SAC</div>
+                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Super Admin</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="admin-preset-chip"
+              onClick={() => handleApplyPreset({ label: 'Connect Club', tab: 'super_admin', user: 'connect_club', pass: 'connect2026' })}
+              title="Super Admin Connect Club Lead"
+            >
+              <span>⚡</span>
+              <div>
+                <div style={{ color: '#38BDF8', fontWeight: 700 }}>Connect Club</div>
+                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Super Admin</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="admin-preset-chip"
+              onClick={() => handleApplyPreset({ label: 'Vencorpia', tab: 'super_admin', user: 'vencorpia', pass: 'vencorpia2026' })}
+              title="Super Admin Vencorpia Board"
+            >
+              <span>💎</span>
+              <div>
+                <div style={{ color: '#A78BFA', fontWeight: 700 }}>Vencorpia</div>
+                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Super Admin</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="admin-preset-chip"
+              onClick={() => handleApplyPreset({ label: 'CSE HOD', tab: 'dept', dept: 'CSE', user: 'hod_cse', pass: 'csefest2026' })}
+              title="Department Chief Coordinator"
+            >
+              <span>🏛️</span>
+              <div>
+                <div style={{ color: '#E2E8F0', fontWeight: 700 }}>CSE HOD</div>
+                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Dept Chief</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="admin-preset-chip"
+              onClick={() => handleApplyPreset({ label: 'Event Coord', tab: 'dept', dept: 'CSE', user: 'event_coord', pass: 'eventcoord2026' })}
+              title="Assigned Event Coordinator"
+            >
+              <span>🎯</span>
+              <div>
+                <div style={{ color: '#34D399', fontWeight: 700 }}>Event Coord</div>
+                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Lead Ops</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="admin-preset-chip"
+              onClick={() => handleApplyPreset({ label: 'Finance Reviewer', tab: 'ops', role: 'finance', user: 'finance_reviewer', pass: 'finance2026' })}
+              title="Payment Verification Officer"
+            >
+              <span>💳</span>
+              <div>
+                <div style={{ color: '#34D399', fontWeight: 700 }}>Finance Desk</div>
+                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Reviewer</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="admin-preset-chip"
+              onClick={() => handleApplyPreset({ label: 'Gate Volunteer', tab: 'ops', role: 'volunteer', user: 'volunteer_staff', pass: 'volunteer2026' })}
+              title="Ticket Scanner & Check-in Staff"
+            >
+              <span>🎟️</span>
+              <div>
+                <div style={{ color: '#C084FC', fontWeight: 700 }}>Volunteer Gate</div>
+                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Ticketing</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* 3-Tab Tier Navigation */}
+        <div className="admin-tab-nav" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
           {/* Tab 1: 3 Super Admins */}
           <button
             type="button"
+            className={`admin-tab-item ${activeTab === 'super_admin' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('super_admin');
               setErrorMessage('');
             }}
-            style={{
-              padding: '10px 8px',
-              borderRadius: '10px',
-              border: activeTab === 'super_admin' ? '1px solid rgba(245, 158, 11, 0.5)' : 'none',
-              background: activeTab === 'super_admin' ? 'linear-gradient(135deg, #283B78 0%, #1e2c5a 100%)' : 'transparent',
-              color: activeTab === 'super_admin' ? '#FFFFFF' : '#A8B3C2',
-              fontWeight: activeTab === 'super_admin' ? 700 : 500,
-              fontSize: '0.76rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              boxShadow: activeTab === 'super_admin' ? '0 4px 15px rgba(40, 59, 120, 0.4)' : 'none',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
+            style={{ justifyContent: 'center' }}
           >
-            <Award size={14} color={activeTab === 'super_admin' ? '#fbbf24' : '#A8B3C2'} />
-            <span>1. 3 SUPER ADMINS</span>
+            <Award size={15} color={activeTab === 'super_admin' ? '#FBBF24' : '#94A3B8'} />
+            <span>1. SUPER ADMINS</span>
           </button>
 
           {/* Tab 2: Dept Chief & Event Coordinators */}
           <button
             type="button"
+            className={`admin-tab-item ${activeTab === 'dept' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('dept');
               setErrorMessage('');
             }}
-            style={{
-              padding: '10px 8px',
-              borderRadius: '10px',
-              border: activeTab === 'dept' ? '1px solid rgba(120, 149, 147, 0.5)' : 'none',
-              background: activeTab === 'dept' ? 'linear-gradient(135deg, #283B78 0%, #1e2c5a 100%)' : 'transparent',
-              color: activeTab === 'dept' ? '#FFFFFF' : '#A8B3C2',
-              fontWeight: activeTab === 'dept' ? 700 : 500,
-              fontSize: '0.76rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              boxShadow: activeTab === 'dept' ? '0 4px 15px rgba(40, 59, 120, 0.4)' : 'none',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
+            style={{ justifyContent: 'center' }}
           >
-            <Building2 size={14} color={activeTab === 'dept' ? '#BACEBB' : '#A8B3C2'} />
-            <span>2. DEPT & EVENT COORD</span>
+            <Building2 size={15} color={activeTab === 'dept' ? '#38BDF8' : '#94A3B8'} />
+            <span>2. DEPT & EVENTS</span>
           </button>
 
           {/* Tab 3: Finance & Volunteer Operations */}
           <button
             type="button"
+            className={`admin-tab-item ${activeTab === 'ops' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('ops');
               setErrorMessage('');
             }}
-            style={{
-              padding: '10px 8px',
-              borderRadius: '10px',
-              border: activeTab === 'ops' ? '1px solid rgba(52, 211, 153, 0.5)' : 'none',
-              background: activeTab === 'ops' ? 'linear-gradient(135deg, #283B78 0%, #1e2c5a 100%)' : 'transparent',
-              color: activeTab === 'ops' ? '#FFFFFF' : '#A8B3C2',
-              fontWeight: activeTab === 'ops' ? 700 : 500,
-              fontSize: '0.76rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              boxShadow: activeTab === 'ops' ? '0 4px 15px rgba(40, 59, 120, 0.4)' : 'none',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
+            style={{ justifyContent: 'center' }}
           >
-            <CreditCard size={14} color={activeTab === 'ops' ? '#34d399' : '#A8B3C2'} />
-            <span>3. FINANCE & CHECK-IN</span>
+            <CreditCard size={15} color={activeTab === 'ops' ? '#34D399' : '#94A3B8'} />
+            <span>3. OPS & FINANCE</span>
           </button>
         </div>
 
@@ -365,124 +432,117 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         {errorMessage && (
           <div
             style={{
-              padding: '12px 14px',
-              borderRadius: '10px',
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              color: '#fca5a5',
-              fontSize: '0.82rem',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              background: 'rgba(239, 68, 68, 0.14)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#FCA5A5',
+              fontSize: '0.84rem',
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              marginBottom: '18px'
+              marginBottom: '20px'
             }}
           >
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            <AlertCircle size={17} style={{ flexShrink: 0 }} />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {/* TAB 1: 3 SUPER ADMINS (SAC DEAN, CONNECT CLUB, VENCORPIA) */}
         {activeTab === 'super_admin' && (
-          <form onSubmit={handleSuperSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleSuperSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div
               style={{
-                padding: '12px 14px',
-                borderRadius: '12px',
-                background: 'rgba(40, 59, 120, 0.25)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
+                padding: '14px 16px',
+                borderRadius: '14px',
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.28)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px'
               }}
             >
-              <Award size={22} color="#fbbf24" style={{ flexShrink: 0 }} />
+              <Award size={24} color="#FBBF24" style={{ flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  👑 3 Super Admins • Fest-wide Administration
+                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#FFFFFF' }}>
+                  👑 3 Super Admins • Fest-wide Central Command
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#DCE3E5', marginTop: '2px' }}>
-                  Central governance for <strong>1. SAC DEAN</strong>, <strong>2. CONNECT CLUB</strong>, and <strong>3. VENCORPIA</strong>. Oversee fest, departments, assignments, accounts, roles, content and reports.
+                <div style={{ fontSize: '0.75rem', color: '#CBD5E1', marginTop: '2px', lineHeight: 1.4 }}>
+                  Authority for <strong>SAC DEAN</strong>, <strong>CONNECT CLUB</strong>, and <strong>VENCORPIA</strong>. Manage departments, approvals, coordinators, broadcasts, and system configs.
                 </div>
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Super Admin Username / Email
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
+                Super Admin Identifier / Username
               </label>
               <div style={{ position: 'relative' }}>
-                <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
                   type="text"
                   value={superUsername}
                   onChange={e => setSuperUsername(e.target.value)}
-                  placeholder="Enter super admin username (dean_sac, connect_club, or vencorpia)"
+                  placeholder="e.g. dean_sac, connect_club, or vencorpia"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px 12px 40px',
-                    borderRadius: '10px',
-                    background: 'rgba(16, 26, 53, 0.9)',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
-                    color: '#FFFFFF',
-                    fontSize: '0.88rem',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  className="admin-form-input"
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Super Admin Access Passcode
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
+                Secret Access Passcode
               </label>
               <div style={{ position: 'relative' }}>
-                <Key size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <Key size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="password"
+                  type={showSuperPassword ? 'text' : 'password'}
                   value={superPassword}
                   onChange={e => setSuperPassword(e.target.value)}
-                  placeholder="Enter secret passcode"
+                  placeholder="Enter encrypted passcode"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px 12px 40px',
-                    borderRadius: '10px',
-                    background: 'rgba(16, 26, 53, 0.9)',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
-                    color: '#FFFFFF',
-                    fontSize: '0.88rem',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  className="admin-form-input"
+                  style={{ paddingRight: '42px' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowSuperPassword(!showSuperPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '13px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                  title={showSuperPassword ? 'Hide passcode' : 'Show passcode'}
+                >
+                  {showSuperPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="btn-cyber-primary"
+              className="admin-btn admin-btn-primary"
               style={{
-                padding: '13px',
-                fontSize: '0.92rem',
-                fontWeight: 700,
+                padding: '14px',
+                fontSize: '0.94rem',
                 width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '4px'
+                marginTop: '6px'
               }}
             >
               {loading ? (
-                <span>Authenticating Super Admin Access...</span>
+                <span>Authenticating Super Admin Node...</span>
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Enter Central Fest Console</span>
+                  <span>Enter Fest-Wide Executive Console</span>
                   <ArrowRight size={16} />
                 </>
               )}
@@ -492,23 +552,24 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
         {/* TAB 2: DEPT CHIEF COORDINATOR & EVENT COORDINATOR */}
         {activeTab === 'dept' && (
-          <form onSubmit={handleDeptSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleDeptSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div
               style={{
-                padding: '10px 12px',
-                borderRadius: '10px',
-                background: 'rgba(40, 59, 120, 0.2)',
-                border: '1px solid rgba(120, 149, 147, 0.3)',
-                fontSize: '0.75rem',
-                color: '#DCE3E5'
+                padding: '12px 14px',
+                borderRadius: '12px',
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                fontSize: '0.77rem',
+                color: '#CBD5E1',
+                lineHeight: 1.4
               }}
             >
-              Access boundary: <strong>Their department's events & assigned event operations</strong>. Monitor capacity, registrations, and readiness.
+              Access boundary: <strong>Assigned departmental events and coordinators</strong>. Track event enrollment, check readiness, and issue spot passes.
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Select Academic Department ({departments.length} Branches Registered)
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '8px' }}>
+                Select Department ({departments.length} Active Academic Branches)
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '6px', marginBottom: '8px' }}>
                 {departments.map(dept => {
@@ -519,17 +580,16 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                       type="button"
                       onClick={() => handleDeptSelect(dept.code)}
                       style={{
-                        padding: '8px 4px',
-                        borderRadius: '8px',
-                        border: isSelected ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.18)',
-                        background: isSelected ? 'rgba(40, 59, 120, 0.55)' : 'rgba(16, 26, 53, 0.7)',
-                        color: isSelected ? '#FFFFFF' : '#A8B3C2',
-                        fontWeight: isSelected ? 700 : 500,
-                        fontSize: '0.75rem',
+                        padding: '9px 6px',
+                        borderRadius: '10px',
+                        border: isSelected ? '1px solid #38BDF8' : '1px solid rgba(220, 227, 232, 0.14)',
+                        background: isSelected ? 'linear-gradient(135deg, rgba(37, 99, 235, 0.4) 0%, rgba(56, 189, 248, 0.3) 100%)' : 'rgba(14, 21, 38, 0.8)',
+                        color: isSelected ? '#FFFFFF' : '#94A3B8',
+                        fontWeight: isSelected ? 800 : 600,
+                        fontSize: '0.78rem',
                         cursor: 'pointer',
-                        transition: 'all 0.15s',
-                        textAlign: 'center',
-                        fontFamily: "'Space Grotesk', sans-serif"
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSelected ? '0 0 15px rgba(56, 189, 248, 0.25)' : 'none'
                       }}
                     >
                       {dept.code}
@@ -537,87 +597,80 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   );
                 })}
               </div>
-              <div style={{ fontSize: '0.74rem', color: '#BACEBB' }}>
-                Selected: <strong>{departments.find(d => d.code === selectedDept)?.name || selectedDept}</strong>
+              <div style={{ fontSize: '0.74rem', color: '#38BDF8', fontWeight: 600 }}>
+                Active: {departments.find(d => d.code === selectedDept)?.name || selectedDept}
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
-                Department Chief Coordinator or Event Coord Username
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
+                Department HOD or Event Coordinator Username
               </label>
               <div style={{ position: 'relative' }}>
-                <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
                   type="text"
                   value={deptUsername}
                   onChange={e => setDeptUsername(e.target.value)}
-                  placeholder="Enter HOD or coordinator username"
+                  placeholder="e.g. hod_cse or event_coord"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px 12px 40px',
-                    borderRadius: '10px',
-                    background: 'rgba(16, 26, 53, 0.9)',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
-                    color: '#FFFFFF',
-                    fontSize: '0.88rem',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  className="admin-form-input"
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
                 Department Passcode
               </label>
               <div style={{ position: 'relative' }}>
-                <Key size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <Key size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="password"
+                  type={showDeptPassword ? 'text' : 'password'}
                   value={deptPassword}
                   onChange={e => setDeptPassword(e.target.value)}
-                  placeholder="Enter department password"
+                  placeholder="Enter department passcode"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px 12px 40px',
-                    borderRadius: '10px',
-                    background: 'rgba(16, 26, 53, 0.9)',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
-                    color: '#FFFFFF',
-                    fontSize: '0.88rem',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  className="admin-form-input"
+                  style={{ paddingRight: '42px' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowDeptPassword(!showDeptPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '13px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                  title={showDeptPassword ? 'Hide passcode' : 'Show passcode'}
+                >
+                  {showDeptPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="btn-cyber-primary"
+              className="admin-btn admin-btn-primary"
               style={{
-                padding: '13px',
-                fontSize: '0.92rem',
-                fontWeight: 700,
+                padding: '14px',
+                fontSize: '0.94rem',
                 width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '4px'
+                marginTop: '6px'
               }}
             >
               {loading ? (
-                <span>Accessing {selectedDept} Desk...</span>
+                <span>Accessing {selectedDept} Department Desk...</span>
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Access {selectedDept} Department Desk</span>
+                  <span>Access {selectedDept} Department Operations</span>
                   <ArrowRight size={16} />
                 </>
               )}
@@ -627,112 +680,127 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
         {/* TAB 3: FINANCE & VOLUNTEER STAFF */}
         {activeTab === 'ops' && (
-          <form onSubmit={handleOpsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleOpsSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div
               style={{
-                padding: '12px 14px',
-                borderRadius: '12px',
-                background: 'rgba(52, 211, 153, 0.1)',
-                border: '1px solid rgba(52, 211, 153, 0.3)',
+                padding: '14px 16px',
+                borderRadius: '14px',
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.28)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px'
               }}
             >
-              <CreditCard size={22} color="#34d399" style={{ flexShrink: 0 }} />
+              <CreditCard size={24} color="#34D399" style={{ flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Operational Staff • Finance & Gate Entry Crew
+                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#FFFFFF' }}>
+                  Operational Staff • Accounts & Gate Entry Crew
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#DCE3E5', marginTop: '2px' }}>
-                  <strong>Finance Reviewer:</strong> Review payment evidence and collection reports. <br />
-                  <strong>Volunteer Staff:</strong> Scan tickets and support entry operations.
+                <div style={{ fontSize: '0.75rem', color: '#CBD5E1', marginTop: '2px', lineHeight: 1.4 }}>
+                  <strong>Finance Reviewer:</strong> Audit transaction proofs and revenue records. <br />
+                  <strong>Volunteer Gate Crew:</strong> Rapid ticket scan, QR validation, and participant entry.
                 </div>
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
                 Operational Staff Username
               </label>
               <div style={{ position: 'relative' }}>
-                <User size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <User size={16} color="#34D399" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
                   type="text"
                   value={opsUsername}
                   onChange={e => setOpsUsername(e.target.value)}
                   placeholder="e.g. finance_reviewer or volunteer_staff"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px 12px 40px',
-                    borderRadius: '10px',
-                    background: 'rgba(16, 26, 53, 0.9)',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
-                    color: '#FFFFFF',
-                    fontSize: '0.88rem',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  className="admin-form-input"
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
                 Staff Access Passcode
               </label>
               <div style={{ position: 'relative' }}>
-                <Key size={16} color="#789593" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                <Key size={16} color="#34D399" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="password"
+                  type={showOpsPassword ? 'text' : 'password'}
                   value={opsPassword}
                   onChange={e => setOpsPassword(e.target.value)}
-                  placeholder="Enter staff passcode"
+                  placeholder="Enter staff security passcode"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px 12px 40px',
-                    borderRadius: '10px',
-                    background: 'rgba(16, 26, 53, 0.9)',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
-                    color: '#FFFFFF',
-                    fontSize: '0.88rem',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  className="admin-form-input"
+                  style={{ paddingRight: '42px' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowOpsPassword(!showOpsPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '13px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                  title={showOpsPassword ? 'Hide passcode' : 'Show passcode'}
+                >
+                  {showOpsPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="btn-cyber-primary"
+              className="admin-btn admin-btn-emerald"
               style={{
-                padding: '13px',
-                fontSize: '0.92rem',
-                fontWeight: 700,
+                padding: '14px',
+                fontSize: '0.94rem',
                 width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '4px'
+                marginTop: '6px'
               }}
             >
               {loading ? (
-                <span>Verifying Staff Access...</span>
+                <span>Verifying Operational Credentials...</span>
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Enter Operational Console</span>
+                  <span>Enter Operational Terminal</span>
                   <ArrowRight size={16} />
                 </>
               )}
             </button>
           </form>
         )}
+
+        {/* Security Footer */}
+        <div
+          style={{
+            marginTop: '26px',
+            paddingTop: '16px',
+            borderTop: '1px solid rgba(220, 227, 232, 0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.72rem',
+            color: '#64748B',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ShieldCheck size={14} color="#34D399" />
+            <span>256-BIT TLS ENCRYPTED SESSION</span>
+          </div>
+          <div>FESTRONIX ARCHITECTURE v2.6.4</div>
+        </div>
       </div>
 
       {/* Organisational Structure Modal */}

@@ -11,6 +11,7 @@ import { AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
 import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
+import { AdminHeader } from './AdminHeader';
 
 interface DeptCoordinatorDashboardProps {
   adminUser: AdminUser;
@@ -631,179 +632,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'transparent', color: '#FFFFFF', paddingBottom: '70px' }}>
-      {/* Top Header - Dynamically customized for Event Coordinator vs Department Chief */}
-      <header
-        style={{
-          backgroundColor: 'rgba(20, 31, 62, 0.95)',
-          borderBottom: '1px solid rgba(220, 227, 229, 0.22)',
-          padding: '16px 28px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '16px',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          backdropFilter: 'blur(20px)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: isEventCoord 
-                ? 'linear-gradient(135deg, #10B981 0%, #059669 50%, #283B78 100%)' 
-                : 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #789593 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: isEventCoord ? '0 0 20px rgba(16, 185, 129, 0.4)' : '0 0 20px rgba(120, 149, 147, 0.4)'
-            }}
-          >
-            {isEventCoord ? <Award size={24} color="#FFFFFF" /> : <Building2 size={24} color="#FFFFFF" />}
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h1 className="font-title" style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#FFFFFF' }}>
-                {isEventCoord 
-                  ? `EVENT OPERATIONS & COORDINATOR DESK`
-                  : `DEPARTMENT OF ${deptInfo?.name?.toUpperCase() || deptCode}`}
-              </h1>
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: isEventCoord ? 'rgba(16, 185, 129, 0.2)' : 'rgba(120, 149, 147, 0.25)',
-                  border: isEventCoord ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(120, 149, 147, 0.5)',
-                  color: isEventCoord ? '#6EE7B7' : '#BACEBB',
-                  fontWeight: 800
-                }}
-              >
-                {isEventCoord ? `🎯 ${deptCode} EVENT COORD` : `🏛️ ${deptCode} CHIEF HOD`}
-              </span>
-            </div>
-            <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-              {adminUser.fullName} • {adminUser.designation} {isDeptChief && `• Chief: ${deptInfo?.chiefCoordinator || adminUser.fullName}`}
-            </p>
-          </div>
-        </div>
-
-        {/* Header Action Buttons (Quick Actions: Spot Reg, Broadcast, Fest Site, Logout) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Spot Registration Button (8.1) */}
-          <button
-            onClick={() => {
-              setSpotEventId(visibleEvents[0]?.id || events[0]?.id || '');
-              setIsSpotRegOpen(true);
-            }}
-            style={{
-              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-              border: 'none',
-              borderRadius: '9999px',
-              padding: '7px 16px',
-              color: '#FFFFFF',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 0 16px rgba(16, 185, 129, 0.4)',
-              transition: 'all 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
-          >
-            <UserPlus size={14} />
-            <span>+ Spot Registration (Fest Day)</span>
-          </button>
-
-          {/* Broadcast Announcement Button (8.1) */}
-          <button
-            onClick={() => setIsBroadcastOpen(true)}
-            style={{
-              background: 'rgba(245, 158, 11, 0.18)',
-              border: '1px solid rgba(245, 158, 11, 0.5)',
-              borderRadius: '9999px',
-              padding: '7px 14px',
-              color: '#FBBF24',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-          >
-            <Megaphone size={14} />
-            <span>Broadcast Alert</span>
-          </button>
-
-          <button
-            onClick={onSwitchToFest}
-            style={{
-              background: 'rgba(40, 59, 120, 0.35)',
-              border: '1px solid rgba(120, 149, 147, 0.4)',
-              borderRadius: '9999px',
-              padding: '7px 16px',
-              color: '#BACEBB',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.6)';
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(40, 59, 120, 0.35)';
-              e.currentTarget.style.color = '#BACEBB';
-            }}
-          >
-            <Globe size={14} />
-            <span>Fest Site</span>
-          </button>
-
-          <button
-            onClick={onLogout}
-            style={{
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              borderRadius: '9999px',
-              padding: '7px 16px',
-              color: '#f87171',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)')}
-          >
-            <LogOut size={14} />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </header>
+      {/* Shared Executive Command Header */}
+      <AdminHeader
+        adminUser={adminUser}
+        onLogout={onLogout}
+        onSwitchToFest={onSwitchToFest}
+      />
 
       {/* Main Container */}
-      <main style={{ maxWidth: '1320px', margin: '0 auto', padding: '24px 20px' }}>
+      <main style={{ maxWidth: '1360px', margin: '0 auto', padding: '28px 24px' }}>
         
         {/* Copy Feedback Toast */}
         {copyFeedback && (
@@ -815,7 +652,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               background: '#10B981',
               color: '#FFFFFF',
               padding: '10px 18px',
-              borderRadius: '8px',
+              borderRadius: '10px',
               fontWeight: 700,
               fontSize: '0.85rem',
               zIndex: 9999,
@@ -830,45 +667,33 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         )}
 
-        {/* 8.1 / 8.2 Scope Banner & Quick Selector */}
+        {/* Executive Quick Actions & Scope Bar */}
         <div
+          className="admin-card"
           style={{
-            background: 'rgba(20, 31, 62, 0.85)',
-            border: '1px solid rgba(220, 227, 229, 0.18)',
-            borderRadius: '16px',
-            padding: '14px 20px',
-            marginBottom: '20px',
+            padding: '16px 22px',
+            marginBottom: '24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '12px'
+            gap: '16px'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-              Viewing Event Scope:
+          {/* Left: Scope Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.76rem', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Operational Scope:
             </span>
-            <div style={{ display: 'flex', gap: '6px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => setEventScope('assigned')}
-                style={{
-                  background: eventScope === 'assigned' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                  border: eventScope === 'assigned' ? '1px solid #10B981' : '1px solid rgba(220, 227, 229, 0.2)',
-                  color: eventScope === 'assigned' ? '#6EE7B7' : '#A8B3C2',
-                  padding: '5px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+                className={`admin-btn ${eventScope === 'assigned' ? 'admin-btn-emerald' : 'admin-btn-ghost'}`}
+                style={{ padding: '6px 14px', fontSize: '0.78rem' }}
               >
                 <span>🎯 Assigned to Me ({assignedEventsList.length})</span>
                 {isEventCoord && (
-                  <span style={{ fontSize: '0.65rem', background: '#10B981', color: '#000', padding: '1px 5px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '0.62rem', background: '#FFFFFF', color: '#000', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
                     DEFAULT
                   </span>
                 )}
@@ -876,23 +701,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
               <button
                 onClick={() => setEventScope('all')}
-                style={{
-                  background: eventScope === 'all' ? 'rgba(40, 59, 120, 0.5)' : 'rgba(255, 255, 255, 0.05)',
-                  border: eventScope === 'all' ? '1px solid #789593' : '1px solid rgba(220, 227, 229, 0.2)',
-                  color: eventScope === 'all' ? '#FFFFFF' : '#A8B3C2',
-                  padding: '5px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+                className={`admin-btn ${eventScope === 'all' ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
+                style={{ padding: '6px 14px', fontSize: '0.78rem' }}
               >
-                <span>🏢 All {deptCode} Department Events ({events.length})</span>
+                <span>🏢 All {deptCode} Events ({events.length})</span>
                 {isDeptChief && (
-                  <span style={{ fontSize: '0.65rem', background: '#3B539C', color: '#FFF', padding: '1px 5px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '0.62rem', background: '#38BDF8', color: '#000', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
                     HOD VIEW
                   </span>
                 )}
@@ -900,110 +714,148 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             </div>
           </div>
 
-          <div style={{ fontSize: '0.78rem', color: '#BACEBB', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>
-              Showing <strong>{visibleEvents.length}</strong> event(s) and <strong>{scopedRegistrations.length}</strong> attendee registration(s)
-            </span>
+          {/* Right: Quick Spot Reg & Broadcast Alert Action Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => {
+                setSpotEventId(visibleEvents[0]?.id || events[0]?.id || '');
+                setIsSpotRegOpen(true);
+              }}
+              className="admin-btn admin-btn-emerald"
+              style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+            >
+              <UserPlus size={15} />
+              <span>+ Spot Registration (Fest Day)</span>
+            </button>
+
+            <button
+              onClick={() => setIsBroadcastOpen(true)}
+              className="admin-btn"
+              style={{
+                background: 'rgba(245, 158, 11, 0.16)',
+                border: '1px solid rgba(245, 158, 11, 0.45)',
+                color: '#FBBF24',
+                padding: '8px 16px',
+                fontSize: '0.8rem'
+              }}
+            >
+              <Megaphone size={15} />
+              <span>Broadcast Alert</span>
+            </button>
           </div>
         </div>
 
         {/* 4 Stat KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '28px' }}>
           {/* Card 1: Registrations */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
+          <div className="admin-kpi-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                {eventScope === 'assigned' ? 'Assigned Registrations' : 'Dept Registrations'}
-              </span>
-              <Users size={18} color="#789593" />
+              <div>
+                <span style={{ fontSize: '0.74rem', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {eventScope === 'assigned' ? 'Assigned Registrations' : 'Dept Registrations'}
+                </span>
+                <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1, marginTop: '4px' }}>
+                  {scopedRegistrations.length}
+                </div>
+              </div>
+              <div className="admin-kpi-icon-pod">
+                <Users size={22} color="#38BDF8" />
+              </div>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1 }}>
-              {scopedRegistrations.length}
+            <div className="admin-progress-track">
+              <div
+                className="admin-progress-fill"
+                style={{
+                  width: `${Math.min(100, (scopedRegistrations.length / Math.max(1, visibleEvents.reduce((acc, e) => acc + e.capacity, 0))) * 100)}%`,
+                  background: 'linear-gradient(90deg, #2563EB, #38BDF8)'
+                }}
+              />
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#BACEBB', marginTop: '6px' }}>
+            <div style={{ fontSize: '0.74rem', color: '#38BDF8', marginTop: '8px', fontWeight: 600 }}>
               {scopedRegistrations.filter(r => r.source !== 'spot').length} online • {scopedRegistrations.filter(r => r.source === 'spot').length} spot delegates
             </div>
           </div>
 
           {/* Card 2: Revenue */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
+          <div className="admin-kpi-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                {eventScope === 'assigned' ? 'Assigned Revenue' : 'Dept Revenue'}
-              </span>
-              <IndianRupee size={18} color="#BACEBB" />
+              <div>
+                <span style={{ fontSize: '0.74rem', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {eventScope === 'assigned' ? 'Assigned Collections' : 'Dept Collections'}
+                </span>
+                <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#34D399', lineHeight: 1.1, marginTop: '4px' }}>
+                  ₹{scopedRegistrations
+                    .filter(r => r.paymentStatus === 'verified')
+                    .reduce((acc, r) => acc + (Number(r.fee) || 0), 0)
+                    .toLocaleString()}
+                </div>
+              </div>
+              <div className="admin-kpi-icon-pod" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.35)' }}>
+                <IndianRupee size={22} color="#34D399" />
+              </div>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#BACEBB', lineHeight: 1.1 }}>
-              ₹{scopedRegistrations
-                .filter(r => r.paymentStatus === 'verified')
-                .reduce((acc, r) => acc + (Number(r.fee) || 0), 0)
-                .toLocaleString()}
+            <div className="admin-progress-track">
+              <div className="admin-progress-fill" style={{ width: '100%', background: 'linear-gradient(90deg, #059669, #34D399)' }} />
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '6px' }}>
-              From {visibleEvents.length} {eventScope === 'assigned' ? 'assigned' : deptCode} events
+            <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '8px' }}>
+              Reconciled for {visibleEvents.length} {eventScope === 'assigned' ? 'assigned' : deptCode} events
             </div>
           </div>
 
           {/* Card 3: Capacity & Slots */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
+          <div className="admin-kpi-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                Total Slot Capacity
-              </span>
-              <Layers size={18} color="#DCE3E5" />
+              <div>
+                <span style={{ fontSize: '0.74rem', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Total Slot Capacity
+                </span>
+                <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1, marginTop: '4px' }}>
+                  {visibleEvents.reduce((acc, e) => acc + e.capacity, 0)} Seats
+                </div>
+              </div>
+              <div className="admin-kpi-icon-pod">
+                <Layers size={22} color="#CBD5E1" />
+              </div>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1 }}>
-              {visibleEvents.reduce((acc, e) => acc + e.capacity, 0)} Seats
+            <div className="admin-progress-track">
+              <div
+                className="admin-progress-fill"
+                style={{
+                  width: `${Math.min(100, Math.round((scopedRegistrations.length / Math.max(1, visibleEvents.reduce((acc, e) => acc + e.capacity, 0))) * 100))}%`,
+                  background: 'linear-gradient(90deg, #6366F1, #818CF8)'
+                }}
+              />
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '6px' }}>
+            <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '8px' }}>
               Across {visibleEvents.length} events • {scopedRegistrations.length} slots claimed
             </div>
           </div>
 
           {/* Card 4: Attendance & Turnout */}
-          <div
-            style={{
-              background: 'rgba(20, 31, 62, 0.85)',
-              border: '1px solid rgba(220, 227, 229, 0.18)',
-              borderRadius: '16px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
-            }}
-          >
+          <div className="admin-kpi-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#A8B3C2', fontWeight: 600, textTransform: 'uppercase' }}>
-                Gate Check-In Turnout
-              </span>
-              <CheckCircle2 size={18} color="#34D399" />
+              <div>
+                <span style={{ fontSize: '0.74rem', color: '#C084FC', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Gate Check-In Turnout
+                </span>
+                <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#C084FC', lineHeight: 1.1, marginTop: '4px' }}>
+                  {scopedRegistrations.filter(r => r.checkedIn).length} / {scopedRegistrations.length}
+                </div>
+              </div>
+              <div className="admin-kpi-icon-pod" style={{ background: 'rgba(168, 85, 247, 0.12)', borderColor: 'rgba(168, 85, 247, 0.35)' }}>
+                <CheckCircle2 size={22} color="#C084FC" />
+              </div>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#34D399', lineHeight: 1.1 }}>
-              {scopedRegistrations.filter(r => r.checkedIn).length} / {scopedRegistrations.length}
+            <div className="admin-progress-track">
+              <div
+                className="admin-progress-fill"
+                style={{
+                  width: `${scopedRegistrations.length > 0 ? (scopedRegistrations.filter(r => r.checkedIn).length / scopedRegistrations.length) * 100 : 0}%`,
+                  background: 'linear-gradient(90deg, #9333EA, #C084FC)'
+                }}
+              />
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '6px' }}>
+            <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '8px' }}>
               {scopedRegistrations.length > 0
                 ? Math.round((scopedRegistrations.filter(r => r.checkedIn).length / scopedRegistrations.length) * 100)
                 : 0}% verified venue attendance
@@ -1011,18 +863,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            borderBottom: '1px solid rgba(220, 227, 229, 0.15)',
-            marginBottom: '24px',
-            overflowX: 'auto',
-            paddingBottom: '2px'
-          }}
-        >
+        {/* Tab Navigation Segment Bar */}
+        <div className="admin-tab-nav">
           {[
             { id: 'events', label: isEventCoord ? `Events (${visibleEvents.length})` : `${deptCode} Events (${events.length})`, icon: Layers },
             ...(isDeptChief ? [{ id: 'readiness', label: `Department Readiness (${readinessMetrics.score}%)`, icon: ShieldCheck }] : []),
@@ -1045,24 +887,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                style={{
-                  background: isActive ? 'rgba(40, 59, 120, 0.45)' : 'transparent',
-                  border: 'none',
-                  borderBottom: isActive ? '2px solid #789593' : '2px solid transparent',
-                  padding: '12px 18px',
-                  color: isActive ? '#FFFFFF' : '#A8B3C2',
-                  fontWeight: isActive ? 700 : 500,
-                  fontSize: '0.86rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                  fontFamily: "'Space Grotesk', sans-serif"
-                }}
+                className={`admin-tab-item ${isActive ? 'active' : ''}`}
               >
-                <Icon size={16} color={isActive ? '#BACEBB' : '#A8B3C2'} />
+                <Icon size={16} color={isActive ? '#38BDF8' : '#94A3B8'} />
                 <span>{tab.label}</span>
               </button>
             );

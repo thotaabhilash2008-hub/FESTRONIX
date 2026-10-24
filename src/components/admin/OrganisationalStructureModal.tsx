@@ -30,36 +30,19 @@ export const OrganisationalStructureModal: React.FC<OrganisationalStructureModal
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(10, 16, 32, 0.85)',
-        backdropFilter: 'blur(12px)',
-        padding: '20px'
-      }}
-      onClick={onClose}
-    >
+    <div className="admin-modal-backdrop" onClick={onClose}>
       <div
+        className="admin-modal-window admin-scrollbar"
         style={{
-          width: '100%',
-          maxWidth: '920px',
+          maxWidth: '960px',
           maxHeight: '90vh',
           overflowY: 'auto',
-          background: 'linear-gradient(145deg, #101A35 0%, #162244 100%)',
-          border: '1px solid rgba(120, 149, 147, 0.35)',
-          borderRadius: '20px',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 40px rgba(40, 59, 120, 0.4)',
-          color: '#FFFFFF',
-          padding: '28px',
+          padding: '32px',
           position: 'relative'
         }}
         onClick={e => e.stopPropagation()}
       >
+        <div className="admin-card-top-accent" />
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>

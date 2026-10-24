@@ -6,6 +6,7 @@ import { FinanceReviewerDashboard } from './FinanceReviewerDashboard';
 import { VolunteerCheckinDashboard } from './VolunteerCheckinDashboard';
 import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
 import { GlitterBackground } from '../GlitterBackground';
+import './admin.css';
 
 interface AdminPortalProps {
   onBackToFest: () => void;
@@ -20,11 +21,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
   };
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
+    <div style={{ position: 'relative', minHeight: '100vh', width: '100%', overflowX: 'hidden', background: '#080C16' }}>
       {/* Background Glitter Starfield & Cyber Grid for Admin Console */}
       <GlitterBackground />
       <div className="glitter-stardust-layer" />
-      <div className="cyber-grid-overlay" />
+      <div className="admin-cyber-grid" />
+
+      {/* Dynamic Ambient Glowing Orbs */}
+      <div className="admin-ambient-canvas">
+        <div className="admin-ambient-orb-1" />
+        <div className="admin-ambient-orb-2" />
+        <div className="admin-ambient-orb-3" />
+      </div>
 
       <div style={{ position: 'relative', zIndex: 10 }}>
         {!adminUser ? (
