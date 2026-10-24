@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Layers, ShoppingBag, LogIn, LogOut } from 'lucide-react';
+import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Announcement, User as UserType } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
@@ -630,6 +630,34 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Buy Multiple Passes</span>
           </button>
 
+          {/* Admin Console Quick Link */}
+          {onOpenAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              className="desktop-only"
+              style={{
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '9999px',
+                padding: '7px 13px',
+                color: '#38BDF8',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease',
+                fontFamily: "'Space Grotesk', sans-serif",
+                whiteSpace: 'nowrap'
+              }}
+              title="SAC Executive Portal"
+            >
+              <ShieldCheck size={14} color="#38BDF8" />
+              <span>Admin Console</span>
+            </button>
+          )}
+
           {/* User Account / Sign In */}
           {currentUser ? (
             <div ref={userMenuRef} style={{ position: 'relative' }} className="desktop-only">
@@ -1089,6 +1117,33 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Ticket size={16} color="#FFFFFF" />
               <span>View Registration Passes {passesCount > 0 ? `(${passesCount})` : ''}</span>
             </button>
+
+            {/* Admin Console Mobile Link */}
+            {onOpenAdmin && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAdmin();
+                }}
+                style={{
+                  background: 'rgba(56, 189, 248, 0.1)',
+                  color: '#38BDF8',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  fontSize: '0.9rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <ShieldCheck size={16} color="#38BDF8" />
+                <span>Admin Console (SAC / HOD)</span>
+              </button>
+            )}
 
 
           </div>

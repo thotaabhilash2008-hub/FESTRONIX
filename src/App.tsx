@@ -23,8 +23,22 @@ import { AboutSection } from './components/AboutSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
 export const App: React.FC = () => {
-  // Admin View State (supports #admin hash or portal button)
-  const [isAdminView, setIsAdminView] = useState<boolean>(() => window.location.hash === '#admin');
+  // Admin View State (supports #admin hash, /admin pathname, or portal button)
+  const checkIsAdmin = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    return (
+      hash === '#admin' ||
+      path === '/admin' ||
+      path === '/admin/' ||
+      path.startsWith('/admin') ||
+      search.includes('admin=true')
+    );
+  };
+
+  const [isAdminView, setIsAdminView] = useState<boolean>(checkIsAdmin);
 
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
@@ -96,18 +110,20 @@ export const App: React.FC = () => {
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
     window.addEventListener('festronix:announcements-updated', handleAnnsUpdate);
 
-    // Reactive hash listener for #admin
-    const handleHashChange = () => {
-      setIsAdminView(window.location.hash === '#admin');
+    // Reactive listener for #admin, /admin, and back/forward navigation
+    const handleLocationChange = () => {
+      setIsAdminView(checkIsAdmin());
     };
-    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    window.addEventListener('popstate', handleLocationChange);
 
     return () => {
       window.removeEventListener('festronix:auth', handleAuthChange);
       window.removeEventListener('festronix:events-updated', handleEventsUpdate);
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
       window.removeEventListener('festronix:announcements-updated', handleAnnsUpdate);
-      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+      window.removeEventListener('popstate', handleLocationChange);
     };
   }, []);
 
@@ -117,6 +133,9 @@ export const App: React.FC = () => {
   };
 
   const handleBackFromAdmin = () => {
+    if (window.location.pathname.toLowerCase().startsWith('/admin')) {
+      window.history.pushState(null, '', '/');
+    }
     window.location.hash = '';
     setIsAdminView(false);
     refreshData();
