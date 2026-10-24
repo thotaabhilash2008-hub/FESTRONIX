@@ -513,47 +513,78 @@ body {
 
 @media (max-width: 768px) {
   .navbar-pill-container {
-    padding: 0 10px !important;
+    padding: 0 12px !important;
   }
+  /* On mobile navbar pill, hide partner logos & divider to eliminate overcrowding */
+  .navbar-partner-divider,
   .navbar-partner-logos {
-    gap: 4px;
-  }
-  .navbar-partner-badge {
-    padding: 2px 4px;
-    border-radius: 6px;
-  }
-  .navbar-partner-img-connect {
-    height: 20px;
-  }
-  .navbar-partner-img-vencorpia {
-    height: 18px;
+    display: none !important;
   }
   .navbar-brand-vce-text {
-    font-size: 0.95rem !important;
+    font-size: 0.98rem !important;
   }
   .navbar-brand-vce-subtext {
     display: none !important;
   }
   .navbar-brand-logo {
-    height: 32px !important;
-    max-height: 32px !important;
+    height: 34px !important;
+    max-height: 34px !important;
   }
 }
 
 @media (max-width: 420px) {
-  .navbar-partner-logos {
-    gap: 3px;
-  }
-  .navbar-partner-badge {
-    padding: 1px 3px;
-  }
-  .navbar-partner-img-connect {
-    height: 18px;
-  }
-  .navbar-partner-img-vencorpia {
-    height: 16px;
+  .navbar-pill-container {
+    padding: 0 10px !important;
   }
   .navbar-brand-vce-text {
-    font-size: 0.82rem !important;
+    font-size: 0.88rem !important;
   }
+  .navbar-brand-logo {
+    height: 30px !important;
+    max-height: 30px !important;
+  }
+}
+
+/* Mobile Slide-in Sidebar Drawer Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInBackdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mobile-sidebar-drawer {
+  animation: slideInRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mobile-sidebar-backdrop {
+  animation: fadeInBackdrop 0.2s ease-out forwards;
+}
+
+/* Drawer Custom Scrollbar */
+.mobile-sidebar-drawer::-webkit-scrollbar {
+  width: 4px;
+}
+.mobile-sidebar-drawer::-webkit-scrollbar-track {
+  background: rgba(10, 13, 20, 0.9);
+}
+.mobile-sidebar-drawer::-webkit-scrollbar-thumb {
+  background: rgba(136, 178, 174, 0.35);
+  border-radius: 4px;
+}
+.mobile-sidebar-drawer::-webkit-scrollbar-thumb:hover {
+  background: rgba(136, 178, 174, 0.6);
 }
