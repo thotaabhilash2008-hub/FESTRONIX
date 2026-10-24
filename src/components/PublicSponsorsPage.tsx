@@ -14,10 +14,21 @@ import {
   Ticket, 
   Layers,
   Users,
-  Compass
+  Compass,
+  Edit3,
+  Trash2,
+  Plus,
+  Lock,
+  Unlock,
+  RotateCcw,
+  Check,
+  X,
+  Key
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { SponsorProfile } from './partners/partnerData';
 import { PartnerStorageService } from '../services/partnerStorageService';
+import { AdminAuthService, AdminUser, isSuperAdminRole, PRESET_ADMINS } from '../services/adminAuthService';
 import { GlitterBackground } from './GlitterBackground';
 
 interface PublicSponsorsPageProps {
@@ -34,6 +45,33 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
   const [sponsors, setSponsors] = useState<SponsorProfile[]>(() => PartnerStorageService.getSponsors());
   const [activeTier, setActiveTier] = useState<string>('all');
 
+  // Super Admin Authentication & Inline Edit Mode
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(() => AdminAuthService.getCurrentAdmin());
+  const isSuperAdmin = adminUser ? isSuperAdminRole(adminUser.role) : false;
+  const [isEditModeActive, setIsEditModeActive] = useState<boolean>(() => isSuperAdmin);
+
+  // Quick Unlock Modal (if not logged in as Super Admin)
+  const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
+  const [unlockUsername, setUnlockUsername] = useState('dean_sac');
+  const [unlockPassword, setUnlockPassword] = useState('deansac2026');
+  const [unlockError, setUnlockError] = useState('');
+
+  // Add / Edit Sponsor Modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingSponsor, setEditingSponsor] = useState<SponsorProfile | null>(null);
+
+  // Form Fields
+  const [companyName, setCompanyName] = useState('');
+  const [tagline, setTagline] = useState('');
+  const [tier, setTier] = useState<SponsorProfile['tier']>('Official Event Partner');
+  const [tierBadgeColor, setTierBadgeColor] = useState('#38BDF8');
+  const [logo, setLogo] = useState('/connect_club_transparent.png');
+  const [website, setWebsite] = useState('https://');
+  const [stallNumber, setStallNumber] = useState('Stall #A-01');
+  const [stallLocation, setStallLocation] = useState('Central Block Atrium Innovation Hub');
+  const [stageKeynoteTime, setStageKeynoteTime] = useState('Day 1 • 11:30 AM');
+  const [estimatedReach, setEstimatedReach] = useState('35,000+ Students');
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -46,10 +84,169 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
     return () => window.removeEventListener('festronix:sponsors-updated', handleUpdate);
   }, []);
 
+  const refreshList = () => {
+    setSponsors(PartnerStorageService.getSponsors());
+  };
+
   const filteredSponsors = sponsors.filter(s => {
     if (activeTier === 'all') return true;
     return s.tier.toLowerCase().includes(activeTier.toLowerCase());
   });
+
+  // Handle Quick Super Admin Login
+  const handleSuperAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUnlockError('');
+    const res = await AdminAuthService.loginCentral(unlockUsername.trim(), unlockPassword.trim());
+    if (res.success && res.user && isSuperAdminRole(res.user.role)) {
+      setAdminUser(res.user);
+      setIsEditModeActive(true);
+      setIsUnlockModalOpen(false);
+      confetti({ particleCount: 80, spread: 60 });
+    } else {
+      setUnlockError(res.error || 'Invalid Super Admin credentials. Only Dean SAC, Connect Club, or Vencorpia admin accounts are authorized.');
+    }
+  };
+
+  // One-click demo login for super admins
+  const handlePresetSuperAdminLogin = async (u: string, p: string) => {
+    setUnlockUsername(u);
+    setUnlockPassword(p);
+    const res = await AdminAuthService.loginCentral(u, p);
+    if (res.success && res.user && isSuperAdminRole(res.user.role)) {
+      setAdminUser(res.user);
+      setIsEditModeActive(true);
+      setIsUnlockModalOpen(false);
+      confetti({ particleCount: 80, spread: 60 });
+    }
+  };
+
+  // Open Create Modal
+  const handleOpenCreateModal = () => {
+    setEditingSponsor(null);
+    setCompanyName('');
+    setTagline('');
+    setTier('Official Event Partner');
+    setTierBadgeColor('#38BDF8');
+    setLogo('/connect_club_transparent.png');
+    setWebsite('https://');
+    setStallNumber('Stall #A-01');
+    setStallLocation('Central Block Atrium • Ground Level');
+    setStageKeynoteTime('Day 1 • 11:30 AM');
+    setEstimatedReach('35,000+ Students');
+    setIsEditModalOpen(true);
+  };
+
+  // Open Edit Modal
+  const handleOpenEditModal = (sponsor: SponsorProfile) => {
+    setEditingSponsor(sponsor);
+    setCompanyName(sponsor.companyName);
+    setTagline(sponsor.tagline);
+    setTier(sponsor.tier);
+    setTierBadgeColor(sponsor.tierBadgeColor);
+    setLogo(sponsor.logo);
+    setWebsite(sponsor.website);
+    setStallNumber(sponsor.stallNumber);
+    setStallLocation(sponsor.stallLocation);
+    setStageKeynoteTime(sponsor.metrics.stageKeynoteTime);
+    setEstimatedReach(sponsor.metrics.estimatedReach);
+    setIsEditModalOpen(true);
+  };
+
+  // Save Sponsor (Create or Update)
+  const handleSaveSponsor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyName.trim()) {
+      alert('Please enter a partner or company name.');
+      return;
+    }
+
+    if (editingSponsor) {
+      PartnerStorageService.updateSponsor(editingSponsor.id, {
+        companyName: companyName.trim(),
+        tagline: tagline.trim(),
+        tier,
+        tierBadgeColor,
+        logo: logo.trim(),
+        website: website.trim(),
+        stallNumber: stallNumber.trim(),
+        stallLocation: stallLocation.trim(),
+        metrics: {
+          ...editingSponsor.metrics,
+          stageKeynoteTime,
+          estimatedReach
+        }
+      });
+      confetti({ particleCount: 70, spread: 50 });
+    } else {
+      const newSponsor: SponsorProfile = {
+        id: `sp_${Date.now()}`,
+        companyName: companyName.trim(),
+        tagline: tagline.trim() || 'Official Corporate Partner & Sponsor',
+        tier,
+        tierBadgeColor,
+        logo: logo.trim() || '/vce_logo.png',
+        website: website.trim() || 'https://vardhaman.org',
+        pocName: 'Corporate Relations Lead',
+        pocRole: 'Partnership Lead',
+        pocContact: '+91 98480 99112',
+        pocEmail: 'sponsorship.festronix@vardhaman.org',
+        sacLeadName: 'Prof. R. Srinivas (Dean SAC)',
+        sacLeadContact: '+91 98480 99112',
+        stallLocation: stallLocation.trim() || 'Central Block Innovation Zone',
+        stallNumber: stallNumber.trim() || 'Stall #S-01',
+        mouStatus: 'Signed & Executed',
+        invoiceStatus: 'Paid & Cleared',
+        metrics: {
+          stageKeynoteTime,
+          brandedBannersAllocated: 10,
+          vipLoungePasses: 15,
+          estimatedReach,
+          impressionsCount: '1M+ Reach'
+        },
+        deliverables: [
+          {
+            id: `del_${Date.now()}_1`,
+            title: 'Top Floating Navbar & Mobile Menu Branding',
+            category: 'digital',
+            status: 'completed',
+            description: 'Brand emblem featured on festival navigation across all devices.',
+            dueDate: 'Immediate'
+          },
+          {
+            id: `del_${Date.now()}_2`,
+            title: 'Main Auditorium Stage Keynote',
+            category: 'stage',
+            status: 'scheduled',
+            description: 'Keynote and brand video showcase during fest ceremonies.',
+            dueDate: 'Oct 28, 2026'
+          }
+        ]
+      };
+      PartnerStorageService.addSponsor(newSponsor);
+      confetti({ particleCount: 90, spread: 60 });
+    }
+
+    setIsEditModalOpen(false);
+    refreshList();
+  };
+
+  // Delete Sponsor
+  const handleDeleteSponsor = (sponsorId: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete sponsor "${name}" from the public website?`)) {
+      PartnerStorageService.deleteSponsor(sponsorId);
+      refreshList();
+    }
+  };
+
+  // Reset to Defaults
+  const handleResetDefaults = () => {
+    if (window.confirm('Reset all sponsors and partners back to defaults (Connect Club, Vencorpia, CyberCore)?')) {
+      PartnerStorageService.resetToDefaults();
+      refreshList();
+      confetti({ particleCount: 50, spread: 45 });
+    }
+  };
 
   const handleDownloadBrochure = () => {
     const blob = new Blob([
@@ -77,7 +274,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
           position: 'sticky',
           top: 0,
           zIndex: 40,
-          background: 'rgba(8, 12, 22, 0.9)',
+          background: 'rgba(8, 12, 22, 0.92)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderBottom: '1px solid rgba(199, 203, 212, 0.14)',
@@ -137,33 +334,183 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
           </div>
         </div>
 
-        {/* Action Button: Explore Arenas */}
-        {onExploreEvents && (
-          <button
-            onClick={onExploreEvents}
-            style={{
-              background: 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
-              border: '1px solid rgba(220, 227, 232, 0.35)',
-              borderRadius: '9999px',
-              padding: '8px 18px',
-              color: '#FFFFFF',
-              fontSize: '0.82rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 4px 16px rgba(46, 78, 140, 0.5)'
-            }}
-          >
-            <Compass size={14} />
-            <span>Explore 30+ Arenas</span>
-          </button>
-        )}
+        {/* Right Action Buttons: Super Admin Toggle & Explore */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          
+          {/* Super Admin Edit Mode Switch */}
+          {isEditModeActive ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div 
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  background: 'rgba(56, 189, 248, 0.15)', 
+                  border: '1px solid rgba(56, 189, 248, 0.4)', 
+                  padding: '6px 12px', 
+                  borderRadius: '9999px',
+                  color: '#38BDF8',
+                  fontSize: '0.78rem',
+                  fontWeight: 800
+                }}
+              >
+                <Unlock size={13} color="#38BDF8" />
+                <span>Super Admin Edit Active</span>
+              </div>
+
+              <button
+                onClick={() => setIsEditModeActive(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '9999px',
+                  padding: '6px 12px',
+                  color: '#94A3B8',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Exit Edit Mode
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                if (isSuperAdmin) {
+                  setIsEditModeActive(true);
+                } else {
+                  setIsUnlockModalOpen(true);
+                }
+              }}
+              style={{
+                background: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '9999px',
+                padding: '8px 14px',
+                color: '#38BDF8',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)';
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.6)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+              }}
+              title="Unlock live editing of sponsors on this page"
+            >
+              <Lock size={13} />
+              <span>Super Admin Edit</span>
+            </button>
+          )}
+
+          {/* Action Button: Explore Arenas */}
+          {onExploreEvents && (
+            <button
+              onClick={onExploreEvents}
+              style={{
+                background: 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
+                border: '1px solid rgba(220, 227, 232, 0.35)',
+                borderRadius: '9999px',
+                padding: '8px 18px',
+                color: '#FFFFFF',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 16px rgba(46, 78, 140, 0.5)'
+              }}
+            >
+              <Compass size={14} />
+              <span>Explore 30+ Arenas</span>
+            </button>
+          )}
+
+        </div>
       </header>
 
+      {/* Super Admin Control Strip (Visible when Edit Mode is Active) */}
+      {isEditModeActive && (
+        <div
+          style={{
+            background: 'linear-gradient(90deg, rgba(8, 47, 73, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
+            borderBottom: '1px solid rgba(56, 189, 248, 0.35)',
+            padding: '12px 24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            position: 'relative',
+            zIndex: 35
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#38BDF8' }}>
+              👑 Super Admin Governance ({adminUser?.fullName || 'Dean SAC / Super Admin'})
+            </span>
+            <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+              • Click "+ Add Sponsor" or click "Edit" on any partner card below to update details live on the main website.
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={handleResetDefaults}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                color: '#C7CBD4',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <RotateCcw size={12} />
+              <span>Reset Defaults</span>
+            </button>
+
+            <button
+              onClick={handleOpenCreateModal}
+              style={{
+                background: 'linear-gradient(135deg, #0284C7 0%, #2563EB 100%)',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                color: '#FFFFFF',
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 10px rgba(2, 132, 199, 0.4)'
+              }}
+            >
+              <Plus size={14} />
+              <span>+ Add New Sponsor / Partner</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
-      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '60px 24px 30px', textAlign: 'center', position: 'relative', zIndex: 10 }}>
+      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '50px 24px 20px', textAlign: 'center', position: 'relative', zIndex: 10 }}>
         <div 
           style={{
             display: 'inline-flex',
@@ -255,7 +602,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
                 background: 'linear-gradient(145deg, rgba(17, 24, 39, 0.9) 0%, rgba(11, 16, 28, 0.95) 100%)',
                 border: '1px solid rgba(199, 203, 212, 0.16)',
                 borderRadius: '20px',
-                padding: '30px 24px',
+                padding: '28px 24px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -291,9 +638,70 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
                 }}
               />
 
+              {/* Inline Super Admin Controls (Visible when Edit Mode Active) */}
+              {isEditModeActive && (
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    background: 'rgba(8, 47, 73, 0.6)', 
+                    border: '1px solid rgba(56, 189, 248, 0.4)', 
+                    borderRadius: '8px', 
+                    padding: '6px 10px', 
+                    marginBottom: '16px' 
+                  }}
+                >
+                  <span style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 800 }}>
+                    ADMIN CONTROLS
+                  </span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => handleOpenEditModal(sponsor)}
+                      style={{
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        color: '#FFFFFF',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Edit3 size={11} />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteSponsor(sponsor.id, sponsor.companyName)}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.2)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        color: '#F87171',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Trash2 size={11} />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div>
                 {/* Logo & Tier Row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <div
                     style={{
                       height: '64px',
@@ -339,7 +747,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
                 </p>
 
                 {/* Event Highlights & Presence */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '22px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem', color: '#C7CBD4' }}>
                     <MapPin size={16} color={sponsor.tierBadgeColor} style={{ flexShrink: 0 }} />
                     <span>Campus Presence: <strong style={{ color: '#FFFFFF' }}>{sponsor.stallNumber}</strong> ({sponsor.stallLocation})</span>
@@ -358,7 +766,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
 
                 {/* Deliverables / Collaboration Highlights */}
                 {sponsor.deliverables && sponsor.deliverables.length > 0 && (
-                  <div style={{ marginBottom: '24px' }}>
+                  <div style={{ marginBottom: '22px' }}>
                     <div style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '8px' }}>
                       Key Collaboration Focus
                     </div>
@@ -543,6 +951,443 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
           </div>
         </div>
       </section>
+
+      {/* ========================================================
+          QUICK SUPER ADMIN UNLOCK MODAL
+          ======================================================== */}
+      {isUnlockModalOpen && (
+        <div className="modal-backdrop">
+          <div 
+            className="modal-content"
+            style={{ 
+              maxWidth: '460px', 
+              background: '#0B132B', 
+              border: '1px solid rgba(56, 189, 248, 0.45)',
+              padding: '24px' 
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={20} color="#38BDF8" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+                  Super Admin Live Verification
+                </h3>
+              </div>
+              <button 
+                onClick={() => setIsUnlockModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.3rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.82rem', color: '#94A3B8', marginBottom: '16px', lineHeight: 1.5 }}>
+              Authenticate with your Super Admin credentials to edit, create, or delete sponsors directly on this public page.
+            </p>
+
+            {/* Quick 1-Click Super Admin Presets */}
+            <div style={{ marginBottom: '18px' }}>
+              <div style={{ fontSize: '0.72rem', color: '#C7CBD4', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
+                Quick 1-Click Super Admin Profiles:
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => handlePresetSuperAdminLogin('dean_sac', 'deansac2026')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: 700
+                  }}
+                >
+                  <span>👑 Dean SAC (Md. Asif)</span>
+                  <span style={{ fontSize: '0.72rem', color: '#38BDF8' }}>Unlock →</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePresetSuperAdminLogin('connect_club', 'connect2026')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: 700
+                  }}
+                >
+                  <span>🤝 Connect Club Admin (Harshith)</span>
+                  <span style={{ fontSize: '0.72rem', color: '#38BDF8' }}>Unlock →</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePresetSuperAdminLogin('vencorpia', 'vencorpia2026')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: 700
+                  }}
+                >
+                  <span>⚡ Vencorpia Admin (Arjun)</span>
+                  <span style={{ fontSize: '0.72rem', color: '#38BDF8' }}>Unlock →</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Manual Form */}
+            <form onSubmit={handleSuperAdminLogin} style={{ borderTop: '1px solid rgba(199, 203, 212, 0.1)', paddingTop: '14px' }}>
+              {unlockError && (
+                <div style={{ color: '#F87171', fontSize: '0.78rem', marginBottom: '10px' }}>
+                  {unlockError}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#C7CBD4', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                  Username:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={unlockUsername}
+                  onChange={e => setUnlockUsername(e.target.value)}
+                  className="cyber-input"
+                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '0.75rem', color: '#C7CBD4', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                  Password:
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={unlockPassword}
+                  onChange={e => setUnlockPassword(e.target.value)}
+                  className="cyber-input"
+                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsUnlockModalOpen(false)}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#C7CBD4',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    background: 'linear-gradient(135deg, #0284C7 0%, #2563EB 100%)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Verify & Unlock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          LIVE IN-PLACE ADD / EDIT SPONSOR MODAL ON MAIN WEB
+          ======================================================== */}
+      {isEditModalOpen && (
+        <div className="modal-backdrop">
+          <div 
+            className="modal-content"
+            style={{ 
+              maxWidth: '680px', 
+              background: '#0D1424', 
+              border: '1px solid rgba(56, 189, 248, 0.45)',
+              padding: '24px' 
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+                  {editingSponsor ? `Edit Sponsor: ${editingSponsor.companyName}` : 'Add New Sponsor / Partner'}
+                </h3>
+                <span style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 700 }}>
+                  Live changes will immediately appear on the public page
+                </span>
+              </div>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.3rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSponsor}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Company / Organization Name: *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={companyName}
+                    onChange={e => setCompanyName(e.target.value)}
+                    placeholder="e.g. Connect Club, Vencorpia, TechCorp"
+                    className="cyber-input"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Sponsorship Tier: *
+                  </label>
+                  <select
+                    value={tier}
+                    onChange={e => {
+                      const val = e.target.value as any;
+                      setTier(val);
+                      if (val === 'Official Event Partner') setTierBadgeColor('#38BDF8');
+                      if (val === 'Official Tech Partner') setTierBadgeColor('#00C2FF');
+                      if (val === 'Gold Sponsor') setTierBadgeColor('#F59E0B');
+                      if (val === 'Title Sponsor') setTierBadgeColor('#EC4899');
+                      if (val === 'Platinum Partner') setTierBadgeColor('#A855F7');
+                    }}
+                    className="cyber-input"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  >
+                    <option value="Official Event Partner">Official Event Partner</option>
+                    <option value="Official Tech Partner">Official Tech Partner</option>
+                    <option value="Gold Sponsor">Gold Sponsor</option>
+                    <option value="Platinum Partner">Platinum Partner</option>
+                    <option value="Title Sponsor">Title Sponsor</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                  Tagline / Description:
+                </label>
+                <input
+                  type="text"
+                  value={tagline}
+                  onChange={e => setTagline(e.target.value)}
+                  placeholder="e.g. Empowering Student Communities & Tech Innovations"
+                  className="cyber-input"
+                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Logo Path or URL: *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={logo}
+                    onChange={e => setLogo(e.target.value)}
+                    placeholder="/connect_club_transparent.png or URL"
+                    className="cyber-input"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  />
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setLogo('/connect_club_transparent.png')}
+                      style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94A3B8', cursor: 'pointer' }}
+                    >
+                      Connect Club
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLogo('/vencorpia_transparent.png')}
+                      style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94A3B8', cursor: 'pointer' }}
+                    >
+                      Vencorpia
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLogo('/vce_logo.png')}
+                      style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94A3B8', cursor: 'pointer' }}
+                    >
+                      VCE Crest
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Tier Accent Color:
+                  </label>
+                  <input
+                    type="color"
+                    value={tierBadgeColor}
+                    onChange={e => setTierBadgeColor(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '38px',
+                      background: 'rgba(12, 14, 18, 0.85)',
+                      border: '1px solid rgba(199, 203, 212, 0.2)',
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Official Website Link:
+                  </label>
+                  <input
+                    type="text"
+                    value={website}
+                    onChange={e => setWebsite(e.target.value)}
+                    placeholder="https://company.com"
+                    className="cyber-input"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Audience Reach:
+                  </label>
+                  <input
+                    type="text"
+                    value={estimatedReach}
+                    onChange={e => setEstimatedReach(e.target.value)}
+                    placeholder="35,000+ Students"
+                    className="cyber-input"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '18px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Stall Number & Campus Location:
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="text"
+                      value={stallNumber}
+                      onChange={e => setStallNumber(e.target.value)}
+                      placeholder="Stall #A-01"
+                      style={{ width: '100px', padding: '8px 10px', fontSize: '0.85rem' }}
+                      className="cyber-input"
+                    />
+                    <input
+                      type="text"
+                      value={stallLocation}
+                      onChange={e => setStallLocation(e.target.value)}
+                      placeholder="Central Block Atrium"
+                      className="cyber-input"
+                      style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C7CBD4', display: 'block', marginBottom: '4px' }}>
+                    Stage Keynote Time Slot:
+                  </label>
+                  <input
+                    type="text"
+                    value={stageKeynoteTime}
+                    onChange={e => setStageKeynoteTime(e.target.value)}
+                    placeholder="Day 1 • 11:30 AM (Inaugural)"
+                    className="cyber-input"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid rgba(199, 203, 212, 0.1)', paddingTop: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#C7CBD4',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    background: 'linear-gradient(135deg, #0284C7 0%, #2563EB 100%)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    borderRadius: '8px',
+                    padding: '8px 22px',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)'
+                  }}
+                >
+                  {editingSponsor ? 'Save Changes' : 'Create Sponsor'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Footer Copyright */}
       <footer
