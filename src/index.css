@@ -464,3 +464,96 @@ body {
     background-position: -200% 0;
   }
 }
+
+/* Navbar Partner Logos & Mobile Optimization */
+.navbar-pill-container {
+  padding: 0 24px;
+}
+
+.navbar-partner-divider {
+  display: block;
+}
+
+.navbar-partner-logos {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-partner-badge {
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.navbar-partner-badge:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.navbar-partner-img-connect {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+}
+
+.navbar-partner-img-vencorpia {
+  height: 26px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px rgba(0, 194, 255, 0.25));
+}
+
+@media (max-width: 768px) {
+  .navbar-pill-container {
+    padding: 0 10px !important;
+  }
+  .navbar-partner-logos {
+    gap: 4px;
+  }
+  .navbar-partner-badge {
+    padding: 2px 4px;
+    border-radius: 6px;
+  }
+  .navbar-partner-img-connect {
+    height: 20px;
+  }
+  .navbar-partner-img-vencorpia {
+    height: 18px;
+  }
+  .navbar-brand-vce-text {
+    font-size: 0.95rem !important;
+  }
+  .navbar-brand-vce-subtext {
+    display: none !important;
+  }
+  .navbar-brand-logo {
+    height: 32px !important;
+    max-height: 32px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .navbar-partner-logos {
+    gap: 3px;
+  }
+  .navbar-partner-badge {
+    padding: 1px 3px;
+  }
+  .navbar-partner-img-connect {
+    height: 18px;
+  }
+  .navbar-partner-img-vencorpia {
+    height: 16px;
+  }
+  .navbar-brand-vce-text {
+    font-size: 0.82rem !important;
+  }
+}

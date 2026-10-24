@@ -110,6 +110,111 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
               <span>www.vardhaman.org</span>
             </div>
 
+            {/* Official Event & Tech Partners */}
+            <div
+              style={{
+                marginTop: '16px',
+                paddingTop: '14px',
+                borderTop: '1px solid rgba(120, 149, 147, 0.25)'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#DCE3E5',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  fontWeight: 700,
+                  marginBottom: '10px'
+                }}
+              >
+                OFFICIAL EVENT & TECH PARTNERS
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <a
+                  href="https://connectclub.in"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Connect Club"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    textDecoration: 'none',
+                    color: '#F3F0EA',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <img
+                    src="/connect_club_transparent.png"
+                    alt="Connect Club"
+                    style={{
+                      height: '24px',
+                      width: 'auto',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.25))'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Connect Club</span>
+                </a>
+
+                <a
+                  href="https://vencorpia.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Vencorpia — One Stop for Effortless Events"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    textDecoration: 'none',
+                    color: '#F3F0EA',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(0, 194, 255, 0.4)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <img
+                    src="/vencorpia_transparent.png"
+                    alt="Vencorpia"
+                    style={{
+                      height: '22px',
+                      width: 'auto',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 6px rgba(0, 194, 255, 0.3))'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Vencorpia</span>
+                </a>
+              </div>
+            </div>
+
             {onOpenAdmin && (
               <div style={{ marginTop: '6px' }}>
                 <button

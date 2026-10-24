@@ -85,8 +85,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       }}
     >
       <div
+        className="navbar-pill-container"
         style={{
-          backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
           backgroundColor: 'rgba(8, 9, 13, 0.88)',
           border: '1px solid rgba(199, 203, 212, 0.16)',
@@ -114,6 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <img
               src="/vce_logo.png"
               alt="VCE Logo"
+              className="navbar-brand-logo"
               style={{
                 height: '40px',
                 width: 'auto',
@@ -125,6 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <span
+                className="navbar-brand-vce-text"
                 style={{
                   fontFamily: "var(--font-heading)",
                   fontSize: '1.12rem',
@@ -137,6 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 VARDHAMAN
               </span>
               <span
+                className="navbar-brand-vce-subtext"
                 style={{
                   fontSize: '0.58rem',
                   color: '#94A3B8',
@@ -155,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Vertical Divider */}
           <div
-            className="desktop-only"
+            className="navbar-partner-divider"
             style={{
               height: '24px',
               width: '1px',
@@ -165,13 +168,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
 
           {/* Partner Logos: Connect Club & Vencorpia */}
-          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="navbar-partner-logos">
             {/* Connect Club */}
             <a
               href="https://connectclub.in"
               target="_blank"
               rel="noopener noreferrer"
               title="Connect Club"
+              className="navbar-partner-badge"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -196,12 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img
                 src="/connect_club_transparent.png"
                 alt="Connect Club"
-                style={{
-                  height: '28px',
-                  width: 'auto',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 0 6px rgba(255, 255, 255, 0.2))'
-                }}
+                className="navbar-partner-img-connect"
               />
             </a>
 
@@ -211,6 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               title="Vencorpia — One Stop for Effortless Events"
+              className="navbar-partner-badge"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -235,12 +235,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img
                 src="/vencorpia_transparent.png"
                 alt="Vencorpia"
-                style={{
-                  height: '26px',
-                  width: 'auto',
-                  objectFit: 'contain',
-                  filter: 'drop-shadow(0 0 6px rgba(0, 194, 255, 0.25))'
-                }}
+                className="navbar-partner-img-vencorpia"
               />
             </a>
           </div>
@@ -1144,6 +1139,79 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Admin Console (SAC / HOD)</span>
               </button>
             )}
+
+            {/* Mobile Partners Section */}
+            <div
+              style={{
+                borderTop: '1px solid rgba(199, 203, 212, 0.12)',
+                paddingTop: '12px',
+                marginTop: '4px'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.72rem',
+                  color: '#94A3B8',
+                  marginBottom: '8px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  fontWeight: 700
+                }}
+              >
+                Official Event & Tech Partners
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <a
+                  href="https://connectclub.in"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    background: 'rgba(21, 24, 32, 0.85)',
+                    border: '1px solid rgba(199, 203, 212, 0.15)',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    textDecoration: 'none',
+                    color: '#F3F0EA'
+                  }}
+                >
+                  <img
+                    src="/connect_club_transparent.png"
+                    alt="Connect Club"
+                    style={{ height: '22px', width: 'auto', objectFit: 'contain' }}
+                  />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>Connect Club</span>
+                </a>
+
+                <a
+                  href="https://vencorpia.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    background: 'rgba(21, 24, 32, 0.85)',
+                    border: '1px solid rgba(199, 203, 212, 0.15)',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    textDecoration: 'none',
+                    color: '#F3F0EA'
+                  }}
+                >
+                  <img
+                    src="/vencorpia_transparent.png"
+                    alt="Vencorpia"
+                    style={{ height: '20px', width: 'auto', objectFit: 'contain' }}
+                  />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>Vencorpia</span>
+                </a>
+              </div>
+            </div>
 
 
           </div>
