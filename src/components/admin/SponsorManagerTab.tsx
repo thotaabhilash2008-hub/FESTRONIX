@@ -74,6 +74,10 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
 
   // Sync sponsors on external updates
   useEffect(() => {
+    PartnerStorageService.initRealtime();
+    void PartnerStorageService.fetchSponsors()
+      .then(setSponsors)
+      .catch(error => console.warn('Sponsor manager sync warning:', error));
     const handleUpdate = (e: any) => {
       if (Array.isArray(e.detail)) {
         setSponsors(e.detail);
@@ -836,9 +840,18 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
           CREATE / EDIT SPONSOR MODAL
           ======================================================== */}
       {isModalOpen && (
-        <div className="modal-backdrop">
+        <div
+          className="modal-backdrop"
+          data-lenis-prevent
+          data-lenis-prevent-wheel
+          data-lenis-prevent-touch
+        >
           <div 
             className="modal-content"
+            data-lenis-prevent
+            data-lenis-prevent-wheel
+            data-lenis-prevent-touch
+            onWheel={event => event.stopPropagation()}
             style={{ 
               maxWidth: '750px', 
               background: '#0D1424', 

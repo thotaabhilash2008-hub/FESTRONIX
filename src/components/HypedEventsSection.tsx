@@ -3,6 +3,7 @@ import { Flame, Trophy, Calendar, MapPin, Users, ArrowRight } from 'lucide-react
 import { FestEvent } from '../types/festronix';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
+import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
 interface HypedEventsSectionProps {
   events: FestEvent[];
@@ -141,11 +142,12 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
               const fillPct = Math.min(100, Math.round((evt.registeredCount / evt.capacity) * 100));
               const spotsLeft = Math.max(0, evt.capacity - evt.registeredCount);
               const isFull = evt.registeredCount >= evt.capacity || evt.status === 'full';
+              const registrationBlockReason = getEventRegistrationBlockReason(evt);
 
               return (
-                <Tilt3DCard key={evt.id} maxTilt={5} scale={1.02}>
+                <article key={evt.id} className="event-card-reset">
                   <div
-                    className="cyber-card"
+                    className="cyber-card event-card-surface"
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -314,9 +316,15 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                       </div>
 
                       {/* Buttons */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div className="event-card-actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         <button
-                          onClick={() => onSelectEvent(evt)}
+                          type="button"
+                          onPointerDown={e => e.stopPropagation()}
+                          onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onSelectEvent(evt);
+                          }}
                           className="btn-cyber-secondary"
                           style={{
                             padding: '11px 12px',
@@ -329,24 +337,34 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                         </button>
 
                         <button
-                          onClick={() => onRegisterEvent(evt)}
-                          disabled={isFull}
-                          className={isFull ? 'btn-cyber-secondary' : 'btn-cyber-gold'}
+                          type="button"
+                          onPointerDown={e => e.stopPropagation()}
+                          onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onRegisterEvent(evt);
+                          }}
+                          disabled={Boolean(registrationBlockReason)}
+                          title={registrationBlockReason || undefined}
+                          className={registrationBlockReason ? 'btn-cyber-secondary' : 'btn-cyber-gold'}
                           style={{
                             padding: '11px 12px',
                             fontSize: '0.84rem',
                             justifyContent: 'center',
                             width: '100%',
-                            cursor: isFull ? 'not-allowed' : 'pointer',
-                            opacity: isFull ? 0.4 : 1
+                            position: 'relative',
+                            zIndex: 40,
+                            pointerEvents: 'auto',
+                            cursor: registrationBlockReason ? 'not-allowed' : 'pointer',
+                            opacity: registrationBlockReason ? 0.4 : 1
                           }}
                         >
-                          {isFull ? 'Sold Out' : evt.fee === 0 ? 'Register Free' : `₹${evt.fee} Register`}
+                          {isFull ? 'Sold Out' : registrationBlockReason ? 'Registration Closed' : evt.fee === 0 ? 'Register Free' : `₹${evt.fee} Register`}
                         </button>
                       </div>
                     </div>
                   </div>
-                </Tilt3DCard>
+                </article>
               );
             })}
           </div>

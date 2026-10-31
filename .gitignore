@@ -29,6 +29,9 @@ dist-ssr
 .env.*.local
 check_db.mjs
 
+# Supabase CLI generated local metadata
+/supabase/.temp/
+
 # Local loose media files
 /intro phone.mp4
 /intro_mobile.mp4

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Lock, Mail, Phone, School, Eye, EyeOff, LogIn, UserPlus, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AuthService } from '../services/authService';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { User as UserType } from '../types/festronix';
 
 interface AuthModalProps {
@@ -69,7 +70,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!raw) return 'Authentication error. Please try again.';
     const lower = raw.toLowerCase();
     if (lower.includes('disabled') || lower.includes('email logins are disabled')) {
-      return 'Incorrect credentials. Please verify your roll number / password or click Sign Up.';
+      return 'Email sign-in is unavailable. Please check the Supabase authentication settings or contact the organizers.';
     }
     return raw;
   };
@@ -350,7 +351,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ fontSize: '0.78rem', color: '#DCE3E5', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                USERNAME OR ROLL NUMBER *
+                EMAIL ADDRESS *
               </label>
               <div style={{ position: 'relative' }}>
                 <User
@@ -359,11 +360,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
                 />
                 <input
-                  type="text"
+                  type="email"
                   required
                   className="cyber-input"
                   style={{ paddingLeft: '38px', height: '42px', fontSize: '0.85rem' }}
-                  placeholder="e.g. 22VCECS104 or rahul104"
+                  placeholder="Enter the email address on your account"
                   value={signInIdentifier}
                   onChange={e => setSignInIdentifier(e.target.value)}
                 />
@@ -409,8 +410,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
-            {/* Quick Demo Fill Shortcut */}
-            <div
+            {/* Demo shortcuts are limited to local development. */}
+            {!isSupabaseConfigured() && <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -456,7 +457,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   22VCECS104 (Rahul)
                 </button>
               </div>
-            </div>
+            </div>}
 
             <button
               type="submit"

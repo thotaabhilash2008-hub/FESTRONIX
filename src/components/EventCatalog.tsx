@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, CalendarDays, MapPin, Users, Crown, ArrowRight, Inbox, Flame, Gamepad2, Code2, Wrench, Presentation, Building2, Sparkles, Filter, X } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
-import { Tilt3DCard } from './3d';
+import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
 interface EventCatalogProps {
   events: FestEvent[];
@@ -42,6 +42,26 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
 
   const viewMode = extActiveViewMode !== undefined ? extActiveViewMode : localViewMode;
   const setViewMode = extOnSetActiveViewMode || setLocalViewMode;
+
+  const departmentOptions = useMemo(() => {
+    const knownCodes = new Set(DEPARTMENTS.map(department => department.code.toUpperCase()));
+    const additionalCodes = [...new Set(events.map(event => event.departmentCode.trim()).filter(Boolean))]
+      .filter(code => !knownCodes.has(code.toUpperCase()))
+      .sort((left, right) => left.localeCompare(right));
+
+    return [
+      ...DEPARTMENTS,
+      ...additionalCodes.map(code => ({
+        id: `dept-${code.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        code,
+        name: code.toUpperCase() === 'SAC' ? 'Student Activity Council' : `${code} Events`,
+        description: 'Additional event organizing unit.',
+        chiefCoordinator: '',
+        contact: '',
+        iconName: 'Building'
+      }))
+    ];
+  }, [events]);
 
   const categories = [
     { key: 'all', label: 'All Categories', icon: <Sparkles size={14} /> },
@@ -229,7 +249,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Building2 size={18} color="#88B2AE" />
                 <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#F3F0EA', fontFamily: "'Space Grotesk', sans-serif" }}>
-                  BROWSE BY ENGINEERING DEPARTMENT
+                  BROWSE BY DEPARTMENT OR UNIT
                 </span>
               </div>
               <button
@@ -255,7 +275,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                 gap: '8px'
               }}
             >
-              {DEPARTMENTS.map(dept => {
+              {departmentOptions.map(dept => {
                 const isSelected = selectedDept === dept.code;
                 const deptCount = events.filter(e => e.departmentCode === dept.code).length;
 
@@ -531,11 +551,13 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
             const seatsRemaining = Math.max(0, event.capacity - event.registeredCount);
             const fillPercentage = Math.min(100, Math.round((event.registeredCount / event.capacity) * 100));
             const isFull = event.status === 'full' || seatsRemaining === 0;
+            const registrationBlockReason = getEventRegistrationBlockReason(event);
+            const isRegistrationBlocked = Boolean(registrationBlockReason);
 
             return (
-              <Tilt3DCard key={event.id} maxTilt={5} scale={1.02}>
+              <article key={event.id} className="event-card-reset">
                 <div
-                  className="cyber-card"
+                  className="cyber-card event-card-surface"
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -706,6 +728,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
 
                   {/* Card Actions */}
                   <div
+                    className="event-card-actions"
                     style={{
                       paddingTop: '12px',
                       borderTop: '1px solid rgba(148, 163, 184, 0.16)',
@@ -732,7 +755,13 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
 
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
-                        onClick={() => onSelectEvent(event)}
+                        type="button"
+                        onPointerDown={e => e.stopPropagation()}
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onSelectEvent(event);
+                        }}
                         className="btn-cyber-secondary"
                         style={{ padding: '7px 14px', fontSize: '0.78rem' }}
                       >
@@ -740,34 +769,44 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                       </button>
 
                       <button
-                        onClick={() => onRegisterEvent(event)}
-                        disabled={isFull}
+                        type="button"
+                        onPointerDown={e => e.stopPropagation()}
+                        onClick={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onRegisterEvent(event);
+                        }}
+                        disabled={isRegistrationBlocked}
+                        title={registrationBlockReason || undefined}
                         style={{
-                          background: isFull
+                          background: isRegistrationBlocked
                             ? 'rgba(255, 255, 255, 0.05)'
                             : 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
-                          color: isFull ? '#94A3B8' : '#FFFFFF',
-                          border: isFull ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.25)',
+                          color: isRegistrationBlocked ? '#94A3B8' : '#FFFFFF',
+                          border: isRegistrationBlocked ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.25)',
                           borderRadius: '10px',
                           padding: '8px 16px',
                           fontSize: '0.8rem',
                           fontWeight: 800,
-                          cursor: isFull ? 'not-allowed' : 'pointer',
-                          boxShadow: isFull ? 'none' : '0 0 20px rgba(46, 78, 140, 0.45)',
+                          cursor: isRegistrationBlocked ? 'not-allowed' : 'pointer',
+                          boxShadow: isRegistrationBlocked ? 'none' : '0 0 20px rgba(46, 78, 140, 0.45)',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
+                          position: 'relative',
+                          zIndex: 40,
+                          pointerEvents: 'auto',
                           transition: 'all 0.2s',
                           fontFamily: "'Space Grotesk', sans-serif"
                         }}
                       >
-                        <span>{isFull ? 'Full' : event.fee === 0 ? 'Register Free' : 'Register'}</span>
+                        <span>{isFull ? 'Full' : registrationBlockReason ? 'Closed' : event.fee === 0 ? 'Register Free' : 'Register'}</span>
                         <ArrowRight size={13} />
                       </button>
                     </div>
                   </div>
                 </div>
-              </Tilt3DCard>
+              </article>
             );
           })}
         </div>

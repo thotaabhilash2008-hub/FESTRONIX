@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Shield, Building2, User, Key, ArrowRight, ArrowLeft, Award, Lock, Unlock,
-  Sparkles, CheckCircle2, AlertCircle, FileText, CreditCard, QrCode, Eye, EyeOff,
-  Zap, Check, ShieldCheck
+  AlertCircle, FileText, CreditCard, Eye, EyeOff, ShieldCheck
 } from 'lucide-react';
 import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
@@ -24,9 +23,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const [showDeptPassword, setShowDeptPassword] = useState(false);
   const [showOpsPassword, setShowOpsPassword] = useState(false);
 
-  // Quick preset feedback toast
-  const [presetFeedback, setPresetFeedback] = useState<string | null>(null);
-
   useEffect(() => {
     const handleUpdate = () => {
       setDepartments(StorageService.getDepartments());
@@ -36,18 +32,18 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   }, []);
 
   // 1. 3 Super Admins Form (SAC DEAN, CONNECT CLUB, VENCORPIA)
-  const [superUsername, setSuperUsername] = useState('');
+  const [superEmail, setSuperEmail] = useState('');
   const [superPassword, setSuperPassword] = useState('');
 
   // 2. Department Chief Coordinator & Event Coordinator Form
   const [selectedDept, setSelectedDept] = useState('CSE');
-  const [deptUsername, setDeptUsername] = useState('');
+  const [deptEmail, setDeptEmail] = useState('');
   const [deptPassword, setDeptPassword] = useState('');
   const [coordName, setCoordName] = useState('');
 
   // 3. Operational Staff Form (Finance Reviewer & Volunteer Check-in)
   const [opsRole, setOpsRole] = useState<'finance' | 'volunteer'>('finance');
-  const [opsUsername, setOpsUsername] = useState('');
+  const [opsEmail, setOpsEmail] = useState('');
   const [opsPassword, setOpsPassword] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
@@ -58,33 +54,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setErrorMessage('');
   };
 
-  // Quick Preset Loader
-  const handleApplyPreset = (preset: {
-    label: string;
-    tab: 'super_admin' | 'dept' | 'ops';
-    user: string;
-    pass: string;
-    dept?: string;
-    role?: 'finance' | 'volunteer';
-  }) => {
-    setActiveTab(preset.tab);
-    setErrorMessage('');
-    if (preset.tab === 'super_admin') {
-      setSuperUsername(preset.user);
-      setSuperPassword(preset.pass);
-    } else if (preset.tab === 'dept') {
-      if (preset.dept) setSelectedDept(preset.dept);
-      setDeptUsername(preset.user);
-      setDeptPassword(preset.pass);
-    } else if (preset.tab === 'ops') {
-      if (preset.role) setOpsRole(preset.role);
-      setOpsUsername(preset.user);
-      setOpsPassword(preset.pass);
-    }
-    setPresetFeedback(`Autofilled credentials for: ${preset.label}`);
-    setTimeout(() => setPresetFeedback(null), 3000);
-  };
-
   // Submit Handler: 3 Super Admins
   const handleSuperSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +61,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setLoading(true);
 
     try {
-      const res = await AdminAuthService.loginCentral(superUsername, superPassword);
+      const res = await AdminAuthService.loginCentral(superEmail, superPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
@@ -112,7 +81,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setLoading(true);
 
     try {
-      const res = await AdminAuthService.loginDepartment(selectedDept, deptUsername, deptPassword, coordName);
+      const res = await AdminAuthService.loginDepartment(selectedDept, deptEmail, deptPassword, coordName);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
@@ -132,7 +101,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setLoading(true);
 
     try {
-      const res = await AdminAuthService.loginCentral(opsUsername, opsPassword);
+      const res = await AdminAuthService.loginCentral(opsEmail, opsPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
@@ -266,7 +235,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           </p>
         </div>
 
-        {/* Quick Demo Credentials Matrix */}
+        {/* Backend sign-in guidance */}
         <div
           style={{
             background: 'rgba(12, 18, 34, 0.75)',
@@ -276,72 +245,9 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             marginBottom: '22px'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Zap size={12} color="#38BDF8" />
-              <span>Fast 1-Click Credential Autofill</span>
-            </span>
-            {presetFeedback && (
-              <span style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Check size={12} />
-                <span>{presetFeedback}</span>
-              </span>
-            )}
-          </div>
-
-          <div className="admin-preset-grid">
-            <button
-              type="button"
-              className="admin-preset-chip"
-              onClick={() => handleApplyPreset({ label: 'CSE HOD', tab: 'dept', dept: 'CSE', user: 'hod_cse', pass: 'csefest2026' })}
-              title="Department Chief Coordinator"
-            >
-              <span>🏛️</span>
-              <div>
-                <div style={{ color: '#E2E8F0', fontWeight: 700 }}>CSE HOD</div>
-                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Dept Chief</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="admin-preset-chip"
-              onClick={() => handleApplyPreset({ label: 'Event Coord', tab: 'dept', dept: 'CSE', user: 'event_coord', pass: 'eventcoord2026' })}
-              title="Assigned Event Coordinator"
-            >
-              <span>🎯</span>
-              <div>
-                <div style={{ color: '#34D399', fontWeight: 700 }}>Event Coord</div>
-                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Lead Ops</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="admin-preset-chip"
-              onClick={() => handleApplyPreset({ label: 'Finance Reviewer', tab: 'ops', role: 'finance', user: 'finance_reviewer', pass: 'finance2026' })}
-              title="Payment Verification Officer"
-            >
-              <span>💳</span>
-              <div>
-                <div style={{ color: '#34D399', fontWeight: 700 }}>Finance Desk</div>
-                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Reviewer</div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="admin-preset-chip"
-              onClick={() => handleApplyPreset({ label: 'Gate Volunteer', tab: 'ops', role: 'volunteer', user: 'volunteer_staff', pass: 'volunteer2026' })}
-              title="Ticket Scanner & Check-in Staff"
-            >
-              <span>🎟️</span>
-              <div>
-                <div style={{ color: '#C084FC', fontWeight: 700 }}>Volunteer Gate</div>
-                <div style={{ color: '#64748B', fontSize: '0.65rem' }}>Ticketing</div>
-              </div>
-            </button>
-          </div>
+          <p style={{ margin: 0, color: '#BAE6FD', fontSize: '0.82rem', lineHeight: 1.5 }}>
+            Sign in with the email address and password assigned to your admin account.
+          </p>
         </div>
 
         {/* 3-Tab Tier Navigation */}
@@ -416,15 +322,16 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Username
+                Admin email
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="text"
-                  value={superUsername}
-                  onChange={e => setSuperUsername(e.target.value)}
-                  placeholder="Enter username"
+                  type="email"
+                  autoComplete="username"
+                  value={superEmail}
+                  onChange={e => setSuperEmail(e.target.value)}
+                  placeholder="Enter your admin email"
                   required
                   className="admin-form-input"
                 />
@@ -544,15 +451,16 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Department HOD or Event Coordinator Username
+                Department HOD or Event Coordinator Email
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="text"
-                  value={deptUsername}
-                  onChange={e => setDeptUsername(e.target.value)}
-                  placeholder="e.g. hod_cse or event_coord"
+                  type="email"
+                  autoComplete="username"
+                  value={deptEmail}
+                  onChange={e => setDeptEmail(e.target.value)}
+                  placeholder="Enter your assigned admin email"
                   required
                   className="admin-form-input"
                 />
@@ -646,15 +554,16 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Operational Staff Username
+                Operational Staff Email
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#34D399" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="text"
-                  value={opsUsername}
-                  onChange={e => setOpsUsername(e.target.value)}
-                  placeholder="e.g. finance_reviewer or volunteer_staff"
+                  type="email"
+                  autoComplete="username"
+                  value={opsEmail}
+                  onChange={e => setOpsEmail(e.target.value)}
+                  placeholder="Enter your assigned admin email"
                   required
                   className="admin-form-input"
                 />

@@ -88,10 +88,20 @@ export interface Database {
             | 'dean_sac'
             | 'connect_club'
             | 'vencorpia'
+          | 'dept_chief_coordinator'
             | 'dept_coordinator'
             | 'event_coordinator'
+          | 'faculty_coord'
+          | 'student_coord'
             | 'finance_reviewer'
+          | 'volunteer_checkin'
             | 'checkin_staff';
+          username: string | null;
+          full_name: string;
+          email: string | null;
+          phone: string | null;
+          access_boundary: string | null;
+          active: boolean;
           department_code: string | null;
           event_id: string | null;
           granted_by: string | null;
@@ -106,10 +116,20 @@ export interface Database {
             | 'dean_sac'
             | 'connect_club'
             | 'vencorpia'
+            | 'dept_chief_coordinator'
             | 'dept_coordinator'
             | 'event_coordinator'
+            | 'faculty_coord'
+            | 'student_coord'
             | 'finance_reviewer'
+            | 'volunteer_checkin'
             | 'checkin_staff';
+          username?: string | null;
+          full_name?: string;
+          email?: string | null;
+          phone?: string | null;
+          access_boundary?: string | null;
+          active?: boolean;
           department_code?: string | null;
           event_id?: string | null;
           granted_by?: string | null;
@@ -124,14 +144,44 @@ export interface Database {
             | 'dean_sac'
             | 'connect_club'
             | 'vencorpia'
+            | 'dept_chief_coordinator'
             | 'dept_coordinator'
             | 'event_coordinator'
+            | 'faculty_coord'
+            | 'student_coord'
             | 'finance_reviewer'
+            | 'volunteer_checkin'
             | 'checkin_staff';
+          username?: string | null;
+          full_name?: string;
+          email?: string | null;
+          phone?: string | null;
+          access_boundary?: string | null;
+          active?: boolean;
           department_code?: string | null;
           event_id?: string | null;
           granted_by?: string | null;
           designation?: string | null;
+          created_at?: string;
+        };
+      };
+      admin_event_assignments: {
+        Row: {
+          admin_user_id: string;
+          event_id: string;
+          granted_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          admin_user_id: string;
+          event_id: string;
+          granted_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          admin_user_id?: string;
+          event_id?: string;
+          granted_by?: string | null;
           created_at?: string;
         };
       };
@@ -140,6 +190,7 @@ export interface Database {
           id: string;
           slug: string;
           title: string;
+          tagline: string | null;
           department_id: string | null;
           department_code: string;
           category: 'technical' | 'workshop' | 'hackathon' | 'non-technical' | 'gaming' | 'departmental';
@@ -160,8 +211,14 @@ export interface Database {
           coordinator_name: string;
           coordinator_phone: string;
           coordinator_email: string;
-          status: 'upcoming' | 'open' | 'full' | 'closed' | 'completed';
+          status: 'upcoming' | 'open' | 'full' | 'closed' | 'completed' | 'pending_approval';
           banner_gradient: string;
+          payment_instructions: string | null;
+          faqs: Json;
+          approval_status: 'approved' | 'pending' | 'rejected';
+          is_deleted: boolean;
+          deleted_at: string | null;
+          deleted_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -169,6 +226,7 @@ export interface Database {
           id?: string;
           slug: string;
           title: string;
+          tagline?: string | null;
           department_id?: string | null;
           department_code: string;
           category: 'technical' | 'workshop' | 'hackathon' | 'non-technical' | 'gaming' | 'departmental';
@@ -189,8 +247,14 @@ export interface Database {
           coordinator_name?: string;
           coordinator_phone?: string;
           coordinator_email?: string;
-          status?: 'upcoming' | 'open' | 'full' | 'closed' | 'completed';
+          status?: 'upcoming' | 'open' | 'full' | 'closed' | 'completed' | 'pending_approval';
           banner_gradient?: string;
+          payment_instructions?: string | null;
+          faqs?: Json;
+          approval_status?: 'approved' | 'pending' | 'rejected';
+          is_deleted?: boolean;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -198,6 +262,7 @@ export interface Database {
           id?: string;
           slug?: string;
           title?: string;
+          tagline?: string | null;
           department_id?: string | null;
           department_code?: string;
           category?: 'technical' | 'workshop' | 'hackathon' | 'non-technical' | 'gaming' | 'departmental';
@@ -218,8 +283,14 @@ export interface Database {
           coordinator_name?: string;
           coordinator_phone?: string;
           coordinator_email?: string;
-          status?: 'upcoming' | 'open' | 'full' | 'closed' | 'completed';
+          status?: 'upcoming' | 'open' | 'full' | 'closed' | 'completed' | 'pending_approval';
           banner_gradient?: string;
+          payment_instructions?: string | null;
+          faqs?: Json;
+          approval_status?: 'approved' | 'pending' | 'rejected';
+          is_deleted?: boolean;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -240,6 +311,12 @@ export interface Database {
           format: 'individual' | 'duo' | 'team';
           fee: number;
           source: 'online' | 'spot';
+          team_name: string | null;
+          team_code: string | null;
+          department_code: string | null;
+          checked_in: boolean;
+          checked_in_at: string | null;
+          checked_in_by: string | null;
           payment_status: 'payment_required' | 'verification_pending' | 'verified' | 'rejected' | 'not_applicable';
           transaction_id: string | null;
           payment_screenshot_url: string | null;
@@ -264,6 +341,12 @@ export interface Database {
           format?: 'individual' | 'duo' | 'team';
           fee?: number;
           source?: 'online' | 'spot';
+          team_name?: string | null;
+          team_code?: string | null;
+          department_code?: string | null;
+          checked_in?: boolean;
+          checked_in_at?: string | null;
+          checked_in_by?: string | null;
           payment_status?: 'payment_required' | 'verification_pending' | 'verified' | 'rejected' | 'not_applicable';
           transaction_id?: string | null;
           payment_screenshot_url?: string | null;
@@ -288,6 +371,12 @@ export interface Database {
           format?: 'individual' | 'duo' | 'team';
           fee?: number;
           source?: 'online' | 'spot';
+          team_name?: string | null;
+          team_code?: string | null;
+          department_code?: string | null;
+          checked_in?: boolean;
+          checked_in_at?: string | null;
+          checked_in_by?: string | null;
           payment_status?: 'payment_required' | 'verification_pending' | 'verified' | 'rejected' | 'not_applicable';
           transaction_id?: string | null;
           payment_screenshot_url?: string | null;
@@ -400,33 +489,36 @@ export interface Database {
           title: string;
           message: string;
           type: 'urgent' | 'general' | 'prize' | 'workshop';
-          scope: 'fest-wide' | 'department';
+          scope: 'fest-wide' | 'department' | 'event';
           department_code: string | null;
           published_by: string | null;
           date_display: string;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
           title: string;
           message: string;
           type: 'urgent' | 'general' | 'prize' | 'workshop';
-          scope: 'fest-wide' | 'department';
+          scope: 'fest-wide' | 'department' | 'event';
           department_code?: string | null;
           published_by?: string | null;
           date_display?: string;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
           title?: string;
           message?: string;
           type?: 'urgent' | 'general' | 'prize' | 'workshop';
-          scope?: 'fest-wide' | 'department';
+          scope?: 'fest-wide' | 'department' | 'event';
           department_code?: string | null;
           published_by?: string | null;
           date_display?: string;
           created_at?: string;
+          updated_at?: string;
         };
       };
       audit_logs: {
@@ -463,24 +555,39 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      register_for_event: {
+      create_registration: {
         Args: {
           p_event_id: string;
-          p_user_id: string | null;
-          p_buyer_roll: string | null;
-          p_leader_name: string;
-          p_leader_email: string;
-          p_leader_phone: string;
-          p_leader_college: string;
-          p_leader_roll: string;
-          p_format: string;
-          p_fee: number;
-          p_source: string;
-          p_payment_status: string;
-          p_transaction_id: string | null;
-          p_payment_screenshot_url: string | null;
-          p_teammates: Json;
+          p_user_id?: string | null;
+          p_buyer_roll?: string | null;
+          p_leader_name?: string;
+          p_leader_email?: string;
+          p_leader_phone?: string;
+          p_leader_college?: string;
+          p_leader_roll?: string;
+          p_format?: string;
+          p_fee?: number;
+          p_source?: string;
+          p_payment_status?: string;
+          p_transaction_id?: string | null;
+          p_payment_screenshot_url?: string | null;
+          p_spot_registered_by?: string | null;
+          p_teammates?: Json;
+          p_team_name?: string | null;
+          p_team_code?: string | null;
         };
+        Returns: Json;
+      };
+      create_registrations: {
+        Args: {
+          p_user_id?: string | null;
+          p_items?: Json;
+          p_source?: string;
+        };
+        Returns: Json;
+      };
+      review_registration_payment: {
+        Args: { p_display_id: string; p_status: string; p_rejection_reason?: string | null };
         Returns: Json;
       };
       check_in_registration: {
@@ -488,6 +595,14 @@ export interface Database {
           p_qr_token_or_id: string;
           p_staff_name?: string;
         };
+        Returns: Json;
+      };
+      toggle_check_in_registration: {
+        Args: { p_display_id: string; p_staff_name?: string };
+        Returns: Json;
+      };
+      soft_delete_event: {
+        Args: { p_event_id: string };
         Returns: Json;
       };
       get_user_role: {

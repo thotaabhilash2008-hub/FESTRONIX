@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   QrCode, Users, CheckCircle2, XCircle, AlertCircle, Search, 
   ArrowRight, LogOut, RefreshCw, Sparkles, Shield, UserCheck, Check,
@@ -32,9 +32,29 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
   const checkedInCount = registrations.filter(r => r.checkedIn).length;
   const totalCount = registrations.length;
 
-  const refreshList = () => {
+  const refreshList = async () => {
     setRegistrations(StorageService.getRegistrations());
+    try {
+      const live = await StorageService.fetchRegistrations();
+      setRegistrations(live);
+    } catch (error) {
+      console.warn('Gate check-in sync warning:', error);
+    }
   };
+
+  useEffect(() => {
+    void refreshList();
+    const handleUpdate = () => setRegistrations(StorageService.getRegistrations());
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'festronix_registrations_v1') void refreshList();
+    };
+    window.addEventListener('festronix:regs-updated', handleUpdate);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('festronix:regs-updated', handleUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   const handleScanOrSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

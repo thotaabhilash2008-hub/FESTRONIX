@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Users, CheckCircle2, XCircle, Search, QrCode, FileSpreadsheet, 
   Sparkles, Shield, UserPlus, Eye, AlertTriangle, ArrowRight, ShieldCheck,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { FestEvent, Registration, PaymentStatus, Teammate } from '../types/festronix';
 import { StorageService } from '../services/storageService';
+import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
 interface CoordinatorPortalProps {
   events: FestEvent[];
@@ -50,6 +51,19 @@ export const CoordinatorPortal: React.FC<CoordinatorPortalProps> = ({
     message: string;
     reg?: Registration;
   }>({ status: null, message: '' });
+
+  // Keep this legacy coordinator surface live when it is embedded by another
+  // portal. The database remains the source of truth; the parent re-fetches
+  // scoped events and registrations after each Realtime notification.
+  useEffect(() => {
+    const refresh = () => onRefreshData();
+    window.addEventListener('festronix:regs-updated', refresh);
+    window.addEventListener('festronix:events-updated', refresh);
+    return () => {
+      window.removeEventListener('festronix:regs-updated', refresh);
+      window.removeEventListener('festronix:events-updated', refresh);
+    };
+  }, [onRefreshData]);
 
   // Filter registrations by selected event
   const filteredRegs = registrations.filter(r => 
@@ -140,14 +154,9 @@ export const CoordinatorPortal: React.FC<CoordinatorPortalProps> = ({
       return;
     }
 
-    // Capacity check (FR-SPOT-04, FR-REG-06)
-    if (event.registeredCount >= event.capacity) {
-      setSpotErrorMsg(`Event "${event.title}" has reached its maximum capacity of ${event.capacity} seats.`);
-      return;
-    }
-
-    if (event.status !== 'open') {
-      setSpotErrorMsg(`Event "${event.title}" registration is currently closed (${event.status}).`);
+    const registrationBlockReason = getEventRegistrationBlockReason(event);
+    if (registrationBlockReason) {
+      setSpotErrorMsg(registrationBlockReason);
       return;
     }
 

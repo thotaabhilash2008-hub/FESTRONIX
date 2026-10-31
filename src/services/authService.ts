@@ -6,7 +6,10 @@ const STORAGE_KEYS = {
   SESSION: 'festronix_auth_session_v1'
 };
 
-const INITIAL_USERS: User[] = [
+// --------------------------------------------------------------------------
+// Offline / dev-mode seed users (only used when Supabase is NOT configured)
+// --------------------------------------------------------------------------
+const OFFLINE_SEED_USERS: User[] = [
   {
     id: 'd795cf91-7f50-497b-922f-d33c379c8085',
     username: 'dhanush',
@@ -45,9 +48,9 @@ const INITIAL_USERS: User[] = [
 export class AuthService {
   private static isInitialized = false;
 
-  /**
-   * Initializes real-time auth state listener from Supabase
-   */
+  // -----------------------------------------------------------------------
+  // Initializes real-time auth state listener from Supabase
+  // -----------------------------------------------------------------------
   static init(): void {
     if (this.isInitialized) return;
     this.isInitialized = true;
@@ -58,7 +61,7 @@ export class AuthService {
           localStorage.removeItem(STORAGE_KEYS.SESSION);
           window.dispatchEvent(new CustomEvent('festronix:auth', { detail: null }));
         } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          // If profile not cached, fetch from public.profiles
+          // Fetch/refresh the profile from the database
           const cached = this.getCurrentUser();
           if (!cached || cached.id !== session.user.id) {
             try {
@@ -69,15 +72,21 @@ export class AuthService {
                 .maybeSingle();
 
               if (profile) {
+                const user: User = this.profileToUser(profile);
+                localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
+                window.dispatchEvent(new CustomEvent('festronix:auth', { detail: user }));
+              } else {
+                // Profile may not have been created yet (trigger delay);
+                // build a minimal user from auth metadata
                 const user: User = {
-                  id: profile.id,
-                  username: profile.username || profile.roll_number,
-                  rollNumber: profile.roll_number,
-                  fullName: profile.full_name,
-                  email: profile.email,
-                  phone: profile.phone || '',
-                  college: profile.college,
-                  createdAt: profile.created_at
+                  id: session.user.id,
+                  username: session.user.user_metadata?.username || session.user.email?.split('@')[0] || '',
+                  rollNumber: session.user.user_metadata?.roll_number || '',
+                  fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                  email: session.user.email || '',
+                  phone: session.user.user_metadata?.phone || '',
+                  college: session.user.user_metadata?.college || 'Vardhaman College of Engineering',
+                  createdAt: session.user.created_at || new Date().toISOString()
                 };
                 localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
                 window.dispatchEvent(new CustomEvent('festronix:auth', { detail: user }));
@@ -88,51 +97,49 @@ export class AuthService {
           }
         }
       });
-    }
-  }
 
-  static getUsers(): User[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.USERS);
-    let users: User[] = [];
-    if (raw) {
-      try {
-        users = JSON.parse(raw);
-        if (!Array.isArray(users)) users = [];
-      } catch {
-        users = [];
-      }
-    }
-
-    // Always ensure initial preset users exist with their credentials
-    let changed = false;
-    for (const initUser of INITIAL_USERS) {
-      const idx = users.findIndex(
-        u => (u.rollNumber && u.rollNumber.toLowerCase() === initUser.rollNumber.toLowerCase()) ||
-             (u.email && u.email.toLowerCase() === initUser.email.toLowerCase()) ||
-             (u.username && u.username.toLowerCase() === initUser.username.toLowerCase())
-      );
-      if (idx === -1) {
-        users.push({ ...initUser });
-        changed = true;
-      } else {
-        // Ensure id and password are up to date if missing or outdated
-        if (!users[idx].password || users[idx].id !== initUser.id) {
-          users[idx] = { ...initUser, ...users[idx], id: initUser.id, password: users[idx].password || initUser.password };
-          changed = true;
+      // On init, also try to restore from an existing Supabase session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          const cached = this.getCurrentUser();
+          if (!cached || cached.id !== session.user.id) {
+            supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle()
+              .then(({ data: profile }) => {
+                if (profile) {
+                  const user = this.profileToUser(profile);
+                  localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
+                  window.dispatchEvent(new CustomEvent('festronix:auth', { detail: user }));
+                }
+              });
+          }
         }
-      }
+      });
     }
-
-    if (changed || !raw) {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    }
-    return users;
   }
 
-  static saveUsers(users: User[]): void {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  // -----------------------------------------------------------------------
+  // Convert a Supabase profiles row → User object
+  // -----------------------------------------------------------------------
+  private static profileToUser(profile: any): User {
+    return {
+      id: profile.id,
+      username: profile.username || profile.roll_number,
+      rollNumber: profile.roll_number,
+      fullName: profile.full_name,
+      email: profile.email,
+      phone: profile.phone || '',
+      college: profile.college,
+      createdAt: profile.created_at
+    };
   }
 
+  // -----------------------------------------------------------------------
+  // Get cached user (fast, synchronous — used for initial render)
+  // -----------------------------------------------------------------------
   static getCurrentUser(): User | null {
     const raw = localStorage.getItem(STORAGE_KEYS.SESSION);
     if (!raw) return null;
@@ -143,9 +150,9 @@ export class AuthService {
     }
   }
 
-  /**
-   * Sign in with Email, Roll Number, or Username and Password
-   */
+  // -----------------------------------------------------------------------
+  // Sign In
+  // -----------------------------------------------------------------------
   static async signIn(
     identifier: string,
     password: string
@@ -154,158 +161,58 @@ export class AuthService {
     const cleanPass = password.trim();
 
     if (!cleanId || !cleanPass) {
-      return { success: false, error: 'Please enter both Username/Roll Number and Password.' };
+      return { success: false, error: 'Please enter your email address and password.' };
     }
 
-    const localUsers = this.getUsers();
-    const localMatch = localUsers.find(
-      u =>
-        (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
-        (u.rollNumber && u.rollNumber.toLowerCase() === cleanId.toLowerCase()) ||
-        (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
-    );
-
-    // --- SUPABASE AUTH FLOW ---
+    // =====================================================================
+    // SUPABASE AUTH (primary path when configured)
+    // =====================================================================
     if (isSupabaseConfigured()) {
       try {
-        let emailToAuth = cleanId;
-        let profileMatch: any = null;
-
-        // If identifier is not an email, lookup email from profiles by roll_number or username
         if (!cleanId.includes('@')) {
-          const { data, error: lookupError } = await supabase
-            .from('profiles')
-            .select('*')
-            .or(`roll_number.ilike.${cleanId},username.ilike.${cleanId}`)
-            .maybeSingle();
-
-          if (!lookupError && data) {
-            profileMatch = data;
-            if (data.email) {
-              emailToAuth = data.email;
-            }
-          }
-        } else {
-          const { data } = await supabase
-            .from('profiles')
-            .select('*')
-            .ilike('email', cleanId)
-            .maybeSingle();
-          profileMatch = data;
+          return { success: false, error: 'Sign in with the email address on your account.' };
         }
 
-        // If profile was not found in Supabase profiles, but exists in localMatch
-        if (!profileMatch && localMatch) {
-          if (localMatch.password && localMatch.password !== cleanPass) {
-            return { success: false, error: 'Incorrect password. Please verify and try again.' };
-          }
-          const safeUser: User = { ...localMatch };
-          delete safeUser.password;
-          localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
-          window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
-          return { success: true, user: safeUser };
-        }
-
-        if (!profileMatch && !localMatch) {
-          return {
-            success: false,
-            error: `No account found with Roll Number or Username "${cleanId}". Please Sign Up.`
-          };
-        }
-
-        // Authenticate with Supabase
+        // Authenticate via Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: emailToAuth,
+          email: cleanId.toLowerCase(),
           password: cleanPass
         });
 
         if (authError || !authData.user) {
-          const isEmailProviderDisabled = Boolean(
-            authError?.code === 'email_provider_disabled' ||
-            (authError?.message && (
-              authError.message.toLowerCase().includes('disabled') ||
-              authError.message.toLowerCase().includes('email logins are disabled')
-            ))
-          );
+          // Provide user-friendly messages for common Supabase errors
+          const msg = authError?.message?.toLowerCase() || '';
 
-          const isEmailNotConfirmed = Boolean(
-            authError?.message && (
-              authError.message.toLowerCase().includes('email not confirmed') ||
-              authError.message.toLowerCase().includes('email_not_confirmed') ||
-              authError.message.toLowerCase().includes('confirm')
-            )
-          );
-
-          // If Supabase has disabled email logins or email confirmation is pending in dashboard,
-          // verify credentials using verified profile and local credential matching
-          if (isEmailProviderDisabled || isEmailNotConfirmed) {
-            const profile = profileMatch || (await supabase
-              .from('profiles')
-              .select('*')
-              .or(`email.ilike.${emailToAuth},roll_number.ilike.${cleanId},username.ilike.${cleanId}`)
-              .maybeSingle()).data;
-
-            if (profile) {
-              if (localMatch && localMatch.password && localMatch.password !== cleanPass) {
-                return { success: false, error: 'Incorrect password. Please verify and try again.' };
-              }
-
-              const safeUser: User = {
-                id: profile.id,
-                username: profile.username || cleanId,
-                rollNumber: profile.roll_number || cleanId.toUpperCase(),
-                fullName: profile.full_name || 'Participant',
-                email: profile.email || emailToAuth,
-                phone: profile.phone || '',
-                college: profile.college || 'Vardhaman College of Engineering',
-                createdAt: profile.created_at || new Date().toISOString()
-              };
-
-              // Mirror in local users store with entered password
-              const idx = localUsers.findIndex(u =>
-                (u.rollNumber && u.rollNumber.toLowerCase() === safeUser.rollNumber.toLowerCase()) ||
-                (u.email && u.email.toLowerCase() === safeUser.email.toLowerCase())
-              );
-              if (idx !== -1) {
-                localUsers[idx] = { ...localUsers[idx], ...safeUser, password: cleanPass };
-              } else {
-                localUsers.push({ ...safeUser, password: cleanPass });
-              }
-              this.saveUsers(localUsers);
-
-              localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
-              window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
-              return { success: true, user: safeUser };
-            }
+          if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
+            return { success: false, error: 'Incorrect password. Please verify and try again.' };
           }
-
-          // Check local store fallback
-          if (localMatch) {
-            if (localMatch.password === cleanPass) {
-              const safeUser: User = { ...localMatch };
-              delete safeUser.password;
-              localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
-              window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
-              return { success: true, user: safeUser };
-            } else {
-              return { success: false, error: 'Incorrect password. Please verify and try again.' };
-            }
+          if (msg.includes('email not confirmed') || msg.includes('email_not_confirmed')) {
+            return {
+              success: false,
+              error: 'Your email has not been confirmed. Please check your inbox or contact the organizers.'
+            };
+          }
+          if (msg.includes('disabled') || msg.includes('email logins are disabled') || authError?.code === 'email_provider_disabled') {
+            return {
+              success: false,
+              error: 'Email sign-in is currently disabled in the system. Please contact the Festronix admin team to enable it.'
+            };
           }
 
           return {
             success: false,
-            error: 'Incorrect password. Please verify and try again.'
+            error: authError?.message || 'Sign-in failed. Please try again.'
           };
         }
 
-        // Successfully authenticated via Supabase session
+        // Successfully authenticated — fetch the profile
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
           .maybeSingle();
 
-        const safeUser: User = {
+        const user: User = {
           id: authData.user.id,
           username: profile?.username || authData.user.user_metadata?.username || cleanId,
           rollNumber: profile?.roll_number || authData.user.user_metadata?.roll_number || '',
@@ -316,29 +223,33 @@ export class AuthService {
           createdAt: profile?.created_at || new Date().toISOString()
         };
 
-        // Cache local copy with password
-        const existingIdx = localUsers.findIndex(u =>
-          (u.rollNumber && u.rollNumber.toLowerCase() === safeUser.rollNumber.toLowerCase()) ||
-          (u.email && u.email.toLowerCase() === safeUser.email.toLowerCase())
-        );
-        if (existingIdx !== -1) {
-          localUsers[existingIdx] = { ...localUsers[existingIdx], ...safeUser, password: cleanPass };
-        } else {
-          localUsers.push({ ...safeUser, password: cleanPass });
-        }
-        this.saveUsers(localUsers);
+        // Cache session locally (no password!)
+        localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
+        window.dispatchEvent(new CustomEvent('festronix:auth', { detail: user }));
 
-        localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(safeUser));
-        window.dispatchEvent(new CustomEvent('festronix:auth', { detail: safeUser }));
-        return { success: true, user: safeUser };
+        return { success: true, user };
       } catch (err: any) {
-        console.warn('Supabase sign-in encountered an issue, checking local store:', err);
+        console.error('Supabase sign-in error:', err);
+        return {
+          success: false,
+          error: 'A network error occurred. Please check your connection and try again.'
+        };
       }
     }
 
-    // --- LOCAL STORAGE FALLBACK FLOW ---
+    // =====================================================================
+    // OFFLINE / LOCAL STORAGE FALLBACK (only when Supabase is NOT configured)
+    // =====================================================================
+    const localUsers = this.getOfflineUsers();
+    const localMatch = localUsers.find(
+      u =>
+        (u.username && u.username.toLowerCase() === cleanId.toLowerCase()) ||
+        (u.rollNumber && u.rollNumber.toLowerCase() === cleanId.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === cleanId.toLowerCase())
+    );
+
     if (!localMatch) {
-      return { success: false, error: 'No account found with this Username or Roll Number. Please Sign Up.' };
+      return { success: false, error: 'No account found with this email address. Please Sign Up.' };
     }
 
     if (localMatch.password !== cleanPass) {
@@ -353,9 +264,9 @@ export class AuthService {
     return { success: true, user: safeUser };
   }
 
-  /**
-   * Sign up with Full Name, Roll Number, College, Email, Phone, and Password
-   */
+  // -----------------------------------------------------------------------
+  // Sign Up
+  // -----------------------------------------------------------------------
   static async signUp(data: {
     username: string;
     rollNumber: string;
@@ -381,26 +292,14 @@ export class AuthService {
       return { success: false, error: 'Password must be at least 6 characters long.' };
     }
 
-    // --- SUPABASE SIGN UP FLOW ---
+    // =====================================================================
+    // SUPABASE SIGN UP (primary path when configured)
+    // =====================================================================
     if (isSupabaseConfigured()) {
       try {
-        // Check for existing roll_number or username in profiles
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('roll_number, username, email')
-          .or(`roll_number.ilike.${roll},username.ilike.${username}`)
-          .maybeSingle();
-
-        if (existingProfile) {
-          if (existingProfile.roll_number?.toUpperCase() === roll) {
-            return { success: false, error: `An account is already registered with Roll Number "${roll}". Please Sign In.` };
-          }
-          if (existingProfile.username?.toLowerCase() === username) {
-            return { success: false, error: `Username "${username}" is already taken. Please choose another.` };
-          }
-        }
-
-        // Register in Supabase Auth (trigger auto-creates profile)
+        // Register via Supabase Auth — the `handle_new_user` trigger in
+        // database trigger creates the profile, and unique database indexes
+        // enforce roll number and username uniqueness without exposing profiles.
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
@@ -415,21 +314,46 @@ export class AuthService {
           }
         });
 
-        const isEmailDisabled = Boolean(
-          authError?.code === 'email_provider_disabled' ||
-          (authError?.message && (
-            authError.message.toLowerCase().includes('disabled') ||
-            authError.message.toLowerCase().includes('email signups are disabled')
-          ))
-        );
+        if (authError) {
+          const msg = authError.message?.toLowerCase() || '';
 
-        if (authError && !isEmailDisabled) {
+          if (msg.includes('duplicate key') || msg.includes('idx_profiles_roll_number') || msg.includes('profiles_username')) {
+            return { success: false, error: 'That roll number or username is already registered. Please sign in or choose another.' };
+          }
+
+          if (msg.includes('disabled') || msg.includes('email signups are disabled') || authError.code === 'email_provider_disabled') {
+            return {
+              success: false,
+              error: 'Email sign-up is currently disabled in the system. Please contact the Festronix admin team to enable it in the Supabase dashboard (Authentication → Providers → Email).'
+            };
+          }
+          if (msg.includes('already registered') || msg.includes('user already registered')) {
+            return {
+              success: false,
+              error: `An account with this email already exists. Please Sign In instead.`
+            };
+          }
+
           return { success: false, error: authError.message };
         }
 
-        const userId = authData?.user?.id || `user_${Date.now()}`;
+        if (!authData.user) {
+          return { success: false, error: 'Sign-up failed. Please try again.' };
+        }
+
+        // Supabase can create the account without creating a session when email
+        // confirmation is enabled. Do not cache a local-looking user in that
+        // state: the registration RPC requires a real authenticated session.
+        if (!authData.session) {
+          return {
+            success: false,
+            error: 'Account created. Confirm your email, then sign in before registering for an event.'
+          };
+        }
+
+        // Build the user object from the newly created auth user
         const newUser: User = {
-          id: userId,
+          id: authData.user.id,
           username,
           rollNumber: roll,
           fullName: name,
@@ -439,32 +363,24 @@ export class AuthService {
           createdAt: new Date().toISOString()
         };
 
-        // Cache user session
+        // Cache session locally (no password!)
         localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(newUser));
         window.dispatchEvent(new CustomEvent('festronix:auth', { detail: newUser }));
 
-        // Mirror locally with password for instant fallback logins
-        const localUsers = this.getUsers();
-        const existingIdx = localUsers.findIndex(u =>
-          (u.rollNumber && u.rollNumber.toLowerCase() === roll.toLowerCase()) ||
-          (u.email && u.email.toLowerCase() === email.toLowerCase())
-        );
-        const userRecord = { ...newUser, password };
-        if (existingIdx !== -1) {
-          localUsers[existingIdx] = userRecord;
-        } else {
-          localUsers.push(userRecord);
-        }
-        this.saveUsers(localUsers);
-
         return { success: true, user: newUser };
       } catch (err: any) {
-        console.warn('Supabase sign-up encountered an issue, falling back to local store:', err);
+        console.error('Supabase sign-up error:', err);
+        return {
+          success: false,
+          error: 'A network error occurred. Please check your connection and try again.'
+        };
       }
     }
 
-    // --- LOCAL STORAGE FALLBACK FLOW ---
-    const users = this.getUsers();
+    // =====================================================================
+    // OFFLINE / LOCAL STORAGE FALLBACK (only when Supabase is NOT configured)
+    // =====================================================================
+    const users = this.getOfflineUsers();
 
     if (users.some(u => u.rollNumber.toUpperCase() === roll)) {
       return { success: false, error: `An account is already registered with Roll Number "${roll}". Please Sign In.` };
@@ -487,7 +403,7 @@ export class AuthService {
     };
 
     users.push(newUser);
-    this.saveUsers(users);
+    this.saveOfflineUsers(users);
 
     const safeUser: User = { ...newUser };
     delete safeUser.password;
@@ -497,9 +413,9 @@ export class AuthService {
     return { success: true, user: safeUser };
   }
 
-  /**
-   * Sign out current user
-   */
+  // -----------------------------------------------------------------------
+  // Sign Out
+  // -----------------------------------------------------------------------
   static async signOut(): Promise<void> {
     if (isSupabaseConfigured()) {
       try {
@@ -510,6 +426,56 @@ export class AuthService {
     }
     localStorage.removeItem(STORAGE_KEYS.SESSION);
     window.dispatchEvent(new CustomEvent('festronix:auth', { detail: null }));
+  }
+
+  // -----------------------------------------------------------------------
+  // Offline user helpers (only used when Supabase is NOT configured)
+  // -----------------------------------------------------------------------
+  static getOfflineUsers(): User[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.USERS);
+    let users: User[] = [];
+    if (raw) {
+      try {
+        users = JSON.parse(raw);
+        if (!Array.isArray(users)) users = [];
+      } catch {
+        users = [];
+      }
+    }
+
+    // Ensure seed users exist for offline mode
+    let changed = false;
+    for (const seedUser of OFFLINE_SEED_USERS) {
+      const exists = users.some(
+        u =>
+          (u.rollNumber && u.rollNumber.toLowerCase() === seedUser.rollNumber.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === seedUser.email.toLowerCase())
+      );
+      if (!exists) {
+        users.push({ ...seedUser });
+        changed = true;
+      }
+    }
+
+    if (changed || !raw) {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    }
+    return users;
+  }
+
+  private static saveOfflineUsers(users: User[]): void {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  }
+
+  // -----------------------------------------------------------------------
+  // Legacy API: getUsers / saveUsers (kept for backward compatibility)
+  // -----------------------------------------------------------------------
+  static getUsers(): User[] {
+    return this.getOfflineUsers();
+  }
+
+  static saveUsers(users: User[]): void {
+    this.saveOfflineUsers(users);
   }
 }
 

@@ -5,8 +5,10 @@ import {
   Share2, ShieldCheck, Search, Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FestEvent, Teammate, Registration, User as UserType, Team, AdditionalMember, PaymentStatus } from '../types/festronix';
+import { FestEvent, Teammate, Registration, User as UserType, Team, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
 interface RegistrationModalProps {
   event: FestEvent | null;
@@ -68,21 +70,27 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [joinCodeInput, setJoinCodeInput] = useState<string>('');
   const [verifiedTeam, setVerifiedTeam] = useState<Team | null>(null);
   const [joinLookupError, setJoinLookupError] = useState<string | null>(null);
+  const [joinConfirmation, setJoinConfirmation] = useState<string | null>(null);
   const [isVerifyingCode, setIsVerifyingCode] = useState<boolean>(false);
 
   const isLeaderOfVerifiedTeam = Boolean(
-    currentUser && verifiedTeam && (
+    currentUser && verifiedTeam && (verifiedTeam.isCurrentUserLeader || (
       (verifiedTeam.leaderRoll && currentUser.rollNumber && verifiedTeam.leaderRoll.trim().toUpperCase() === currentUser.rollNumber.trim().toUpperCase()) ||
       (verifiedTeam.leaderEmail && currentUser.email && verifiedTeam.leaderEmail.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
-    )
+    ))
   );
 
   const isAlreadyMemberOfVerifiedTeam = Boolean(
-    currentUser && verifiedTeam && verifiedTeam.members?.some(
+    currentUser && verifiedTeam && (verifiedTeam.isCurrentUserMember || verifiedTeam.members?.some(
       m => (m.rollNumber && currentUser.rollNumber && m.rollNumber.trim().toUpperCase() === currentUser.rollNumber.trim().toUpperCase()) ||
            (m.email && currentUser.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
-    )
+    ))
   );
+  const verifiedTeamMemberCount = verifiedTeam
+    ? Math.max(verifiedTeam.memberCount ?? 0, verifiedTeam.members?.length ?? 0)
+    : 0;
+  const verifiedTeamTotalCount = verifiedTeam ? 1 + verifiedTeamMemberCount : 0;
+  const verifiedLeaderStatus = verifiedTeam?.leaderRegistrationStatus || verifiedTeam?.paymentStatus || 'membership_pending';
 
   // Payment States
   const [transactionId, setTransactionId] = useState('');
@@ -116,7 +124,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         rollNumber: currentUser.rollNumber
       });
     }
-    if (event && isTeamEvent) {
+    if (currentUser && event && isTeamEvent) {
       const code = generatedTeamCode || StorageService.generateTeamCode(event.departmentCode || event.slug || 'FX');
       if (!generatedTeamCode) {
         setGeneratedTeamCode(code);
@@ -235,7 +243,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const handleTeamNameChange = (newName: string) => {
     setTeamName(newName);
-    if (generatedTeamCode && event && isTeamEvent) {
+    if (currentUser && generatedTeamCode && event && isTeamEvent) {
       StorageService.reserveOrRegisterTeam({
         teamCode: generatedTeamCode,
         teamName: newName,
@@ -257,7 +265,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const updateLeaderAndSyncTeam = (updatedLeader: typeof leader) => {
     setLeader(updatedLeader);
-    if (generatedTeamCode && event && isTeamEvent) {
+    if (currentUser && generatedTeamCode && event && isTeamEvent) {
       StorageService.reserveOrRegisterTeam({
         teamCode: generatedTeamCode,
         teamName: teamName || (updatedLeader.name ? `${updatedLeader.name.split(' ')[0]}'s Squad` : 'Alpha Squad'),
@@ -286,7 +294,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
-  const handleUpdateTeammate = (index: number, field: keyof Teammate, value: string) => {
+  const handleUpdateTeammate = (
+    index: number,
+    field: 'name' | 'email' | 'phone' | 'college' | 'rollNumber' | 'deptSection',
+    value: string
+  ) => {
     const updated = [...teammates];
     updated[index][field] = value;
     setTeammates(updated);
@@ -311,14 +323,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     setIsVerifyingCode(true);
     setJoinLookupError(null);
+    setJoinConfirmation(null);
 
     try {
-      const result = await StorageService.findTeamWithValidation(raw, event.id);
-      if (result.error) {
+      const dashboard = await StorageService.fetchTeamDashboard(raw, event.id);
+      if (!dashboard) {
         setVerifiedTeam(null);
-        setJoinLookupError(result.error);
-      } else if (result.team) {
-        setVerifiedTeam(result.team);
+        setJoinLookupError('Team not found or you do not have access to this team.');
+      } else {
+        setVerifiedTeam(dashboard);
         setJoinLookupError(null);
       }
     } catch {
@@ -331,6 +344,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        setErrorMessage('Upload a JPEG, PNG, or WebP payment screenshot.');
+        return;
+      }
       if (file.size > 5 * 1024 * 1024) {
         setErrorMessage('File size exceeds 5MB limit. Please upload a smaller screenshot.');
         return;
@@ -352,12 +369,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       if (onOpenAuth) onOpenAuth('signin');
       return false;
     }
-    if (event.status !== 'open') {
-      setErrorMessage(`Registration for "${event.title}" is currently closed (${event.status.toUpperCase()}).`);
-      return false;
-    }
-    if (event.registeredCount >= event.capacity) {
-      setErrorMessage(`This event has reached full capacity (${event.capacity} seats).`);
+    const registrationBlockReason = getEventRegistrationBlockReason(
+      event,
+      isTeamEvent ? 1 : passQuantity
+    );
+    if (registrationBlockReason) {
+      setErrorMessage(registrationBlockReason);
       return false;
     }
     if (!leader.name.trim() || !leader.email.trim() || !leader.phone.trim() || !leader.rollNumber.trim()) {
@@ -427,6 +444,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     const seenRolls = new Set<string>();
     seenRolls.add(leader.rollNumber.trim().toLowerCase());
+    const liveTeamMembers = generatedTeamCode
+      ? StorageService.getTeams().find(
+          team => team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+        )?.members || []
+      : [];
 
     for (let i = 0; i < teammates.length; i++) {
       const tm = teammates[i];
@@ -443,7 +465,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
       // Check if teammate is already registered
       const tmDup = StorageService.checkDuplicateRegistration(event.id, cleanRoll);
-      if (tmDup.isDuplicate && tmDup.existingReg) {
+      const isAlreadyJoinedToThisTeam = liveTeamMembers.some(
+        member => member.rollNumber.trim().toLowerCase() === cleanRoll
+      );
+      if (tmDup.isDuplicate && tmDup.existingReg && !isAlreadyJoinedToThisTeam) {
         setErrorMessage(`Teammate ${tm.name} (${tm.rollNumber}) is already registered for this event (Pass ID: ${tmDup.existingReg.id}).`);
         return false;
       }
@@ -494,36 +519,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         origin: { y: 0.6 }
       });
 
-      const isLeaderPaid = event.fee === 0 || joinRes.isLeaderPaid || StorageService.isTeamLeaderPaid(verifiedTeam).isPaid;
-
-      if (joinRes.registration) {
-        onSuccess(joinRes.registration);
-      } else {
-        // Fallback registration pass
-        const paymentStatus: PaymentStatus = event.fee === 0 ? 'not_applicable' : isLeaderPaid ? 'verified' : 'payment_required';
-        const fallbackReg: Registration = {
-          id: `FEST-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          qrToken: (paymentStatus === 'verified' || paymentStatus === 'not_applicable') ? `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}` : '',
-          eventId: event.id,
-          eventTitle: event.title,
-          leaderName: verifiedTeam.leaderName,
-          leaderRoll: verifiedTeam.leaderRoll,
-          leaderEmail: verifiedTeam.leaderEmail,
-          leaderPhone: verifiedTeam.leaderPhone,
-          leaderCollege: verifiedTeam.leaderCollege,
-          buyerRoll: memberData.rollNumber,
-          teammates: [...verifiedTeam.members, memberData],
-          format: event.format,
-          teamName: verifiedTeam.teamName,
-          teamCode: verifiedTeam.teamCode,
-          fee: 0,
-          source: 'online',
-          registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-          paymentStatus,
-          checkedIn: false
-        };
-        onSuccess(fallbackReg);
-      }
+      const refreshedTeam = await StorageService.fetchTeamDashboard(verifiedTeam.teamCode, event.id).catch(() => null);
+      setVerifiedTeam(refreshedTeam || joinRes.team || verifiedTeam);
+      setJoinConfirmation(
+        `Team membership reserved successfully. You are in ${verifiedTeam.teamName}; the Team Leader must complete checkout before your official registration and QR pass are issued.`
+      );
     } catch (err: any) {
       setErrorMessage(err?.message || 'Error joining team. Please try again.');
     } finally {
@@ -534,6 +534,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   // Handle Team Leader or Solo Registration Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) return;
 
     if (!currentUser) {
       setErrorMessage('Authentication required. Please sign in to finalize registration.');
@@ -550,6 +552,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         setErrorMessage('Please upload the payment transaction screenshot.');
         return;
       }
+      if (isSupabaseConfigured() && !screenshotFile) {
+        setErrorMessage('Select the payment screenshot file so it can be uploaded securely.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -560,36 +566,74 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
       if (screenshotFile) {
         const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, leader.rollNumber);
-        if (uploadRes.url) {
-          finalScreenshotUrl = uploadRes.url;
-        }
+        if (!uploadRes.success || !uploadRes.url) throw new Error(uploadRes.error || 'Unable to upload payment proof.');
+        finalScreenshotUrl = uploadRes.url;
       }
 
       let finalTeammates = teammates;
       if (isTeamEvent && generatedTeamCode) {
         const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-        const liveTeam = StorageService.getTeams().find(
-          t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
+        const liveTeam = await StorageService.fetchTeamDashboard(generatedTeamCode, event.id).catch(() =>
+          StorageService.getTeams().find(
+            t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
+          ) || null
         );
-        if (liveTeam && liveTeam.members && liveTeam.members.length > 0) {
-          const merged = [...finalTeammates];
-          liveTeam.members.forEach(lm => {
-            if (!merged.some(m => (m.rollNumber && lm.rollNumber && m.rollNumber.trim().toLowerCase() === lm.rollNumber.trim().toLowerCase()))) {
-              merged.push(lm);
+        const alreadyJoinedRolls = new Set(
+          (liveTeam?.members || [])
+            .map(member => member.rollNumber.trim().toUpperCase())
+            .filter(Boolean)
+        );
+        StorageService.getRegistrations()
+          .filter(registration => registration.teamCode && registration.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode)
+          .forEach(registration => {
+            const registeredRoll = (registration.leaderRoll || registration.buyerRoll || '').trim().toUpperCase();
+            if (registeredRoll && registeredRoll !== leader.rollNumber.trim().toUpperCase()) {
+              alreadyJoinedRolls.add(registeredRoll);
             }
           });
-          finalTeammates = merged;
-        }
+
+        // Members who joined with the invite code already have their own
+        // participant registration. Do not submit them again as new
+        // teammates; the database attaches the live team roster to the
+        // leader registration in the same transaction.
+        finalTeammates = finalTeammates.filter(
+          teammate => !alreadyJoinedRolls.has(teammate.rollNumber.trim().toUpperCase())
+        );
       }
 
-      let finalReg: Registration | null = null;
+      if (isTeamEvent) {
+        if (!teamName.trim() || !generatedTeamCode.trim()) {
+          throw new Error('Create a valid team name and team code before submitting the registration.');
+        }
+        // The reservation is intentionally awaited here. The initial modal
+        // effect reserves optimistically, but a fast submit must not race the
+        // database registration RPC.
+        await StorageService.reserveOrRegisterTeam({
+          teamCode: generatedTeamCode.trim(),
+          teamName: teamName.trim(),
+          eventId: event.id,
+          eventTitle: event.title,
+          registrationId: '',
+          leaderId: currentUser.id,
+          leaderName: leader.name.trim(),
+          leaderRoll: leader.rollNumber.trim().toUpperCase(),
+          leaderEmail: leader.email.trim(),
+          leaderPhone: leader.phone.trim(),
+          leaderCollege: leader.college.trim(),
+          members: finalTeammates,
+          maxTeamSize: event.maxTeamSize,
+          minTeamSize: event.minTeamSize
+        });
+      }
+
       const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
+      const batch: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>> = [];
 
       for (let i = 0; i < passQuantity; i++) {
         const isLeaderPass = i === 0;
         const memberInfo = isLeaderPass ? null : additionalMembers[i - 1];
 
-        finalReg = await StorageService.addRegistration({
+        batch.push({
           userId: currentUser?.id,
           buyerRoll: leader.rollNumber.trim(),
           eventId: event.id,
@@ -614,6 +658,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         });
       }
 
+      const created = await StorageService.addMultipleRegistrations(batch);
+      const finalReg = created[created.length - 1];
+
       // Fire festive celebration
       confetti({
         particleCount: 110,
@@ -621,9 +668,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         origin: { y: 0.6 }
       });
 
-      if (finalReg) {
-        onSuccess(finalReg);
-      }
+      if (finalReg) onSuccess(finalReg);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Registration failed. Please try again.');
     } finally {
@@ -632,11 +677,22 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" data-lenis-prevent onClick={onClose}>
       <div
         className="modal-content"
+        data-lenis-prevent-wheel
+        data-lenis-prevent-touch
         onClick={e => e.stopPropagation()}
-        style={{ padding: '28px', maxWidth: '720px', width: '95%' }}
+        style={{
+          padding: '28px',
+          maxWidth: '720px',
+          width: '95%',
+          maxHeight: 'calc(100dvh - 40px)',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y'
+        }}
       >
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -1053,6 +1109,23 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   ⚠️ {joinLookupError}
                 </div>
               )}
+              {joinConfirmation && (
+                <div
+                  style={{
+                    color: '#A7F3D0',
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    border: '1px solid rgba(52, 211, 153, 0.45)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    marginTop: '8px',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    lineHeight: 1.45
+                  }}
+                >
+                  ✓ {joinConfirmation}
+                </div>
+              )}
             </div>
 
             {/* Live Verified Squad Card */}
@@ -1075,7 +1148,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       {verifiedTeam.teamName}
                     </h4>
                     <div style={{ fontSize: '0.76rem', color: '#A8B3C2', marginTop: '2px' }}>
-                      Leader: <strong style={{ color: '#DCE3E5' }}>{verifiedTeam.leaderName}</strong> ({verifiedTeam.leaderRoll}) • {verifiedTeam.leaderCollege}
+                      Leader: <strong style={{ color: '#DCE3E5' }}>{verifiedTeam.leaderName}</strong>
+                      {verifiedTeam.leaderRoll && ` (${verifiedTeam.leaderRoll})`}
+                      {verifiedTeam.leaderCollege && ` • ${verifiedTeam.leaderCollege}`}
                     </div>
                   </div>
 
@@ -1175,7 +1250,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     }}
                   >
                     <CheckCircle2 size={16} />
-                    <span>You are already a verified member of this squad! Your pass is active.</span>
+                    <span>You are already a member of this squad. Your official registration and QR pass will be issued after the Team Leader completes checkout.</span>
                   </div>
                 )}
 
@@ -1183,17 +1258,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 <div style={{ marginTop: '12px', borderTop: '1px solid rgba(220, 227, 229, 0.15)', paddingTop: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
-                      Squad Roster ({1 + (verifiedTeam.members?.length || 0)} / {verifiedTeam.maxTeamSize} Members):
+                      Squad Roster ({verifiedTeamTotalCount} / {verifiedTeam.maxTeamSize} Members):
                     </span>
                     <span
                       style={{
                         fontSize: '0.72rem',
-                        color: (1 + (verifiedTeam.members?.length || 0)) < verifiedTeam.maxTeamSize ? '#34D399' : '#f87171',
+                        color: verifiedTeamTotalCount < verifiedTeam.maxTeamSize ? '#34D399' : '#f87171',
                         fontWeight: 700
                       }}
                     >
-                      {(1 + (verifiedTeam.members?.length || 0)) < verifiedTeam.maxTeamSize
-                        ? `${verifiedTeam.maxTeamSize - (1 + (verifiedTeam.members?.length || 0))} Slot(s) Remaining`
+                      {verifiedTeamTotalCount < verifiedTeam.maxTeamSize
+                        ? `${verifiedTeam.maxTeamSize - verifiedTeamTotalCount} Slot(s) Remaining`
                         : 'Squad is Full'}
                     </span>
                   </div>
@@ -1209,7 +1284,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         color: '#FFFFFF'
                       }}
                     >
-                      👑 {verifiedTeam.leaderName} (Leader)
+                      <div>👑 {verifiedTeam.leaderName} (Leader)</div>
+                      <div style={{ fontSize: '0.64rem', color: verifiedTeam.leaderQrGenerated ? '#34D399' : '#FBBF24', marginTop: '2px' }}>
+                        {verifiedLeaderStatus === 'membership_pending' ? 'MEMBERSHIP RESERVED' : verifiedLeaderStatus.toUpperCase().replace('_', ' ')}
+                        {' • '}{verifiedTeam.leaderQrGenerated ? 'QR GENERATED' : 'QR NOT GENERATED'}
+                      </div>
                     </div>
 
                     {verifiedTeam.members?.map((m, idx) => (
@@ -1224,7 +1303,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                           color: '#BACEBB'
                         }}
                       >
-                        👤 {m.name} ({m.rollNumber})
+                        <div>👤 {m.name} ({m.rollNumber})</div>
+                        <div style={{ fontSize: '0.64rem', color: m.qrGenerated ? '#34D399' : '#FBBF24', marginTop: '2px' }}>
+                          {(m.registrationStatus || 'membership_pending').toUpperCase().replace('_', ' ')}
+                          {' • '}{m.qrGenerated ? 'QR GENERATED' : 'QR NOT GENERATED'}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1232,7 +1315,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
                 {/* Payment Disclaimer depending on leader's payment */}
                 {!isLeaderOfVerifiedTeam && (
-                  event.fee > 0 && !StorageService.isTeamLeaderPaid(verifiedTeam).isPaid ? (
+                  ['membership_pending', 'payment_required'].includes(verifiedLeaderStatus) ? (
                     <div
                       style={{
                         marginTop: '14px',
@@ -1245,7 +1328,37 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         lineHeight: 1.4
                       }}
                     >
-                      ⏳ <strong>Leader Payment Pending:</strong> Team Leader {verifiedTeam.leaderName} has not completed the ₹{event.fee} team registration fee yet. You can confirm now to secure your squad seat; your entry QR pass will activate automatically once your Team Leader submits payment!
+                      ⏳ <strong>Leader Checkout Pending:</strong> Team Leader {verifiedTeam.leaderName} has not finalized the team registration. No official member registrations or QR passes are issued yet.
+                    </div>
+                  ) : verifiedLeaderStatus === 'verification_pending' ? (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '10px 14px',
+                        background: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        borderRadius: '8px',
+                        fontSize: '0.74rem',
+                        color: '#FEF3C7',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      ⏳ <strong>Payment Under Review:</strong> The team checkout was submitted. QR passes are generated but remain inactive until payment is verified.
+                    </div>
+                  ) : verifiedLeaderStatus === 'rejected' ? (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '10px 14px',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        borderRadius: '8px',
+                        fontSize: '0.74rem',
+                        color: '#FCA5A5',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      ⚠ <strong>Payment Rejected:</strong> The Team Leader must correct the payment and resubmit checkout before member passes become active.
                     </div>
                   ) : (
                     <div
@@ -1258,7 +1371,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         color: '#a7f3d0'
                       }}
                     >
-                      ✓ <strong>No Extra Payment Required:</strong> Team registration and access fees are covered by Team Leader {verifiedTeam.leaderName}. Confirming will immediately issue your official squad pass!
+                      ✓ <strong>Team Registration Confirmed:</strong> The Team Leader payment is verified. Your official participant registration and QR pass are active.
                     </div>
                   )
                 )}
@@ -1362,12 +1475,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmJoinTeam}
-                  disabled={!verifiedTeam || isSubmitting || ((1 + (verifiedTeam.members?.length || 0)) >= verifiedTeam.maxTeamSize)}
+                  disabled={!verifiedTeam || isSubmitting || (verifiedTeamTotalCount >= verifiedTeam.maxTeamSize)}
                   className="btn-cyber-primary"
                   style={{
                     padding: '10px 24px',
                     fontSize: '0.88rem',
-                    opacity: (!verifiedTeam || ((1 + (verifiedTeam.members?.length || 0)) >= verifiedTeam.maxTeamSize)) ? 0.5 : 1
+                    opacity: (!verifiedTeam || (verifiedTeamTotalCount >= verifiedTeam.maxTeamSize)) ? 0.5 : 1
                   }}
                 >
                   <span>{isSubmitting ? 'Joining Squad...' : 'Confirm & Join Team'}</span>
@@ -2173,7 +2286,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               >
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileUpload}
                   style={{ display: 'none' }}
                   id="screenshot-upload"

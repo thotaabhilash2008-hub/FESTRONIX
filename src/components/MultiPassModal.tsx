@@ -3,6 +3,7 @@ import { X, Ticket, Plus, Minus, ShoppingBag, CheckCircle2, ArrowRight, ArrowLef
 import confetti from 'canvas-confetti';
 import { FestEvent, Registration, User as UserType, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface MultiPassModalProps {
   isOpen: boolean;
@@ -136,6 +137,10 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        setErrorMessage('Upload a JPEG, PNG, or WebP payment screenshot.');
+        return;
+      }
       if (file.size > 5 * 1024 * 1024) {
         setErrorMessage('File size exceeds 5MB. Please upload a smaller screenshot.');
         return;
@@ -162,6 +167,21 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
     // Validate additional members for any event with quantity > 1
     for (const item of selectedEventEntries) {
+      if (!['open', 'upcoming'].includes(item.event.status)) {
+        setErrorMessage(`Registration for "${item.event.title}" is currently ${item.event.status}.`);
+        return;
+      }
+      if (item.event.deadline) {
+        const deadline = new Date(item.event.deadline);
+        if (!Number.isNaN(deadline.getTime()) && Date.now() > deadline.getTime()) {
+          setErrorMessage(`Registration for "${item.event.title}" closed on ${deadline.toLocaleString()}.`);
+          return;
+        }
+      }
+      if (item.event.registeredCount + item.quantity > item.event.capacity) {
+        setErrorMessage(`"${item.event.title}" does not have enough remaining seats for this order.`);
+        return;
+      }
       if (item.quantity > 1) {
         const extra = additionalMembersByEvent[item.event.id] || [];
         const seenRolls = new Set<string>();
@@ -210,6 +230,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   };
 
   const handleFinalSubmit = async () => {
+    if (isSubmitting) return;
     if (totalAmount > 0) {
       if (!transactionId.trim()) {
         setErrorMessage('Please enter the UPI Transaction ID / UTR number.');
@@ -217,6 +238,10 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       }
       if (!screenshotPreview) {
         setErrorMessage('Please upload your payment screenshot.');
+        return;
+      }
+      if (isSupabaseConfigured() && !screenshotFile) {
+        setErrorMessage('Select the payment screenshot file so it can be uploaded securely.');
         return;
       }
     }
@@ -230,9 +255,8 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       // Upload to Supabase Storage if file is present
       if (screenshotFile) {
         const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, buyerInfo.rollNumber);
-        if (uploadRes.url) {
-          finalScreenshotUrl = uploadRes.url;
-        }
+        if (!uploadRes.success || !uploadRes.url) throw new Error(uploadRes.error || 'Unable to upload payment proof.');
+        finalScreenshotUrl = uploadRes.url;
       }
 
       // Generate registrations for each pass
@@ -288,7 +312,10 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   const filteredEvents = events.filter(e => {
     const matchSearch = e.title.toLowerCase().includes(searchFilter.toLowerCase()) || e.departmentCode.toLowerCase().includes(searchFilter.toLowerCase());
     const matchDept = selectedDeptFilter === 'all' || e.departmentCode === selectedDeptFilter;
-    return matchSearch && matchDept && e.status === 'open';
+    // Multi-pass checkout creates independent participant registrations. Team
+    // and duo events must go through the team-code flow so the backend can
+    // enforce roster size, reservation ownership, and team capacity.
+    return matchSearch && matchDept && e.status === 'open' && e.format === 'individual';
   });
 
   return (
@@ -965,7 +992,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
               >
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileUpload}
                   style={{ display: 'none' }}
                   id="multi-screenshot-upload"

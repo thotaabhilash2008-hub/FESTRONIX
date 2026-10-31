@@ -1,6 +1,7 @@
 import { FestEvent, Registration, Announcement, FestStats, PaymentStatus, Teammate, Team, Department } from '../types/festronix';
 import { INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_ANNOUNCEMENTS, INITIAL_TEAMS, DEPARTMENTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getEventRegistrationBlockReason, registrationDeadlineToIso } from '../lib/eventRegistration';
 import type { Database } from '../lib/database.types';
 
 const STORAGE_KEYS = {
@@ -13,6 +14,25 @@ const STORAGE_KEYS = {
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
+const PAYMENT_PROOF_BUCKET = 'payment-screenshots';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string | undefined | null): value is string {
+  return Boolean(value && UUID_PATTERN.test(value));
+}
+
+function paymentProofObjectPath(reference?: string): string | null {
+  if (!reference || reference.startsWith('blob:') || reference.startsWith('data:')) return null;
+  const marker = `/${PAYMENT_PROOF_BUCKET}/`;
+  const markerIndex = reference.indexOf(marker);
+  if (/^https?:\/\//i.test(reference) && markerIndex < 0) return null;
+  const path = (markerIndex >= 0 ? reference.slice(markerIndex + marker.length) : reference).split(/[?#]/, 1)[0];
+  try {
+    return decodeURIComponent(path).replace(/^\/+/, '');
+  } catch {
+    return path.replace(/^\/+/, '');
+  }
+}
 
 /**
  * Transforms Supabase events table row to FestEvent
@@ -22,6 +42,7 @@ function eventFromDb(row: EventRow): FestEvent {
     id: row.id,
     slug: row.slug,
     title: row.title,
+    tagline: row.tagline || undefined,
     departmentId: row.department_id || '',
     departmentCode: row.department_code,
     category: row.category,
@@ -43,7 +64,10 @@ function eventFromDb(row: EventRow): FestEvent {
     coordinatorPhone: row.coordinator_phone,
     coordinatorEmail: row.coordinator_email,
     status: row.status,
-    bannerGradient: row.banner_gradient
+    bannerGradient: row.banner_gradient,
+    paymentInstructions: row.payment_instructions || undefined,
+    faqs: Array.isArray(row.faqs) ? row.faqs as { question: string; answer: string }[] : [],
+    approvalStatus: row.approval_status
   };
 }
 
@@ -51,21 +75,12 @@ function eventFromDb(row: EventRow): FestEvent {
  * Transforms FestEvent to Supabase events insert payload
  */
 function eventToDb(evt: FestEvent) {
-  let deadlineIso: string | null = null;
-  if (evt.deadline) {
-    try {
-      const parsed = new Date(evt.deadline);
-      if (!isNaN(parsed.getTime())) {
-        deadlineIso = parsed.toISOString();
-      }
-    } catch {
-      deadlineIso = null;
-    }
-  }
+  const deadlineIso = registrationDeadlineToIso(evt.deadline);
 
   return {
     slug: evt.slug,
     title: evt.title,
+    tagline: evt.tagline || null,
     department_code: evt.departmentCode,
     category: evt.category,
     format: evt.format,
@@ -73,7 +88,6 @@ function eventToDb(evt: FestEvent) {
     max_team_size: evt.maxTeamSize,
     fee: evt.fee,
     capacity: evt.capacity,
-    registered_count: evt.registeredCount,
     deadline: deadlineIso,
     date_display: evt.date,
     time_display: evt.time,
@@ -86,7 +100,10 @@ function eventToDb(evt: FestEvent) {
     coordinator_phone: evt.coordinatorPhone,
     coordinator_email: evt.coordinatorEmail,
     status: evt.status,
-    banner_gradient: evt.bannerGradient || 'linear-gradient(135deg, #142042 0%, #283B78 50%, #789593 100%)'
+    banner_gradient: evt.bannerGradient || 'linear-gradient(135deg, #142042 0%, #283B78 50%, #789593 100%)',
+    payment_instructions: evt.paymentInstructions || null,
+    faqs: (evt.faqs || []) as any,
+    approval_status: evt.approvalStatus || 'approved'
   };
 }
 
@@ -99,7 +116,7 @@ function announcementFromDb(row: AnnouncementRow): Announcement {
     title: row.title,
     message: row.message,
     type: row.type,
-    scope: row.scope,
+    scope: row.scope === 'event' ? 'department' : row.scope,
     departmentCode: row.department_code || undefined,
     date: row.date_display || new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
@@ -148,14 +165,49 @@ function registrationFromDb(row: any): Registration {
     verifiedBy: row.verified_by || undefined,
     verifiedAt: row.verified_at || undefined,
     qrToken: ticket?.qr_token || `FEST26-${(row.display_id || row.id).slice(-4)}`,
-    checkedIn: Boolean(ticket?.checked_in),
-    checkedInAt: ticket?.checked_in_at || undefined,
-    checkedInBy: ticket?.checked_in_by || undefined
+    checkedIn: Boolean(ticket?.checked_in ?? row.checked_in),
+    checkedInAt: ticket?.checked_in_at || row.checked_in_at || undefined,
+    checkedInBy: ticket?.checked_in_by || row.checked_in_by || undefined
+  };
+}
+
+function teamFromDb(row: any): Team {
+  return {
+    id: String(row.id || ''),
+    teamCode: String(row.team_code ?? row.teamCode ?? ''),
+    teamName: String(row.team_name ?? row.teamName ?? ''),
+    eventId: String(row.event_id ?? row.eventId ?? ''),
+    eventTitle: String(row.event_title ?? row.eventTitle ?? ''),
+    registrationId: String(row.registration_id ?? row.registrationId ?? ''),
+    leaderId: row.leader_id ?? row.leaderId ?? undefined,
+    leaderName: String(row.leader_name ?? row.leaderName ?? ''),
+    leaderRoll: String(row.leader_roll ?? row.leaderRoll ?? ''),
+    leaderEmail: String(row.leader_email ?? row.leaderEmail ?? ''),
+    leaderPhone: String(row.leader_phone ?? row.leaderPhone ?? ''),
+    leaderCollege: String(row.leader_college ?? row.leaderCollege ?? 'Vardhaman College of Engineering'),
+    members: Array.isArray(row.members) ? row.members : [],
+    maxTeamSize: Number(row.max_team_size ?? row.maxTeamSize) || 4,
+    minTeamSize: Number(row.min_team_size ?? row.minTeamSize) || 2,
+    createdAt: String(row.created_at ?? row.createdAt ?? new Date().toISOString()),
+    memberCount: Number(row.member_count ?? row.memberCount) || 0,
+    totalMemberCount: Number(row.total_member_count ?? row.totalMemberCount) || undefined,
+    paymentStatus: row.payment_status ?? row.paymentStatus ?? undefined,
+    leaderQrGenerated: Boolean(row.leader_qr_generated ?? row.leaderQrGenerated),
+    leaderRegistrationStatus: row.leader_registration_status ?? row.leaderRegistrationStatus ?? undefined,
+    updatedAt: row.updated_at ?? row.updatedAt ?? undefined,
+    isCurrentUserLeader: Boolean(row.isCurrentUserLeader ?? row.is_current_user_leader),
+    isCurrentUserMember: Boolean(row.isCurrentUserMember ?? row.is_current_user_member)
   };
 }
 
 export class StorageService {
   private static isRealtimeInitialized = false;
+
+  private static canUseLocalDevelopmentMode(operation: string): boolean {
+    if (isSupabaseConfigured()) return false;
+    if (import.meta.env.DEV) return true;
+    throw new Error(`${operation} requires a configured Supabase backend. Local browser storage is disabled in production.`);
+  }
 
   /**
    * Initialize Supabase Realtime channel for live multi-client updates
@@ -184,11 +236,20 @@ export class StorageService {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, () => {
           this.fetchRegistrations();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'registration_members' }, () => {
+          this.fetchRegistrations();
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
+          this.fetchRegistrations();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_proofs' }, () => {
           this.fetchRegistrations();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
           this.fetchEvents();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, () => {
+          this.fetchDepartments();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
           this.fetchAnnouncements();
@@ -221,31 +282,39 @@ export class StorageService {
     }
   }
 
+  static getDeletedEventIds(): string[] {
+    const raw = localStorage.getItem('festronix_deleted_events_v1');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+    }
+    return [];
+  }
+
+  static saveDeletedEventIds(ids: string[]): void {
+    localStorage.setItem('festronix_deleted_events_v1', JSON.stringify(ids));
+  }
+
   static saveCustomEvents(events: FestEvent[]): void {
     localStorage.setItem('festronix_custom_events_v1', JSON.stringify(events));
   }
 
   /**
-   * Synchronous cached getter for fast render cycles
+   * Synchronous cached getter for instant render cycles
    */
   static getEvents(): FestEvent[] {
     const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
-    let baseList = INITIAL_EVENTS;
     if (raw) {
       try {
-        baseList = JSON.parse(raw);
-      } catch {
-        baseList = INITIAL_EVENTS;
-      }
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {}
     }
-    const custom = this.getCustomEvents();
-    const combined = [...custom];
-    for (const b of baseList) {
-      if (!combined.some(c => c.id === b.id || c.slug === b.slug)) {
-        combined.push(b);
-      }
-    }
-    return combined;
+    return isSupabaseConfigured() ? [] : INITIAL_EVENTS;
   }
 
   static saveEvents(events: FestEvent[]): void {
@@ -253,99 +322,92 @@ export class StorageService {
   }
 
   /**
-   * Asynchronous fetch directly from Supabase (or fallback)
+   * Asynchronous fetch directly from Supabase (Single Source of Truth)
    */
   static async fetchEvents(): Promise<FestEvent[]> {
     if (isSupabaseConfigured()) {
-      try {
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .order('title', { ascending: true });
-
-        if (!error && data && data.length > 0) {
-          const mapped = data.map(eventFromDb);
-          const custom = this.getCustomEvents();
-          const combined = [...custom];
-          for (const m of mapped) {
-            if (!combined.some(c => c.id === m.id || c.slug === m.slug)) {
-              combined.push(m);
-            }
-          }
-          this.saveEvents(combined);
-          window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: combined }));
-          return combined;
-        }
-      } catch (err) {
-        console.warn('Supabase fetchEvents warning, using cache:', err);
-      }
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('title', { ascending: true });
+      if (error) throw new Error(`Unable to load events: ${error.message}`);
+      const mapped = (data || []).map(eventFromDb);
+      this.saveEvents(mapped);
+      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: mapped }));
+      return mapped;
     }
     return this.getEvents();
   }
 
   static async addEvent(newEvent: FestEvent): Promise<FestEvent> {
-    const custom = this.getCustomEvents();
-    custom.unshift(newEvent);
-    this.saveCustomEvents(custom);
-
-    const events = this.getEvents();
-    this.saveEvents(events);
-    window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-
     if (isSupabaseConfigured()) {
-      try {
-        const payload = eventToDb(newEvent);
-        await supabase.from('events').insert(payload);
-      } catch (err) {
-        console.warn('Supabase addEvent warning:', err);
-      }
+      const { data, error } = await supabase.from('events').insert(eventToDb(newEvent)).select('*').single();
+      if (error) throw new Error(`Unable to create event: ${error.message}`);
+      if (!data) throw new Error('The database did not return the created event.');
+      const created = eventFromDb(data);
+      const events = [created, ...this.getEvents().filter(e => e.id !== created.id && e.slug !== created.slug)];
+      this.saveEvents(events);
+      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+      return created;
     }
 
+    this.canUseLocalDevelopmentMode('Creating events');
+
+    const events = [newEvent, ...this.getEvents().filter(e => e.id !== newEvent.id && e.slug !== newEvent.slug)];
+    this.saveEvents(events);
+    window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
     return newEvent;
   }
 
   static async updateEvent(updatedEvent: FestEvent): Promise<boolean> {
-    const custom = this.getCustomEvents();
-    const cIdx = custom.findIndex(c => c.id === updatedEvent.id || c.slug === updatedEvent.slug);
-    if (cIdx !== -1) {
-      custom[cIdx] = updatedEvent;
-      this.saveCustomEvents(custom);
+    if (isSupabaseConfigured()) {
+      const query = supabase.from('events').update({ ...eventToDb(updatedEvent), updated_at: new Date().toISOString() });
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(updatedEvent.id);
+      const { data, error } = await (isUuid
+        ? query.eq('id', updatedEvent.id)
+        : query.eq('slug', updatedEvent.slug)).select('*').maybeSingle();
+      if (error) throw new Error(`Unable to update event: ${error.message}`);
+      if (!data) throw new Error('The event was not found or you do not have permission to update it.');
+      const saved = eventFromDb(data);
+      const events = this.getEvents().map(e => e.id === saved.id || e.slug === saved.slug ? saved : e);
+      this.saveEvents(events);
+      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+      return true;
     }
 
-    const events = this.getEvents().map(e => (e.id === updatedEvent.id || e.slug === updatedEvent.slug ? updatedEvent : e));
+    this.canUseLocalDevelopmentMode('Updating events');
+    const events = this.getEvents().map(e => e.id === updatedEvent.id || e.slug === updatedEvent.slug ? updatedEvent : e);
     this.saveEvents(events);
     window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-
-    if (isSupabaseConfigured()) {
-      try {
-        const payload = eventToDb(updatedEvent);
-        await supabase
-          .from('events')
-          .update(payload)
-          .or(`id.eq.${updatedEvent.id},slug.eq.${updatedEvent.slug}`);
-      } catch (err) {
-        console.warn('Supabase updateEvent warning:', err);
-      }
-    }
 
     return true;
   }
 
-  static async deleteEvent(eventId: string): Promise<boolean> {
-    const custom = this.getCustomEvents().filter(e => e.id !== eventId && e.slug !== eventId);
-    this.saveCustomEvents(custom);
+  static async deleteEvent(eventId: string, slug?: string): Promise<boolean> {
+    if (isSupabaseConfigured()) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+      let eventUuid = eventId;
+      if (!isUuid) {
+        const { data: event, error: lookupError } = await supabase
+          .from('events').select('id').eq('slug', slug || eventId).maybeSingle();
+        if (lookupError) throw new Error(`Unable to find event: ${lookupError.message}`);
+        if (!event) throw new Error('The event was not found.');
+        eventUuid = event.id;
+      }
+      const { data, error } = await supabase.rpc('soft_delete_event', { p_event_id: eventUuid });
+      if (error) throw new Error(`Unable to delete event: ${error.message}`);
+      if (!(data as any)?.success) throw new Error('The event was not found or you do not have permission to delete it.');
+      const events = this.getEvents().filter(e => e.id !== eventUuid && e.id !== eventId && e.slug !== (slug || eventId));
+      this.saveEvents(events);
+      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+      return true;
+    }
 
-    const events = this.getEvents().filter(e => e.id !== eventId && e.slug !== eventId);
+    this.canUseLocalDevelopmentMode('Deleting events');
+    const events = this.getEvents().filter(e => e.id !== eventId && e.slug !== eventId && (!slug || (e.id !== slug && e.slug !== slug)));
     this.saveEvents(events);
     window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from('events').delete().or(`id.eq.${eventId},slug.eq.${eventId}`);
-      } catch (err) {
-        console.warn('Supabase deleteEvent warning:', err);
-      }
-    }
 
     return true;
   }
@@ -353,6 +415,30 @@ export class StorageService {
   // ==========================================
   // REGISTRATIONS
   // ==========================================
+
+  private static async resolveRegistrationEvent(eventId: string): Promise<{ id: string; event?: FestEvent }> {
+    const cached = this.getEvents().find(event => event.id === eventId || event.slug === eventId);
+
+    if (!isSupabaseConfigured()) {
+      return { id: cached?.id || eventId, event: cached };
+    }
+
+    const query = supabase
+      .from('events')
+      .select('*')
+      .eq('is_deleted', false);
+    const { data, error } = await (isUuid(eventId)
+      ? query.eq('id', eventId).maybeSingle()
+      : query.eq('slug', eventId).maybeSingle());
+
+    if (error) throw new Error(`Unable to resolve the selected event: ${error.message}`);
+    if (!data) throw new Error('The selected event no longer exists or is unavailable. Refresh the events list and try again.');
+
+    const event = eventFromDb(data as EventRow);
+    const events = [event, ...this.getEvents().filter(item => item.id !== event.id && item.slug !== event.slug)];
+    this.saveEvents(events);
+    return { id: event.id, event };
+  }
 
   /**
    * Robust department resolver for any registration
@@ -422,6 +508,9 @@ export class StorageService {
       } catch {
         current = [];
       }
+
+    // Demo seed registrations are only available in an offline development build.
+    if (isSupabaseConfigured()) return current;
     }
 
     // Merge any missing initial seed registrations to guarantee all departments have live demo data
@@ -452,31 +541,42 @@ export class StorageService {
    */
   static async fetchRegistrations(): Promise<Registration[]> {
     if (isSupabaseConfigured()) {
-      try {
-        const { data, error } = await supabase
-          .from('registrations')
-          .select(`
-            *,
-            events (department_code, title),
-            tickets (qr_token, checked_in, checked_in_at, checked_in_by),
-            registration_members (name, email, phone, college, roll_number)
-          `)
-          .order('created_at', { ascending: false });
-
-        if (!error && data && data.length > 0) {
-          const remoteMapped = data.map(registrationFromDb);
-          const localRegs = this.getRegistrations();
-          const remoteIds = new Set(remoteMapped.map(r => r.id));
-          // Merge remote data with local cached registrations
-          const merged = [...remoteMapped, ...localRegs.filter(r => !remoteIds.has(r.id))];
-          this.saveRegistrations(merged);
-          return merged;
-        }
-      } catch (err) {
-        console.warn('Supabase fetchRegistrations warning, using cache:', err);
-      }
+      const { data, error } = await supabase
+        .from('registrations')
+        .select(`
+          *,
+          events (department_code, title),
+          tickets (qr_token, checked_in, checked_in_at, checked_in_by),
+          registration_members (name, email, phone, college, roll_number)
+        `)
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(`Unable to load registrations: ${error.message}`);
+      const mapped = await this.signPaymentProofUrls((data || []).map(registrationFromDb));
+      this.saveRegistrations(mapped);
+      return mapped;
     }
     return this.getRegistrations();
+  }
+
+  private static async signPaymentProofUrls(registrations: Registration[]): Promise<Registration[]> {
+    const pathsByRegistration = registrations
+      .map(registration => ({ id: registration.id, path: paymentProofObjectPath(registration.paymentScreenshotUrl) }))
+      .filter((entry): entry is { id: string; path: string } => Boolean(entry.path));
+    if (pathsByRegistration.length === 0) return registrations;
+
+    const { data, error } = await supabase.storage.from(PAYMENT_PROOF_BUCKET)
+      .createSignedUrls([...new Set(pathsByRegistration.map(entry => entry.path))], 60 * 60);
+    if (error) {
+      console.warn('Unable to sign payment proof URLs:', error.message);
+      return registrations;
+    }
+
+    const urlsByPath = new Map((data || []).map(item => [item.path, item.signedUrl]));
+    return registrations.map(registration => {
+      const path = paymentProofObjectPath(registration.paymentScreenshotUrl);
+      const signedUrl = path ? urlsByPath.get(path) : undefined;
+      return signedUrl ? { ...registration, paymentScreenshotUrl: signedUrl } : registration;
+    });
   }
 
   /**
@@ -489,10 +589,15 @@ export class StorageService {
   ): { isDuplicate: boolean; existingReg?: Registration } {
     if (!eventId || !rollNumber) return { isDuplicate: false };
     const cleanRoll = rollNumber.trim().toLowerCase();
+    const requestedEvent = this.getEvents().find(event => event.id === eventId || event.slug === eventId);
+    const canonicalEventId = requestedEvent?.id || eventId;
     const regs = this.getRegistrations();
     const existing = regs.find(r => {
       if (r.paymentStatus === 'rejected') return false; // Rejected registrations are allowed to re-register
-      const isSameEvent = r.eventId === eventId || r.eventId.toLowerCase() === eventId.toLowerCase();
+      const isSameEvent = r.eventId === eventId
+        || r.eventId.toLowerCase() === eventId.toLowerCase()
+        || r.eventId === canonicalEventId
+        || r.eventId.toLowerCase() === canonicalEventId.toLowerCase();
       if (!isSameEvent) return false;
       const isLeader = r.leaderRoll && r.leaderRoll.trim().toLowerCase() === cleanRoll;
       const isBuyer = r.buyerRoll && r.buyerRoll.trim().toLowerCase() === cleanRoll;
@@ -513,33 +618,30 @@ export class StorageService {
   static async addRegistration(
     newReg: Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>
   ): Promise<Registration> {
-    // Capacity & Status Validation (FR-REG-01, FR-REG-06, FR-SPOT-04)
-    const events = this.getEvents();
-    const event = events.find(e => e.id === newReg.eventId || e.slug === newReg.eventId);
-    if (event) {
-      if (event.registeredCount >= event.capacity) {
-        throw new Error(`Event "${event.title}" has reached its maximum capacity of ${event.capacity} seats.`);
+    if (!isSupabaseConfigured()) {
+      // Offline development checks only. Supabase is the source of truth in configured builds.
+      const events = this.getEvents();
+      const event = events.find(e => e.id === newReg.eventId || e.slug === newReg.eventId);
+      if (event) {
+        const blockReason = getEventRegistrationBlockReason(event);
+        if (blockReason) throw new Error(blockReason);
       }
-      if (event.status !== 'open') {
-        throw new Error(`Registration for "${event.title}" is currently closed (${event.status}).`);
-      }
-    }
 
-    // Duplicate Registration Prevention (FR-REG-05, FR-SPOT-04)
-    const rollToCheck = newReg.buyerRoll || newReg.leaderRoll;
-    if (rollToCheck) {
-      const dup = this.checkDuplicateRegistration(newReg.eventId, rollToCheck);
-      if (dup.isDuplicate && dup.existingReg) {
-        throw new Error(`Participant (${rollToCheck}) is already registered for "${dup.existingReg.eventTitle}" (Pass ID: ${dup.existingReg.id}). Duplicate registrations are not permitted.`);
+      const rollToCheck = newReg.buyerRoll || newReg.leaderRoll;
+      if (rollToCheck) {
+        const dup = this.checkDuplicateRegistration(newReg.eventId, rollToCheck);
+        if (dup.isDuplicate && dup.existingReg) {
+          throw new Error(`Participant (${rollToCheck}) is already registered for "${dup.existingReg.eventTitle}" (Pass ID: ${dup.existingReg.id}). Duplicate registrations are not permitted.`);
+        }
       }
-    }
 
-    if (newReg.teammates && newReg.teammates.length > 0) {
-      for (const tm of newReg.teammates) {
-        if (tm.rollNumber) {
-          const tmDup = this.checkDuplicateRegistration(newReg.eventId, tm.rollNumber);
-          if (tmDup.isDuplicate && tmDup.existingReg) {
-            throw new Error(`Teammate (${tm.name} - ${tm.rollNumber}) is already registered for this event.`);
+      if (newReg.teammates && newReg.teammates.length > 0) {
+        for (const tm of newReg.teammates) {
+          if (tm.rollNumber) {
+            const tmDup = this.checkDuplicateRegistration(newReg.eventId, tm.rollNumber);
+            if (tmDup.isDuplicate && tmDup.existingReg) {
+              throw new Error(`Teammate (${tm.name} - ${tm.rollNumber}) is already registered for this event.`);
+            }
           }
         }
       }
@@ -548,25 +650,13 @@ export class StorageService {
     // --- SUPABASE RPC REGISTRATION FLOW ---
     if (isSupabaseConfigured()) {
       try {
-        // Resolve event UUID
-        let targetEventUuid = newReg.eventId;
-        const cachedEvents = this.getEvents();
-        const foundEvent = cachedEvents.find(e => e.id === newReg.eventId || e.slug === newReg.eventId);
-        if (foundEvent && foundEvent.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(foundEvent.id)) {
-          targetEventUuid = foundEvent.id;
-        }
-
-        // Validate userId as UUID or pass null
-        const targetUserId = (newReg.userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newReg.userId))
-          ? newReg.userId
-          : null;
-
-        let rpcRes: any = null;
-        let rpcError: any = null;
+        const { id: targetEventUuid, event: matchedEvent } = await this.resolveRegistrationEvent(newReg.eventId);
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError || !authData.user) throw new Error('Your sign-in session has expired. Sign in again before registering.');
 
         const rpcPayload = {
           p_event_id: targetEventUuid,
-          p_user_id: targetUserId,
+          p_user_id: newReg.source === 'spot' ? null : authData.user.id,
           p_buyer_roll: newReg.buyerRoll || newReg.leaderRoll || null,
           p_leader_name: newReg.leaderName,
           p_leader_email: newReg.leaderEmail,
@@ -579,66 +669,67 @@ export class StorageService {
           p_payment_status: newReg.paymentStatus,
           p_transaction_id: newReg.transactionId || null,
           p_payment_screenshot_url: newReg.paymentScreenshotUrl || null,
-          p_teammates: (newReg.teammates || []) as any
+          p_teammates: (newReg.teammates || []) as any,
+          p_team_name: newReg.teamName || null,
+          p_team_code: newReg.teamCode || null
         };
 
-        // Try create_registration first, fallback to register_for_event
-        const try1 = await supabase.rpc('create_registration', rpcPayload);
-        if (!try1.error) {
-          rpcRes = try1.data;
-        } else {
-          rpcError = try1.error;
-          const try2 = await supabase.rpc('register_for_event', rpcPayload);
-          if (!try2.error) {
-            rpcRes = try2.data;
-            rpcError = null;
-          }
-        }
+        const { data: rpcRes, error: rpcError } = await supabase.rpc('create_registration', rpcPayload);
+        if (rpcError) throw new Error(`Unable to create registration: ${rpcError.message}`);
 
-        if (!rpcError && rpcRes && (rpcRes as any).success) {
+        if (rpcRes && (rpcRes as any).success) {
           const regPayload = (rpcRes as any).registration;
-          const matchedEvt = this.getEvents().find(e => e.id === newReg.eventId || e.slug === newReg.eventId);
           const fullReg: Registration = {
             id: regPayload.id,
-            userId: newReg.userId,
+            userId: newReg.source === 'spot' ? undefined : authData.user.id,
             buyerRoll: newReg.buyerRoll,
-            eventId: newReg.eventId,
+            eventId: targetEventUuid,
             eventTitle: regPayload.eventTitle || newReg.eventTitle,
-            departmentCode: newReg.departmentCode || matchedEvt?.departmentCode || this.resolveDepartmentForRegistration(newReg as any),
-            teamName: newReg.teamName,
-            teamCode: newReg.teamCode,
+            departmentCode: newReg.departmentCode || matchedEvent?.departmentCode || this.resolveDepartmentForRegistration(newReg as any),
+            teamName: regPayload.teamName || newReg.teamName,
+            teamCode: regPayload.teamCode || newReg.teamCode,
             leaderName: newReg.leaderName,
             leaderEmail: newReg.leaderEmail,
             leaderPhone: newReg.leaderPhone,
             leaderCollege: newReg.leaderCollege,
             leaderRoll: newReg.leaderRoll,
             teammates: newReg.teammates || [],
-            format: newReg.format,
-            fee: Number(newReg.fee) || 0,
+            format: regPayload.format || newReg.format,
+            fee: Number(regPayload.fee ?? newReg.fee) || 0,
             source: newReg.source,
             registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-            paymentStatus: newReg.paymentStatus,
-            transactionId: newReg.transactionId,
+            paymentStatus: regPayload.paymentStatus || newReg.paymentStatus,
+            transactionId: regPayload.transactionId || newReg.transactionId,
             paymentScreenshotUrl: newReg.paymentScreenshotUrl,
             qrToken: regPayload.qrToken,
             checkedIn: false
           };
 
-          const currentRegs = this.getRegistrations();
-          currentRegs.unshift(fullReg);
-          this.saveRegistrations(currentRegs);
+          // Re-read the row created by the RPC so every portal receives the same
+          // server-derived fee, status, event UUID, ticket, and roster data.
+          let regWithSignedProof = fullReg;
+          try {
+            const liveRegs = await this.fetchRegistrations();
+            regWithSignedProof = liveRegs.find(reg => reg.id === fullReg.id) || fullReg;
+          } catch (refreshError) {
+            console.warn('Registration created, but the immediate canonical refresh failed:', refreshError);
+            [regWithSignedProof] = await this.signPaymentProofUrls([fullReg]);
+            const currentRegs = this.getRegistrations();
+            this.saveRegistrations([regWithSignedProof, ...currentRegs.filter(reg => reg.id !== regWithSignedProof.id)]);
+          }
+          await this.fetchEvents().catch(() => undefined);
 
           // If team registration, save team entity
           if (newReg.teamCode || newReg.teamName) {
             const evts = this.getEvents();
-            const matchedEvt = evts.find(e => e.id === newReg.eventId || e.slug === newReg.eventId);
+            const matchedEvt = evts.find(e => e.id === targetEventUuid || e.slug === newReg.eventId);
             this.createTeam({
-              teamCode: newReg.teamCode || this.generateTeamCode(newReg.eventId),
+              teamCode: regWithSignedProof.teamCode || newReg.teamCode || this.generateTeamCode(targetEventUuid),
               teamName: newReg.teamName || `${newReg.leaderName}'s Squad`,
-              eventId: newReg.eventId,
-              eventTitle: newReg.eventTitle,
-              registrationId: fullReg.id,
-              leaderId: newReg.userId,
+              eventId: targetEventUuid,
+              eventTitle: matchedEvent?.title || newReg.eventTitle,
+              registrationId: regWithSignedProof.id,
+              leaderId: newReg.source === 'spot' ? undefined : authData.user.id,
               leaderName: newReg.leaderName,
               leaderRoll: newReg.leaderRoll,
               leaderEmail: newReg.leaderEmail,
@@ -648,30 +739,20 @@ export class StorageService {
               maxTeamSize: matchedEvt?.maxTeamSize || 4,
               minTeamSize: matchedEvt?.minTeamSize || 2
             });
-            this.syncTeammatePassesForTeam(fullReg);
+            this.syncTeammatePassesForTeam(regWithSignedProof);
           }
 
-          // Update cached event count
-          const events = this.getEvents();
-          const evtIdx = events.findIndex(e => e.id === newReg.eventId || e.slug === newReg.eventId);
-          if (evtIdx !== -1) {
-            events[evtIdx].registeredCount += 1;
-            if (events[evtIdx].registeredCount >= events[evtIdx].capacity) {
-              events[evtIdx].status = 'full';
-            }
-            this.saveEvents(events);
-          }
-
-          return fullReg;
-        } else if (rpcError) {
-          console.warn('RPC register error, proceeding with local fallback:', rpcError.message);
+          return regWithSignedProof;
         }
+        throw new Error((rpcRes as any)?.error || 'The database rejected this registration.');
       } catch (err) {
-        console.warn('Supabase register error:', err);
+        throw err instanceof Error ? err : new Error('Unable to create registration in Supabase.');
       }
     }
 
-    // --- LOCAL FALLBACK FLOW ---
+    this.canUseLocalDevelopmentMode('Creating registrations');
+
+    // Offline development flow only.
     const registrations = this.getRegistrations();
     const id = `FEST-2026-${Math.floor(1000 + Math.random() * 9000)}`;
     const qrToken = `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${id.slice(-4)}`;
@@ -729,6 +810,64 @@ export class StorageService {
   static async addMultipleRegistrations(
     batch: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>>
   ): Promise<Registration[]> {
+    if (batch.length === 0) return [];
+
+    if (isSupabaseConfigured()) {
+      if (batch.length > 10) throw new Error('You can create at most 10 passes in one order.');
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) throw new Error('Your sign-in session has expired. Sign in again before registering.');
+
+      const resolved = await Promise.all(batch.map(async item => {
+        const { id } = await this.resolveRegistrationEvent(item.eventId);
+        return {
+          eventId: id,
+          buyerRoll: item.buyerRoll || item.leaderRoll || null,
+          leaderName: item.leaderName,
+          leaderEmail: item.leaderEmail,
+          leaderPhone: item.leaderPhone,
+          leaderCollege: item.leaderCollege,
+          leaderRoll: item.leaderRoll,
+          format: item.format,
+          fee: item.fee,
+          paymentStatus: item.paymentStatus,
+          transactionId: item.transactionId || null,
+          paymentScreenshotUrl: item.paymentScreenshotUrl || null,
+          teammates: (item.teammates || []) as any,
+          teamName: item.teamName || null,
+          teamCode: item.teamCode || null
+        };
+      }));
+
+      const { data, error } = await supabase.rpc('create_registrations', {
+        p_user_id: authData.user.id,
+        p_items: resolved as any,
+        p_source: 'online'
+      });
+      if (error) throw new Error(`Unable to create registrations: ${error.message}`);
+      if (!(data as any)?.success) throw new Error((data as any)?.error || 'The database rejected this registration order.');
+
+      const createdPayloads = Array.isArray((data as any).registrations) ? (data as any).registrations : [];
+      const liveRegs = await this.fetchRegistrations();
+      await this.fetchEvents().catch(() => undefined);
+      const created = createdPayloads.map((payload: any, index: number) => {
+        const canonical = liveRegs.find(reg => reg.id === payload.id);
+        if (canonical) return canonical;
+        const source = batch[index];
+        return {
+          ...source,
+          id: payload.id,
+          eventId: payload.eventId || resolved[index].eventId,
+          fee: Number(payload.fee ?? source.fee) || 0,
+          paymentStatus: payload.paymentStatus || source.paymentStatus,
+          qrToken: payload.qrToken || '',
+          checkedIn: false
+        } as Registration;
+      });
+      if (created.length !== batch.length) throw new Error('The database did not return every created registration. Refresh and check My Passes.');
+      return created;
+    }
+
     const created: Registration[] = [];
     for (const item of batch) {
       const reg = await this.addRegistration(item);
@@ -746,66 +885,42 @@ export class StorageService {
     reviewerName: string,
     rejectionReason?: string
   ): Promise<boolean> {
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.rpc('review_registration_payment', {
+        p_display_id: regId,
+        p_status: status,
+        p_rejection_reason: rejectionReason || null
+      });
+      if (error) throw new Error(`Unable to update payment status: ${error.message}`);
+      if (!(data as any)?.success) throw new Error((data as any)?.error || 'The database rejected the payment update.');
+
+      const regs = this.getRegistrations();
+      const idx = regs.findIndex(r => r.id === regId || r.qrToken === regId);
+      if (idx !== -1) {
+        regs[idx] = {
+          ...regs[idx],
+          paymentStatus: status,
+          verifiedBy: (data as any).verifiedBy || reviewerName,
+          verifiedAt: (data as any).verifiedAt || new Date().toISOString(),
+          rejectionReason: status === 'rejected' ? rejectionReason : undefined
+        };
+        this.saveRegistrations(regs);
+      }
+      return true;
+    }
+
+    this.canUseLocalDevelopmentMode('Reviewing payments');
     const regs = this.getRegistrations();
     const idx = regs.findIndex(r => r.id === regId || r.qrToken === regId);
-    if (idx !== -1) {
-      const targetReg = regs[idx];
-      regs[idx].paymentStatus = status;
-      regs[idx].verifiedBy = reviewerName;
-      regs[idx].verifiedAt = new Date().toLocaleString();
-      if (rejectionReason) {
-        regs[idx].rejectionReason = rejectionReason;
-      } else {
-        delete regs[idx].rejectionReason;
-      }
-
-      // Automatically sync all teammate passes for this team
-      if (targetReg.teamCode) {
-        const teamCodeClean = targetReg.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-        regs.forEach(r => {
-          if (r.id !== targetReg.id && r.teamCode && r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === teamCodeClean) {
-            r.paymentStatus = status;
-            r.verifiedBy = reviewerName;
-            r.verifiedAt = new Date().toLocaleString();
-            if (rejectionReason) r.rejectionReason = rejectionReason;
-            else delete r.rejectionReason;
-            if ((status === 'verified' || status === 'verification_pending') && (!r.qrToken || r.qrToken === '')) {
-              r.qrToken = `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${r.id.slice(-4)}`;
-            }
-          }
-        });
-      }
-      this.saveRegistrations(regs);
-    }
-
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase
-          .from('registrations')
-          .update({
-            payment_status: status,
-            verified_by: reviewerName,
-            verified_at: new Date().toISOString(),
-            rejection_reason: rejectionReason || null
-          })
-          .eq('display_id', regId);
-
-        // Record audit trail
-        await supabase.from('audit_logs').insert({
-          action: `PAYMENT_${status.toUpperCase()}`,
-          entity_type: 'registration',
-          metadata: {
-            display_id: regId,
-            status,
-            reviewer: reviewerName,
-            reason: rejectionReason || null
-          }
-        });
-      } catch (err) {
-        console.warn('Supabase updatePaymentStatus warning:', err);
-      }
-    }
-
+    if (idx === -1) throw new Error('Registration not found.');
+    regs[idx] = {
+      ...regs[idx],
+      paymentStatus: status,
+      verifiedBy: reviewerName,
+      verifiedAt: new Date().toISOString(),
+      rejectionReason: status === 'rejected' ? rejectionReason : undefined
+    };
+    this.saveRegistrations(regs);
     return true;
   }
 
@@ -823,52 +938,50 @@ export class StorageService {
   }> {
     // --- SUPABASE CHECK-IN FLOW ---
     if (isSupabaseConfigured()) {
-      try {
-        const { data: checkInRes, error } = await supabase.rpc('check_in_registration', {
-          p_qr_token_or_id: qrTokenOrId,
-          p_staff_name: staffName
-        });
-
-        if (!error && checkInRes) {
-          const res = checkInRes as any;
-          // Update local cache
-          const regs = this.getRegistrations();
-          const cleanQuery = qrTokenOrId.trim().toLowerCase();
-          const target = regs.find(
-            r =>
-              r.qrToken.toLowerCase() === cleanQuery ||
-              r.id.toLowerCase() === cleanQuery ||
-              (r.leaderRoll && r.leaderRoll.trim().toLowerCase() === cleanQuery) ||
-              (r.buyerRoll && r.buyerRoll.trim().toLowerCase() === cleanQuery) ||
-              (r.teamCode && r.teamCode.trim().toLowerCase() === cleanQuery) ||
-              (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.trim().toLowerCase() === cleanQuery))
-          );
-
-          if (res.success && target) {
-            target.checkedIn = true;
-            target.checkedInAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            target.checkedInBy = staffName;
-            this.saveRegistrations(regs);
-            return {
-              success: true,
-              status: 'VALID',
-              message: res.message || `Access Granted! Welcome ${target.leaderName}`,
-              registration: target
-            };
-          } else if (res.status === 'ALREADY_CHECKED_IN' || res.status === 'PAYMENT_PENDING') {
-            return {
-              success: false,
-              status: res.status,
-              message: res.message,
-              registration: target
-            };
-          }
-          // If Supabase returned NOT_FOUND, fall through to local fallback below
-        }
-      } catch (err) {
-        console.warn('Supabase checkIn error, falling back:', err);
+      const { data, error } = await supabase.rpc('check_in_registration', {
+        p_qr_token_or_id: qrTokenOrId,
+        p_staff_name: staffName
+      });
+      if (error) throw new Error(`Unable to check in participant: ${error.message}`);
+      if (!data) throw new Error('The check-in service returned no result.');
+      const result = data as any;
+      const regs = this.getRegistrations();
+      const target = regs.find(r => r.qrToken.toLowerCase() === qrTokenOrId.trim().toLowerCase() || r.id.toLowerCase() === qrTokenOrId.trim().toLowerCase());
+      if (result.success && target) {
+        target.checkedIn = true;
+        target.checkedInAt = result.registration?.checkedInAt || new Date().toISOString();
+        target.checkedInBy = result.registration?.checkedInBy || staffName;
+        this.saveRegistrations(regs);
       }
+      const serverRegistration = result.registration ? {
+        id: result.registration.id,
+        eventId: result.registration.eventId || '',
+        eventTitle: result.registration.eventTitle || '',
+        leaderName: result.registration.leaderName || '',
+        leaderEmail: '',
+        leaderPhone: '',
+        leaderCollege: result.registration.leaderCollege || '',
+        leaderRoll: result.registration.leaderRoll || '',
+        teammates: [],
+        format: 'individual',
+        fee: 0,
+        source: 'online',
+        registrationDate: '',
+        paymentStatus: result.registration.paymentStatus || 'not_applicable',
+        qrToken: result.registration.qrToken || qrTokenOrId,
+        checkedIn: Boolean(result.registration.checkedIn),
+        checkedInAt: result.registration.checkedInAt,
+        checkedInBy: result.registration.checkedInBy
+      } as Registration : undefined;
+      return {
+        success: Boolean(result.success),
+        status: result.status || (result.success ? 'VALID' : 'NOT_FOUND'),
+        message: result.message || 'Check-in request completed.',
+        registration: serverRegistration
+      };
     }
+
+    this.canUseLocalDevelopmentMode('Checking in participants');
 
     // --- LOCAL FALLBACK FLOW ---
     const regs = this.getRegistrations();
@@ -930,30 +1043,34 @@ export class StorageService {
     regId: string,
     staffName: string
   ): Promise<{ success: boolean; checkedIn: boolean }> {
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.rpc('toggle_check_in_registration', {
+        p_display_id: regId,
+        p_staff_name: staffName
+      });
+      if (error) throw new Error(`Unable to update check-in status: ${error.message}`);
+      if (!(data as any)?.success) throw new Error((data as any)?.error || 'The database rejected the check-in update.');
+      const newCheckedIn = Boolean((data as any).checkedIn);
+      const regs = this.getRegistrations();
+      const target = regs.find(r => r.id === regId || r.qrToken === regId);
+      if (target) {
+        target.checkedIn = newCheckedIn;
+        target.checkedInAt = newCheckedIn ? new Date().toISOString() : undefined;
+        target.checkedInBy = newCheckedIn ? staffName : undefined;
+        this.saveRegistrations(regs);
+      }
+      return { success: true, checkedIn: newCheckedIn };
+    }
+
+    this.canUseLocalDevelopmentMode('Changing check-in status');
     const regs = this.getRegistrations();
     const target = regs.find(r => r.id === regId || r.qrToken === regId);
     if (!target) return { success: false, checkedIn: false };
-
     const newCheckedIn = !target.checkedIn;
     target.checkedIn = newCheckedIn;
-    target.checkedInAt = newCheckedIn ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined;
+    target.checkedInAt = newCheckedIn ? new Date().toISOString() : undefined;
     target.checkedInBy = newCheckedIn ? staffName : undefined;
     this.saveRegistrations(regs);
-
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase
-          .from('registrations')
-          .update({
-            checked_in: newCheckedIn,
-            checked_in_at: newCheckedIn ? new Date().toISOString() : null,
-            checked_in_by: newCheckedIn ? staffName : null
-          })
-          .eq('display_id', target.id);
-      } catch (err) {
-        console.warn('Supabase toggle check in warning:', err);
-      }
-    }
     return { success: true, checkedIn: newCheckedIn };
   }
 
@@ -962,33 +1079,32 @@ export class StorageService {
    */
   static async uploadPaymentScreenshot(
     file: File,
-    regDisplayId: string
+    _regDisplayId: string
   ): Promise<{ success: boolean; url?: string; error?: string }> {
     if (isSupabaseConfigured()) {
       try {
-        const fileExt = file.name.split('.').pop() || 'png';
-        const fileName = `${regDisplayId}_${Date.now()}.${fileExt}`;
-        const filePath = `receipts/${fileName}`;
+        const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+        if (!allowedTypes.has(file.type)) throw new Error('Upload a JPEG, PNG, or WebP image.');
+        if (file.size > 5 * 1024 * 1024) throw new Error('Payment proof must be 5 MB or smaller.');
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError || !authData.user) throw new Error('Sign in before uploading payment proof.');
+        const fileExt = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
+        const filePath = `${authData.user.id}/${crypto.randomUUID()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('payment-screenshots')
-          .upload(filePath, file, { upsert: true });
+          .from(PAYMENT_PROOF_BUCKET)
+          .upload(filePath, file, { upsert: false, contentType: file.type, cacheControl: '3600' });
 
         if (uploadError) {
           throw uploadError;
         }
-
-        const { data: publicData } = supabase.storage
-          .from('payment-screenshots')
-          .getPublicUrl(filePath);
-
-        return { success: true, url: publicData.publicUrl };
+        return { success: true, url: filePath };
       } catch (err: any) {
-        console.warn('Storage upload error, using object URL fallback:', err);
+        return { success: false, error: err?.message || 'Unable to upload payment proof.' };
       }
     }
 
-    // Local fallback URL
+    this.canUseLocalDevelopmentMode('Uploading payment proofs');
     const localUrl = URL.createObjectURL(file);
     return { success: true, url: localUrl };
   }
@@ -1000,6 +1116,7 @@ export class StorageService {
   static getAnnouncements(): Announcement[] {
     const raw = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
     if (!raw) {
+      if (isSupabaseConfigured()) return [];
       localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(INITIAL_ANNOUNCEMENTS));
       return INITIAL_ANNOUNCEMENTS;
     }
@@ -1016,26 +1133,42 @@ export class StorageService {
 
   static async fetchAnnouncements(): Promise<Announcement[]> {
     if (isSupabaseConfigured()) {
-      try {
-        const { data, error } = await supabase
-          .from('announcements')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!error && data) {
-          const mapped = data.map(announcementFromDb);
-          this.saveAnnouncements(mapped);
-          window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: mapped }));
-          return mapped;
-        }
-      } catch (err) {
-        console.warn('Supabase fetchAnnouncements warning:', err);
-      }
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(`Unable to load announcements: ${error.message}`);
+      const mapped = (data || []).map(announcementFromDb);
+      this.saveAnnouncements(mapped);
+      window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: mapped }));
+      return mapped;
     }
     return this.getAnnouncements();
   }
 
   static async addAnnouncement(data: Omit<Announcement, 'id' | 'date'>): Promise<Announcement> {
+    if (isSupabaseConfigured()) {
+      const { data: authData } = await supabase.auth.getUser();
+      const dateDisplay = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const { data: row, error } = await supabase.from('announcements').insert({
+        title: data.title,
+        message: data.message,
+        type: data.type,
+        scope: data.scope,
+        department_code: data.departmentCode || null,
+        published_by: authData.user?.id || null,
+        date_display: dateDisplay
+      }).select('*').single();
+      if (error) throw new Error(`Unable to create announcement: ${error.message}`);
+      if (!row) throw new Error('The database did not return the created announcement.');
+      const created = announcementFromDb(row);
+      const list = [created, ...this.getAnnouncements().filter(item => item.id !== created.id)];
+      this.saveAnnouncements(list);
+      window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: list }));
+      return created;
+    }
+
+    this.canUseLocalDevelopmentMode('Creating announcements');
     const list = this.getAnnouncements();
     const newAnn: Announcement = {
       ...data,
@@ -1044,36 +1177,23 @@ export class StorageService {
     };
     list.unshift(newAnn);
     this.saveAnnouncements(list);
-
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from('announcements').insert({
-          title: data.title,
-          message: data.message,
-          type: data.type,
-          scope: data.scope,
-          department_code: data.departmentCode || null,
-          date_display: newAnn.date
-        });
-      } catch (err) {
-        console.warn('Supabase addAnnouncement warning:', err);
-      }
-    }
-
     return newAnn;
   }
 
   static async deleteAnnouncement(annId: string): Promise<void> {
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.from('announcements').delete().eq('id', annId).select('id').maybeSingle();
+      if (error) throw new Error(`Unable to delete announcement: ${error.message}`);
+      if (!data) throw new Error('Announcement was not found or you do not have permission to delete it.');
+      const list = this.getAnnouncements().filter(item => item.id !== data.id);
+      this.saveAnnouncements(list);
+      window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: list }));
+      return;
+    }
+
+    this.canUseLocalDevelopmentMode('Deleting announcements');
     const list = this.getAnnouncements().filter(a => a.id !== annId);
     this.saveAnnouncements(list);
-
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from('announcements').delete().eq('id', annId);
-      } catch (err) {
-        console.warn('Supabase deleteAnnouncement warning:', err);
-      }
-    }
   }
 
   // ==========================================
@@ -1169,7 +1289,8 @@ export class StorageService {
         console.warn('Failed to parse cached departments:', err);
       }
     }
-    // Default to DEPARTMENTS mock data and persist
+    if (isSupabaseConfigured()) return [];
+    // Default to DEPARTMENTS mock data and persist for offline development.
     localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEPARTMENTS));
     return [...DEPARTMENTS];
   }
@@ -1179,55 +1300,116 @@ export class StorageService {
     window.dispatchEvent(new CustomEvent('festronix:departments-updated', { detail: departments }));
   }
 
-  static addDepartment(dept: Omit<Department, 'id'> & { id?: string }): Department {
-    const departments = this.getDepartments();
-    const cleanCode = dept.code.trim().toUpperCase();
-    const id = dept.id || `dept-${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+  static async fetchDepartments(): Promise<Department[]> {
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.from('departments').select('*').order('name', { ascending: true });
+      if (error) throw new Error(`Unable to load departments: ${error.message}`);
+      const mapped: Department[] = (data || []).map((d: any) => ({
+        id: d.id,
+        code: d.code,
+        name: d.name,
+        description: d.description || '',
+        chiefCoordinator: d.chief_coordinator || '',
+        contact: d.contact || '',
+        iconName: d.icon_name || 'Cpu'
+      }));
+      this.saveDepartments(mapped);
+      return mapped;
+    }
+    return this.getDepartments();
+  }
 
-    const newDept: Department = {
-      id,
+  static async addDepartment(dept: Omit<Department, 'id'> & { id?: string }): Promise<Department> {
+    const cleanCode = dept.code.trim().toUpperCase();
+    const payload = {
       code: cleanCode,
       name: dept.name.trim(),
       description: dept.description?.trim() || 'Academic Department for FESTRONIX 2026',
-      chiefCoordinator: dept.chiefCoordinator?.trim() || 'Department Chief',
+      chief_coordinator: dept.chiefCoordinator?.trim() || 'Department Chief',
       contact: dept.contact?.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
-      iconName: dept.iconName || 'Cpu'
+      icon_name: dept.iconName || 'Cpu'
     };
-
-    const existingIdx = departments.findIndex(d => d.code.toUpperCase() === cleanCode || d.id === id);
-    if (existingIdx !== -1) {
-      departments[existingIdx] = newDept;
-    } else {
-      departments.push(newDept);
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.from('departments').insert(payload).select('*').single();
+      if (error) throw new Error(`Unable to create department: ${error.message}`);
+      if (!data) throw new Error('The database did not return the created department.');
+      const created: Department = {
+        id: data.id, code: data.code, name: data.name,
+        description: data.description || '', chiefCoordinator: data.chief_coordinator || '',
+        contact: data.contact || '', iconName: data.icon_name || 'Cpu'
+      };
+      this.saveDepartments([...this.getDepartments(), created]);
+      return created;
     }
 
+    this.canUseLocalDevelopmentMode('Creating departments');
+    const newDept: Department = {
+      id: dept.id || `dept-${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+      code: cleanCode,
+      name: payload.name,
+      description: payload.description,
+      chiefCoordinator: payload.chief_coordinator,
+      contact: payload.contact,
+      iconName: payload.icon_name
+    };
+    const departments = this.getDepartments();
+    const existingIdx = departments.findIndex(d => d.code.toUpperCase() === cleanCode || d.id === newDept.id);
+    if (existingIdx < 0) departments.push(newDept);
+    else departments[existingIdx] = newDept;
     this.saveDepartments(departments);
     return newDept;
   }
 
-  static updateDepartment(idOrCode: string, updated: Partial<Department>): Department | null {
-    const departments = this.getDepartments();
+  static async updateDepartment(idOrCode: string, updated: Partial<Department>): Promise<Department | null> {
     const cleanKey = idOrCode.trim().toUpperCase();
+    if (isSupabaseConfigured()) {
+      const payload = {
+        ...(updated.code !== undefined ? { code: updated.code.trim().toUpperCase() } : {}),
+        ...(updated.name !== undefined ? { name: updated.name.trim() } : {}),
+        ...(updated.description !== undefined ? { description: updated.description.trim() } : {}),
+        ...(updated.chiefCoordinator !== undefined ? { chief_coordinator: updated.chiefCoordinator.trim() } : {}),
+        ...(updated.contact !== undefined ? { contact: updated.contact.trim() } : {}),
+        ...(updated.iconName !== undefined ? { icon_name: updated.iconName } : {})
+      };
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
+      const query = supabase.from('departments').update(payload);
+      const { data, error } = await (isUuid ? query.eq('id', idOrCode) : query.eq('code', cleanKey)).select('*').maybeSingle();
+      if (error) throw new Error(`Unable to update department: ${error.message}`);
+      if (!data) throw new Error('Department was not found or you do not have permission to update it.');
+      const saved: Department = {
+        id: data.id, code: data.code, name: data.name,
+        description: data.description || '', chiefCoordinator: data.chief_coordinator || '',
+        contact: data.contact || '', iconName: data.icon_name || 'Cpu'
+      };
+      this.saveDepartments(this.getDepartments().map(dept => dept.id === saved.id ? saved : dept));
+      return saved;
+    }
+
+    this.canUseLocalDevelopmentMode('Updating departments');
+    const departments = this.getDepartments();
     const idx = departments.findIndex(d => d.id === idOrCode || d.code.toUpperCase() === cleanKey);
-
     if (idx === -1) return null;
-
-    const current = departments[idx];
-    const merged: Department = {
-      ...current,
-      ...updated,
-      code: updated.code ? updated.code.trim().toUpperCase() : current.code
-    };
+    const merged = { ...departments[idx], ...updated, code: updated.code?.trim().toUpperCase() || departments[idx].code };
     departments[idx] = merged;
     this.saveDepartments(departments);
     return merged;
   }
 
-  static deleteDepartment(idOrCode: string): boolean {
-    const departments = this.getDepartments();
+  static async deleteDepartment(idOrCode: string): Promise<boolean> {
     const cleanKey = idOrCode.trim().toUpperCase();
-    const filtered = departments.filter(d => d.id !== idOrCode && d.code.toUpperCase() !== cleanKey);
-    this.saveDepartments(filtered);
+    if (isSupabaseConfigured()) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
+      const query = supabase.from('departments').delete();
+      const { data, error } = await (isUuid ? query.eq('id', idOrCode) : query.eq('code', cleanKey)).select('id,code').maybeSingle();
+      if (error) throw new Error(`Unable to delete department. Remove or reassign its events and coordinators first: ${error.message}`);
+      if (!data) throw new Error('Department was not found or you do not have permission to delete it.');
+      this.saveDepartments(this.getDepartments().filter(dept => dept.id !== data.id));
+      return true;
+    }
+
+    this.canUseLocalDevelopmentMode('Deleting departments');
+    const departments = this.getDepartments();
+    this.saveDepartments(departments.filter(d => d.id !== idOrCode && d.code.toUpperCase() !== cleanKey));
     return true;
   }
 
@@ -1238,14 +1420,15 @@ export class StorageService {
   static getTeams(): Team[] {
     const raw = localStorage.getItem(STORAGE_KEYS.TEAMS);
     if (!raw) {
+      if (isSupabaseConfigured()) return [];
       localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(INITIAL_TEAMS));
       return INITIAL_TEAMS;
     }
     try {
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_TEAMS;
+      return Array.isArray(parsed) ? parsed : (isSupabaseConfigured() ? [] : INITIAL_TEAMS);
     } catch {
-      return INITIAL_TEAMS;
+      return isSupabaseConfigured() ? [] : INITIAL_TEAMS;
     }
   }
 
@@ -1427,32 +1610,11 @@ export class StorageService {
 
   static async fetchCloudTeams(): Promise<Team[]> {
     if (!isSupabaseConfigured()) return this.getTeams();
-    try {
-      const { data, error } = await supabase.from('teams').select('*');
-      if (!error && data && data.length > 0) {
-        const teams: Team[] = data.map((row: any) => ({
-          id: row.id,
-          teamCode: row.team_code,
-          teamName: row.team_name,
-          eventId: row.event_id,
-          eventTitle: row.event_title,
-          registrationId: row.registration_id || '',
-          leaderId: row.leader_id,
-          leaderName: row.leader_name,
-          leaderRoll: row.leader_roll || '',
-          leaderEmail: row.leader_email || '',
-          leaderPhone: row.leader_phone || '',
-          leaderCollege: row.leader_college || 'Vardhaman College of Engineering',
-          members: Array.isArray(row.members) ? row.members : [],
-          maxTeamSize: row.max_team_size || 4,
-          minTeamSize: row.min_team_size || 2,
-          createdAt: row.created_at
-        }));
-        this.saveTeams(teams);
-        return teams;
-      }
-    } catch {}
-    return this.getTeams();
+    const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
+    if (error) throw new Error(`Unable to load your teams: ${error.message}`);
+    const teams = (data || []).map(teamFromDb);
+    this.saveTeams(teams);
+    return teams;
   }
 
   static saveTeams(teams: Team[]): void {
@@ -1492,6 +1654,29 @@ export class StorageService {
     const normQuery = rawClean.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     if (normQuery.length < 3) {
       return { team: null, error: 'Team code is too short. Please verify with your Team Leader.' };
+    }
+
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.rpc('find_team_by_code', { p_code: rawClean });
+      if (error) return { team: null, error: `Unable to look up this team: ${error.message}` };
+      if (!(data as any)?.success || !(data as any)?.team) {
+        return { team: null, error: (data as any)?.error || `Team code "${rawClean}" was not found.` };
+      }
+
+      const found = teamFromDb((data as any).team);
+      if (eventId) {
+        const currentEvent = this.getEvents().find(e => e.id === eventId || e.slug === eventId);
+        if (currentEvent && found.eventId !== currentEvent.id && found.eventId !== currentEvent.slug) {
+          return {
+            team: null,
+            error: `Team code "${found.teamCode}" belongs to "${found.eventTitle}", but you are registering for "${currentEvent.title}".`
+          };
+        }
+      }
+
+      const cached = this.getTeams().filter(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normQuery);
+      this.saveTeams([found, ...cached]);
+      return { team: found };
     }
 
     let found: Team | null = null;
@@ -1727,9 +1912,87 @@ export class StorageService {
   }
 
   /**
+   * Fetches the privacy-safe live dashboard for a team. Members can see the
+   * roster summary, leader name, capacity, and payment state without gaining
+   * access to the leader's payment proof or private contact fields.
+   */
+  static async fetchTeamDashboard(teamCode: string, eventId?: string): Promise<Team | null> {
+    if (!teamCode.trim()) return null;
+
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.rpc('get_team_dashboard', { p_code: teamCode.trim() });
+      let team: Team | null = null;
+
+      if (!error && (data as any)?.success && (data as any)?.team) {
+        team = teamFromDb((data as any).team);
+      } else {
+        // Keep older Supabase projects usable until the dashboard migration is
+        // applied. The existing lookup still provides safe roster metadata;
+        // payment state is derived from the participant registrations cache.
+        const fallback = await this.findTeamWithValidation(teamCode, eventId);
+        if (!fallback.team) {
+          throw new Error(error?.message || fallback.error || 'The team dashboard is unavailable.');
+        }
+        team = { ...fallback.team };
+        const normalizedCode = team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        const matchingRegistrations = this.getRegistrations().filter(
+          registration => registration.teamCode && registration.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normalizedCode
+        );
+        const event = this.getEvents().find(item => item.id === team!.eventId || item.slug === team!.eventId);
+        const leaderRegistration = matchingRegistrations.find(registration => registration.fee > 0);
+        team.paymentStatus = event?.fee === 0
+          ? 'not_applicable'
+          : leaderRegistration?.paymentStatus || matchingRegistrations[0]?.paymentStatus || 'payment_required';
+        team.totalMemberCount = 1 + Math.max(team.memberCount || 0, team.members?.length || 0);
+      }
+
+      if (eventId && team.eventId !== eventId && team.eventId !== this.getEvents().find(e => e.id === eventId || e.slug === eventId)?.id) {
+        return null;
+      }
+
+      const normCode = team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const teams = [team, ...this.getTeams().filter(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normCode)];
+      this._inFlightTeams.set(normCode, team);
+      this.saveTeams(teams);
+      return team;
+    }
+
+    return this.findTeamByCode(teamCode, eventId);
+  }
+
+  /**
    * Instantly creates or reserves a squad so that the Team Code is LIVE and JOINABLE immediately!
    */
   static async reserveOrRegisterTeam(newTeamData: Omit<Team, 'id' | 'createdAt'>): Promise<Team> {
+    if (isSupabaseConfigured()) {
+      const normCode = newTeamData.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const { data, error } = await supabase.rpc('create_or_reserve_team', {
+        p_team_code: newTeamData.teamCode,
+        p_team_name: newTeamData.teamName,
+        p_event_id: newTeamData.eventId,
+        p_event_title: newTeamData.eventTitle,
+        p_leader_name: newTeamData.leaderName,
+        p_leader_roll: newTeamData.leaderRoll,
+        p_leader_email: newTeamData.leaderEmail,
+        p_leader_phone: newTeamData.leaderPhone,
+        p_leader_college: newTeamData.leaderCollege,
+        p_leader_id: newTeamData.leaderId || null,
+        p_max_team_size: newTeamData.maxTeamSize,
+        p_min_team_size: newTeamData.minTeamSize
+      });
+      if (error) throw new Error(`Unable to reserve the team: ${error.message}`);
+      if (!(data as any)?.success || !(data as any)?.team) {
+        throw new Error((data as any)?.error || 'The database did not reserve this team.');
+      }
+
+      const team = teamFromDb((data as any).team);
+      const teams = [team, ...this.getTeams().filter(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normCode)];
+      this._inFlightTeams.set(normCode, team);
+      this.saveTeams(teams);
+      this.broadcastTeam(team);
+      return team;
+    }
+
     const teams = this.getTeams();
     const normCode = newTeamData.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     const existingIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
@@ -1761,47 +2024,6 @@ export class StorageService {
     this._inFlightTeams.set(normCode, team);
     this.saveTeams(teams);
     this.broadcastTeam(team);
-
-    // Sync to Supabase cloud if configured
-    if (isSupabaseConfigured()) {
-      try {
-        const { error: rpcErr } = await supabase.rpc('create_or_reserve_team', {
-          p_team_code: team.teamCode,
-          p_team_name: team.teamName,
-          p_event_id: team.eventId,
-          p_event_title: team.eventTitle,
-          p_leader_name: team.leaderName,
-          p_leader_roll: team.leaderRoll,
-          p_leader_email: team.leaderEmail,
-          p_leader_phone: team.leaderPhone,
-          p_leader_college: team.leaderCollege,
-          p_leader_id: team.leaderId || null,
-          p_max_team_size: team.maxTeamSize,
-          p_min_team_size: team.minTeamSize
-        });
-
-        if (rpcErr) {
-          // Direct table upsert fallback
-          await supabase.from('teams').upsert({
-            id: team.id,
-            team_code: team.teamCode,
-            team_name: team.teamName,
-            event_id: team.eventId,
-            event_title: team.eventTitle,
-            leader_name: team.leaderName,
-            leader_roll: team.leaderRoll,
-            leader_email: team.leaderEmail,
-            leader_phone: team.leaderPhone,
-            leader_college: team.leaderCollege,
-            members: team.members || [],
-            max_team_size: team.maxTeamSize,
-            min_team_size: team.minTeamSize
-          });
-        }
-      } catch (err) {
-        console.warn('Supabase reserveOrRegisterTeam sync warning:', err);
-      }
-    }
 
     return team;
   }
@@ -1852,7 +2074,7 @@ export class StorageService {
     const team = lookup.team;
 
     // Check capacity
-    const currentMemberCount = 1 + (team.members?.length || 0);
+    const currentMemberCount = 1 + (team.memberCount ?? team.members?.length ?? 0);
     if (currentMemberCount >= team.maxTeamSize) {
       return {
         success: false,
@@ -1865,6 +2087,7 @@ export class StorageService {
     const memberEmail = (member.email || '').trim().toLowerCase();
 
     const isLeader =
+      team.isCurrentUserLeader ||
       (team.leaderRoll && team.leaderRoll.trim().toLowerCase() === memberRoll) ||
       (team.leaderEmail && team.leaderEmail.trim().toLowerCase() === memberEmail);
 
@@ -1872,7 +2095,7 @@ export class StorageService {
       m =>
         (m.rollNumber && m.rollNumber.trim().toLowerCase() === memberRoll) ||
         (m.email && memberEmail !== '' && m.email.trim().toLowerCase() === memberEmail)
-    );
+    ) || Boolean(team.isCurrentUserMember);
 
     if (isLeader) {
       return {
@@ -1888,7 +2111,29 @@ export class StorageService {
       };
     }
 
-    // Add member to squad
+    let backendJoin: any = null;
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.rpc('join_team_membership', {
+        p_code: cleanCode,
+        p_member: member
+      });
+      if (error) return { success: false, error: `Unable to join the team: ${error.message}` };
+      if (!(data as any)?.success) {
+        return { success: false, error: (data as any)?.error || 'The database rejected this team join.' };
+      }
+      backendJoin = data;
+      if ((data as any).team) {
+        const serverTeam = teamFromDb((data as any).team);
+        Object.assign(team, serverTeam, {
+          // The membership RPC intentionally redacts private roster details
+          // from a normal member. Keep the local member visible until the
+          // privacy-safe dashboard refresh completes.
+          members: [...(team.members || []), member]
+        });
+      }
+    }
+
+    // Add the confirmed member to the local view after the backend accepted it.
     const updatedMembers = [...(team.members || []), member];
     team.members = updatedMembers;
 
@@ -1904,18 +2149,77 @@ export class StorageService {
     this.saveTeams(teams);
     this.broadcastTeam(team);
 
+    // Joining reserves a place in the team only. It must not create an
+    // official registration or QR ticket before the leader completes the
+    // event checkout.
+    const liveTeam = isSupabaseConfigured()
+      ? await this.fetchTeamDashboard(team.teamCode, team.eventId).catch(() => team)
+      : team;
+    return {
+      success: true,
+      team: liveTeam || team,
+      isLeaderPaid: Boolean((backendJoin as any)?.isLeaderPaid)
+    };
+
     // Check event fee and leader payment status
     const matchedEvt = this.getEvents().find(e => e.id === team.eventId || e.slug === team.eventId);
     const eventFee = Number(matchedEvt?.fee) || 0;
-    const { isPaid: isLeaderPaid, leaderReg } = this.isTeamLeaderPaid(team);
+    const { isPaid: localLeaderPaid, leaderReg } = this.isTeamLeaderPaid(team);
+    const isLeaderPaid = isSupabaseConfigured()
+      ? Boolean((backendJoin as any)?.isLeaderPaid)
+      : localLeaderPaid;
+    const leaderPaymentStatus = (backendJoin as any)?.leaderPaymentStatus || leaderReg?.paymentStatus;
+    const leaderTransactionId = (backendJoin as any)?.leaderTransactionId || leaderReg?.transactionId;
+
+    // Online team joins are committed by the database RPC. Never manufacture
+    // a local-only pass here: admin, HOD, finance, coordinator, and gate
+    // portals must all see the same registration and ticket rows.
+    if (isSupabaseConfigured() && (backendJoin as any)?.registration) {
+      const payload = (backendJoin as any).registration;
+      let canonical: Registration | undefined;
+      try {
+        const liveRegs = await this.fetchRegistrations();
+        canonical = liveRegs.find(reg => reg.id === payload.id);
+      } catch (refreshError) {
+        console.warn('Team member joined, but the immediate canonical refresh failed:', refreshError);
+      }
+
+      const registration = canonical || {
+        id: payload.id,
+        userId: undefined,
+        buyerRoll: member.rollNumber,
+        eventId: payload.eventId || team.eventId,
+        eventTitle: payload.eventTitle || team.eventTitle,
+        departmentCode: matchedEvt?.departmentCode || this.resolveDepartmentForRegistration({ eventId: team.eventId, eventTitle: team.eventTitle } as Registration),
+        teamName: payload.teamName || team.teamName,
+        teamCode: payload.teamCode || team.teamCode,
+        leaderName: payload.leaderName || member.name,
+        leaderEmail: payload.leaderEmail || member.email,
+        leaderPhone: payload.leaderPhone || member.phone,
+        leaderCollege: payload.leaderCollege || member.college,
+        leaderRoll: payload.leaderRoll || member.rollNumber,
+        teammates: team.members || [],
+        format: payload.format || 'team',
+        fee: Number(payload.fee) || 0,
+        source: 'online',
+        registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        paymentStatus: payload.paymentStatus || (eventFee === 0 ? 'not_applicable' : (isLeaderPaid && (leaderPaymentStatus === 'verified' || leaderPaymentStatus === 'verification_pending') ? leaderPaymentStatus : 'payment_required')),
+        transactionId: payload.transactionId || (isLeaderPaid ? leaderTransactionId : undefined),
+        paymentScreenshotUrl: payload.paymentScreenshotUrl || (isLeaderPaid ? leaderReg?.paymentScreenshotUrl : undefined),
+        qrToken: payload.qrToken || '',
+        checkedIn: Boolean(payload.checkedIn)
+      } as Registration;
+
+      return { success: true, team, registration, isLeaderPaid };
+    }
 
     // If event is free: not_applicable
     // If event has fee: if leader has paid: use leader's status; otherwise: payment_required (LOCKED!)
     let paymentStatus: PaymentStatus = 'payment_required';
     if (eventFee === 0) {
       paymentStatus = 'not_applicable';
-    } else if (isLeaderPaid && leaderReg) {
-      paymentStatus = leaderReg.paymentStatus;
+    } else if (isLeaderPaid && (leaderPaymentStatus === 'verified' || leaderPaymentStatus === 'verification_pending')) {
+      paymentStatus = leaderPaymentStatus;
     }
 
     // QR Token is only generated if payment is covered (or event is free)
@@ -1950,11 +2254,11 @@ export class StorageService {
       eventId: team.eventId,
       eventTitle: team.eventTitle,
       departmentCode: matchedEvt?.departmentCode || 'MECH',
-      leaderName: team.leaderName,
-      leaderRoll: team.leaderRoll,
-      leaderEmail: team.leaderEmail,
-      leaderPhone: team.leaderPhone,
-      leaderCollege: team.leaderCollege,
+      leaderName: member.name,
+      leaderRoll: member.rollNumber,
+      leaderEmail: member.email,
+      leaderPhone: member.phone,
+      leaderCollege: member.college,
       buyerRoll: member.rollNumber,
       teammates: team.members,
       format: 'team',
@@ -1964,29 +2268,13 @@ export class StorageService {
       source: 'online',
       registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
       paymentStatus,
-      transactionId: isLeaderPaid ? leaderReg?.transactionId : undefined,
+      transactionId: isLeaderPaid ? leaderTransactionId : undefined,
       paymentScreenshotUrl: isLeaderPaid ? leaderReg?.paymentScreenshotUrl : undefined,
       checkedIn: false
     };
     regs.unshift(newReg);
     this.saveRegistrations(regs);
     updatedReg = newReg;
-
-    // Sync to Supabase cloud safely
-    if (isSupabaseConfigured()) {
-      try {
-        const { error: rpcErr } = await supabase.rpc('join_team_by_code', {
-          p_code: cleanCode,
-          p_member: member
-        });
-        if (rpcErr) {
-          await supabase
-            .from('teams')
-            .update({ members: updatedMembers })
-            .ilike('team_code', cleanCode);
-        }
-      } catch {}
-    }
 
     return { success: true, team, registration: updatedReg, isLeaderPaid };
   }

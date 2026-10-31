@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   CreditCard, IndianRupee, CheckCircle2, XCircle, Clock, Search, 
   Filter, Download, ArrowRight, LogOut, Eye, RefreshCw, AlertCircle, Sparkles, Shield,
@@ -35,26 +35,65 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   const [rejectingRegId, setRejectingRegId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setStats(StorageService.getStats());
     setRegistrations(StorageService.getRegistrations());
+    try {
+      await Promise.all([StorageService.fetchRegistrations(), StorageService.fetchEvents()]);
+      setStats(StorageService.getStats());
+      setRegistrations(StorageService.getRegistrations());
+    } catch (error) {
+      console.warn('Finance dashboard sync warning:', error);
+    }
   };
 
+  useEffect(() => {
+    void refreshData();
+    const handleRegistrations = () => {
+      setStats(StorageService.getStats());
+      setRegistrations(StorageService.getRegistrations());
+    };
+    const handleEvents = () => {
+      setStats(StorageService.getStats());
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'festronix_registrations_v1' || event.key === 'festronix_events_v1') {
+        void refreshData();
+      }
+    };
+    window.addEventListener('festronix:regs-updated', handleRegistrations);
+    window.addEventListener('festronix:events-updated', handleEvents);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('festronix:regs-updated', handleRegistrations);
+      window.removeEventListener('festronix:events-updated', handleEvents);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
   const handleVerify = async (regId: string) => {
-    const ok = await StorageService.updatePaymentStatus(regId, 'verified', adminUser.fullName);
-    if (ok) {
-      confetti({ particleCount: 65, spread: 60, origin: { y: 0.6 } });
-      refreshData();
+    try {
+      const ok = await StorageService.updatePaymentStatus(regId, 'verified', adminUser.fullName);
+      if (ok) {
+        confetti({ particleCount: 65, spread: 60, origin: { y: 0.6 } });
+        void refreshData();
+      }
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to approve this payment.');
     }
   };
 
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingRegId) return;
-    await StorageService.updatePaymentStatus(rejectingRegId, 'rejected', adminUser.fullName, rejectReason || 'Payment screenshot or UTR invalid.');
-    setRejectingRegId(null);
-    setRejectReason('');
-    refreshData();
+    try {
+      await StorageService.updatePaymentStatus(rejectingRegId, 'rejected', adminUser.fullName, rejectReason || 'Payment screenshot or UTR invalid.');
+      setRejectingRegId(null);
+      setRejectReason('');
+      void refreshData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to reject this payment.');
+    }
   };
 
   const filtered = registrations.filter(r => {

@@ -227,12 +227,13 @@ export const App: React.FC = () => {
       setPendingRegisterEvent(evt);
       setPendingAction(null);
       setDetailEvent(null);
-      setAuthCustomNotice(`Please sign in with your college credentials to register for "${evt.title}". Your profile details will automatically auto-fill into the registration pass!`);
+      setAuthCustomNotice(`Sign in to continue registering for "${evt.title}". Your profile details will fill into the registration form.`);
       handleOpenAuth('signin');
-    } else {
-      setDetailEvent(null);
-      setRegisterEvent(evt);
+      return;
     }
+
+    setDetailEvent(null);
+    setRegisterEvent(evt);
   };
 
   const handleStartMultiPass = () => {
@@ -248,6 +249,9 @@ export const App: React.FC = () => {
 
   const handleOpenAuth = (mode: 'signin' | 'signup' = 'signin') => {
     setAuthModalMode(mode);
+    if (!currentUser && registerEvent && mode === 'signin') {
+      setAuthCustomNotice(`Sign in to continue registering for "${registerEvent.title}". Your profile details will fill into the registration form.`);
+    }
     setIsAuthModalOpen(true);
   };
 
@@ -415,7 +419,7 @@ export const App: React.FC = () => {
           setIsAuthModalOpen(false);
           setAuthCustomNotice(null);
 
-          // Resume pending registration flow seamlessly
+          // Resume the selected event registration after authentication.
           if (pendingRegisterEvent) {
             const evt = pendingRegisterEvent;
             setPendingRegisterEvent(null);

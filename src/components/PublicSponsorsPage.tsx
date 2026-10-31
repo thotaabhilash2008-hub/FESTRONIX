@@ -28,7 +28,7 @@ import {
 import confetti from 'canvas-confetti';
 import { SponsorProfile } from './partners/partnerData';
 import { PartnerStorageService } from '../services/partnerStorageService';
-import { AdminAuthService, AdminUser, isSuperAdminRole, PRESET_ADMINS } from '../services/adminAuthService';
+import { AdminAuthService, AdminUser, isSuperAdminRole } from '../services/adminAuthService';
 import { GlitterBackground } from './GlitterBackground';
 
 interface PublicSponsorsPageProps {
@@ -52,8 +52,8 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
 
   // Quick Unlock Modal (if not logged in as Super Admin)
   const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
-  const [unlockUsername, setUnlockUsername] = useState('dean_sac');
-  const [unlockPassword, setUnlockPassword] = useState('deansac2026');
+  const [unlockUsername, setUnlockUsername] = useState('');
+  const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
 
   // Add / Edit Sponsor Modal
@@ -74,6 +74,10 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    PartnerStorageService.initRealtime();
+    void PartnerStorageService.fetchSponsors()
+      .then(setSponsors)
+      .catch(error => console.warn('Public sponsor sync warning:', error));
 
     const handleUpdate = (e: any) => {
       if (Array.isArray(e.detail)) {
@@ -93,6 +97,11 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
     return s.tier.toLowerCase().includes(activeTier.toLowerCase());
   });
 
+  const officialSponsors = sponsors.filter(sponsor =>
+    ['Title Sponsor', 'Platinum Partner', 'Gold Sponsor', 'Official Event Partner', 'Official Tech Partner']
+      .includes(sponsor.tier)
+  ).slice(0, 4);
+
   // Handle Quick Super Admin Login
   const handleSuperAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,19 +114,6 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
       confetti({ particleCount: 80, spread: 60 });
     } else {
       setUnlockError(res.error || 'Invalid Super Admin credentials. Only Dean SAC, Connect Club, or Vencorpia admin accounts are authorized.');
-    }
-  };
-
-  // One-click demo login for super admins
-  const handlePresetSuperAdminLogin = async (u: string, p: string) => {
-    setUnlockUsername(u);
-    setUnlockPassword(p);
-    const res = await AdminAuthService.loginCentral(u, p);
-    if (res.success && res.user && isSuperAdminRole(res.user.role)) {
-      setAdminUser(res.user);
-      setIsEditModeActive(true);
-      setIsUnlockModalOpen(false);
-      confetti({ particleCount: 80, spread: 60 });
     }
   };
 
@@ -592,6 +588,92 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
         </div>
       </section>
 
+      {/* Official Sponsors Spotlight */}
+      {officialSponsors.length > 0 && (
+        <section
+          aria-labelledby="official-sponsors-heading"
+          style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 42px', position: 'relative', zIndex: 10 }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: '26px',
+              padding: '30px',
+              background: 'linear-gradient(115deg, rgba(12, 23, 48, 0.98) 0%, rgba(9, 17, 32, 0.98) 55%, rgba(16, 37, 56, 0.96) 100%)',
+              border: '1px solid rgba(125, 211, 252, 0.28)',
+              boxShadow: '0 24px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+            }}
+          >
+            <div style={{ position: 'absolute', inset: '-80px auto auto 58%', width: '280px', height: '180px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.14)', filter: 'blur(48px)', pointerEvents: 'none' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '18px', flexWrap: 'wrap', position: 'relative' }}>
+              <div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#FBBF24', fontSize: '0.72rem', fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                  <ShieldCheck size={15} />
+                  Official ecosystem partners
+                </div>
+                <h2 id="official-sponsors-heading" style={{ margin: 0, color: '#FFFFFF', fontSize: 'clamp(1.45rem, 3vw, 2.15rem)', fontWeight: 900, letterSpacing: '-0.02em' }}>
+                  The brands powering the arena
+                </h2>
+                <p style={{ margin: '9px 0 0', maxWidth: '650px', color: '#A7B7CD', fontSize: '0.92rem', lineHeight: 1.55 }}>
+                  Meet the official sponsors and technology partners helping students turn ambitious ideas into working prototypes, products, and careers.
+                </p>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 13px', borderRadius: '999px', color: '#7DD3FC', background: 'rgba(56, 189, 248, 0.09)', border: '1px solid rgba(125, 211, 252, 0.22)', fontSize: '0.74rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34D399', boxShadow: '0 0 12px #34D399' }} />
+                Verified partner network
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px', marginTop: '26px', position: 'relative' }}>
+              {officialSponsors.map((sponsor, index) => (
+                <a
+                  key={`official-${sponsor.id}`}
+                  href={sponsor.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    minHeight: '142px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '18px',
+                    borderRadius: '17px',
+                    color: '#FFFFFF',
+                    textDecoration: 'none',
+                    background: index === 0 ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.045))' : 'rgba(255, 255, 255, 0.055)',
+                    border: `1px solid ${sponsor.tierBadgeColor}45`,
+                    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 28px ${sponsor.tierBadgeColor}12`,
+                    transition: 'transform 180ms ease, border-color 180ms ease, background 180ms ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.borderColor = sponsor.tierBadgeColor;
+                    e.currentTarget.style.background = `${sponsor.tierBadgeColor}18`;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = `${sponsor.tierBadgeColor}45`;
+                    e.currentTarget.style.background = index === 0 ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.045))' : 'rgba(255, 255, 255, 0.055)';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ width: '112px', height: '48px', display: 'grid', placeItems: 'center', padding: '6px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.92)' }}>
+                      <img src={sponsor.logo} alt={`${sponsor.companyName} logo`} style={{ maxWidth: '94px', maxHeight: '34px', objectFit: 'contain' }} />
+                    </div>
+                    <ExternalLink size={15} color={sponsor.tierBadgeColor} />
+                  </div>
+                  <div>
+                    <div style={{ color: '#FFFFFF', fontSize: '1rem', fontWeight: 850 }}>{sponsor.companyName}</div>
+                    <div style={{ marginTop: '4px', color: sponsor.tierBadgeColor, fontSize: '0.66rem', fontWeight: 850, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{sponsor.tier}</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Main Sponsors Showcase Grid */}
       <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 60px', position: 'relative', zIndex: 10 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '28px' }}>
@@ -984,77 +1066,6 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
             <p style={{ fontSize: '0.82rem', color: '#94A3B8', marginBottom: '16px', lineHeight: 1.5 }}>
               Authenticate with your Super Admin credentials to edit, create, or delete sponsors directly on this public page.
             </p>
-
-            {/* Quick 1-Click Super Admin Presets */}
-            <div style={{ marginBottom: '18px' }}>
-              <div style={{ fontSize: '0.72rem', color: '#C7CBD4', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
-                Quick 1-Click Super Admin Profiles:
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => handlePresetSuperAdminLogin('dean_sac', 'deansac2026')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(56, 189, 248, 0.1)',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 700
-                  }}
-                >
-                  <span>👑 Dean SAC (Md. Asif)</span>
-                  <span style={{ fontSize: '0.72rem', color: '#38BDF8' }}>Unlock →</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handlePresetSuperAdminLogin('connect_club', 'connect2026')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(56, 189, 248, 0.1)',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 700
-                  }}
-                >
-                  <span>🤝 Connect Club Admin (Harshith)</span>
-                  <span style={{ fontSize: '0.72rem', color: '#38BDF8' }}>Unlock →</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handlePresetSuperAdminLogin('vencorpia', 'vencorpia2026')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(56, 189, 248, 0.1)',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 700
-                  }}
-                >
-                  <span>⚡ Vencorpia Admin (Arjun)</span>
-                  <span style={{ fontSize: '0.72rem', color: '#38BDF8' }}>Unlock →</span>
-                </button>
-              </div>
-            </div>
 
             {/* Manual Form */}
             <form onSubmit={handleSuperAdminLogin} style={{ borderTop: '1px solid rgba(199, 203, 212, 0.1)', paddingTop: '14px' }}>

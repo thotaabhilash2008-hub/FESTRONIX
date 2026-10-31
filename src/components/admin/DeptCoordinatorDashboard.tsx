@@ -9,6 +9,7 @@ import {
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
+import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
 import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
@@ -156,13 +157,18 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     );
 
     try {
-      const [liveEvts, liveRegs] = await Promise.all([
+      const [liveEvts, liveRegs, liveAnnouncements] = await Promise.all([
         StorageService.fetchEvents(),
-        StorageService.fetchRegistrations()
+        StorageService.fetchRegistrations(),
+        StorageService.fetchAnnouncements()
       ]);
       const updatedDeptEvts = liveEvts.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
       setEvents(updatedDeptEvts);
       setRegistrations(liveRegs.filter(r => StorageService.resolveDepartmentForRegistration(r, liveEvts) === deptCode.toUpperCase()));
+      setAnnouncements(liveAnnouncements.filter(a =>
+        a.scope === 'fest-wide' ||
+        (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+      ));
       setDeptStats(StorageService.getDepartmentStats(deptCode));
     } catch (err) {
       console.warn('Dept dashboard sync warning:', err);
@@ -177,6 +183,19 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       refreshDeptData();
     };
 
+    const handleEventsUpdate = () => {
+      refreshDeptData();
+    };
+
+    const handleAnnouncementsUpdate = () => {
+      setAnnouncements(
+        StorageService.getAnnouncements().filter(a =>
+          a.scope === 'fest-wide' ||
+          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+        )
+      );
+    };
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'festronix_registrations_v1' || e.key === 'festronix_events_v1' || e.key === 'festronix_announcements_v1') {
         refreshDeptData();
@@ -184,31 +203,34 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     };
 
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
+    window.addEventListener('festronix:events-updated', handleEventsUpdate);
+    window.addEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
+      window.removeEventListener('festronix:events-updated', handleEventsUpdate);
+      window.removeEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [deptCode]);
 
   // Determine which events are actively filtered into view
   const visibleEvents = useMemo(() => {
-    if (eventScope === 'assigned' && assignedEventsList.length > 0) {
-      return assignedEventsList;
-    }
-    return events;
-  }, [eventScope, assignedEventsList, events]);
+    if (isEventCoord) return assignedEventsList;
+    return eventScope === 'assigned' ? assignedEventsList : events;
+  }, [eventScope, assignedEventsList, events, isEventCoord]);
 
   // Determine registrations for active event scope
   const scopedRegistrations = useMemo(() => {
-    if (eventScope === 'assigned' && assignedEventsList.length > 0) {
+    if (isEventCoord || eventScope === 'assigned') {
       const assignedIds = new Set(assignedEventsList.map(e => e.id));
+      const assignedSlugs = new Set(assignedEventsList.map(e => e.slug));
       const assignedTitles = new Set(assignedEventsList.map(e => e.title.toLowerCase()));
-      return registrations.filter(r => assignedIds.has(r.eventId) || assignedTitles.has(r.eventTitle.toLowerCase()));
+      return registrations.filter(r => assignedIds.has(r.eventId) || assignedSlugs.has(r.eventId) || assignedTitles.has(r.eventTitle.toLowerCase()));
     }
     return registrations;
-  }, [eventScope, assignedEventsList, registrations]);
+  }, [eventScope, assignedEventsList, registrations, isEventCoord]);
 
   // Filtered Roster with Search and Status
   const filteredRoster = useMemo(() => {
@@ -253,6 +275,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Add New Event (FR-EVT-01 to FR-EVT-08)
   const handleCreateNewEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDeptChief) {
+      alert('Only the department HOD can create department events.');
+      return;
+    }
     if (!newEventTitle.trim()) return;
 
     let minSize = 1;
@@ -294,8 +320,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       coordinatorName: newEventCoordinatorName.trim() || adminUser.fullName,
       coordinatorPhone: newEventCoordinatorPhone.trim() || adminUser.phone || '+91 98480 12345',
       coordinatorEmail: newEventCoordinatorEmail.trim() || adminUser.email,
-      status: newEventPublishPolicy,
-      approvalStatus: newEventPublishPolicy === 'open' ? 'approved' : 'pending',
+      // Department-created events must go through SAC approval. Global admins
+      // use the Dean console for direct publishing.
+      status: 'pending_approval',
+      approvalStatus: 'pending',
       paymentInstructions: newEventPaymentInstructions.trim() || 'Pay via Festronix Central UPI or on-venue spot desk',
       bannerGradient: 'linear-gradient(135deg, #283B78 0%, #101A35 100%)'
     };
@@ -317,7 +345,33 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       return;
     }
 
+    const registrationBlockReason = getEventRegistrationBlockReason(targetEvt);
+    if (registrationBlockReason) {
+      alert(registrationBlockReason);
+      return;
+    }
+
     const isTeam = targetEvt.format === 'team' || targetEvt.format === 'duo';
+    if (isTeam && !spotTeamName.trim()) {
+      alert('Please enter a team name for this registration.');
+      return;
+    }
+    if (isTeam) {
+      const teamSize = 1 + spotTeammates.length;
+      if (teamSize < targetEvt.minTeamSize || teamSize > targetEvt.maxTeamSize) {
+        alert(`Team size must be between ${targetEvt.minTeamSize} and ${targetEvt.maxTeamSize} members.`);
+        return;
+      }
+      const rosterRolls = [spotLeaderRoll.trim().toUpperCase(), ...spotTeammates.map(member => member.rollNumber.trim().toUpperCase())];
+      if (spotTeammates.some(member => !member.name.trim() || !member.rollNumber.trim())) {
+        alert('Complete each teammate name and roll number before issuing the pass.');
+        return;
+      }
+      if (new Set(rosterRolls).size !== rosterRolls.length) {
+        alert('The leader and teammates must have different roll numbers.');
+        return;
+      }
+    }
     const autoGenTxn = spotPaymentMethod === 'cash' 
       ? `CASH-SPOT-${Date.now().toString().slice(-6)}` 
       : (spotTxnId.trim() || `UPI-SPOT-${Date.now().toString().slice(-6)}`);
@@ -333,6 +387,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         leaderPhone: spotLeaderPhone.trim() || '+91 98480 00000',
         leaderCollege: spotLeaderCollege.trim() || 'Vardhaman College of Engineering',
         teammates: isTeam ? spotTeammates : [],
+        teamName: isTeam ? spotTeamName.trim() : undefined,
         format: targetEvt.format,
         registrationDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         fee: Number(targetEvt.fee) || 0,
@@ -439,6 +494,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Publish Event Announcement Handler (8.1 • Publish event announcements)
   const handleBroadcastAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDeptChief) {
+      alert('Only the department HOD can publish department announcements.');
+      return;
+    }
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) return;
 
     const fullTitle = broadcastScope === 'event' && broadcastEventTitle 
@@ -699,18 +758,18 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 )}
               </button>
 
-              <button
-                onClick={() => setEventScope('all')}
-                className={`admin-btn ${eventScope === 'all' ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
-                style={{ padding: '6px 14px', fontSize: '0.78rem' }}
-              >
-                <span>🏢 All {deptCode} Events ({events.length})</span>
-                {isDeptChief && (
+              {isDeptChief && (
+                <button
+                  onClick={() => setEventScope('all')}
+                  className={`admin-btn ${eventScope === 'all' ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
+                  style={{ padding: '6px 14px', fontSize: '0.78rem' }}
+                >
+                  <span>🏢 All {deptCode} Events ({events.length})</span>
                   <span style={{ fontSize: '0.62rem', background: '#38BDF8', color: '#000', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
                     HOD VIEW
                   </span>
-                )}
-              </button>
+                </button>
+              )}
             </div>
           </div>
 
@@ -728,20 +787,22 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <span>+ Spot Registration (Fest Day)</span>
             </button>
 
-            <button
-              onClick={() => setIsBroadcastOpen(true)}
-              className="admin-btn"
-              style={{
-                background: 'rgba(245, 158, 11, 0.16)',
-                border: '1px solid rgba(245, 158, 11, 0.45)',
-                color: '#FBBF24',
-                padding: '8px 16px',
-                fontSize: '0.8rem'
-              }}
-            >
-              <Megaphone size={15} />
-              <span>Broadcast Alert</span>
-            </button>
+            {isDeptChief && (
+              <button
+                onClick={() => setIsBroadcastOpen(true)}
+                className="admin-btn"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.16)',
+                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                  color: '#FBBF24',
+                  padding: '8px 16px',
+                  fontSize: '0.8rem'
+                }}
+              >
+                <Megaphone size={15} />
+                <span>Broadcast Alert</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -875,7 +936,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               label: `Payment Review (${scopedRegistrations.filter(r => r.paymentStatus === 'verification_pending').length})`, 
               icon: Clock 
             },
-            { id: 'announcements', label: `Announcements (${announcements.length})`, icon: Megaphone },
+            ...(isDeptChief ? [{ id: 'announcements', label: `Announcements (${announcements.length})`, icon: Megaphone }] : []),
             ...(isDeptChief ? [
               { id: 'reports', label: 'Consolidated Reports', icon: FileSpreadsheet },
               { id: 'coordinators', label: `Coordinators Directory (${departmentCoordinatorsList.length})`, icon: Phone }
@@ -910,22 +971,24 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={() => setIsAddEventOpen(true)}
-                  className="btn-cyber-primary"
-                  style={{
-                    padding: '9px 18px',
-                    fontSize: '0.84rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    borderRadius: '10px'
-                  }}
-                >
-                  <Plus size={16} />
-                  <span>Add Department Event</span>
-                </button>
+                {isDeptChief && (
+                  <button
+                    onClick={() => setIsAddEventOpen(true)}
+                    className="btn-cyber-primary"
+                    style={{
+                      padding: '9px 18px',
+                      fontSize: '0.84rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      borderRadius: '10px'
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>Submit Department Event</span>
+                  </button>
+                )}
               </div>
             </div>
 

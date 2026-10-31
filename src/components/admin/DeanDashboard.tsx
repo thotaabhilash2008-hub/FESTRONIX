@@ -28,6 +28,15 @@ interface DeanDashboardProps {
   onSwitchToFest: () => void;
 }
 
+const EVENT_ASSIGNMENT_ROLES: AdminRole[] = ['event_coordinator', 'faculty_coord', 'student_coord'];
+const DEPARTMENT_SCOPED_ROLES: AdminRole[] = ['dept_chief_coordinator', 'dept_coordinator', ...EVENT_ASSIGNMENT_ROLES];
+
+const supportsEventAssignments = (role: AdminRole): boolean => EVENT_ASSIGNMENT_ROLES.includes(role);
+const requiresDepartment = (role: AdminRole): boolean => DEPARTMENT_SCOPED_ROLES.includes(role);
+
+const departmentHandle = (code: string): string =>
+  code.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'department';
+
 export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogout, onSwitchToFest }) => {
   const [activeTab, setActiveTab] = useState<AdminNavTab>('dashboard');
   const [globalSearch, setGlobalSearch] = useState('');
@@ -102,6 +111,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [evtCoordinatorPhone, setEvtCoordinatorPhone] = useState('');
   const [evtCoordinatorEmail, setEvtCoordinatorEmail] = useState('');
   const [evtPublishStatus, setEvtPublishStatus] = useState<'open' | 'pending_approval'>('open');
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [eventCreateError, setEventCreateError] = useState('');
 
   // Form State: Add New Coordinator / HOD / Staff
   const [coordFullName, setCoordFullName] = useState('');
@@ -113,6 +124,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [coordUsername, setCoordUsername] = useState('');
   const [coordPassword, setCoordPassword] = useState('festcoord2026');
   const [coordShowPassword, setCoordShowPassword] = useState(false);
+  const [coordAssignedEvents, setCoordAssignedEvents] = useState<string[]>([]);
+  const [coordSubmitting, setCoordSubmitting] = useState(false);
+  const [coordFormError, setCoordFormError] = useState('');
+  const [createdCredential, setCreatedCredential] = useState<{ username: string; password: string; role: string } | null>(null);
 
   // Form State: Edit Coordinator / HOD / Staff
   const [isEditCoordinatorOpen, setIsEditCoordinatorOpen] = useState(false);
@@ -126,6 +141,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [editCoordUsername, setEditCoordUsername] = useState('');
   const [editCoordPassword, setEditCoordPassword] = useState('');
   const [editCoordShowPassword, setEditCoordShowPassword] = useState(false);
+  const [editCoordAssignedEvents, setEditCoordAssignedEvents] = useState<string[]>([]);
 
   // Form State: Add New Department
   const [isAddDepartmentOpen, setIsAddDepartmentOpen] = useState(false);
@@ -155,17 +171,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setCoordinators(AdminAuthService.getCoordinators());
 
     try {
-      const [liveEvts, liveRegs, liveAnns] = await Promise.all([
+      const [liveEvts, liveRegs, liveAnns, liveDepts, liveAdmins] = await Promise.all([
         StorageService.fetchEvents(),
         StorageService.fetchRegistrations(),
-        StorageService.fetchAnnouncements()
+        StorageService.fetchAnnouncements(),
+        StorageService.fetchDepartments(),
+        AdminAuthService.fetchAdmins()
       ]);
       setEvents(liveEvts);
       setRegistrations(liveRegs);
       setAnnouncements(liveAnns);
-      setDepartments(StorageService.getDepartments());
+      setDepartments(liveDepts);
       setStats(StorageService.getStats());
-      setCoordinators(AdminAuthService.getCoordinators());
+      setCoordinators(liveAdmins);
     } catch (err) {
       console.warn('Dashboard sync warning:', err);
     }
@@ -188,6 +206,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setDepartments(StorageService.getDepartments());
     };
 
+    const handleAnnouncementsUpdate = () => {
+      setAnnouncements(StorageService.getAnnouncements());
+    };
+
+    const handleAdminsUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<Array<AdminUser & { password?: string; assignedEvents?: string[] }>>).detail;
+      if (Array.isArray(detail)) setCoordinators(detail);
+    };
+
     const handleStorageChange = (e: StorageEvent) => {
       if (
         e.key === 'festronix_registrations_v1' || 
@@ -203,18 +230,22 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
     window.addEventListener('festronix:events-updated', handleEventsUpdate);
     window.addEventListener('festronix:departments-updated', handleDeptsUpdate);
+    window.addEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
+    window.addEventListener('festronix:admins-updated', handleAdminsUpdate);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
       window.removeEventListener('festronix:events-updated', handleEventsUpdate);
       window.removeEventListener('festronix:departments-updated', handleDeptsUpdate);
+      window.removeEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
+      window.removeEventListener('festronix:admins-updated', handleAdminsUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
   // Department CRUD Handlers
-  const handleCreateDepartment = (e: React.FormEvent) => {
+  const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanCode = deptCode.trim().toUpperCase();
     if (!cleanCode || !deptName.trim()) {
@@ -222,44 +253,48 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       return;
     }
 
-    StorageService.addDepartment({
-      code: cleanCode,
-      name: deptName.trim(),
-      description: deptDesc.trim() || `${deptName.trim()} engineering division for FESTRONIX 2026.`,
-      chiefCoordinator: deptChief.trim() || 'Department Chief',
-      contact: deptContact.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
-      iconName: deptIcon || 'Cpu'
-    });
+    try {
+      await StorageService.addDepartment({
+        code: cleanCode,
+        name: deptName.trim(),
+        description: deptDesc.trim() || `${deptName.trim()} engineering division for FESTRONIX 2026.`,
+        chiefCoordinator: deptChief.trim() || 'Department Chief',
+        contact: deptContact.trim() || `${departmentHandle(cleanCode)}.festronix@vardhaman.org`,
+        iconName: deptIcon || 'Cpu'
+      });
 
-    // If chief provided, also ensure HOD login exists
-    if (deptChief.trim()) {
-      const existingHod = AdminAuthService.getAllAdmins().find(
-        a => a.departmentCode?.toUpperCase() === cleanCode && (a.role === 'dept_chief_coordinator' || a.role === 'dept_coordinator')
-      );
-      if (!existingHod) {
-        AdminAuthService.addAdmin({
-          username: `hod_${cleanCode.toLowerCase()}`,
-          password: `${cleanCode.toLowerCase()}2026`,
-          fullName: deptChief.trim(),
-          designation: `Department Chief Coordinator (${cleanCode})`,
-          role: 'dept_chief_coordinator',
-          departmentCode: cleanCode,
-          departmentName: deptName.trim(),
-          email: deptContact.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
-          accessBoundary: "Their department's events"
-        });
+      // If a chief was provided, persist the HOD account after the department exists.
+      if (deptChief.trim()) {
+        const existingHod = AdminAuthService.getAllAdmins().find(
+          a => a.departmentCode?.toUpperCase() === cleanCode && (a.role === 'dept_chief_coordinator' || a.role === 'dept_coordinator')
+        );
+        if (!existingHod) {
+          await AdminAuthService.addAdmin({
+            username: `hod_${departmentHandle(cleanCode)}`,
+            password: `fest${departmentHandle(cleanCode)}2026secure`,
+            fullName: deptChief.trim(),
+            designation: `Department Chief Coordinator (${cleanCode})`,
+            role: 'dept_chief_coordinator',
+            departmentCode: cleanCode,
+            departmentName: deptName.trim(),
+            email: deptContact.trim() || `${departmentHandle(cleanCode)}.festronix@vardhaman.org`,
+            accessBoundary: "Their department's events"
+          });
+        }
       }
-    }
 
-    confetti({ particleCount: 90, spread: 70 });
-    setIsAddDepartmentOpen(false);
-    setDeptCode('');
-    setDeptName('');
-    setDeptDesc('');
-    setDeptChief('');
-    setDeptContact('');
-    setDeptIcon('Cpu');
-    refreshAllData();
+      confetti({ particleCount: 90, spread: 70 });
+      setIsAddDepartmentOpen(false);
+      setDeptCode('');
+      setDeptName('');
+      setDeptDesc('');
+      setDeptChief('');
+      setDeptContact('');
+      setDeptIcon('Cpu');
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to create the department and HOD account.');
+    }
   };
 
   const handleOpenEditDepartment = (dept: Department) => {
@@ -342,6 +377,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setEvtTitle(val);
     const generatedSlug = val.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     setEvtSlug(generatedSlug);
+    setEventCreateError('');
   };
 
   // Payment Approval Handler
@@ -420,30 +456,65 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // Create New Event Handler (PRD 6.3)
   const handleCreateNewEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!evtTitle.trim()) {
-      alert('Please enter an event title');
+    if (isCreatingEvent) return;
+    setEventCreateError('');
+
+    const title = evtTitle.trim();
+    if (!title) {
+      setEventCreateError('Enter an event title before creating the event.');
       return;
     }
 
+    const slugBase = (evtSlug.trim() || title)
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80);
+    if (!slugBase) {
+      setEventCreateError('Enter a URL slug containing at least one letter or number.');
+      return;
+    }
+
+    const existingSlugs = new Set(events.map(event => event.slug.trim().toLowerCase()));
+    let slug = slugBase;
+    let suffix = 2;
+    while (existingSlugs.has(slug.toLowerCase())) {
+      const suffixText = `-${suffix++}`;
+      slug = `${slugBase.slice(0, 80 - suffixText.length)}${suffixText}`;
+    }
+
+    const minTeamSize = evtFormat === 'individual'
+      ? 1
+      : evtFormat === 'duo'
+        ? 2
+        : Math.max(2, Math.min(10, Number(evtMinTeamSize) || 2));
+    const maxTeamSize = evtFormat === 'individual'
+      ? 1
+      : evtFormat === 'duo'
+        ? 2
+        : Math.max(minTeamSize, Math.min(15, Number(evtMaxTeamSize) || 4));
+
     const newEvent: FestEvent = {
       id: `evt_${evtDeptCode.toLowerCase()}_${Date.now().toString().slice(-4)}`,
-      slug: evtSlug.trim() || evtTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      title: evtTitle.trim(),
+      slug,
+      title,
       tagline: evtTagline.trim() || undefined,
       departmentCode: evtDeptCode,
       category: evtCategory,
       format: evtFormat,
-      minTeamSize: evtFormat === 'individual' ? 1 : evtFormat === 'duo' ? 2 : Math.max(1, Number(evtMinTeamSize) || 2),
-      maxTeamSize: evtFormat === 'individual' ? 1 : evtFormat === 'duo' ? 2 : Math.max(Number(evtMinTeamSize) || 2, Number(evtMaxTeamSize) || 4),
+      minTeamSize,
+      maxTeamSize,
       fee: evtIsFree ? 0 : Math.max(0, Number(evtFee) || 0),
-      capacity: Math.max(1, Number(evtCapacity) || 100),
+      capacity: Math.max(5, Math.min(500, Number(evtCapacity) || 100)),
       registeredCount: 0,
-      deadline: evtDeadline || '2026-03-26',
-      date: evtDate || '2026-03-27',
-      time: evtTime || '10:00 AM - 01:00 PM',
-      venue: evtVenue.trim() || 'Vardhaman Campus',
-      description: evtDescription.trim() || 'Official FESTRONIX 2026 departmental event.',
-      rules: evtRules.split('\n').map(r => r.trim()).filter(Boolean),
+      deadline: evtDeadline,
+      date: evtDate,
+      time: evtTime.trim(),
+      venue: evtVenue.trim(),
+      description: evtDescription.trim(),
+      rules: evtRules.split('\n').map(rule => rule.trim()).filter(Boolean),
       coordinatorName: evtCoordinatorName.trim() || adminUser.fullName,
       coordinatorPhone: evtCoordinatorPhone.trim() || '+91 98480 22000',
       coordinatorEmail: evtCoordinatorEmail.trim() || `${evtDeptCode.toLowerCase()}.fest@vardhaman.org`,
@@ -458,16 +529,34 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       paymentInstructions: !evtIsFree ? evtPaymentInstructions.trim() : undefined
     };
 
-    await StorageService.addEvent(newEvent);
-    confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 } });
-    setIsAddEventOpen(false);
+    setIsCreatingEvent(true);
+    try {
+      await StorageService.addEvent(newEvent);
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 } });
+      setIsAddEventOpen(false);
 
-    // Reset Form
-    setEvtTitle('');
-    setEvtSlug('');
-    setEvtTagline('');
-    setEvtDescription('');
-    refreshAllData();
+      // Reset the fields users are most likely to reuse for the next event.
+      setEvtTitle('');
+      setEvtSlug('');
+      setEvtTagline('');
+      setEvtDescription('');
+      setEventCreateError('');
+      refreshAllData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The event could not be saved.';
+      const normalizedMessage = message.toLowerCase();
+      if (normalizedMessage.includes('duplicate') || normalizedMessage.includes('unique')) {
+        setEventCreateError('An event with this URL slug already exists. Change the slug and try again.');
+      } else if (normalizedMessage.includes('row-level security') || normalizedMessage.includes('permission') || normalizedMessage.includes('not authorized')) {
+        setEventCreateError('Your current admin account is not allowed to publish this event. Sign in with an authorized Dean or Super Admin account and try again.');
+      } else if (normalizedMessage.includes('foreign key') || normalizedMessage.includes('department')) {
+        setEventCreateError('The selected department is not available in the database. Choose a listed department and try again.');
+      } else {
+        setEventCreateError(message);
+      }
+    } finally {
+      setIsCreatingEvent(false);
+    }
   };
 
   // Save Edited Event
@@ -481,10 +570,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   };
 
   // Create Coordinator / HOD / Operational Staff Handler
-  const handleCreateCoordinator = (e: React.FormEvent) => {
+  const handleCreateCoordinator = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCoordFormError('');
     if (!coordFullName.trim() || !coordUsername.trim() || !coordPassword.trim()) {
-      alert('Please fill out all required credentials.');
+      setCoordFormError('Please fill out all required credentials.');
       return;
     }
 
@@ -492,35 +582,49 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       ? 'Central Accounts & Finance Desk'
       : (departments.find(d => d.code === coordDeptCode)?.name || coordDeptCode);
 
-    AdminAuthService.addCoordinator({
-      username: coordUsername.trim().toLowerCase(),
-      password: coordPassword.trim(),
-      fullName: coordFullName.trim(),
-      designation: coordDesignation.trim(),
-      role: coordRole,
-      departmentCode: coordRole === 'finance_reviewer' ? 'FINANCE' : coordDeptCode,
-      departmentName: deptName,
-      email: coordEmail.trim(),
-      phone: coordPhone.trim(),
-      accessBoundary: coordRole === 'finance_reviewer'
-        ? 'Payment data needed for assigned duties'
-        : (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
-        ? "Their department's events"
-        : coordRole === 'volunteer_checkin'
-        ? 'Limited check-in access'
-        : 'Assigned event(s) only unless separately authorised'
-    });
+    setCoordSubmitting(true);
+    try {
+      await AdminAuthService.addCoordinator({
+        username: coordUsername.trim().toLowerCase(),
+        password: coordPassword.trim(),
+        fullName: coordFullName.trim(),
+        designation: coordDesignation.trim(),
+        role: coordRole,
+        departmentCode: coordRole === 'finance_reviewer' ? 'FINANCE' : coordDeptCode,
+        departmentName: deptName,
+        email: coordEmail.trim(),
+        phone: coordPhone.trim(),
+        assignedEvents: supportsEventAssignments(coordRole) ? coordAssignedEvents : [],
+        accessBoundary: coordRole === 'finance_reviewer'
+          ? 'Payment data needed for assigned duties'
+          : (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
+          ? "Their department's events"
+          : (coordRole === 'volunteer_checkin' || coordRole === 'checkin_staff')
+          ? 'Limited check-in access'
+          : 'Assigned event(s) only unless separately authorised'
+      });
 
-    confetti({ particleCount: 80, spread: 60 });
-    setIsAddCoordinatorOpen(false);
-    
-    // Reset form
-    setCoordFullName('');
-    setCoordUsername('');
-    setCoordPassword('festcoord2026');
-    setCoordEmail('');
-    setCoordPhone('+91 ');
-    refreshAllData();
+      setCreatedCredential({
+        username: coordUsername.trim().toLowerCase(),
+        password: coordPassword.trim(),
+        role: coordRole
+      });
+      confetti({ particleCount: 80, spread: 60 });
+      setIsAddCoordinatorOpen(false);
+
+      // Reset form after the backend confirms the account and assignments were saved.
+      setCoordFullName('');
+      setCoordUsername('');
+      setCoordPassword('festcoord2026');
+      setCoordEmail('');
+      setCoordPhone('+91 ');
+      setCoordAssignedEvents([]);
+      setCoordFormError('');
+    } catch (error) {
+      setCoordFormError((error as Error).message || 'Unable to appoint this staff member.');
+    } finally {
+      setCoordSubmitting(false);
+    }
   };
 
   // Open Edit Modal for Coordinator / HOD / Payment Reviewer
@@ -534,16 +638,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setEditCoordPhone(coord.phone || '');
     setEditCoordUsername(coord.username || '');
     setEditCoordPassword(coord.password || '');
+    setEditCoordAssignedEvents(coord.assignedEvents || []);
+    setCoordFormError('');
     setEditCoordShowPassword(false);
     setIsEditCoordinatorOpen(true);
   };
 
   // Submit Update for Coordinator / HOD / Payment Reviewer
-  const handleUpdateCoordinator = (e: React.FormEvent) => {
+  const handleUpdateCoordinator = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCoordFormError('');
     if (!editingCoordinator) return;
-    if (!editCoordFullName.trim() || !editCoordUsername.trim() || !editCoordPassword.trim()) {
-      alert('Please fill out all required credentials.');
+    if (!editCoordFullName.trim() || !editCoordUsername.trim()) {
+      setCoordFormError('Please fill out the name and username. Leave the passcode blank to keep the current password.');
       return;
     }
 
@@ -551,33 +658,42 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       ? 'Central Accounts & Finance Desk'
       : (departments.find(d => d.code === editCoordDeptCode)?.name || editCoordDeptCode);
 
-    AdminAuthService.updateCoordinator(editingCoordinator.id, {
-      fullName: editCoordFullName.trim(),
-      username: editCoordUsername.trim().toLowerCase(),
-      password: editCoordPassword.trim(),
-      designation: editCoordDesignation.trim(),
-      role: editCoordRole,
-      departmentCode: editCoordRole === 'finance_reviewer' ? 'FINANCE' : editCoordDeptCode,
-      departmentName: deptName,
-      email: editCoordEmail.trim(),
-      phone: editCoordPhone.trim(),
-      accessBoundary: editCoordRole === 'finance_reviewer'
-        ? 'Payment data needed for assigned duties'
-        : (editCoordRole === 'dept_chief_coordinator' || editCoordRole === 'dept_coordinator')
-        ? "Their department's events"
-        : editCoordRole === 'volunteer_checkin'
-        ? 'Limited check-in access'
-        : 'Assigned event(s) only unless separately authorised'
-    });
+    setCoordSubmitting(true);
+    try {
+      await AdminAuthService.updateCoordinator(editingCoordinator.id, {
+        fullName: editCoordFullName.trim(),
+        username: editCoordUsername.trim().toLowerCase(),
+        ...(editCoordPassword.trim() ? { password: editCoordPassword.trim() } : {}),
+        designation: editCoordDesignation.trim(),
+        role: editCoordRole,
+        departmentCode: editCoordRole === 'finance_reviewer' ? 'FINANCE' : editCoordDeptCode,
+        departmentName: deptName,
+        email: editCoordEmail.trim(),
+        phone: editCoordPhone.trim(),
+        assignedEvents: supportsEventAssignments(editCoordRole) ? editCoordAssignedEvents : [],
+        accessBoundary: editCoordRole === 'finance_reviewer'
+          ? 'Payment data needed for assigned duties'
+          : (editCoordRole === 'dept_chief_coordinator' || editCoordRole === 'dept_coordinator')
+          ? "Their department's events"
+          : (editCoordRole === 'volunteer_checkin' || editCoordRole === 'checkin_staff')
+          ? 'Limited check-in access'
+          : 'Assigned event(s) only unless separately authorised'
+      });
 
-    confetti({ particleCount: 70, spread: 50 });
-    setIsEditCoordinatorOpen(false);
-    setEditingCoordinator(null);
-    refreshAllData();
+      confetti({ particleCount: 70, spread: 50 });
+      setIsEditCoordinatorOpen(false);
+      setEditingCoordinator(null);
+      setEditCoordAssignedEvents([]);
+      setCoordFormError('');
+    } catch (error) {
+      setCoordFormError((error as Error).message || 'Unable to update this staff member.');
+    } finally {
+      setCoordSubmitting(false);
+    }
   };
 
   // Delete Coordinator / Staff Handler
-  const handleDeleteCoordinator = (coordId: string, name: string, roleName?: string) => {
+  const handleDeleteCoordinator = async (coordId: string, name: string, roleName?: string) => {
     if (coordId === adminUser.id) {
       alert('You cannot delete your own currently active Super Admin session.');
       return;
@@ -586,9 +702,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       `Are you sure you want to delete ${roleName || 'coordinator'} "${name}"?\n\nThis will permanently remove their credentials and revoke their portal access immediately.`
     );
     if (confirmed) {
-      AdminAuthService.deleteCoordinator(coordId);
-      confetti({ particleCount: 50, spread: 45, origin: { y: 0.6 } });
-      refreshAllData();
+      try {
+        await AdminAuthService.deleteCoordinator(coordId);
+        confetti({ particleCount: 50, spread: 45, origin: { y: 0.6 } });
+      } catch (error) {
+        window.alert((error as Error).message || 'Unable to revoke this account.');
+      }
     }
   };
 
@@ -703,10 +822,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       (c.departmentCode && c.departmentCode.toUpperCase() === coordDeptFilter.toUpperCase()) ||
       (coordDeptFilter === 'SAC' && (!c.departmentCode || c.departmentCode === 'SAC' || c.departmentCode === 'FINANCE'));
 
-    const matchRole = coordRoleFilter === 'all' || 
-      c.role === coordRoleFilter ||
+    const matchRole = coordRoleFilter === 'all' ||
       (coordRoleFilter === 'dept_chief_coordinator' && (c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator')) ||
-      (coordRoleFilter === 'finance_reviewer' && c.role === 'finance_reviewer');
+      (coordRoleFilter === 'faculty_coord' && supportsEventAssignments(c.role)) ||
+      (coordRoleFilter === 'volunteer_checkin' && (c.role === 'volunteer_checkin' || c.role === 'checkin_staff')) ||
+      (coordRoleFilter !== 'dept_chief_coordinator' && coordRoleFilter !== 'faculty_coord' && coordRoleFilter !== 'volunteer_checkin' && c.role === coordRoleFilter);
 
     return matchSearch && matchDept && matchRole;
   });
@@ -1295,6 +1415,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         <button
                           onClick={() => {
                             setEvtDeptCode(dept.code);
+                            setEventCreateError('');
                             setIsAddEventOpen(true);
                           }}
                           style={{
@@ -1364,7 +1485,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordEmail('accounts.fest@vardhaman.org');
                     setCoordPhone('+91 98480 55001');
                     setCoordUsername('finance_desk_' + Math.floor(100 + Math.random() * 900));
-                    setCoordPassword('finance2026');
+                    setCoordPassword('finance2026!');
+                    setCoordAssignedEvents([]);
+                    setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
                   }}
                   className="btn-cyber-primary"
@@ -1933,7 +2056,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               {/* Primary Action Button: + Create New Fest Event */}
               <button
-                onClick={() => setIsAddEventOpen(true)}
+                onClick={() => {
+                  setEventCreateError('');
+                  setIsAddEventOpen(true);
+                }}
                 className="btn-cyber-primary"
                 style={{
                   padding: '9px 18px',
@@ -2274,10 +2400,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordDeptCode(firstDept);
                     setCoordFullName('');
                     setCoordDesignation(`Department Chief Coordinator (${firstDept})`);
-                    setCoordEmail(`${firstDept.toLowerCase()}.festronix@vardhaman.org`);
+                    setCoordEmail(`${departmentHandle(firstDept)}.festronix@vardhaman.org`);
                     setCoordPhone('+91 ');
-                    setCoordUsername(`hod_${firstDept.toLowerCase()}`);
-                    setCoordPassword(`${firstDept.toLowerCase()}2026`);
+                    setCoordUsername(`hod_${departmentHandle(firstDept)}`);
+                    setCoordPassword(`fest${departmentHandle(firstDept)}2026secure`);
+                    setCoordAssignedEvents([]);
+                    setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
                   }}
                   style={{
@@ -2308,6 +2436,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordPhone('+91 ');
                     setCoordUsername('');
                     setCoordPassword('eventcoord2026');
+                    setCoordAssignedEvents([]);
+                    setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
                   }}
                   style={{
@@ -2330,6 +2460,38 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                 <button
                   onClick={() => {
+                    setCoordRole('volunteer_checkin');
+                    setCoordDeptCode('SAC');
+                    setCoordFullName('');
+                    setCoordDesignation('Gate Entry & Ticketing Volunteer');
+                    setCoordEmail('');
+                    setCoordPhone('+91 ');
+                    setCoordUsername('volunteer_' + Math.floor(100 + Math.random() * 900));
+                    setCoordPassword('volunteer2026');
+                    setCoordAssignedEvents([]);
+                    setCoordFormError('');
+                    setIsAddCoordinatorOpen(true);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #DB2777 0%, #EC4899 100%)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <UserCheck size={14} />
+                  <span>+ Create Gate Volunteer</span>
+                </button>
+
+                <button
+                  onClick={() => {
                     setCoordRole('faculty_coord');
                     setCoordDeptCode(departments[0]?.code || 'CSE');
                     setCoordFullName('');
@@ -2338,6 +2500,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordPhone('+91 ');
                     setCoordUsername('');
                     setCoordPassword('festcoord2026');
+                    setCoordAssignedEvents([]);
+                    setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
                   }}
                   className="btn-cyber-primary"
@@ -2356,6 +2520,33 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </button>
               </div>
             </div>
+
+            {createdCredential && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '14px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(52, 211, 153, 0.35)', color: '#D1FAE5' }}>
+                <div style={{ fontSize: '0.78rem' }}>
+                  <strong>Account created and saved.</strong> Give the staff member these credentials now — the passcode is not stored in the browser.
+                  <span style={{ display: 'block', marginTop: '4px', fontFamily: 'monospace', color: '#FFFFFF' }}>
+                    {createdCredential.username} / {createdCredential.password}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(`${createdCredential.username}\n${createdCredential.password}`, 'new-admin-credential')}
+                    style={{ background: 'rgba(52, 211, 153, 0.18)', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: '6px', padding: '6px 10px', color: '#D1FAE5', cursor: 'pointer', fontSize: '0.72rem' }}
+                  >
+                    {copiedId === 'new-admin-credential' ? 'Copied' : 'Copy'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreatedCredential(null)}
+                    style={{ background: 'transparent', border: 'none', color: '#A7F3D0', cursor: 'pointer', fontSize: '0.72rem' }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Quick Role Categorization Pills */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
@@ -2465,7 +2656,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <option value="finance_reviewer">Payment Reviewer (Finance Desk)</option>
                 <option value="faculty_coord">Faculty Event Convener</option>
                 <option value="student_coord">Student Lead Organizer</option>
+                <option value="event_coordinator">Event Operations Coordinator</option>
                 <option value="volunteer_checkin">Volunteer Gate Staff</option>
+                <option value="checkin_staff">Gate Check-in Staff</option>
                 <option value="dean_sac">Dean SAC / Super Admin</option>
               </select>
             </div>
@@ -2642,7 +2835,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                                   color: '#BACEBB'
                                 }}
                               >
-                                {evt}
+                                {events.find(event => event.id === evt)?.title || evt}
                               </span>
                             ))}
                           </div>
@@ -3278,7 +3471,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             padding: '20px',
             overflowY: 'auto'
           }}
-          onClick={() => setIsAddEventOpen(false)}
+          onClick={() => {
+            if (!isCreatingEvent) setIsAddEventOpen(false);
+          }}
         >
           <div
             style={{
@@ -3304,6 +3499,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </p>
               </div>
               <button
+                type="button"
+                disabled={isCreatingEvent}
                 onClick={() => setIsAddEventOpen(false)}
                 style={{ background: 'none', border: 'none', color: '#A8B3C2', cursor: 'pointer', fontSize: '1.4rem' }}
               >
@@ -3311,7 +3508,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form
+              onSubmit={handleCreateNewEvent}
+              onChange={() => setEventCreateError('')}
+              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
               {/* Department & Category */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div>
@@ -3821,10 +4022,29 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </select>
               </div>
 
+              {eventCreateError && (
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  style={{
+                    padding: '11px 14px',
+                    borderRadius: '8px',
+                    color: '#FCA5A5',
+                    background: 'rgba(127, 29, 29, 0.28)',
+                    border: '1px solid rgba(248, 113, 113, 0.45)',
+                    fontSize: '0.82rem',
+                    lineHeight: 1.45
+                  }}
+                >
+                  {eventCreateError}
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
                 <button
                   type="button"
+                  disabled={isCreatingEvent}
                   onClick={() => setIsAddEventOpen(false)}
                   style={{
                     background: 'rgba(255, 255, 255, 0.08)',
@@ -3840,15 +4060,18 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </button>
                 <button
                   type="submit"
+                  disabled={isCreatingEvent}
                   className="btn-cyber-primary"
                   style={{
                     borderRadius: '10px',
                     padding: '10px 24px',
                     fontSize: '0.86rem',
-                    fontWeight: 700
+                    fontWeight: 700,
+                    opacity: isCreatingEvent ? 0.7 : 1,
+                    cursor: isCreatingEvent ? 'wait' : 'pointer'
                   }}
                 >
-                  Create & Launch Fest Event
+                  {isCreatingEvent ? 'Creating Event…' : 'Create & Launch Fest Event'}
                 </button>
               </div>
             </form>
@@ -4223,10 +4446,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       const newDept = e.target.value;
                       setCoordDeptCode(newDept);
                       if (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator') {
+                        const handle = departmentHandle(newDept);
                         setCoordDesignation(`Department Chief Coordinator (${newDept})`);
-                        setCoordUsername(`hod_${newDept.toLowerCase()}`);
-                        setCoordPassword(`${newDept.toLowerCase()}2026`);
+                        setCoordUsername(`hod_${handle}`);
+                        setCoordPassword(`fest${handle}2026secure`);
+                        setCoordEmail(`${handle}.festronix@vardhaman.org`);
                       }
+                      setCoordAssignedEvents(prev => prev.filter(eventId =>
+                        events.some(event => event.id === eventId && event.departmentCode.toUpperCase() === newDept.toUpperCase())
+                      ));
                     }}
                     style={{
                       width: '100%',
@@ -4241,8 +4469,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     {departments.map(d => (
                       <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                     ))}
-                    <option value="SAC">SAC Central Team</option>
-                    <option value="FINANCE">Finance & Accounts Desk</option>
+                    {!requiresDepartment(coordRole) && (
+                      <>
+                        <option value="SAC">SAC Central Team</option>
+                        <option value="FINANCE">Finance & Accounts Desk</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -4254,24 +4486,30 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     value={coordRole}
                     onChange={e => {
                       const newRole = e.target.value as AdminRole;
+                      const nextDept = requiresDepartment(newRole)
+                        ? (departments.some(department => department.code === coordDeptCode) ? coordDeptCode : (departments[0]?.code || 'CSE'))
+                        : coordDeptCode;
                       setCoordRole(newRole);
+                      if (requiresDepartment(newRole)) setCoordDeptCode(nextDept);
                       if (newRole === 'finance_reviewer') {
                         setCoordDeptCode('SAC');
                         setCoordDesignation('Central Payment Review Officer');
                         setCoordEmail('accounts.fest@vardhaman.org');
                         setCoordPhone('+91 98480 55001');
                         setCoordUsername('finance_reviewer');
-                        setCoordPassword('finance2026');
+                        setCoordPassword('finance2026!');
                       } else if (newRole === 'dept_chief_coordinator' || newRole === 'dept_coordinator') {
-                        setCoordDesignation(`Department Chief Coordinator (${coordDeptCode})`);
-                        setCoordUsername(`hod_${coordDeptCode.toLowerCase()}`);
-                        setCoordPassword(`${coordDeptCode.toLowerCase()}2026`);
-                        setCoordEmail(`${coordDeptCode.toLowerCase()}.festronix@vardhaman.org`);
-                      } else if (newRole === 'volunteer_checkin') {
+                        const handle = departmentHandle(nextDept);
+                        setCoordDesignation(`Department Chief Coordinator (${nextDept})`);
+                        setCoordUsername(`hod_${handle}`);
+                        setCoordPassword(`fest${handle}2026secure`);
+                        setCoordEmail(`${handle}.festronix@vardhaman.org`);
+                      } else if (newRole === 'volunteer_checkin' || newRole === 'checkin_staff') {
                         setCoordDesignation('Gate Entry & Ticketing Volunteer');
                         setCoordUsername('volunteer_' + Math.floor(100 + Math.random() * 900));
                         setCoordPassword('volunteer2026');
                       }
+                      if (!supportsEventAssignments(newRole)) setCoordAssignedEvents([]);
                     }}
                     style={{
                       width: '100%',
@@ -4288,11 +4526,36 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     <option value="faculty_coord">⚡ Faculty Event Convener</option>
                     <option value="student_coord">🎓 Student Lead Organizer</option>
                     <option value="volunteer_checkin">🎟️ Gate Check-in & Ticketing Volunteer</option>
+                    <option value="checkin_staff">🎟️ Gate Check-in Staff</option>
                     <option value="event_coordinator">🎯 Event Operations Coordinator</option>
                     <option value="dean_sac">👑 SAC Central Leadership</option>
                   </select>
                 </div>
               </div>
+
+              {supportsEventAssignments(coordRole) && (
+                <div style={{ background: 'rgba(16, 26, 53, 0.72)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.82rem', color: '#60A5FA', fontWeight: 700 }}>Work / Event Assignments</span>
+                    <span style={{ fontSize: '0.7rem', color: '#A8B3C2' }}>Optional now — can be changed later</span>
+                  </div>
+                  <div style={{ display: 'grid', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
+                    {events.filter(event => event.departmentCode.toUpperCase() === coordDeptCode.toUpperCase()).map(event => (
+                      <label key={event.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#DCE3E5', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={coordAssignedEvents.includes(event.id)}
+                          onChange={e => setCoordAssignedEvents(prev => e.target.checked ? [...new Set([...prev, event.id])] : prev.filter(id => id !== event.id))}
+                        />
+                        <span>{event.title}</span>
+                      </label>
+                    ))}
+                    {events.filter(event => event.departmentCode.toUpperCase() === coordDeptCode.toUpperCase()).length === 0 && (
+                      <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>No events are available in this department yet.</span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Email & Phone */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -4382,7 +4645,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <button
                         type="button"
                         onClick={() => {
-                          const rand = `${(coordDeptCode || 'pass').toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`;
+                          const rand = `fest_${departmentHandle(coordDeptCode || 'pass')}_${Math.floor(1000 + Math.random() * 9000)}`;
                           setCoordPassword(rand);
                         }}
                         style={{ background: 'none', border: 'none', color: '#BACEBB', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
@@ -4430,6 +4693,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
+              {coordFormError && (
+                <div role="alert" style={{ color: '#FCA5A5', background: 'rgba(127, 29, 29, 0.35)', border: '1px solid rgba(248, 113, 113, 0.35)', borderRadius: '8px', padding: '9px 11px', fontSize: '0.78rem' }}>
+                  {coordFormError}
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
@@ -4450,14 +4719,17 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <button
                   type="submit"
                   className="btn-cyber-primary"
+                  disabled={coordSubmitting}
                   style={{
                     borderRadius: '8px',
                     padding: '8px 20px',
                     fontSize: '0.84rem',
-                    fontWeight: 700
+                    fontWeight: 700,
+                    opacity: coordSubmitting ? 0.65 : 1,
+                    cursor: coordSubmitting ? 'wait' : 'pointer'
                   }}
                 >
-                  Appoint & Grant Access
+                  {coordSubmitting ? 'Saving…' : 'Appoint & Grant Access'}
                 </button>
               </div>
             </form>
@@ -4571,7 +4843,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <select
                     value={editCoordDeptCode}
-                    onChange={e => setEditCoordDeptCode(e.target.value)}
+                    onChange={e => {
+                      const newDept = e.target.value;
+                      setEditCoordDeptCode(newDept);
+                      setEditCoordAssignedEvents(prev => prev.filter(eventId =>
+                        events.some(event => event.id === eventId && event.departmentCode.toUpperCase() === newDept.toUpperCase())
+                      ));
+                    }}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -4585,8 +4863,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     {departments.map(d => (
                       <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                     ))}
-                    <option value="SAC">SAC Central Team</option>
-                    <option value="FINANCE">Finance & Accounts Desk</option>
+                    {!requiresDepartment(editCoordRole) && (
+                      <>
+                        <option value="SAC">SAC Central Team</option>
+                        <option value="FINANCE">Finance & Accounts Desk</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -4596,7 +4878,14 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <select
                     value={editCoordRole}
-                    onChange={e => setEditCoordRole(e.target.value as any)}
+                    onChange={e => {
+                      const newRole = e.target.value as AdminRole;
+                      if (requiresDepartment(newRole) && !departments.some(department => department.code === editCoordDeptCode)) {
+                        setEditCoordDeptCode(departments[0]?.code || 'CSE');
+                      }
+                      setEditCoordRole(newRole);
+                      if (!supportsEventAssignments(newRole)) setEditCoordAssignedEvents([]);
+                    }}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -4612,11 +4901,36 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     <option value="faculty_coord">⚡ Faculty Event Convener</option>
                     <option value="student_coord">🎓 Student Lead Organizer</option>
                     <option value="volunteer_checkin">🎟️ Gate Check-in & Ticketing Volunteer</option>
+                    <option value="checkin_staff">🎟️ Gate Check-in Staff</option>
                     <option value="event_coordinator">🎯 Event Operations Coordinator</option>
                     <option value="dean_sac">👑 SAC Central Leadership</option>
                   </select>
                 </div>
               </div>
+
+              {supportsEventAssignments(editCoordRole) && (
+                <div style={{ background: 'rgba(16, 26, 53, 0.72)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.82rem', color: '#60A5FA', fontWeight: 700 }}>Work / Event Assignments</span>
+                    <span style={{ fontSize: '0.7rem', color: '#A8B3C2' }}>Changes are saved with this profile</span>
+                  </div>
+                  <div style={{ display: 'grid', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
+                    {events.filter(event => event.departmentCode.toUpperCase() === editCoordDeptCode.toUpperCase()).map(event => (
+                      <label key={event.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#DCE3E5', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editCoordAssignedEvents.includes(event.id)}
+                          onChange={e => setEditCoordAssignedEvents(prev => e.target.checked ? [...new Set([...prev, event.id])] : prev.filter(id => id !== event.id))}
+                        />
+                        <span>{event.title}</span>
+                      </label>
+                    ))}
+                    {events.filter(event => event.departmentCode.toUpperCase() === editCoordDeptCode.toUpperCase()).length === 0 && (
+                      <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>No events are available in this department yet.</span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Email & Phone */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -4698,12 +5012,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <label style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
-                        Portal Passcode *
+                        New Portal Passcode (optional)
                       </label>
                       <button
                         type="button"
                         onClick={() => {
-                          const rand = `${(editCoordDeptCode || 'pass').toLowerCase()}${Math.floor(1000 + Math.random() * 9000)}`;
+                          const rand = `fest_${departmentHandle(editCoordDeptCode || 'pass')}_${Math.floor(1000 + Math.random() * 9000)}`;
                           setEditCoordPassword(rand);
                         }}
                         style={{ background: 'none', border: 'none', color: '#BACEBB', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
@@ -4716,7 +5030,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         type={editCoordShowPassword ? 'text' : 'password'}
                         value={editCoordPassword}
                         onChange={e => setEditCoordPassword(e.target.value)}
-                        required
+                        placeholder="Leave blank to keep current passcode"
                         style={{
                           width: '100%',
                           padding: '8px 32px 8px 10px',
@@ -4751,6 +5065,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
+              {coordFormError && (
+                <div role="alert" style={{ color: '#FCA5A5', background: 'rgba(127, 29, 29, 0.35)', border: '1px solid rgba(248, 113, 113, 0.35)', borderRadius: '8px', padding: '9px 11px', fontSize: '0.78rem' }}>
+                  {coordFormError}
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
@@ -4771,15 +5091,18 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <button
                   type="submit"
                   className="btn-cyber-primary"
+                  disabled={coordSubmitting}
                   style={{
                     borderRadius: '8px',
                     padding: '8px 20px',
                     fontSize: '0.84rem',
                     fontWeight: 700,
-                    background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)'
+                    background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                    opacity: coordSubmitting ? 0.65 : 1,
+                    cursor: coordSubmitting ? 'wait' : 'pointer'
                   }}
                 >
-                  Save Changes
+                  {coordSubmitting ? 'Saving…' : 'Save Changes'}
                 </button>
               </div>
             </form>

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Sparkles, Ticket, ShoppingBag, Lock } from 'lucide-react';
-import { Registration, User as UserType } from '../types/festronix';
+import { Registration, Team, User as UserType } from '../types/festronix';
 import { INITIAL_REGISTRATIONS } from '../data/mockData';
+import { StorageService } from '../services/storageService';
 
 interface DigitalPassModalProps {
   registrations: Registration[];
@@ -18,6 +19,22 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   onBrowseEvents,
   onOpenMultiPass
 }) => {
+  const normalizeTeamCode = (code?: string) => (code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const visibleRegistrations = (source: Registration[]) => {
+    if (!currentUser) return source;
+    return source.filter(
+      r =>
+        r.userId === currentUser.id ||
+        r.buyerRoll === currentUser.rollNumber ||
+        r.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase() ||
+        r.leaderEmail.toLowerCase() === currentUser.email.toLowerCase() ||
+        r.teammates?.some(tm =>
+          (tm.rollNumber && tm.rollNumber.toLowerCase() === currentUser.rollNumber.toLowerCase()) ||
+          (tm.email && tm.email.toLowerCase() === currentUser.email.toLowerCase())
+        )
+    );
+  };
+
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
@@ -31,28 +48,85 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   }, []);
 
   const allRegs = initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS;
-
-  // Filter for current user if logged in, otherwise show all
-  const userFiltered = currentUser
-    ? allRegs.filter(
-        r =>
-          r.userId === currentUser.id ||
-          r.buyerRoll === currentUser.rollNumber ||
-          r.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase() ||
-          r.leaderEmail.toLowerCase() === currentUser.email.toLowerCase() ||
-          (r.teammates && r.teammates.some(tm => 
-            (tm.rollNumber && tm.rollNumber.toLowerCase() === currentUser.rollNumber.toLowerCase()) ||
-            (tm.email && tm.email.toLowerCase() === currentUser.email.toLowerCase())
-          ))
-      )
-    : allRegs;
+  const userFiltered = visibleRegistrations(allRegs);
 
   const [activeList, setActiveList] = useState<Registration[]>(
     userFiltered.length > 0 ? userFiltered : allRegs
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const selectedRegistrationId = useRef<string | null>(null);
+  const [teamDashboards, setTeamDashboards] = useState<Record<string, Team>>({});
+  const [isRefreshingTeams, setIsRefreshingTeams] = useState(false);
+  const [lastTeamSync, setLastTeamSync] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    const selectedId = selectedRegistrationId.current;
+    const next = visibleRegistrations(initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS);
+    setActiveList(next);
+    setSelectedIndex(previousIndex => {
+      if (selectedId) {
+        const nextIndex = next.findIndex(registration => registration.id === selectedId);
+        if (nextIndex >= 0) return nextIndex;
+      }
+      return Math.min(previousIndex, Math.max(next.length - 1, 0));
+    });
+  }, [initialRegistrations, currentUser]);
+
+  useEffect(() => {
+    selectedRegistrationId.current = activeList[selectedIndex]?.id || null;
+  }, [activeList, selectedIndex]);
+
+  const teamCodesKey = Array.from(
+    new Set(allRegs.map(registration => normalizeTeamCode(registration.teamCode)).filter(Boolean))
+  ).sort().join('|');
+
+  useEffect(() => {
+    if (!teamCodesKey) return;
+    const teamCodes = teamCodesKey.split('|').filter(Boolean);
+    let cancelled = false;
+
+    const refreshTeamDashboards = async () => {
+      setIsRefreshingTeams(true);
+      try {
+        const results = await Promise.all(
+          teamCodes.map(async code => {
+            try {
+              const registration = allRegs.find(item => normalizeTeamCode(item.teamCode) === code);
+              const team = await StorageService.fetchTeamDashboard(registration?.teamCode || code, registration?.eventId);
+              return team ? [code, team] as const : null;
+            } catch (error) {
+              console.warn('Team dashboard refresh warning:', error);
+              return null;
+            }
+          })
+        );
+        if (cancelled) return;
+        const nextDashboards: Record<string, Team> = {};
+        results.forEach(result => {
+          if (result) nextDashboards[result[0]] = result[1];
+        });
+        setTeamDashboards(previous => ({ ...previous, ...nextDashboards }));
+        setLastTeamSync(new Date());
+      } finally {
+        if (!cancelled) setIsRefreshingTeams(false);
+      }
+    };
+
+    refreshTeamDashboards();
+    const intervalId = window.setInterval(refreshTeamDashboards, 5000);
+    const handleLiveUpdate = () => refreshTeamDashboards();
+    window.addEventListener('festronix:teams-updated', handleLiveUpdate);
+    window.addEventListener('festronix:regs-updated', handleLiveUpdate);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('festronix:teams-updated', handleLiveUpdate);
+      window.removeEventListener('festronix:regs-updated', handleLiveUpdate);
+    };
+  }, [teamCodesKey]);
 
   const handleSearchPass = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,13 +154,35 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   const handleResetSearch = () => {
-    setActiveList(initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS);
+    const next = visibleRegistrations(initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS);
+    setActiveList(next.length > 0 ? next : allRegs);
     setSelectedIndex(0);
     setSearchQuery('');
     setSearchFeedback(null);
   };
 
   const reg = activeList[selectedIndex] || activeList[0];
+  const teamSummary = reg?.teamCode ? teamDashboards[normalizeTeamCode(reg.teamCode)] : undefined;
+  const roster = teamSummary?.members?.length ? teamSummary.members : (reg?.teammates || []);
+  const teamMemberCount = teamSummary?.totalMemberCount || (teamSummary ? 1 + (teamSummary.memberCount || roster.length) : undefined);
+  const teamPaymentStatus = teamSummary?.paymentStatus || reg?.paymentStatus;
+  const effectivePaymentStatus = teamPaymentStatus || reg?.paymentStatus;
+  const isTeamLeader = Boolean(
+    teamSummary?.isCurrentUserLeader ||
+    (currentUser && teamSummary?.leaderRoll && teamSummary.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase())
+  );
+  const selectedPassBelongsToCurrentLeader = Boolean(
+    currentUser && reg?.leaderRoll && reg.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase()
+  );
+  const selectedPassIsLeaderRegistration = Boolean(
+    reg?.leaderRoll && teamSummary?.leaderRoll && reg.leaderRoll.toLowerCase() === teamSummary.leaderRoll.toLowerCase()
+  );
+  const leaderQrGenerated = Boolean(
+    teamSummary?.leaderQrGenerated || ((selectedPassBelongsToCurrentLeader || selectedPassIsLeaderRegistration) && reg?.qrToken)
+  );
+  const teamRegistrationStatus = teamSummary?.leaderRegistrationStatus === 'membership_pending' && leaderQrGenerated
+    ? (reg?.paymentStatus || teamSummary?.paymentStatus || 'membership_pending')
+    : (teamSummary?.leaderRegistrationStatus || teamPaymentStatus || 'membership_pending');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -143,11 +239,22 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" data-lenis-prevent onClick={onClose}>
       <div
         className="modal-content"
+        data-lenis-prevent-wheel
+        data-lenis-prevent-touch
         onClick={e => e.stopPropagation()}
-        style={{ padding: '28px', maxWidth: '700px', width: '95%' }}
+        style={{
+          padding: '28px',
+          maxWidth: '700px',
+          width: '95%',
+          maxHeight: 'calc(100dvh - 40px)',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y'
+        }}
       >
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -317,7 +424,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </div>
               </div>
 
-              <div>{getStatusBadge(reg.paymentStatus)}</div>
+              <div>{getStatusBadge(effectivePaymentStatus || reg.paymentStatus)}</div>
             </div>
 
             {/* Ticket Body Grid */}
@@ -335,7 +442,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               {/* Participant info */}
               <div>
                 {/* Squad Banner (For Team Events) */}
-                {(reg.teamName || reg.teamCode) && (
+                {(reg.teamName || reg.teamCode || teamSummary) && (
                   <div
                     style={{
                       marginBottom: '14px',
@@ -353,7 +460,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                         OFFICIAL SQUAD
                       </div>
                       <div style={{ fontSize: '1rem', fontWeight: 700, color: '#FFFFFF' }}>
-                        {reg.teamName || 'Squad Team'}
+                        {teamSummary?.teamName || reg.teamName || 'Squad Team'}
                       </div>
                     </div>
                     {reg.teamCode && (
@@ -371,16 +478,66 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                             fontSize: '0.82rem'
                           }}
                         >
-                          {reg.teamCode}
+                          {teamSummary?.teamCode || reg.teamCode}
                         </div>
                       </div>
                     )}
                   </div>
                 )}
 
+                {teamSummary && (
+                  <div
+                    style={{
+                      marginBottom: '14px',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      background: 'rgba(16, 26, 53, 0.72)',
+                      border: '1px solid rgba(120, 149, 147, 0.35)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#BACEBB', letterSpacing: '0.08em', fontWeight: 800 }}>
+                        LIVE TEAM STATUS
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: isRefreshingTeams ? '#FBBF24' : '#34D399', fontWeight: 700 }}>
+                        {isRefreshingTeams ? 'SYNCING...' : lastTeamSync ? `UPDATED ${lastTeamSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'LIVE'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.64rem', color: '#A8B3C2' }}>TEAM SIZE</div>
+                        <div style={{ fontSize: '0.9rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          {teamMemberCount || 1} / {teamSummary.maxTeamSize}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.64rem', color: '#A8B3C2' }}>PAYMENT</div>
+                        <div style={{ fontSize: '0.78rem', color: teamPaymentStatus === 'payment_required' ? '#FBBF24' : '#34D399', fontWeight: 800 }}>
+                          {teamPaymentStatus === 'payment_required' ? 'PENDING' : teamPaymentStatus === 'verification_pending' ? 'UNDER REVIEW' : teamPaymentStatus === 'not_applicable' ? 'FREE' : 'ACTIVE'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.64rem', color: '#A8B3C2' }}>TEAM LEADER</div>
+                        <div style={{ fontSize: '0.78rem', color: '#FFFFFF', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {teamSummary.leaderName}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.64rem', color: '#A8B3C2' }}>LEADER QR</div>
+                        <div style={{ fontSize: '0.78rem', color: leaderQrGenerated ? '#34D399' : '#FBBF24', fontWeight: 800 }}>
+                          {leaderQrGenerated ? 'GENERATED' : 'PENDING'}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '0.68rem', color: teamRegistrationStatus === 'membership_pending' ? '#FBBF24' : '#A8B3C2' }}>
+                      Registration state: <strong>{teamRegistrationStatus === 'membership_pending' ? 'MEMBERSHIP RESERVED' : teamRegistrationStatus.toUpperCase().replace('_', ' ')}</strong>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Participant / Team Lead
+                    {teamSummary && !isTeamLeader ? 'Participant' : 'Participant / Team Lead'}
                   </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFFFFF' }}>{reg.leaderName}</div>
                   <div style={{ fontSize: '0.78rem', color: '#A8B3C2' }}>{reg.leaderCollege}</div>
@@ -393,13 +550,13 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>Email: {reg.leaderEmail}</div>
                 </div>
 
-                {reg.teammates && reg.teammates.length > 0 && (
+                {roster.length > 0 && (
                   <div style={{ marginTop: '10px' }}>
                     <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', marginBottom: '4px' }}>
-                      Squad Teammates ({reg.teammates.length}):
+                      Squad Teammates ({roster.length}):
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {reg.teammates.map((tm, idx) => (
+                      {roster.map((tm, idx) => (
                         <span
                           key={idx}
                           style={{
@@ -409,10 +566,15 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                             border: '1px solid rgba(120, 149, 147, 0.35)',
                             borderRadius: '4px',
                             color: '#BACEBB',
-                            fontFamily: "'Space Grotesk', sans-serif"
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            display: 'inline-flex',
+                            flexDirection: 'column'
                           }}
                         >
-                          {tm.name} ({tm.rollNumber})
+                          <span>{tm.name} ({tm.rollNumber})</span>
+                          <span style={{ fontSize: '0.62rem', color: tm.qrGenerated ? '#34D399' : '#FBBF24', marginTop: '2px' }}>
+                            {(tm.registrationStatus || 'membership_pending').toUpperCase().replace('_', ' ')} • {tm.qrGenerated ? 'QR GENERATED' : 'QR NOT GENERATED'}
+                          </span>
                         </span>
                       ))}
                     </div>
@@ -421,7 +583,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
                 {/* Verification/Entry Status */}
                 <div style={{ marginTop: '14px' }}>
-                  {reg.paymentStatus === 'payment_required' || !reg.qrToken ? (
+                  {effectivePaymentStatus === 'payment_required' || !reg.qrToken ? (
                     <div
                       style={{
                         display: 'inline-flex',
@@ -479,7 +641,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               </div>
 
               {/* QR Code token or Locked Placeholder */}
-              {reg.paymentStatus === 'payment_required' || !reg.qrToken ? (
+              {effectivePaymentStatus === 'payment_required' || !reg.qrToken ? (
                 <div
                   style={{
                     textAlign: 'center',
@@ -566,7 +728,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             >
               <div>
                 Date Issued: <span>{reg.registrationDate}</span> • Status:{' '}
-                {reg.paymentStatus === 'payment_required' ? (
+                {effectivePaymentStatus === 'payment_required' ? (
                   <strong style={{ color: '#FBBF24' }}>PENDING LEADER PAYMENT</strong>
                 ) : (
                   <strong style={{ color: '#10B981' }}>CONFIRMED</strong>

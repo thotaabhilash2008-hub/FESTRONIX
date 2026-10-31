@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { X, Calendar, MapPin, Users, Trophy, Shield, Phone, Mail, ArrowRight, Clock } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
+import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
 interface EventDetailModalProps {
   event: FestEvent | null;
@@ -28,6 +29,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
   if (!event) return null;
 
+  const registrationBlockReason = getEventRegistrationBlockReason(event);
   const isFull = event.status === 'full' || event.registeredCount >= event.capacity;
 
   return (
@@ -242,15 +244,16 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => {
-              onClose();
               onRegister(event);
             }}
-            disabled={isFull}
+            disabled={Boolean(registrationBlockReason)}
+            title={registrationBlockReason || undefined}
             className="btn-cyber-primary"
-            style={{ opacity: isFull ? 0.5 : 1, cursor: isFull ? 'not-allowed' : 'pointer' }}
+            style={{ opacity: registrationBlockReason ? 0.5 : 1, cursor: registrationBlockReason ? 'not-allowed' : 'pointer' }}
           >
-            <span>{isFull ? 'Capacity Full' : 'Proceed to Registration'}</span>
+            <span>{isFull ? 'Capacity Full' : registrationBlockReason ? 'Registration Closed' : 'Proceed to Registration'}</span>
             <ArrowRight size={16} />
           </button>
         </div>

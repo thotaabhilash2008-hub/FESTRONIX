@@ -76,6 +76,10 @@ export interface Teammate {
   college: string;
   rollNumber: string;
   deptSection?: string;
+  registrationStatus?: PaymentStatus | 'membership_pending';
+  qrGenerated?: boolean;
+  registeredAt?: string;
+  isLeader?: boolean;
 }
 
 export interface AdditionalMember {
@@ -113,6 +117,14 @@ export interface Team {
   maxTeamSize: number;
   minTeamSize: number;
   createdAt: string;
+  memberCount?: number;
+  totalMemberCount?: number;
+  paymentStatus?: PaymentStatus;
+  leaderQrGenerated?: boolean;
+  leaderRegistrationStatus?: PaymentStatus | 'membership_pending';
+  updatedAt?: string;
+  isCurrentUserLeader?: boolean;
+  isCurrentUserMember?: boolean;
 }
 
 export interface Registration {

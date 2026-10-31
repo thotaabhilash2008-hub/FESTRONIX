@@ -37,6 +37,10 @@ export const SponsorDashboard: React.FC<SponsorDashboardProps> = ({ onBackToFest
   const [supportSent, setSupportSent] = useState<boolean>(false);
 
   useEffect(() => {
+    PartnerStorageService.initRealtime();
+    void PartnerStorageService.fetchSponsors()
+      .then(setSponsors)
+      .catch(error => console.warn('Sponsor dashboard sync warning:', error));
     const handleUpdate = (e: any) => {
       if (Array.isArray(e.detail)) {
         setSponsors(e.detail);
