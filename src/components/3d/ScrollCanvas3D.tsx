@@ -2,7 +2,7 @@ import React, { Suspense, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import { MetallicSphere } from './MetallicSphere';
+import { KineticArtifact } from './KineticArtifact';
 import { FuturisticPortal } from './FuturisticPortal';
 import { ReflectivePlatform } from './ReflectivePlatform';
 import { ParticleField } from './ParticleField';
@@ -112,7 +112,7 @@ const ScrollChoreographer: React.FC<{ scrollProgress: number; reducedMotion: boo
     <group ref={sceneGroupRef}>
       <ReflectivePlatform position={[0, -1.8, 0]} radius={3.8} reducedMotion={reducedMotion} />
       <FuturisticPortal position={[0, 0.1, -0.8]} scale={1.3} reducedMotion={reducedMotion} />
-      <MetallicSphere position={[0, 0.05, 0.5]} scale={0.92} reducedMotion={reducedMotion} />
+      <KineticArtifact reducedMotion={reducedMotion} />
       <ParticleField count={220} color="#7dd3fc" reducedMotion={reducedMotion} />
     </group>
   );
