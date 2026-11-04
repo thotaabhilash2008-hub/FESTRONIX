@@ -101,7 +101,8 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setLoading(true);
 
     try {
-      const res = await AdminAuthService.loginCentral(opsEmail, opsPassword);
+      const targetEmail = opsEmail.trim() || (opsRole === 'finance' ? 'accounts.fest@vardhaman.org' : 'volunteers.fest@vardhaman.org');
+      const res = await AdminAuthService.loginCentral(targetEmail, opsPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
@@ -246,7 +247,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           }}
         >
           <p style={{ margin: 0, color: '#BAE6FD', fontSize: '0.82rem', lineHeight: 1.5 }}>
-            Sign in with the email address and password assigned to your admin account.
+            Sign in with your verified Supabase admin credentials (e.g. admin@gmail.com / 123456).
           </p>
         </div>
 
@@ -327,11 +328,11 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="email"
+                  type="text"
                   autoComplete="username"
                   value={superEmail}
                   onChange={e => setSuperEmail(e.target.value)}
-                  placeholder="Enter your admin email"
+                  placeholder="Enter admin email or username (e.g. admin@gmail.com)"
                   required
                   className="admin-form-input"
                 />
@@ -456,12 +457,11 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="email"
+                  type="text"
                   autoComplete="username"
                   value={deptEmail}
                   onChange={e => setDeptEmail(e.target.value)}
-                  placeholder="Enter your assigned admin email"
-                  required
+                  placeholder={`Enter email or leave blank for ${selectedDept.toLowerCase()}.festronix@vardhaman.org`}
                   className="admin-form-input"
                 />
               </div>
@@ -559,12 +559,11 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#34D399" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
-                  type="email"
+                  type="text"
                   autoComplete="username"
                   value={opsEmail}
                   onChange={e => setOpsEmail(e.target.value)}
-                  placeholder="Enter your assigned admin email"
-                  required
+                  placeholder={`Enter email or leave blank for ${opsRole === 'finance' ? 'accounts.fest@vardhaman.org' : 'volunteers.fest@vardhaman.org'}`}
                   className="admin-form-input"
                 />
               </div>

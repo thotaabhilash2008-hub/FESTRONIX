@@ -184,7 +184,7 @@ export class AuthService {
           const msg = authError?.message?.toLowerCase() || '';
 
           if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
-            return { success: false, error: 'Incorrect password. Please verify and try again.' };
+            return { success: false, error: 'Invalid email address or password. Please verify your credentials or Sign Up.' };
           }
           if (msg.includes('email not confirmed') || msg.includes('email_not_confirmed')) {
             return {

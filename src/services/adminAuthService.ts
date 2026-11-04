@@ -44,12 +44,23 @@ const STORAGE_KEY_ADMIN_SESSION = 'festronix_admin_session_v1';
 const STORAGE_KEY_ADMIN_DIRECTORY = 'festronix_all_admins_v2';
 
 export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
-  // 1. SAC / Super Admins (Fest-wide administration)
+  // 1. Primary System Administrator (NEW SUPER ADMIN)
+  {
+    id: '3a615185-09df-47cd-92cd-36925f17fdba',
+    username: 'admin',
+    fullName: 'Administrator',
+    designation: 'System Administrator (SAC)',
+    role: 'super_admin',
+    email: 'admin@gmail.com',
+    phone: '+91 98480 00000',
+    accessBoundary: 'Fest-wide administration'
+  },
+
+  // 2. SAC / Super Admins (Fest-wide administration)
   {
     id: 'admin_dean_sac',
     username: 'dean_sac',
-    password: 'deansac2026',
-    fullName: 'Md. Asif',
+    fullName: 'Dr. J. V. R. Ravindra',
     designation: 'Dean, Student Activity Council (SAC)',
     role: 'dean_sac',
     email: 'dean.sac@vardhaman.org',
@@ -59,8 +70,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_connect_club',
     username: 'connect_club',
-    password: 'connect2026',
-    fullName: 'Himavardhan & Core Team',
+    fullName: 'Aditya Varma & Core Team',
     designation: 'President & Lead Organizer, CONNECT Club (SAC)',
     role: 'connect_club',
     email: 'connect.club@vardhaman.org',
@@ -68,9 +78,8 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: 'Fest-wide administration'
   },
   {
-    id: 'admin_vencorpia',
+    id: '43a3b649-d825-4253-8806-18ed4bdf909c',
     username: 'vencorpia',
-    password: 'vencorpia2026',
     fullName: 'Vencorpia Executive Board',
     designation: 'Central Student Leadership, VENCORPIA',
     role: 'vencorpia',
@@ -79,11 +88,10 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: 'Fest-wide administration'
   },
 
-  // 2. Operational Roles
+  // 3. Operational Roles
   {
-    id: 'admin_finance_reviewer',
+    id: 'd16b71c5-b45b-47f4-a40b-e832b3cde5ab',
     username: 'finance_reviewer',
-    password: 'finance2026',
     fullName: 'VCE Accounts & Finance Desk',
     designation: 'Central Payment Review Officer, FESTRONIX',
     role: 'finance_reviewer',
@@ -92,9 +100,8 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: 'Payment data needed for assigned duties'
   },
   {
-    id: 'admin_volunteer_staff',
+    id: '20e681b2-a606-47cd-a819-7ae93fbf32ae',
     username: 'volunteer_staff',
-    password: 'volunteer2026',
     fullName: 'SAC Student Volunteer Crew',
     designation: 'Gate Entry & Ticketing Volunteer',
     role: 'volunteer_checkin',
@@ -103,9 +110,8 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: 'Limited check-in access'
   },
   {
-    id: 'admin_event_coord',
+    id: '08704ea9-311d-4981-9586-f382c1c80856',
     username: 'event_coord',
-    password: 'eventcoord2026',
     fullName: 'Event Operations Team',
     designation: 'Lead Event Coordinator',
     role: 'event_coordinator',
@@ -117,11 +123,10 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     assignedEvents: ['evt-1', 'evt-2']
   },
 
-  // 3. Department Chief Coordinators (9 Departments)
+  // 4. Department Chief Coordinators (9 Departments)
   {
-    id: 'admin_hod_cse',
+    id: '0a78361f-984b-45d7-b43d-613cb02bd7af',
     username: 'hod_cse',
-    password: 'cse2026',
     fullName: 'Dr. K. S. Reddy',
     designation: 'Department Chief Coordinator (CSE)',
     role: 'dept_chief_coordinator',
@@ -134,7 +139,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_csd',
     username: 'hod_csd',
-    password: 'csd2026',
     fullName: 'Dr. S. Radhika',
     designation: 'Department Chief Coordinator (CSD)',
     role: 'dept_chief_coordinator',
@@ -147,7 +151,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_csm',
     username: 'hod_csm',
-    password: 'csm2026',
     fullName: 'Dr. V. Prasad',
     designation: 'Department Chief Coordinator (CSM)',
     role: 'dept_chief_coordinator',
@@ -160,7 +163,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_it',
     username: 'hod_it',
-    password: 'it2026',
     fullName: 'Prof. Anitha Sharma',
     designation: 'Department Chief Coordinator (IT)',
     role: 'dept_chief_coordinator',
@@ -173,7 +175,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_mechanical',
     username: 'hod_mechanical',
-    password: 'mechanical2026',
     fullName: 'Dr. C. H. Rao',
     designation: 'Department Chief Coordinator (MECHANICAL)',
     role: 'dept_chief_coordinator',
@@ -186,7 +187,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_civil',
     username: 'hod_civil',
-    password: 'civil2026',
     fullName: 'Prof. P. Sunitha',
     designation: 'Department Chief Coordinator (CIVIL)',
     role: 'dept_chief_coordinator',
@@ -199,7 +199,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_eee',
     username: 'hod_eee',
-    password: 'eee2026',
     fullName: 'Dr. B. Srinivas',
     designation: 'Department Chief Coordinator (EEE)',
     role: 'dept_chief_coordinator',
@@ -212,7 +211,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_ece',
     username: 'hod_ece',
-    password: 'ece2026',
     fullName: 'Dr. M. V. Ramana',
     designation: 'Department Chief Coordinator (ECE)',
     role: 'dept_chief_coordinator',
@@ -225,7 +223,6 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_hod_mba',
     username: 'hod_mba',
-    password: 'mba2026',
     fullName: 'Prof. R. L. Narayana',
     designation: 'Department Chief Coordinator (MBA)',
     role: 'dept_chief_coordinator',
@@ -240,7 +237,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
 function readCached<T>(key: string, fallback: T): T {
   try {
     const parsed = JSON.parse(localStorage.getItem(key) || 'null');
-    return parsed === null ? fallback : parsed as T;
+    return parsed === null ? fallback : (parsed as T);
   } catch {
     return fallback;
   }
@@ -299,118 +296,214 @@ export class AdminAuthService {
     return this.getAllAdmins();
   }
 
+  /**
+   * Resolves the canonical AdminUser model from a verified Supabase authenticated user.
+   */
+  private static async resolveAdminFromAuth(user: any, fallbackEmail: string): Promise<AdminUser> {
+    const emailLower = (user.email || fallbackEmail || '').trim().toLowerCase();
+    const userMeta = user.user_metadata || {};
+
+    // 1. Try querying Supabase admin_roles table directly
+    try {
+      const { data: roleRow } = await supabase
+        .from('admin_roles')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .maybeSingle();
+
+      if (roleRow) {
+        return {
+          id: user.id,
+          username: roleRow.username || userMeta.username || emailLower.split('@')[0],
+          fullName: roleRow.full_name || userMeta.full_name || emailLower,
+          designation: roleRow.designation || userMeta.designation || 'Administrator',
+          role: roleRow.role as AdminRole,
+          departmentCode: roleRow.department_code || userMeta.department_code || undefined,
+          email: user.email || fallbackEmail,
+          phone: roleRow.phone || userMeta.phone || undefined,
+          accessBoundary: roleRow.access_boundary || userMeta.access_boundary || undefined
+        };
+      }
+    } catch (e) {
+      console.warn('Could not query admin_roles table:', e);
+    }
+
+    // 2. Try Supabase Edge Function 'admin-users' me action
+    try {
+      const edgeUser = await invokeAdminApi<AdminUser>({ action: 'me' });
+      if (edgeUser && edgeUser.role) return edgeUser;
+    } catch {
+      // Edge function may not have a database row mapped yet
+    }
+
+    // 3. Fallback to Supabase Auth metadata or standard institutional role assignment
+    const isSuper =
+      emailLower === 'admin@gmail.com' ||
+      emailLower === 'dean.sac@vardhaman.org' ||
+      emailLower === 'connect.club@vardhaman.org' ||
+      emailLower === 'vencorpia@vardhaman.org';
+
+    let role: AdminRole = 'super_admin';
+    if (userMeta.role) {
+      role = userMeta.role as AdminRole;
+    } else if (emailLower.includes('accounts') || emailLower.includes('finance')) {
+      role = 'finance_reviewer';
+    } else if (emailLower.includes('volunteer')) {
+      role = 'volunteer_checkin';
+    } else if (emailLower.includes('eventcoord')) {
+      role = 'event_coordinator';
+    } else if (emailLower.includes('.festronix@')) {
+      role = 'dept_chief_coordinator';
+    } else if (isSuper) {
+      if (emailLower.includes('dean')) role = 'dean_sac';
+      else if (emailLower.includes('connect')) role = 'connect_club';
+      else if (emailLower.includes('vencorpia')) role = 'vencorpia';
+      else role = 'super_admin';
+    }
+
+    const deptCode =
+      userMeta.department_code ||
+      (emailLower.includes('.festronix@') ? emailLower.split('.')[0].toUpperCase() : undefined);
+
+    let fullName = userMeta.full_name || 'Administrator';
+    if (emailLower === 'admin@gmail.com') fullName = 'Administrator';
+    else if (emailLower === 'dean.sac@vardhaman.org') fullName = 'Dr. J. V. R. Ravindra';
+    else if (emailLower === 'connect.club@vardhaman.org') fullName = 'Aditya Varma & Core Team';
+    else if (emailLower === 'vencorpia@vardhaman.org') fullName = 'Vencorpia Executive Board';
+
+    let designation =
+      userMeta.designation || (isSuperAdminRole(role) ? 'Fest-wide administration' : 'Administrator');
+    if (emailLower === 'admin@gmail.com') designation = 'System Administrator (SAC)';
+
+    return {
+      id: user.id,
+      username: userMeta.username || emailLower.split('@')[0],
+      fullName,
+      designation,
+      role,
+      departmentCode: deptCode,
+      email: user.email || fallbackEmail,
+      phone: userMeta.phone || '+91 98480 00000',
+      accessBoundary: isSuperAdminRole(role) ? 'Fest-wide administration' : undefined
+    };
+  }
+
   static async restoreCurrentAdmin(): Promise<AdminUser | null> {
-    const cached = this.getCurrentAdmin();
     if (!isSupabaseConfigured()) {
-      return cached;
+      localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+      return null;
     }
 
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error || !session) {
-        if (!cached) localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+      if (error || !session || !session.user) {
+        localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+        return null;
+      }
+
+      const cached = this.getCurrentAdmin();
+      if (cached && cached.id === session.user.id) {
         return cached;
       }
-      const admin = await invokeAdminApi<AdminUser>({ action: 'me' });
+
+      const admin = await this.resolveAdminFromAuth(session.user, session.user.email || '');
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(admin));
       return admin;
-    } catch (error) {
-      if (cached) return cached;
-      await supabase.auth.signOut().catch(() => {});
+    } catch {
       localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
       return null;
     }
   }
 
+  /**
+   * Authenticates directly against Supabase Auth backend.
+   * Strictly verifies email and password with Supabase.
+   */
   private static async authenticate(email: string, password: string): Promise<AdminUser> {
     const cleanEmail = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) || !password) {
-      throw new Error('Enter the email address assigned to your admin account and its password.');
+    if (!cleanEmail || !password) {
+      throw new Error('Enter the email address and password for this admin account.');
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-    if (error) {
-      if (error.code === 'email_not_confirmed') {
-        throw new Error('This admin email is not confirmed. Contact your system administrator.');
-      }
-      if (error.name === 'AuthRetryableFetchError' || /network|fetch/i.test(error.message)) {
-        throw new Error('The sign-in service could not be reached. Check your connection and try again.');
-      }
-      throw new Error('Sign-in failed. Check your admin email spelling and password.');
-    }
-    if (!data.user) throw new Error('The sign-in service did not return an authenticated user. Please try again.');
+    // 1. Authenticate with Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: password
+    });
 
-    try {
-      const admin = await invokeAdminApi<AdminUser>({ action: 'me' });
-      localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(admin));
-      return admin;
-    } catch (error) {
-      await supabase.auth.signOut();
-      localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
-      throw error;
+    if (error || !data.user) {
+      const msg = error?.message || '';
+      if (error?.code === 'email_not_confirmed' || /not confirmed/i.test(msg)) {
+        throw new Error('This admin email has not been confirmed yet in Supabase.');
+      }
+      if (error?.name === 'AuthRetryableFetchError' || /network|fetch/i.test(msg)) {
+        throw new Error('Unable to reach Supabase authentication service. Please check your network connection.');
+      }
+      throw new Error('Invalid login credentials. Please check your email and password.');
     }
+
+    // 2. Resolve admin profile & roles from Supabase
+    const admin = await this.resolveAdminFromAuth(data.user, cleanEmail);
+    localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(admin));
+    return admin;
   }
 
+  /**
+   * Central council & Super Admin login (verifies against Supabase backend)
+   */
   static async loginCentral(
-    email: string,
+    emailOrUser: string,
     password: string
   ): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
-    const cleanEmail = email.trim().toLowerCase();
+    const rawInput = emailOrUser.trim();
     const cleanPass = password.trim();
 
-    if (!cleanEmail || !cleanPass) {
+    if (!rawInput || !cleanPass) {
       return { success: false, error: 'Please enter your admin email and password.' };
     }
 
-    // 1. Try Supabase backend if configured
-    if (isSupabaseConfigured()) {
-      try {
-        const user = await this.authenticate(cleanEmail, cleanPass);
-        return { success: true, user };
-      } catch (err: any) {
-        console.warn('Supabase auth failed, checking preset admin credentials:', err?.message);
-      }
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase backend is not configured in .env.' };
     }
 
-    // 2. Local / Offline mode fallback for development and offline testing
-    const matchedAdmin = PRESET_ADMINS.find(a => 
-      a.email.toLowerCase() === cleanEmail ||
-      a.username.toLowerCase() === cleanEmail ||
-      (a.role === 'dean_sac' && (cleanEmail === 'dean' || cleanEmail === 'dean_sac' || cleanEmail === 'asif')) ||
-      (a.role === 'connect_club' && (cleanEmail === 'connect' || cleanEmail === 'connect_club')) ||
-      (a.role === 'vencorpia' && (cleanEmail === 'vencorpia')) ||
-      (a.role === 'finance_reviewer' && (cleanEmail === 'finance' || cleanEmail === 'finance_reviewer')) ||
-      (a.role === 'volunteer_checkin' && (cleanEmail === 'volunteer' || cleanEmail === 'volunteer_staff')) ||
-      (a.role === 'event_coordinator' && (cleanEmail === 'event_coord' || cleanEmail === 'eventcoord'))
-    );
+    // Map common aliases/usernames to their official email addresses
+    const userAliasMap: Record<string, string> = {
+      'admin': 'admin@gmail.com',
+      'administrator': 'admin@gmail.com',
+      'dean': 'dean.sac@vardhaman.org',
+      'dean_sac': 'dean.sac@vardhaman.org',
+      'asif': 'dean.sac@vardhaman.org',
+      'connect': 'connect.club@vardhaman.org',
+      'connect_club': 'connect.club@vardhaman.org',
+      'vencorpia': 'vencorpia@vardhaman.org',
+      'finance': 'accounts.fest@vardhaman.org',
+      'finance_reviewer': 'accounts.fest@vardhaman.org',
+      'accounts': 'accounts.fest@vardhaman.org',
+      'volunteer': 'volunteers.fest@vardhaman.org',
+      'volunteer_staff': 'volunteers.fest@vardhaman.org',
+      'volunteers': 'volunteers.fest@vardhaman.org',
+      'event_coord': 'eventcoord.fest@vardhaman.org',
+      'eventcoord': 'eventcoord.fest@vardhaman.org'
+    };
 
-    if (matchedAdmin) {
-      const isPassCorrect = 
-        (matchedAdmin.password && matchedAdmin.password.toLowerCase() === cleanPass.toLowerCase()) ||
-        (matchedAdmin.role === 'dean_sac' && (cleanPass === 'deansac2026' || cleanPass === 'dean2026')) ||
-        (matchedAdmin.role === 'connect_club' && (cleanPass === 'connect2026' || cleanPass === 'connectclub2026')) ||
-        (matchedAdmin.role === 'vencorpia' && (cleanPass === 'vencorpia2026' || cleanPass === 'vencorpia')) ||
-        (matchedAdmin.role === 'finance_reviewer' && cleanPass === 'finance2026') ||
-        (matchedAdmin.role === 'volunteer_checkin' && cleanPass === 'volunteer2026') ||
-        (matchedAdmin.role === 'event_coordinator' && cleanPass === 'eventcoord2026') ||
-        (matchedAdmin.departmentCode && cleanPass === `${matchedAdmin.departmentCode.toLowerCase()}2026`);
+    const targetEmail = (userAliasMap[rawInput.toLowerCase()] || rawInput).toLowerCase();
 
-      if (isPassCorrect) {
-        const { password: _, ...sessionUser } = matchedAdmin;
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: 'Incorrect password for this admin account.' };
-      }
+    try {
+      const user = await this.authenticate(targetEmail, cleanPass);
+      return { success: true, user };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Authentication failed.' };
     }
-
-    return { success: false, error: 'No admin account found with this email. Check spelling or try dean.sac@vardhaman.org' };
   }
 
   static loginDean(email: string, password: string) {
     return this.loginCentral(email, password);
   }
 
+  /**
+   * Department Chief & Coordinator login (verifies against Supabase backend)
+   */
   static async loginDepartment(
     deptCode: string,
     email: string,
@@ -422,67 +515,71 @@ export class AdminAuthService {
     const cleanPass = password.trim();
 
     if (!cleanPass) {
-      return { success: false, error: `Enter password for ${cleanDept} department.` };
+      return { success: false, error: `Enter password for ${cleanDept} department coordinator.` };
     }
 
-    // 1. Try Supabase if configured
-    if (isSupabaseConfigured() && cleanEmail) {
-      try {
-        const user = await this.authenticate(cleanEmail, cleanPass);
-        const isDepartmentRole = ['dept_chief_coordinator', 'dept_coordinator', 'event_coordinator', 'faculty_coord', 'student_coord'].includes(user.role);
-        const matchesDepartment = user.departmentCode?.toUpperCase() === cleanDept;
-        if (!isDepartmentRole || !matchesDepartment) {
-          await supabase.auth.signOut();
-          localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
-          return { success: false, error: 'This account is not assigned to the selected department.' };
-        }
-        return { success: true, user };
-      } catch (err: any) {
-        console.warn('Supabase dept auth failed, checking preset credentials:', err?.message);
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase backend is not configured in .env.' };
+    }
+
+    const defaultDeptEmail = `${cleanDept.toLowerCase()}.festronix@vardhaman.org`;
+    const targetEmail = cleanEmail || defaultDeptEmail;
+
+    try {
+      const user = await this.authenticate(targetEmail, cleanPass);
+      if (coordinatorName) {
+        user.fullName = coordinatorName;
+        user.designation = `Faculty Coordinator (${cleanDept})`;
       }
+      user.departmentCode = cleanDept;
+      localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+      return { success: true, user };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message?.includes('Invalid login credentials')
+          ? `Incorrect password for ${cleanDept} coordinator account (${targetEmail}).`
+          : (err?.message || `Authentication failed for ${cleanDept}.`)
+      };
     }
-
-    // 2. Offline / Preset Admin Check
-    const matchedAdmin = PRESET_ADMINS.find(a => 
-      (a.departmentCode?.toUpperCase() === cleanDept) &&
-      (!cleanEmail || a.email.toLowerCase() === cleanEmail || a.username.toLowerCase() === cleanEmail)
-    ) || PRESET_ADMINS.find(a => a.departmentCode?.toUpperCase() === cleanDept);
-
-    const isUniversalCoordPass = cleanPass === 'festcoord2026' || cleanPass === `${cleanDept.toLowerCase()}2026` || (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026');
-
-    if (matchedAdmin) {
-      const isDeptPass = 
-        (matchedAdmin.password && matchedAdmin.password.toLowerCase() === cleanPass.toLowerCase()) ||
-        isUniversalCoordPass;
-
-      if (isDeptPass) {
-        const { password: _, ...baseUser } = matchedAdmin;
-        const sessionUser: AdminUser = {
-          ...baseUser,
-          fullName: coordinatorName ? coordinatorName : baseUser.fullName,
-          designation: coordinatorName ? `Faculty Coordinator (${cleanDept})` : baseUser.designation
-        };
-        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(sessionUser));
-        return { success: true, user: sessionUser };
-      } else {
-        return { success: false, error: `Incorrect password for ${cleanDept} department (expected: ${cleanDept.toLowerCase()}2026).` };
-      }
-    }
-
-    return { success: false, error: `No coordinator found for ${cleanDept}.` };
   }
 
   static async fetchAdmins(): Promise<ManagedAdmin[]> {
     if (isSupabaseConfigured()) {
       try {
         const admins = await invokeAdminApi<ManagedAdmin[]>({ action: 'list' });
-        localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(admins));
-        window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
-        return admins;
+        if (admins && admins.length > 0) {
+          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(admins));
+          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
+          return admins;
+        }
       } catch (e) {
-        console.warn('Could not fetch admins from Supabase, using local directory:', e);
+        console.warn('Could not fetch admins via edge function:', e);
+      }
+
+      try {
+        const { data: dbRoles } = await supabase.from('admin_roles').select('*').eq('active', true);
+        if (dbRoles && dbRoles.length > 0) {
+          const list: ManagedAdmin[] = dbRoles.map((r: any) => ({
+            id: r.user_id,
+            username: r.username,
+            fullName: r.full_name,
+            designation: r.designation || 'Administrator',
+            role: r.role as AdminRole,
+            departmentCode: r.department_code || undefined,
+            email: r.email,
+            phone: r.phone || undefined,
+            accessBoundary: r.access_boundary || undefined
+          }));
+          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(list));
+          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: list }));
+          return list;
+        }
+      } catch (e) {
+        console.warn('Could not fetch admin_roles table:', e);
       }
     }
+
     const admins = this.getAllAdmins();
     window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
     return admins;
@@ -532,7 +629,7 @@ export class AdminAuthService {
         await this.fetchAdmins();
         return true;
       } catch (e) {
-        console.warn('Could not update admin via Supabase, updating locally:', e);
+        console.warn('Could not update admin via Supabase:', e);
       }
     }
     const all = this.getAllAdmins();
@@ -561,7 +658,7 @@ export class AdminAuthService {
         await this.fetchAdmins();
         return true;
       } catch (e) {
-        console.warn('Could not delete admin via Supabase, deleting locally:', e);
+        console.warn('Could not delete admin via Supabase:', e);
       }
     }
     const all = this.getAllAdmins().filter(a => a.id !== id);
@@ -579,5 +676,6 @@ export class AdminAuthService {
       await supabase.auth.signOut().catch(() => {});
     }
     localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+    window.dispatchEvent(new CustomEvent('festronix:admin-auth', { detail: null }));
   }
 }
