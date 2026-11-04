@@ -278,7 +278,7 @@ export const App: React.FC = () => {
 
   return (
     <ScrollAnimationsProvider enableSmoothScroll={!isIntroOpen}>
-      <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="public-site-shell" style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Background Continuous Scroll-Driven 3D Kinetic Stage */}
       <KineticStage3D />
 
@@ -326,7 +326,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Experience View */}
-      <main style={{ flex: 1, position: 'relative', zIndex: 10 }}>
+      <main className="public-main" style={{ flex: 1, position: 'relative', zIndex: 10 }}>
         {/* HERO SECTION: Cinematic Introduction */}
         <HeroSection
           onExploreEvents={handleNavigateExplore}

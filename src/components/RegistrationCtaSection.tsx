@@ -15,6 +15,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
   return (
     <section
       id="register-cta"
+      className="public-section registration-cta-section"
       style={{
         padding: '110px 20px 100px',
         maxWidth: '1140px',

@@ -41,6 +41,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   return (
     <section
+      className="public-hero"
       style={{
         position: 'relative',
         minHeight: 'calc(100vh - 84px)',

@@ -257,7 +257,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
   };
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', width: '100%', background: '#080C16', color: '#F3F0EA', overflowX: 'hidden' }}>
+    <div className="public-sponsors-shell" style={{ position: 'relative', minHeight: '100vh', width: '100%', background: '#080C16', color: '#F3F0EA', overflowX: 'hidden' }}>
       
       {/* Background Starfield & Subtle Grid */}
       <GlitterBackground />

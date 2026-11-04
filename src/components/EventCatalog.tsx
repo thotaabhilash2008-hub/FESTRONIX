@@ -100,7 +100,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
   const hasActiveFilters = selectedDept !== 'all' || selectedCategory !== 'all' || selectedFormat !== 'all' || localSearch !== '';
 
   return (
-    <section id="events" style={{ padding: '60px 20px 80px', maxWidth: '1240px', margin: '0 auto' }}>
+    <section id="events" className="public-section events-section" style={{ padding: '60px 20px 80px', maxWidth: '1240px', margin: '0 auto' }}>
       {/* Section Header */}
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
         <div
@@ -268,7 +268,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
             </div>
 
             {/* Department Grid Cards */}
-            <div
+            <div className="public-six-grid catalog-department-grid"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -352,7 +352,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
             </div>
 
             {/* Category Cards */}
-            <div
+            <div className="public-six-grid catalog-category-grid"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
@@ -540,7 +540,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
           </button>
         </div>
       ) : (
-        <div
+        <div className="public-six-grid event-catalog-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',

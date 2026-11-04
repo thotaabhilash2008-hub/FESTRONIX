@@ -18,7 +18,7 @@ const iconMap: Record<string, React.ReactNode> = {
 
 export const DepartmentsSection: React.FC = () => {
   return (
-    <section id="departments" style={{ padding: '100px 20px 80px', maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
+    <section id="departments" className="public-section departments-section" style={{ padding: '100px 20px 80px', maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
       <ScrollReveal threshold="top 90%" duration={0.8}>
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
           <div
@@ -62,7 +62,7 @@ export const DepartmentsSection: React.FC = () => {
       </ScrollReveal>
 
       <ScrollReveal threshold="top 85%" stagger={0.08} duration={0.8}>
-        <div
+        <div className="public-six-grid departments-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',

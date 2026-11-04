@@ -9,6 +9,7 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) => {
   return (
     <footer
+      className="public-footer"
       style={{
         borderTop: '1px solid rgba(120, 149, 147, 0.25)',
         backgroundColor: '#0C1326',

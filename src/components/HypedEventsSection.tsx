@@ -65,6 +65,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
   return (
     <section
       id="hyped-events"
+      className="public-section hyped-events-section"
       style={{
         padding: '90px 20px 60px',
         maxWidth: '1280px',
@@ -129,7 +130,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
 
         {/* Hyped Grid with 3D Tilt */}
         <ScrollReveal threshold="top 85%" stagger={0.12} duration={0.8}>
-          <div
+          <div className="public-six-grid hyped-events-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',

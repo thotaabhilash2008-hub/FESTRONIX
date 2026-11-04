@@ -78,6 +78,21 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+        setShowMobileAnnouncements(false);
+        setShowAnnouncementsDropdown(false);
+        setIsBrowseDropdownOpen(false);
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const categories = [
     { key: 'all', label: 'All Categories' },
     { key: 'hackathon', label: 'Hackathons' },
@@ -89,6 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav
+      className="public-navbar"
       style={{
         position: 'sticky',
         top: '12px',
@@ -269,6 +285,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
+              aria-expanded={isBrowseDropdownOpen}
+              aria-haspopup="menu"
               style={{
                 background: isBrowseDropdownOpen ? 'rgba(111, 150, 147, 0.14)' : 'rgba(21, 24, 32, 0.8)',
                 border: isBrowseDropdownOpen ? '1px solid #88B2AE' : '1px solid rgba(199, 203, 212, 0.18)',
@@ -488,6 +506,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               setIsBrowseDropdownOpen(false);
               onNavigateHyped();
             }}
+            className="nav-action nav-hyped"
             style={{
               background: 'rgba(255, 107, 53, 0.08)',
               border: '1px solid rgba(255, 107, 53, 0.3)',
@@ -522,11 +541,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Right Action Icons & Passes */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="navbar-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Announcements Popover (Desktop) */}
           <div style={{ position: 'relative' }} className="desktop-only">
             <button
               onClick={() => setShowAnnouncementsDropdown(!showAnnouncementsDropdown)}
+              aria-expanded={showAnnouncementsDropdown}
+              aria-haspopup="menu"
+              className="nav-action nav-announcements"
               style={{
                 background: 'rgba(40, 59, 120, 0.25)',
                 border: '1px solid rgba(220, 227, 229, 0.25)',
@@ -608,7 +630,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Buy Multiple Passes Button */}
           <button
             onClick={onOpenMultiPass}
-            className="desktop-only"
+            className="desktop-only nav-action nav-multipass"
             style={{
               background: 'rgba(21, 24, 32, 0.85)',
               border: '1px solid rgba(199, 203, 212, 0.2)',
@@ -645,7 +667,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenSponsors && (
             <button
               onClick={onOpenSponsors}
-              className="desktop-only"
+              className="desktop-only nav-action nav-sponsors"
               style={{
                 background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -683,7 +705,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenAdmin && (
             <button
               onClick={onOpenAdmin}
-              className="desktop-only"
+              className="desktop-only nav-action nav-admin"
               style={{
                 background: 'rgba(56, 189, 248, 0.08)',
                 border: '1px solid rgba(56, 189, 248, 0.25)',
@@ -712,6 +734,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div ref={userMenuRef} style={{ position: 'relative' }} className="desktop-only">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                aria-expanded={isUserMenuOpen}
+                aria-haspopup="menu"
                 style={{
                   background: 'rgba(21, 24, 32, 0.85)',
                   border: '1px solid rgba(199, 203, 212, 0.25)',
@@ -854,7 +878,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={() => onOpenAuth('signin')}
-              className="desktop-only"
+              className="desktop-only nav-action nav-auth"
               style={{
                 background: 'rgba(21, 24, 32, 0.8)',
                 border: '1px solid rgba(199, 203, 212, 0.2)',
@@ -890,6 +914,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* View Our Registration Passes */}
           <button
             onClick={onOpenPasses}
+            className="nav-action nav-passes"
             style={{
               background: 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
               border: '1px solid rgba(220, 227, 232, 0.35)',
@@ -941,6 +966,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="festronix-mobile-navigation"
             title="Navigation Menu"
             className="mobile-only mobile-menu-btn"
             style={{
@@ -986,6 +1013,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Slide-in Drawer Container */}
           <div
+            id="festronix-mobile-navigation"
             className="mobile-sidebar-drawer"
             style={{
               position: 'fixed',
@@ -1185,6 +1213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setMobileMenuOpen(false);
                   onOpenPasses();
                 }}
+                className="mobile-menu-action mobile-passes"
                 style={{
                   background: 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
                   border: '1px solid rgba(220, 227, 232, 0.35)',
@@ -1219,12 +1248,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </button>
 
+              {/* Compact event entry point */}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigateExplore?.();
+                }}
+                className="mobile-menu-action mobile-browse"
+                style={{
+                  background: 'rgba(21, 24, 32, 0.85)',
+                  border: '1px solid rgba(199, 203, 212, 0.2)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  color: '#F3F0EA',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}
+              >
+                <Layers size={18} color="#38BDF8" />
+                <span>Browse All Events</span>
+              </button>
+
               {/* Option 3: Buy Multiple Passes */}
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   onOpenMultiPass();
                 }}
+                className="mobile-menu-action mobile-multipass"
                 style={{
                   background: 'rgba(21, 24, 32, 0.85)',
                   border: '1px solid rgba(199, 203, 212, 0.2)',
@@ -1245,6 +1300,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Option 4: Campus Announcements & Bulletins */}
               <div
+                className="mobile-menu-action mobile-announcements"
                 style={{
                   background: 'rgba(21, 24, 32, 0.85)',
                   border: '1px solid rgba(199, 203, 212, 0.2)',
@@ -1347,6 +1403,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Option 6: Official Partners (Connect Club & Vencorpia) */}
               <div
+                className="mobile-menu-action mobile-partners"
                 style={{
                   background: 'rgba(21, 24, 32, 0.6)',
                   border: '1px solid rgba(199, 203, 212, 0.14)',
@@ -1428,6 +1485,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setMobileMenuOpen(false);
                   onNavigateHyped();
                 }}
+                className="mobile-menu-action mobile-hyped"
                 style={{
                   background: 'rgba(255, 107, 53, 0.1)',
                   border: '1px solid rgba(255, 107, 53, 0.3)',
@@ -1448,6 +1506,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Option 8: Select by Department (9 Branches) */}
               <div
+                className="mobile-menu-action mobile-departments"
                 style={{
                   background: 'rgba(21, 24, 32, 0.6)',
                   border: '1px solid rgba(199, 203, 212, 0.14)',
@@ -1519,6 +1578,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Option 9: Select by Event Category */}
               <div
+                className="mobile-menu-action mobile-categories"
                 style={{
                   background: 'rgba(21, 24, 32, 0.6)',
                   border: '1px solid rgba(199, 203, 212, 0.14)',

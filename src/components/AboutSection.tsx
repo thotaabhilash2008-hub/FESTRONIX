@@ -7,6 +7,7 @@ export const AboutSection: React.FC = () => {
   return (
     <section
       id="about"
+      className="public-section about-section"
       style={{
         padding: '110px 20px 80px',
         maxWidth: '1280px',
@@ -72,7 +73,7 @@ export const AboutSection: React.FC = () => {
 
       {/* Numbered Editorial Dossier Cards */}
       <ScrollReveal threshold="top 80%" stagger={0.12} duration={0.8}>
-        <div
+        <div className="public-six-grid about-dossier-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',

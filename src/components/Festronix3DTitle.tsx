@@ -38,6 +38,7 @@ export const Festronix3DTitle: React.FC = () => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      className="festronix-title-wrap"
       style={{
         position: 'relative',
         width: '100%',
@@ -104,7 +105,7 @@ export const Festronix3DTitle: React.FC = () => {
         }}
       >
         {/* High-Resolution 3D Chrome Festronix Logo Image */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: 'clamp(440px, 52vw, 760px)' }}>
+        <div className="festronix-title-image-wrap" style={{ position: 'relative', width: '100%', maxWidth: 'clamp(440px, 52vw, 760px)' }}>
           <img
             src="/festronix_3d_title_clean.png"
             alt="FESTRONIX 3D Chrome Logo"
