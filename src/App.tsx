@@ -18,6 +18,7 @@ import { PublicSponsorsPage } from './components/PublicSponsorsPage';
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
+import { isSupabaseConfigured } from './lib/supabase';
 import { ScrollAnimationsProvider } from './components/animations';
 import { KineticStage3D } from './components/3d';
 import { AboutSection } from './components/AboutSection';
@@ -93,14 +94,18 @@ export const App: React.FC = () => {
   const [authCustomNotice, setAuthCustomNotice] = useState<string | null>(null);
 
   const refreshData = async () => {
-    // 1. Immediate sync from cached store (instant render)
-    const evts = StorageService.getEvents();
-    const regs = StorageService.getRegistrations();
-    const anns = StorageService.getAnnouncements();
-
-    setEvents(evts);
-    setRegistrations(regs);
-    setAnnouncements(anns);
+    // The configured build is backend-only: never render an old browser cache
+    // as if it were current public/admin data. Offline localStorage mode is
+    // retained only for an explicitly unconfigured development build.
+    if (isSupabaseConfigured()) {
+      setEvents([]);
+      setRegistrations([]);
+      setAnnouncements([]);
+    } else {
+      setEvents(StorageService.getEvents());
+      setRegistrations(StorageService.getRegistrations());
+      setAnnouncements(StorageService.getAnnouncements());
+    }
 
     // 2. Fetch fresh data from Supabase backend in parallel
     try {

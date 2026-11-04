@@ -1928,17 +1928,28 @@ export class StorageService {
       } else {
         // Keep older Supabase projects usable until the dashboard migration is
         // applied. The existing lookup still provides safe roster metadata;
-        // payment state is derived from the participant registrations cache.
+        // payment state is derived from a fresh backend read when possible.
         const fallback = await this.findTeamWithValidation(teamCode, eventId);
         if (!fallback.team) {
           throw new Error(error?.message || fallback.error || 'The team dashboard is unavailable.');
         }
         team = { ...fallback.team };
         const normalizedCode = team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-        const matchingRegistrations = this.getRegistrations().filter(
+        let registrations = this.getRegistrations();
+        let events = this.getEvents();
+        try {
+          [registrations, events] = await Promise.all([
+            this.fetchRegistrations(),
+            this.fetchEvents()
+          ]);
+        } catch {
+          // The safe team lookup above is still useful if a legacy deployment
+          // temporarily blocks one of the supplementary reads.
+        }
+        const matchingRegistrations = registrations.filter(
           registration => registration.teamCode && registration.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normalizedCode
         );
-        const event = this.getEvents().find(item => item.id === team!.eventId || item.slug === team!.eventId);
+        const event = events.find(item => item.id === team!.eventId || item.slug === team!.eventId);
         const leaderRegistration = matchingRegistrations.find(registration => registration.fee > 0);
         team.paymentStatus = event?.fee === 0
           ? 'not_applicable'
@@ -2160,123 +2171,6 @@ export class StorageService {
       team: liveTeam || team,
       isLeaderPaid: Boolean((backendJoin as any)?.isLeaderPaid)
     };
-
-    // Check event fee and leader payment status
-    const matchedEvt = this.getEvents().find(e => e.id === team.eventId || e.slug === team.eventId);
-    const eventFee = Number(matchedEvt?.fee) || 0;
-    const { isPaid: localLeaderPaid, leaderReg } = this.isTeamLeaderPaid(team);
-    const isLeaderPaid = isSupabaseConfigured()
-      ? Boolean((backendJoin as any)?.isLeaderPaid)
-      : localLeaderPaid;
-    const leaderPaymentStatus = (backendJoin as any)?.leaderPaymentStatus || leaderReg?.paymentStatus;
-    const leaderTransactionId = (backendJoin as any)?.leaderTransactionId || leaderReg?.transactionId;
-
-    // Online team joins are committed by the database RPC. Never manufacture
-    // a local-only pass here: admin, HOD, finance, coordinator, and gate
-    // portals must all see the same registration and ticket rows.
-    if (isSupabaseConfigured() && (backendJoin as any)?.registration) {
-      const payload = (backendJoin as any).registration;
-      let canonical: Registration | undefined;
-      try {
-        const liveRegs = await this.fetchRegistrations();
-        canonical = liveRegs.find(reg => reg.id === payload.id);
-      } catch (refreshError) {
-        console.warn('Team member joined, but the immediate canonical refresh failed:', refreshError);
-      }
-
-      const registration = canonical || {
-        id: payload.id,
-        userId: undefined,
-        buyerRoll: member.rollNumber,
-        eventId: payload.eventId || team.eventId,
-        eventTitle: payload.eventTitle || team.eventTitle,
-        departmentCode: matchedEvt?.departmentCode || this.resolveDepartmentForRegistration({ eventId: team.eventId, eventTitle: team.eventTitle } as Registration),
-        teamName: payload.teamName || team.teamName,
-        teamCode: payload.teamCode || team.teamCode,
-        leaderName: payload.leaderName || member.name,
-        leaderEmail: payload.leaderEmail || member.email,
-        leaderPhone: payload.leaderPhone || member.phone,
-        leaderCollege: payload.leaderCollege || member.college,
-        leaderRoll: payload.leaderRoll || member.rollNumber,
-        teammates: team.members || [],
-        format: payload.format || 'team',
-        fee: Number(payload.fee) || 0,
-        source: 'online',
-        registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        paymentStatus: payload.paymentStatus || (eventFee === 0 ? 'not_applicable' : (isLeaderPaid && (leaderPaymentStatus === 'verified' || leaderPaymentStatus === 'verification_pending') ? leaderPaymentStatus : 'payment_required')),
-        transactionId: payload.transactionId || (isLeaderPaid ? leaderTransactionId : undefined),
-        paymentScreenshotUrl: payload.paymentScreenshotUrl || (isLeaderPaid ? leaderReg?.paymentScreenshotUrl : undefined),
-        qrToken: payload.qrToken || '',
-        checkedIn: Boolean(payload.checkedIn)
-      } as Registration;
-
-      return { success: true, team, registration, isLeaderPaid };
-    }
-
-    // If event is free: not_applicable
-    // If event has fee: if leader has paid: use leader's status; otherwise: payment_required (LOCKED!)
-    let paymentStatus: PaymentStatus = 'payment_required';
-    if (eventFee === 0) {
-      paymentStatus = 'not_applicable';
-    } else if (isLeaderPaid && (leaderPaymentStatus === 'verified' || leaderPaymentStatus === 'verification_pending')) {
-      paymentStatus = leaderPaymentStatus;
-    }
-
-    // QR Token is only generated if payment is covered (or event is free)
-    // If payment is pending from leader, token is locked (empty string)
-    const id = `FEST-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const qrToken = (paymentStatus === 'verified' || paymentStatus === 'verification_pending' || paymentStatus === 'not_applicable')
-      ? `FEST26-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${id.slice(-4)}`
-      : '';
-
-    // Sync member into registrations roster
-    const regs = this.getRegistrations();
-    let regIdx = regs.findIndex(
-      r =>
-        (team.registrationId && r.id === team.registrationId) ||
-        (r.teamCode && r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode) ||
-        (r.eventId === team.eventId && r.leaderRoll && team.leaderRoll && r.leaderRoll.toLowerCase() === team.leaderRoll.toLowerCase())
-    );
-
-    let updatedReg: Registration | undefined;
-
-    if (regIdx !== -1) {
-      regs[regIdx].teammates = [...(regs[regIdx].teammates || []), member];
-      if (!regs[regIdx].teamCode) regs[regIdx].teamCode = team.teamCode;
-      if (!regs[regIdx].teamName) regs[regIdx].teamName = team.teamName;
-      this.saveRegistrations(regs);
-    }
-
-    // Create dedicated digital pass for joined member
-    const newReg: Registration = {
-      id,
-      qrToken,
-      eventId: team.eventId,
-      eventTitle: team.eventTitle,
-      departmentCode: matchedEvt?.departmentCode || 'MECH',
-      leaderName: member.name,
-      leaderRoll: member.rollNumber,
-      leaderEmail: member.email,
-      leaderPhone: member.phone,
-      leaderCollege: member.college,
-      buyerRoll: member.rollNumber,
-      teammates: team.members,
-      format: 'team',
-      teamName: team.teamName,
-      teamCode: team.teamCode,
-      fee: 0,
-      source: 'online',
-      registrationDate: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      paymentStatus,
-      transactionId: isLeaderPaid ? leaderTransactionId : undefined,
-      paymentScreenshotUrl: isLeaderPaid ? leaderReg?.paymentScreenshotUrl : undefined,
-      checkedIn: false
-    };
-    regs.unshift(newReg);
-    this.saveRegistrations(regs);
-    updatedReg = newReg;
-
-    return { success: true, team, registration: updatedReg, isLeaderPaid };
   }
 
   static resetToDefaults(): void {
