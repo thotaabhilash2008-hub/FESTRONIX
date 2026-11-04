@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, MapPin, Phone, Mail, Globe, Sparkles, Shield, Rocket } from 'lucide-react';
+import { ShieldCheck, MapPin, Phone, Mail, Globe, Shield, Building2 } from 'lucide-react';
 
 interface FooterProps {
   onOpenAdmin?: () => void;
@@ -223,13 +223,13 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) =
                 <button
                   onClick={onOpenSponsors}
                   style={{
-                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%)',
-                    border: '1px solid rgba(168, 85, 247, 0.45)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
                     borderRadius: '8px',
                     padding: '8px 14px',
-                    color: '#E9D5FF',
+                    color: '#E2E8F0',
                     fontSize: '0.78rem',
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -237,15 +237,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) =
                     fontFamily: "'Space Grotesk', sans-serif"
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(56, 189, 248, 0.35) 100%)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
                     e.currentTarget.style.color = '#FFFFFF';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%)';
-                    e.currentTarget.style.color = '#E9D5FF';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.color = '#E2E8F0';
                   }}
                 >
-                  <Rocket size={14} color="#C084FC" />
+                  <Building2 size={14} color="#94A3B8" />
                   <span>View All Sponsors & Partners</span>
                 </button>
               </div>
@@ -339,7 +339,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) =
             </button>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#BACEBB' }}>
-            <Sparkles size={11} color="#BACEBB" />
+            <ShieldCheck size={11} color="#BACEBB" />
             <span>Designed with passion for engineering excellence</span>
           </div>
         </div>

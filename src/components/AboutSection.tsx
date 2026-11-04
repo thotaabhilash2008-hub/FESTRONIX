@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Cpu, Rocket, Terminal, Sparkles } from 'lucide-react';
+import { ShieldCheck, Layers, Briefcase, Terminal, Info } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -34,11 +34,11 @@ export const AboutSection: React.FC = () => {
               fontFamily: "'Space Grotesk', sans-serif",
               letterSpacing: '0.16em',
               marginBottom: '14px',
-              boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+              boxShadow: 'none'
             }}
           >
-            <Sparkles size={14} color="#38BDF8" />
-            <span>01 // THE GENESIS & MISSION</span>
+            <Info size={14} color="#38BDF8" />
+            <span>ABOUT THE FESTIVAL</span>
           </div>
 
           <h2
@@ -51,7 +51,7 @@ export const AboutSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            WHERE ENGINEERING MEETS <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>RAW ADRENALINE</span>
+            WHERE INNOVATION MEETS <span style={{ color: '#3B82F6' }}>ENGINEERING EXCELLENCE</span>
           </h2>
 
           <p
@@ -61,12 +61,10 @@ export const AboutSection: React.FC = () => {
               margin: '0 auto',
               fontSize: 'clamp(0.98rem, 1.4vw, 1.12rem)',
               lineHeight: 1.75,
-              textShadow: '0 1px 4px rgba(0,0,0,0.8)'
+              
             }}
           >
-            Orchestrated by the Student Affairs Council (SAC) at Vardhaman College of Engineering,
-            FESTRONIX 2026 converges 9 engineering faculties into a battle-tested proving ground
-            for autonomous robotics, precision algorithms, and seed-funded startup ventures.
+            Organized by the Student Affairs Council (SAC) at Vardhaman College of Engineering, FESTRONIX 2026 brings together 9 engineering departments for competitive challenges, technical workshops, and real-world project exhibitions.
           </p>
         </div>
       </ScrollReveal>
@@ -85,12 +83,12 @@ export const AboutSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderRadius: '20px',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 24px rgba(56, 189, 248, 0.08)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                borderRadius: '12px',
+                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -112,11 +110,9 @@ export const AboutSection: React.FC = () => {
                       justifyContent: 'center'
                     }}
                   >
-                    <Cpu size={22} color="#38BDF8" />
+                    <Layers size={22} color="#38BDF8" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#38BDF8', fontWeight: 800 }}>
-                    DOSSIER 01
-                  </span>
+                  <span style={{ color: "#64748B", fontSize: "0.8rem", fontWeight: 700 }}>01</span>
                 </div>
 
                 <h3
@@ -129,12 +125,11 @@ export const AboutSection: React.FC = () => {
                     letterSpacing: '-0.02em'
                   }}
                 >
-                  Battle-Hardened Arenas
+                  Technical Competitions
                 </h3>
 
                 <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
-                  From heavy steel combat RoboWars and autonomous drone obstacle courses to 24-hour non-stop
-                  hackathons, every arena is supervised by expert faculty juries and verified technical standards.
+                  From combat robotics and autonomous drone obstacle courses to 24-hour hackathons, every event is evaluated by experienced faculty juries and industry experts.
                 </p>
               </div>
 
@@ -163,12 +158,12 @@ export const AboutSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderRadius: '20px',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 24px rgba(56, 189, 248, 0.08)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                borderRadius: '12px',
+                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -192,9 +187,7 @@ export const AboutSection: React.FC = () => {
                   >
                     <ShieldCheck size={22} color="#FFFFFF" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#E2E8F0', fontWeight: 800 }}>
-                    DOSSIER 02
-                  </span>
+                  <span style={{ color: "#64748B", fontSize: "0.8rem", fontWeight: 700 }}>02</span>
                 </div>
 
                 <h3
@@ -207,7 +200,7 @@ export const AboutSection: React.FC = () => {
                     letterSpacing: '-0.02em'
                   }}
                 >
-                  Autonomous Vanguard
+                  Campus & Infrastructure
                 </h3>
 
                 <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
@@ -241,12 +234,12 @@ export const AboutSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderRadius: '20px',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9), 0 0 24px rgba(56, 189, 248, 0.08)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                borderRadius: '12px',
+                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box',
                 display: 'flex',
@@ -268,11 +261,9 @@ export const AboutSection: React.FC = () => {
                       justifyContent: 'center'
                     }}
                   >
-                    <Rocket size={22} color="#38BDF8" />
+                    <Briefcase size={22} color="#38BDF8" />
                   </div>
-                  <span className="text-editorial-meta" style={{ color: '#38BDF8', fontWeight: 800 }}>
-                    DOSSIER 03
-                  </span>
+                  <span style={{ color: "#64748B", fontSize: "0.8rem", fontWeight: 700 }}>03</span>
                 </div>
 
                 <h3
@@ -285,12 +276,11 @@ export const AboutSection: React.FC = () => {
                     letterSpacing: '-0.02em'
                   }}
                 >
-                  CIE Capital & Grants
+                  Innovation & Incubation
                 </h3>
 
                 <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
-                  Winners gain direct access to CIE incubation seed capital, institutional patent mentoring,
-                  and live cloud credits, plus automated digital cryptographic pass issuance for every attendee.
+                  Outstanding projects and teams receive mentoring from the Center for Innovation and Entrepreneurship (CIE), patent guidance, and participation certificates.
                 </p>
               </div>
 
@@ -308,7 +298,7 @@ export const AboutSection: React.FC = () => {
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <Rocket size={14} color="#38BDF8" />
+                <Briefcase size={14} color="#38BDF8" />
                 <span>₹5,00,000+ AWARDS & CIE GRANTS</span>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Sparkles, Ticket, ShoppingBag, Lock } from 'lucide-react';
+import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag, Lock } from 'lucide-react';
 import { Registration, Team, User as UserType } from '../types/festronix';
 import { INITIAL_REGISTRATIONS } from '../data/mockData';
 import { StorageService } from '../services/storageService';

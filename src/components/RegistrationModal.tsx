@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, User, Mail, Phone, School, QrCode, Upload, CheckCircle2, ArrowRight, 
-  ArrowLeft, AlertTriangle, Layers, Plus, Minus, Copy, Check, Users, Sparkles, 
+  ArrowLeft, AlertTriangle, Layers, Plus, Minus, Copy, Check, Users, 
   Share2, ShieldCheck, Search, Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -857,7 +857,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   flexShrink: 0
                 }}
               >
-                <Sparkles size={18} />
+                <Users size={18} />
               </div>
               <div>
                 <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF' }}>
@@ -1983,7 +1983,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   boxShadow: '0 0 20px rgba(52, 211, 153, 0.2)'
                 }}
               >
-                <Sparkles size={16} color="#34D399" />
+                <CheckCircle2 size={16} color="#34D399" />
                 <span>{newTeammateAlert}</span>
               </div>
             )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Swords, ArrowRight, Users, QrCode, Rocket, Trophy, Radio } from 'lucide-react';
+import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
 import { HeroAnimation } from './animations';
 
@@ -141,8 +141,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#88B2AE',
-                boxShadow: '0 0 10px #88B2AE'
+                backgroundColor: '#38BDF8'
               }}
             />
             <span
@@ -158,7 +157,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               VARDHAMAN COLLEGE OF ENGINEERING
             </span>
           </div>
-          <span style={{ color: '#7E8D9F', fontSize: '0.75rem' }}>//</span>
+          <span style={{ color: '#7E8D9F', fontSize: '0.75rem' }}>•</span>
           <span
             style={{
               fontSize: '0.7rem',
@@ -205,7 +204,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 color: '#F3F0EA'
               }}
             >
-              2026 EDITION
+              ANNUAL TECHNICAL FESTIVAL
             </span>
           </div>
         </div>
@@ -219,11 +218,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             lineHeight: 1.55,
             margin: '0 auto',
             fontWeight: 400,
-            textShadow: '0 2px 10px rgba(0, 0, 0, 0.85)'
+            
           }}
         >
-          The premier collegiate arena of autonomous robotics, precision algorithmic engineering,
-          and national innovation — uniting 3,500+ competitors across 30+ flagship arenas.
+          Vardhaman College of Engineering's annual national technical festival — featuring hackathons, robotics tournaments, coding competitions, and project exhibitions.
         </p>
 
         {/* Action CTAs */}
@@ -241,12 +239,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             onClick={onExploreEvents}
             className="btn-cyber-primary"
             style={{
-              padding: '10px 24px',
+              padding: '10px 22px',
               fontSize: '0.88rem'
             }}
           >
-            <Swords size={16} color="#C7CBD4" />
-            <span>Explore 30+ Arenas</span>
+            <CalendarDays size={16} color="#CBD5E1" />
+            <span>Explore Events</span>
             <ArrowRight size={15} />
           </button>
 
@@ -254,11 +252,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             onClick={onRegisterNow}
             className="btn-cyber-gold"
             style={{
-              padding: '10px 24px',
+              padding: '10px 22px',
               fontSize: '0.88rem'
             }}
           >
-            <Rocket size={16} />
+            <Ticket size={16} />
             <span>Register Now</span>
           </button>
         </div>
@@ -287,7 +285,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               fontFamily: "'Space Grotesk', sans-serif"
             }}
           >
-            ARENA COMMENCES IN
+            EVENT STARTS IN
           </span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

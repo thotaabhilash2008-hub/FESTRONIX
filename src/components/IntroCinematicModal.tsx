@@ -1,5 +1,5 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
-import { Play, Volume2, VolumeX, X, Maximize2, Sparkles, ArrowRight } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Play, Volume2, VolumeX, X, Maximize2, ArrowRight } from 'lucide-react';
 
 interface IntroCinematicModalProps {
   isOpen: boolean;
@@ -321,7 +321,7 @@ export const IntroCinematicModal: React.FC<IntroCinematicModalProps> = ({
                   style={{ padding: '8px 20px', fontSize: '0.85rem' }}
                 >
                   <span>Skip Intro & Enter</span>
-                  <Sparkles size={16} />
+                  <ArrowRight size={16} />
                 </button>
               </div>
             </div>

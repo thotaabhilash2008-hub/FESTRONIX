@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket, Ticket, ArrowRight, Sparkles, Shield, QrCode } from 'lucide-react';
+import { Ticket, ArrowRight, Trophy, Shield, QrCode } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -30,27 +30,17 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
             className="cyber-card"
             style={{
               position: 'relative',
-              borderRadius: '26px',
+              borderRadius: '16px',
               padding: 'clamp(40px, 6vw, 72px)',
-              background: 'linear-gradient(135deg, rgba(15, 22, 38, 0.96) 0%, rgba(10, 15, 26, 0.98) 100%)',
-              border: '1px solid rgba(148, 163, 184, 0.25)',
-              boxShadow: '0 24px 70px -15px rgba(0, 0, 0, 0.95), 0 0 40px rgba(56, 189, 248, 0.12)',
-              backdropFilter: 'blur(24px)',
+              background: '#0F172A',
+              border: '1px solid #1E293B',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
+              backdropFilter: 'none',
               overflow: 'hidden',
               textAlign: 'center'
             }}
           >
-            {/* Subtle Light Sweep across the Monolith */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.06) 48%, rgba(56, 189, 248, 0.15) 50%, transparent 60%)',
-                backgroundSize: '200% 100%',
-                animation: 'gleamSweep 4.5s infinite linear',
-                pointerEvents: 'none'
-              }}
-            />
+            
 
             {/* Top Admission Badge */}
             <div
@@ -68,11 +58,11 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 fontFamily: "'Space Grotesk', sans-serif",
                 letterSpacing: '0.16em',
                 marginBottom: '20px',
-                boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+                boxShadow: 'none'
               }}
             >
               <Ticket size={14} color="#38BDF8" />
-              <span>07 // OFFICIAL FESTIVAL ADMISSION</span>
+              <span>FESTIVAL PASSES & ADMISSION</span>
             </div>
 
             {/* Heading */}
@@ -86,7 +76,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 padding: '4px 0'
               }}
             >
-              CLAIM YOUR <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>FESTRONIX PASS</span>
+              CLAIM YOUR <span style={{ color: '#38BDF8' }}>FESTRONIX PASS</span>
             </h2>
 
             <p
@@ -96,10 +86,10 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 margin: '0 auto 38px',
                 fontSize: 'clamp(0.98rem, 1.4vw, 1.12rem)',
                 lineHeight: 1.75,
-                textShadow: '0 1px 4px rgba(0,0,0,0.8)'
+                
               }}
             >
-              Step directly into the arena. Book your all-access multi-event pass or reserve squad slots in individual technical championships.
+              Register now to participate. Get your festival pass or reserve team slots in individual technical competitions.
             </p>
 
             {/* Perks Strip */}
@@ -113,9 +103,9 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               {[
-                { icon: <QrCode size={16} color="#38BDF8" />, text: 'Cryptographic QR Mobile Pass' },
-                { icon: <Shield size={16} color="#34D399" />, text: 'SAC Official Endorsement' },
-                { icon: <Sparkles size={16} color="#FBBF24" />, text: '₹5,00,000+ Prize Pool Access' }
+                { icon: <QrCode size={16} color="#38BDF8" />, text: 'Instant Digital Pass & QR Entry' },
+                { icon: <Shield size={16} color="#34D399" />, text: 'Official College Certificate' },
+                { icon: <Trophy size={16} color="#FBBF24" />, text: '₹5,00,000+ Prize Pool Access' }
               ].map((perk, i) => (
                 <div
                   key={i}
@@ -125,8 +115,8 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                     gap: '8px',
                     padding: '9px 20px',
                     borderRadius: '10px',
-                    background: 'rgba(8, 12, 22, 0.85)',
-                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    background: '#162238',
+                    border: '1px solid #1E293B',
                     fontSize: '0.84rem',
                     color: '#FFFFFF',
                     fontWeight: 700,
@@ -160,7 +150,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                   gap: '10px'
                 }}
               >
-                <Rocket size={18} />
+                <Ticket size={18} />
                 <span>Book All-Access Multi-Pass</span>
                 <ArrowRight size={16} />
               </button>

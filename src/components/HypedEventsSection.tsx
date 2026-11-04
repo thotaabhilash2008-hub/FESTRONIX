@@ -29,11 +29,11 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
     switch (index) {
       case 0:
         return {
-          label: '#1 MOST HYPED',
+          label: '#1 MOST POPULAR',
           bg: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #0284C7 100%)',
           textColor: '#FFFFFF',
           border: '1px solid rgba(56, 189, 248, 0.5)',
-          glow: '0 0 20px rgba(56, 189, 248, 0.4)'
+          glow: 'none'
         };
       case 1:
         return {
@@ -41,7 +41,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
           bg: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
           textColor: '#FFFFFF',
           border: '1px solid rgba(220, 227, 232, 0.35)',
-          glow: '0 0 16px rgba(0, 0, 0, 0.6)'
+          glow: 'none'
         };
       case 2:
         return {
@@ -49,7 +49,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
           bg: 'linear-gradient(135deg, #162136 0%, #0B132B 100%)',
           textColor: '#38BDF8',
           border: '1px solid rgba(56, 189, 248, 0.35)',
-          glow: '0 0 14px rgba(56, 189, 248, 0.25)'
+          glow: 'none'
         };
       default:
         return {
@@ -93,11 +93,11 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                 fontFamily: "'Space Grotesk', sans-serif",
                 letterSpacing: '0.14em',
                 marginBottom: '12px',
-                boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+                boxShadow: 'none'
               }}
             >
               <Flame size={14} color="#38BDF8" />
-              <span>02 // REAL-TIME AUDIENCE LEADERBOARD</span>
+              <span>POPULAR EVENTS</span>
             </div>
 
             <h2
@@ -109,7 +109,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                 display: 'inline-block'
               }}
             >
-              TOP HYPED <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>COMPETITIVE ARENAS</span>
+              POPULAR & FLAGSHIP <span style={{ color: '#3B82F6' }}>EVENTS</span>
             </h2>
 
             <p
@@ -119,11 +119,10 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                 margin: '0 auto',
                 fontSize: 'clamp(0.96rem, 1.4vw, 1.08rem)',
                 lineHeight: 1.7,
-                textShadow: '0 1px 4px rgba(0,0,0,0.8)'
+                
               }}
             >
-              Ranked live by validated student registrations across all 9 engineering faculties.
-              Capacity limits strictly enforced by the jury.
+              The most popular events based on live student registrations across all 9 engineering departments.
             </p>
           </div>
         </ScrollReveal>
@@ -153,12 +152,12 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      padding: '28px',
-                      borderRadius: '20px',
-                      background: 'rgba(15, 22, 38, 0.94)',
-                      border: '1px solid rgba(148, 163, 184, 0.22)',
-                      boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                      backdropFilter: 'blur(20px)',
+                      padding: '24px',
+                      borderRadius: '12px',
+                      background: '#0F172A',
+                      border: '1px solid #1E293B',
+                      boxShadow: 'none',
+                      backdropFilter: 'none',
                       height: '100%',
                       boxSizing: 'border-box'
                     }}
@@ -252,8 +251,8 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                           style={{
                             padding: '12px 16px',
                             borderRadius: '10px',
-                            background: 'rgba(8, 12, 22, 0.85)',
-                            border: '1px solid rgba(148, 163, 184, 0.2)',
+                            background: '#162238',
+                            border: '1px solid #1E293B',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '10px',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown, Rocket, Gem } from 'lucide-react';
+import { Crown, TrendingUp, Award } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -23,11 +23,11 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "'Space Grotesk', sans-serif",
               letterSpacing: '0.14em',
               marginBottom: '12px',
-              boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+              boxShadow: 'none'
             }}
           >
             <Crown size={14} color="#38BDF8" />
-            <span>06 // REWARD POOL & INCUBATION</span>
+            <span>PRIZES & RECOGNITION</span>
           </div>
 
           <h2
@@ -39,11 +39,11 @@ export const PrizesSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            ₹5,00,000+ IN <span style={{ color: '#FBBF24', textShadow: '0 0 24px rgba(251, 191, 36, 0.5)' }}>AWARDS & GRANTS</span>
+            ₹5,00,000+ IN <span style={{ color: '#F59E0B' }}>PRIZES & AWARDS</span>
           </h2>
 
-          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-            Direct cash rewards, startup incubation seed funding, and verified SAC podium merit recognition.
+          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7,  }}>
+            Cash rewards, trophies, merit certificates, and incubation support across all flagship events.
           </p>
         </div>
       </ScrollReveal>
@@ -61,12 +61,11 @@ export const PrizesSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderTop: '2px solid #38BDF8',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box'
               }}
@@ -105,7 +104,7 @@ export const PrizesSection: React.FC = () => {
                   color: '#38BDF8',
                   marginBottom: '14px',
                   lineHeight: 1,
-                  textShadow: '0 0 16px rgba(56, 189, 248, 0.4)'
+                  textShadow: 'none'
                 }}
               >
                 ₹3,50,000+
@@ -122,12 +121,11 @@ export const PrizesSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderTop: '2px solid #FBBF24',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box'
               }}
@@ -142,7 +140,7 @@ export const PrizesSection: React.FC = () => {
                   border: '1px solid rgba(251, 191, 36, 0.35)'
                 }}
               >
-                <Rocket size={26} color="#FBBF24" />
+                <TrendingUp size={26} color="#FBBF24" />
               </div>
 
               <h3
@@ -166,7 +164,7 @@ export const PrizesSection: React.FC = () => {
                   color: '#FBBF24',
                   marginBottom: '14px',
                   lineHeight: 1,
-                  textShadow: '0 0 16px rgba(251, 191, 36, 0.4)'
+                  textShadow: 'none'
                 }}
               >
                 ₹1,50,000+
@@ -183,12 +181,11 @@ export const PrizesSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderTop: '2px solid #34D399',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box'
               }}
@@ -203,7 +200,7 @@ export const PrizesSection: React.FC = () => {
                   border: '1px solid rgba(52, 211, 153, 0.35)'
                 }}
               >
-                <Gem size={26} color="#34D399" />
+                <Award size={26} color="#34D399" />
               </div>
 
               <h3

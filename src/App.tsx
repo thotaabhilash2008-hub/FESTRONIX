@@ -14,7 +14,7 @@ import { AuthModal } from './components/AuthModal';
 import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { PublicSponsorsPage } from './components/PublicSponsorsPage';
-import { GlitterBackground } from './components/GlitterBackground';
+
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
@@ -77,7 +77,8 @@ export const App: React.FC = () => {
   // Navigation & Filtering State
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [catalogViewMode, setCatalogViewMode] = useState<'all' | 'department' | 'category'>('all');
+  const [selectedDay, setSelectedDay] = useState<'all' | '1' | '2'>('all');
+  const [catalogViewMode, setCatalogViewMode] = useState<'all' | 'department' | 'category' | 'day'>('all');
 
   // Intro video & modals
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
@@ -198,6 +199,7 @@ export const App: React.FC = () => {
   const handleNavigateExplore = () => {
     setSelectedDept('all');
     setSelectedCategory('all');
+    setSelectedDay('all');
     setCatalogViewMode('all');
     const el = document.getElementById('events');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -218,6 +220,13 @@ export const App: React.FC = () => {
   const handleSelectCategory = (categoryKey: string) => {
     setSelectedCategory(categoryKey);
     setCatalogViewMode('category');
+    const el = document.getElementById('events');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSelectDay = (day: 'all' | '1' | '2') => {
+    setSelectedDay(day);
+    setCatalogViewMode('day');
     const el = document.getElementById('events');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
@@ -281,11 +290,16 @@ export const App: React.FC = () => {
       <div className="public-site-shell" style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Background Continuous Scroll-Driven 3D Kinetic Stage */}
       <KineticStage3D />
-
-      {/* Background Glitter Starfield & Cyber Grid */}
-      <GlitterBackground />
-      <div className="glitter-stardust-layer" />
-      <div className="cyber-grid-overlay" />
+      {/* Subtle ambient depth */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+          background: 'radial-gradient(ellipse 70% 35% at 50% 0%, rgba(30, 58, 138, 0.16) 0%, transparent 80%)'
+        }}
+      />
 
       {/* FULLSCREEN INTRO VIDEO: Edge-to-edge with no headings, borders, or frames */}
       <FullscreenIntro
@@ -321,6 +335,7 @@ export const App: React.FC = () => {
         onNavigateHyped={handleNavigateHyped}
         onSelectDepartment={handleSelectDepartment}
         onSelectCategory={handleSelectCategory}
+        onSelectDay={handleSelectDay}
         onOpenAdmin={handleOpenAdmin}
         onOpenSponsors={handleOpenSponsorsPage}
       />
@@ -354,6 +369,8 @@ export const App: React.FC = () => {
           onSelectDept={setSelectedDept}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
+          selectedDay={selectedDay}
+          onSelectDay={setSelectedDay}
           activeViewMode={catalogViewMode}
           onSetActiveViewMode={setCatalogViewMode}
         />

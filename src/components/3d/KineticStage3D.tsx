@@ -38,7 +38,9 @@ const StageChoreographer: React.FC<{ reducedMotion: boolean }> = ({
     let targetZ = 6.6;
     let lookX = 0;
     let lookY = -0.3;
-    let rotY = p * Math.PI * 2.4;
+    let rotY = p * Math.PI * 2.8;
+    let rotX = Math.sin(p * Math.PI * 2.5) * 0.14;
+    let rotZ = Math.cos(p * Math.PI * 2.0) * 0.08;
     let keyIntensity = 2.4;
     let amberIntensity = 2.4;
 
@@ -116,6 +118,8 @@ const StageChoreographer: React.FC<{ reducedMotion: boolean }> = ({
     // Continuous artifact rotation
     if (artifactGroupRef.current && !reducedMotion) {
       artifactGroupRef.current.rotation.y = rotY;
+      artifactGroupRef.current.rotation.x = rotX;
+      artifactGroupRef.current.rotation.z = rotZ;
     }
 
     // Dynamic light updating
@@ -153,6 +157,7 @@ const StageChoreographer: React.FC<{ reducedMotion: boolean }> = ({
       />
 
       {/* Baseline Ambient */}
+      <pointLight position={[4, 5, 4]} intensity={1.8} color="#F59E0B" distance={15} />
       <ambientLight intensity={0.6} color="#0B132B" />
 
       {/* Studio HDRI Environment */}

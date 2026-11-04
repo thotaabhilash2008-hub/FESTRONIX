@@ -36,11 +36,11 @@ export const DepartmentsSection: React.FC = () => {
               fontFamily: "'Space Grotesk', sans-serif",
               letterSpacing: '0.14em',
               marginBottom: '12px',
-              boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+              boxShadow: 'none'
             }}
           >
-            <BrainCircuit size={14} color="#38BDF8" />
-            <span>04 // PARTICIPATING ENGINEERING FACULTIES</span>
+            <Building2 size={14} color="#38BDF8" />
+            <span>ENGINEERING DEPARTMENTS</span>
           </div>
 
           <h2
@@ -52,11 +52,11 @@ export const DepartmentsSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            9 INNOVATION <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>FACULTIES</span>
+            9 PARTICIPATING <span style={{ color: '#38BDF8' }}>DEPARTMENTS</span>
           </h2>
 
-          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-            Premier academic departments powering specialized tournament arenas and technical juries.
+          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7,  }}>
+            Academic departments hosting specialized technical competitions, workshops, and project showcases.
           </p>
         </div>
       </ScrollReveal>
@@ -75,15 +75,15 @@ export const DepartmentsSection: React.FC = () => {
                 <div
                   className="cyber-card"
                   style={{
-                    padding: '28px',
+                    padding: '24px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    borderTop: '2px solid rgba(56, 189, 248, 0.5)',
-                    background: 'rgba(15, 22, 38, 0.94)',
-                    border: '1px solid rgba(148, 163, 184, 0.22)',
-                    boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                    backdropFilter: 'blur(20px)',
+                    
+                    background: '#0F172A',
+                    border: '1px solid #1E293B',
+                    boxShadow: 'none',
+                    backdropFilter: 'none',
                     height: '100%',
                     boxSizing: 'border-box'
                   }}
@@ -93,9 +93,9 @@ export const DepartmentsSection: React.FC = () => {
                       <div
                         style={{
                           padding: '10px',
-                          background: 'rgba(8, 12, 22, 0.85)',
+                          background: 'rgba(59, 130, 246, 0.1)',
                           borderRadius: '10px',
-                          border: '1px solid rgba(148, 163, 184, 0.2)'
+                          border: '1px solid rgba(59, 130, 246, 0.2)'
                         }}
                       >
                         {iconMap[dept.iconName] || <Cpu size={24} color="#38BDF8" />}
