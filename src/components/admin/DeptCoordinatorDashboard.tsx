@@ -256,20 +256,28 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Toggle Event Status
   const handleToggleEventStatus = async (event: FestEvent) => {
-    const nextStatus = event.status === 'open' ? 'closed' : 'open';
-    const updated = { ...event, status: nextStatus as any };
-    await StorageService.updateEvent(updated);
-    refreshDeptData();
+    try {
+      const nextStatus = event.status === 'open' ? 'closed' : 'open';
+      const updated = { ...event, status: nextStatus as any };
+      await StorageService.updateEvent(updated);
+      await refreshDeptData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update event status.');
+    }
   };
 
   // Save Edited Event
   const handleSaveEditedEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEvent) return;
-    await StorageService.updateEvent(editingEvent);
-    setEditingEvent(null);
-    refreshDeptData();
-    confetti({ particleCount: 50, spread: 45 });
+    try {
+      await StorageService.updateEvent(editingEvent);
+      setEditingEvent(null);
+      await refreshDeptData();
+      confetti({ particleCount: 50, spread: 45 });
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to save event changes.');
+    }
   };
 
   // Add New Event (FR-EVT-01 to FR-EVT-08)
@@ -328,12 +336,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       bannerGradient: 'linear-gradient(135deg, #283B78 0%, #101A35 100%)'
     };
 
-    await StorageService.addEvent(newEvt);
-    setIsAddEventOpen(false);
-    setNewEventTitle('');
-    setNewEventDesc('');
-    refreshDeptData();
-    confetti({ particleCount: 60, spread: 50 });
+    try {
+      await StorageService.addEvent(newEvt);
+      setIsAddEventOpen(false);
+      setNewEventTitle('');
+      setNewEventDesc('');
+      await refreshDeptData();
+      confetti({ particleCount: 60, spread: 50 });
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to create the event.');
+    }
   };
 
   // Spot Registration Handler (8.1 • Create spot registrations on fest day)

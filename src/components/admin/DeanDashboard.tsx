@@ -308,7 +308,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setIsEditDepartmentOpen(true);
   };
 
-  const handleUpdateDepartment = (e: React.FormEvent) => {
+  const handleUpdateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDepartment) return;
     const cleanCode = editDeptCode.trim().toUpperCase();
@@ -317,28 +317,36 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       return;
     }
 
-    StorageService.updateDepartment(editingDepartment.id, {
-      code: cleanCode,
-      name: editDeptName.trim(),
-      description: editDeptDesc.trim(),
-      chiefCoordinator: editDeptChief.trim(),
-      contact: editDeptContact.trim(),
-      iconName: editDeptIcon
-    });
+    try {
+      await StorageService.updateDepartment(editingDepartment.id, {
+        code: cleanCode,
+        name: editDeptName.trim(),
+        description: editDeptDesc.trim(),
+        chiefCoordinator: editDeptChief.trim(),
+        contact: editDeptContact.trim(),
+        iconName: editDeptIcon
+      });
 
-    confetti({ particleCount: 70, spread: 50 });
-    setIsEditDepartmentOpen(false);
-    setEditingDepartment(null);
-    refreshAllData();
+      confetti({ particleCount: 70, spread: 50 });
+      setIsEditDepartmentOpen(false);
+      setEditingDepartment(null);
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update the department.');
+    }
   };
 
-  const handleDeleteDepartment = (deptId: string, deptCode: string, deptName: string) => {
+  const handleDeleteDepartment = async (deptId: string, deptCode: string, deptName: string) => {
     const confirmed = window.confirm(
       `Are you sure you want to delete department "${deptCode} — ${deptName}"?\n\nThis will remove it from the department matrix, catalog filters, and login views.`
     );
     if (confirmed) {
-      StorageService.deleteDepartment(deptId);
-      refreshAllData();
+      try {
+        await StorageService.deleteDepartment(deptId);
+        await refreshAllData();
+      } catch (error) {
+        window.alert((error as Error).message || 'Unable to delete the department.');
+      }
     }
   };
 
@@ -382,23 +390,31 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
   // Payment Approval Handler
   const handleVerifyPayment = async (regId: string, status: PaymentStatus, reason?: string) => {
-    const success = await StorageService.updatePaymentStatus(regId, status, adminUser.fullName, reason);
-    if (success) {
-      if (status === 'verified') {
-        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+    try {
+      const success = await StorageService.updatePaymentStatus(regId, status, adminUser.fullName, reason);
+      if (success) {
+        if (status === 'verified') {
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+        }
+        await refreshAllData();
       }
-      refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update payment status.');
     }
   };
 
   // Fast Gate Check-In Toggle Handler
   const handleToggleCheckIn = async (regId: string) => {
-    const res = await StorageService.toggleCheckInRegistration(regId, adminUser.fullName);
-    if (res.success) {
-      if (res.checkedIn) {
-        confetti({ particleCount: 50, spread: 45, origin: { y: 0.7 } });
+    try {
+      const res = await StorageService.toggleCheckInRegistration(regId, adminUser.fullName);
+      if (res.success) {
+        if (res.checkedIn) {
+          confetti({ particleCount: 50, spread: 45, origin: { y: 0.7 } });
+        }
+        await refreshAllData();
       }
-      refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update gate check-in status.');
     }
   };
 
@@ -407,49 +423,69 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     e.preventDefault();
     if (!newAnnTitle.trim() || !newAnnMessage.trim()) return;
 
-    await StorageService.addAnnouncement({
-      title: newAnnTitle.trim(),
-      message: newAnnMessage.trim(),
-      type: newAnnType,
-      scope: 'fest-wide'
-    });
+    try {
+      await StorageService.addAnnouncement({
+        title: newAnnTitle.trim(),
+        message: newAnnMessage.trim(),
+        type: newAnnType,
+        scope: 'fest-wide'
+      });
 
-    setNewAnnTitle('');
-    setNewAnnMessage('');
-    refreshAllData();
+      setNewAnnTitle('');
+      setNewAnnMessage('');
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to publish the bulletin.');
+    }
   };
 
   const handleDeleteAnnouncement = async (id: string) => {
-    await StorageService.deleteAnnouncement(id);
-    refreshAllData();
+    try {
+      await StorageService.deleteAnnouncement(id);
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to delete the bulletin.');
+    }
   };
 
   // Toggle Event Registration Status
   const handleToggleEventStatus = async (event: FestEvent) => {
-    const nextStatus = event.status === 'open' ? 'closed' : 'open';
-    const updated = { ...event, status: nextStatus as any };
-    await StorageService.updateEvent(updated);
-    refreshAllData();
+    try {
+      const nextStatus = event.status === 'open' ? 'closed' : 'open';
+      const updated = { ...event, status: nextStatus as any };
+      await StorageService.updateEvent(updated);
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update event status.');
+    }
   };
 
   // SAC Event Approval Handler (FR-EVT-08)
   const handleApproveEvent = async (event: FestEvent) => {
-    const updated: FestEvent = {
-      ...event,
-      status: 'open',
-      approvalStatus: 'approved'
-    };
-    await StorageService.updateEvent(updated);
-    confetti({ particleCount: 70, spread: 50 });
-    refreshAllData();
+    try {
+      const updated: FestEvent = {
+        ...event,
+        status: 'open',
+        approvalStatus: 'approved'
+      };
+      await StorageService.updateEvent(updated);
+      confetti({ particleCount: 70, spread: 50 });
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to approve event.');
+    }
   };
 
   // Delete Event Handler
   const handleDeleteEvent = async (event: FestEvent) => {
     const confirmed = window.confirm(`Are you sure you want to delete event "${event.title}"? This cannot be undone.`);
     if (confirmed) {
-      await StorageService.deleteEvent(event.id);
-      refreshAllData();
+      try {
+        await StorageService.deleteEvent(event.id, event.slug);
+        await refreshAllData();
+      } catch (error) {
+        window.alert((error as Error).message || 'Unable to delete event.');
+      }
     }
   };
 
@@ -564,9 +600,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     e.preventDefault();
     if (!editingEvent) return;
 
-    await StorageService.updateEvent(editingEvent);
-    setEditingEvent(null);
-    refreshAllData();
+    try {
+      await StorageService.updateEvent(editingEvent);
+      setEditingEvent(null);
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to save event changes.');
+    }
   };
 
   // Create Coordinator / HOD / Operational Staff Handler

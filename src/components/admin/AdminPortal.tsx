@@ -15,6 +15,27 @@ interface AdminPortalProps {
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Most portal actions are async database writes. Keep rejected actions visible
+  // instead of allowing the browser to swallow the error and make the button
+  // appear dead to the operator.
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      event.preventDefault();
+      const reason = event.reason;
+      const message = reason instanceof Error
+        ? reason.message
+        : typeof reason === 'string'
+          ? reason
+          : 'The operation could not be completed. Refresh and try again.';
+      console.error('Unhandled admin portal action:', reason);
+      setActionError(message);
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -61,6 +82,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
       </div>
 
       <div style={{ position: 'relative', zIndex: 10 }}>
+        {actionError && (
+          <div
+            role="alert"
+            style={{
+              position: 'fixed',
+              top: '18px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 2000,
+              width: 'min(680px, calc(100vw - 32px))',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '16px',
+              padding: '14px 16px',
+              border: '1px solid rgba(248,113,113,0.55)',
+              borderRadius: '10px',
+              background: 'rgba(55, 18, 28, 0.97)',
+              color: '#FECACA',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.35)'
+            }}
+          >
+            <span>{actionError}</span>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              aria-label="Dismiss error"
+              style={{ border: 0, background: 'transparent', color: '#FCA5A5', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}
+            >
+              ×
+            </button>
+          </div>
+        )}
         {isRestoring ? (
           <div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', color: '#DCE3E5' }}>
             Verifying admin session with the backend…
