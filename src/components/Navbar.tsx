@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck } from 'lucide-react';
+import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck, CalendarDays } from 'lucide-react';
 import { Announcement, User as UserType } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
@@ -16,6 +16,7 @@ interface NavbarProps {
   onNavigateHyped: () => void;
   onSelectDepartment: (deptCode: string) => void;
   onSelectCategory: (categoryKey: string) => void;
+  onSelectDay?: (day: 'all' | '1' | '2') => void;
   onOpenAdmin?: () => void;
   onOpenSponsors?: () => void;
 }
@@ -33,6 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateHyped,
   onSelectDepartment,
   onSelectCategory,
+  onSelectDay,
   onOpenAdmin,
   onOpenSponsors
 }) => {
@@ -476,6 +478,114 @@ export const Navbar: React.FC<NavbarProps> = ({
                         {cat.label}
                       </button>
                     ))}
+                  </div>
+                </div>
+                {/* Option C: Select by Festival Day (Day 1 & Day 2) */}
+                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(199, 203, 212, 0.12)' }}>
+                  <div
+                    onClick={() => {
+                      if (onSelectDay) onSelectDay('all');
+                      setIsBrowseDropdownOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      background: 'rgba(56, 189, 248, 0.08)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      cursor: 'pointer',
+                      marginBottom: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.16)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CalendarDays size={16} color="#38BDF8" />
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F0F4F8' }}>
+                        Select by Festival Day
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.7rem', color: '#38BDF8', fontWeight: 600 }}>
+                      Both Days →
+                    </span>
+                  </div>
+
+                  {/* Day Quick Chips */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                    <button
+                      onClick={() => {
+                        if (onSelectDay) onSelectDay('1');
+                        setIsBrowseDropdownOpen(false);
+                      }}
+                      style={{
+                        background: 'rgba(21, 24, 32, 0.85)',
+                        border: '1px solid rgba(199, 203, 212, 0.14)',
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        color: '#C7CBD4',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        transition: 'all 0.15s',
+                        fontFamily: "'Space Grotesk', sans-serif"
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = '#38BDF8';
+                        e.currentTarget.style.color = '#FFFFFF';
+                        e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
+                        e.currentTarget.style.color = '#C7CBD4';
+                        e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
+                      }}
+                    >
+                      <span style={{ color: '#38BDF8', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase' }}>Day 1 • Oct 28</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F0F4F8' }}>Inaugural Battles</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (onSelectDay) onSelectDay('2');
+                        setIsBrowseDropdownOpen(false);
+                      }}
+                      style={{
+                        background: 'rgba(21, 24, 32, 0.85)',
+                        border: '1px solid rgba(199, 203, 212, 0.14)',
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        color: '#C7CBD4',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        transition: 'all 0.15s',
+                        fontFamily: "'Space Grotesk', sans-serif"
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = '#FBBF24';
+                        e.currentTarget.style.color = '#FFFFFF';
+                        e.currentTarget.style.background = 'rgba(251, 191, 36, 0.15)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
+                        e.currentTarget.style.color = '#C7CBD4';
+                        e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
+                      }}
+                    >
+                      <span style={{ color: '#FBBF24', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase' }}>Day 2 • Oct 29</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F0F4F8' }}>Finale & Pitches</span>
+                    </button>
                   </div>
                 </div>
               </div>

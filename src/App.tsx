@@ -77,7 +77,8 @@ export const App: React.FC = () => {
   // Navigation & Filtering State
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [catalogViewMode, setCatalogViewMode] = useState<'all' | 'department' | 'category'>('all');
+  const [selectedDay, setSelectedDay] = useState<'all' | '1' | '2'>('all');
+  const [catalogViewMode, setCatalogViewMode] = useState<'all' | 'department' | 'category' | 'day'>('all');
 
   // Intro video & modals
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
@@ -198,6 +199,7 @@ export const App: React.FC = () => {
   const handleNavigateExplore = () => {
     setSelectedDept('all');
     setSelectedCategory('all');
+    setSelectedDay('all');
     setCatalogViewMode('all');
     const el = document.getElementById('events');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -218,6 +220,13 @@ export const App: React.FC = () => {
   const handleSelectCategory = (categoryKey: string) => {
     setSelectedCategory(categoryKey);
     setCatalogViewMode('category');
+    const el = document.getElementById('events');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSelectDay = (day: 'all' | '1' | '2') => {
+    setSelectedDay(day);
+    setCatalogViewMode('day');
     const el = document.getElementById('events');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
@@ -321,6 +330,7 @@ export const App: React.FC = () => {
         onNavigateHyped={handleNavigateHyped}
         onSelectDepartment={handleSelectDepartment}
         onSelectCategory={handleSelectCategory}
+        onSelectDay={handleSelectDay}
         onOpenAdmin={handleOpenAdmin}
         onOpenSponsors={handleOpenSponsorsPage}
       />
@@ -354,6 +364,8 @@ export const App: React.FC = () => {
           onSelectDept={setSelectedDept}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
+          selectedDay={selectedDay}
+          onSelectDay={setSelectedDay}
           activeViewMode={catalogViewMode}
           onSetActiveViewMode={setCatalogViewMode}
         />
