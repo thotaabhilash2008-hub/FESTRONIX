@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
-import { StorageService } from '../../services/storageService';
+import { isViewablePaymentProof, StorageService } from '../../services/storageService';
 import { 
   FestEvent, Registration, Announcement, FestStats, PaymentStatus, 
   EventCategory, EventFormat, Department
@@ -812,7 +812,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // Filtered Payments (Tab 2)
   const filteredPayments = registrations.filter(r => {
     if (paymentStatusFilter === 'pending' && r.paymentStatus !== 'verification_pending') return false;
-    if (paymentStatusFilter === 'verified' && r.paymentStatus !== 'verified') return false;
+    if (paymentStatusFilter === 'verified' && r.paymentStatus !== 'verified' && r.paymentStatus !== 'not_applicable') return false;
     if (paymentStatusFilter === 'rejected' && r.paymentStatus !== 'rejected') return false;
 
     const search = paymentSearch.toLowerCase().trim();
@@ -1896,19 +1896,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               padding: '2px 8px',
                               borderRadius: '4px',
                               background:
-                                reg.paymentStatus === 'verified'
+                                reg.paymentStatus === 'verified' || reg.paymentStatus === 'not_applicable'
                                   ? 'rgba(52, 211, 153, 0.15)'
                                   : reg.paymentStatus === 'verification_pending'
                                   ? 'rgba(251, 191, 36, 0.15)'
                                   : 'rgba(239, 68, 68, 0.15)',
                               border:
-                                reg.paymentStatus === 'verified'
+                                reg.paymentStatus === 'verified' || reg.paymentStatus === 'not_applicable'
                                   ? '1px solid rgba(52, 211, 153, 0.4)'
                                   : reg.paymentStatus === 'verification_pending'
                                   ? '1px solid rgba(251, 191, 36, 0.4)'
                                   : '1px solid rgba(239, 68, 68, 0.4)',
                               color:
-                                reg.paymentStatus === 'verified'
+                                reg.paymentStatus === 'verified' || reg.paymentStatus === 'not_applicable'
                                   ? '#34D399'
                                   : reg.paymentStatus === 'verification_pending'
                                   ? '#FBBF24'
@@ -1918,6 +1918,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           >
                             {reg.paymentStatus === 'verified'
                               ? 'VERIFIED PASS'
+                              : reg.paymentStatus === 'not_applicable'
+                              ? 'NO PAYMENT REQUIRED'
                               : reg.paymentStatus === 'verification_pending'
                               ? 'NEEDS REVIEW'
                               : 'REJECTED'}
@@ -1961,7 +1963,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                       {/* Actions */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {reg.paymentScreenshotUrl && (
+                        {reg.paymentScreenshotUrl && isViewablePaymentProof(reg.paymentScreenshotUrl) && (
                           <button
                             onClick={() => setSelectedProofUrl(reg.paymentScreenshotUrl || null)}
                             style={{
@@ -1981,6 +1983,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             <Eye size={14} />
                             <span>View Proof</span>
                           </button>
+                        )}
+
+                        {reg.paymentScreenshotUrl && !isViewablePaymentProof(reg.paymentScreenshotUrl) && (
+                          <span style={{ color: '#FBBF24', fontSize: '0.72rem', maxWidth: '180px' }}>
+                            Legacy proof unavailable — participant must resubmit.
+                          </span>
                         )}
 
                         {reg.paymentStatus === 'verification_pending' ? (
@@ -2051,6 +2059,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             <XCircle size={14} />
                             <span>Revoke Approval</span>
                           </button>
+                        ) : reg.paymentStatus === 'not_applicable' ? (
+                          <span style={{ color: '#34D399', fontSize: '0.72rem', fontWeight: 700 }}>
+                            Free registration — no review required
+                          </span>
                         ) : (
                           <button
                             onClick={() => handleVerifyPayment(reg.id, 'verified')}

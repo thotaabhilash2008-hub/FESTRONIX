@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser } from '../../services/adminAuthService';
-import { StorageService } from '../../services/storageService';
+import { isViewablePaymentProof, StorageService } from '../../services/storageService';
 import { Registration, PaymentStatus, FestStats } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
@@ -346,7 +346,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
                         {r.transactionId || '—'}
                       </td>
                       <td>
-                        {r.paymentScreenshotUrl ? (
+                        {r.paymentScreenshotUrl && isViewablePaymentProof(r.paymentScreenshotUrl) ? (
                           <button
                             onClick={() => setSelectedProofUrl(r.paymentScreenshotUrl || null)}
                             className="admin-btn admin-btn-ghost"
@@ -360,6 +360,8 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
                             <Eye size={12} />
                             <span>View Proof</span>
                           </button>
+                        ) : r.paymentScreenshotUrl ? (
+                          <span style={{ fontSize: '0.72rem', color: '#FBBF24' }}>Legacy proof unavailable</span>
                         ) : (
                           <span style={{ fontSize: '0.72rem', color: '#64748B' }}>No Slip</span>
                         )}

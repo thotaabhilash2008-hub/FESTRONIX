@@ -35,6 +35,15 @@ function paymentProofObjectPath(reference?: string): string | null {
 }
 
 /**
+ * A payment proof is viewable only when it points to a persistent Supabase
+ * Storage object or a signed Storage URL. Browser blob/data URLs belong to the
+ * tab that created them and cannot be opened from an admin portal or Vercel.
+ */
+export function isViewablePaymentProof(reference?: string): boolean {
+  return Boolean(paymentProofObjectPath(reference));
+}
+
+/**
  * Transforms Supabase events table row to FestEvent
  */
 function eventFromDb(row: EventRow): FestEvent {
