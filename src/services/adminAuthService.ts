@@ -285,6 +285,9 @@ export class AdminAuthService {
   }
 
   static getAllAdmins(): ManagedAdmin[] {
+    // A configured deployment must never use the development seed directory
+    // or stale browser storage as its authoritative admin roster.
+    if (isSupabaseConfigured()) return [];
     const cached = readCached<ManagedAdmin[]>(STORAGE_KEY_ADMIN_DIRECTORY, []);
     if (cached.length > 0) return cached;
     const initial = PRESET_ADMINS.map(({ password: _, ...admin }) => admin);
@@ -337,56 +340,7 @@ export class AdminAuthService {
       // Edge function may not have a database row mapped yet
     }
 
-    // 3. Fallback to Supabase Auth metadata or standard institutional role assignment
-    const isSuper =
-      emailLower === 'admin@gmail.com' ||
-      emailLower === 'dean.sac@vardhaman.org' ||
-      emailLower === 'connect.club@vardhaman.org' ||
-      emailLower === 'vencorpia@vardhaman.org';
-
-    let role: AdminRole = 'super_admin';
-    if (userMeta.role) {
-      role = userMeta.role as AdminRole;
-    } else if (emailLower.includes('accounts') || emailLower.includes('finance')) {
-      role = 'finance_reviewer';
-    } else if (emailLower.includes('volunteer')) {
-      role = 'volunteer_checkin';
-    } else if (emailLower.includes('eventcoord')) {
-      role = 'event_coordinator';
-    } else if (emailLower.includes('.festronix@')) {
-      role = 'dept_chief_coordinator';
-    } else if (isSuper) {
-      if (emailLower.includes('dean')) role = 'dean_sac';
-      else if (emailLower.includes('connect')) role = 'connect_club';
-      else if (emailLower.includes('vencorpia')) role = 'vencorpia';
-      else role = 'super_admin';
-    }
-
-    const deptCode =
-      userMeta.department_code ||
-      (emailLower.includes('.festronix@') ? emailLower.split('.')[0].toUpperCase() : undefined);
-
-    let fullName = userMeta.full_name || 'Administrator';
-    if (emailLower === 'admin@gmail.com') fullName = 'Administrator';
-    else if (emailLower === 'dean.sac@vardhaman.org') fullName = 'Dr. J. V. R. Ravindra';
-    else if (emailLower === 'connect.club@vardhaman.org') fullName = 'Aditya Varma & Core Team';
-    else if (emailLower === 'vencorpia@vardhaman.org') fullName = 'Vencorpia Executive Board';
-
-    let designation =
-      userMeta.designation || (isSuperAdminRole(role) ? 'Fest-wide administration' : 'Administrator');
-    if (emailLower === 'admin@gmail.com') designation = 'System Administrator (SAC)';
-
-    return {
-      id: user.id,
-      username: userMeta.username || emailLower.split('@')[0],
-      fullName,
-      designation,
-      role,
-      departmentCode: deptCode,
-      email: user.email || fallbackEmail,
-      phone: userMeta.phone || '+91 98480 00000',
-      accessBoundary: isSuperAdminRole(role) ? 'Fest-wide administration' : undefined
-    };
+    throw new Error('No active admin role is assigned to this account. Contact a super admin.');
   }
 
   static async restoreCurrentAdmin(): Promise<AdminUser | null> {
@@ -402,11 +356,8 @@ export class AdminAuthService {
         return null;
       }
 
-      const cached = this.getCurrentAdmin();
-      if (cached && cached.id === session.user.id) {
-        return cached;
-      }
-
+      // Always resolve the role from Supabase. A cached session can be stale
+      // or revoked and must never grant portal access by itself.
       const admin = await this.resolveAdminFromAuth(session.user, session.user.email || '');
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(admin));
       return admin;
@@ -548,7 +499,7 @@ export class AdminAuthService {
     if (isSupabaseConfigured()) {
       try {
         const admins = await invokeAdminApi<ManagedAdmin[]>({ action: 'list' });
-        if (admins && admins.length > 0) {
+        if (Array.isArray(admins)) {
           localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(admins));
           window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
           return admins;
@@ -558,8 +509,9 @@ export class AdminAuthService {
       }
 
       try {
-        const { data: dbRoles } = await supabase.from('admin_roles').select('*').eq('active', true);
-        if (dbRoles && dbRoles.length > 0) {
+        const { data: dbRoles, error } = await supabase.from('admin_roles').select('*').eq('active', true);
+        if (error) throw error;
+        if (Array.isArray(dbRoles)) {
           const list: ManagedAdmin[] = dbRoles.map((r: any) => ({
             id: r.user_id,
             username: r.username,
@@ -578,6 +530,8 @@ export class AdminAuthService {
       } catch (e) {
         console.warn('Could not fetch admin_roles table:', e);
       }
+
+      throw new Error('Unable to load the live admin directory. Please refresh and try again.');
     }
 
     const admins = this.getAllAdmins();
@@ -589,13 +543,9 @@ export class AdminAuthService {
     admin: Omit<AdminUser, 'id'> & { password?: string; assignedEvents?: string[] }
   ): Promise<AdminUser> {
     if (isSupabaseConfigured()) {
-      try {
-        const created = await invokeAdminApi<AdminUser>({ action: 'create', admin });
-        await this.fetchAdmins();
-        return created;
-      } catch (e) {
-        console.warn('Could not create admin via Supabase, saving locally:', e);
-      }
+      const created = await invokeAdminApi<AdminUser>({ action: 'create', admin });
+      await this.fetchAdmins();
+      return created;
     }
     const all = this.getAllAdmins();
     const created: AdminUser = {
@@ -619,18 +569,14 @@ export class AdminAuthService {
     updated: Partial<AdminUser> & { password?: string }
   ): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      try {
-        await invokeAdminApi({ action: 'update', id, updates: updated });
-        const current = this.getCurrentAdmin();
-        if (current?.id === id) {
-          const refreshed = await invokeAdminApi<AdminUser>({ action: 'me' });
-          localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(refreshed));
-        }
-        await this.fetchAdmins();
-        return true;
-      } catch (e) {
-        console.warn('Could not update admin via Supabase:', e);
+      await invokeAdminApi({ action: 'update', id, updates: updated });
+      const current = this.getCurrentAdmin();
+      if (current?.id === id) {
+        const refreshed = await invokeAdminApi<AdminUser>({ action: 'me' });
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(refreshed));
       }
+      await this.fetchAdmins();
+      return true;
     }
     const all = this.getAllAdmins();
     const index = all.findIndex(a => a.id === id);
@@ -653,13 +599,9 @@ export class AdminAuthService {
 
   static async deleteAdmin(id: string): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      try {
-        await invokeAdminApi({ action: 'delete', id });
-        await this.fetchAdmins();
-        return true;
-      } catch (e) {
-        console.warn('Could not delete admin via Supabase:', e);
-      }
+      await invokeAdminApi({ action: 'delete', id });
+      await this.fetchAdmins();
+      return true;
     }
     const all = this.getAllAdmins().filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(all));
