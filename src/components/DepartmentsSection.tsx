@@ -36,11 +36,11 @@ export const DepartmentsSection: React.FC = () => {
               fontFamily: "'Space Grotesk', sans-serif",
               letterSpacing: '0.14em',
               marginBottom: '12px',
-              boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+              boxShadow: 'none'
             }}
           >
-            <BrainCircuit size={14} color="#38BDF8" />
-            <span>04 // PARTICIPATING ENGINEERING FACULTIES</span>
+            <Building2 size={14} color="#38BDF8" />
+            <span>ENGINEERING DEPARTMENTS</span>
           </div>
 
           <h2
@@ -52,11 +52,11 @@ export const DepartmentsSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            9 INNOVATION <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>FACULTIES</span>
+            9 PARTICIPATING <span style={{ color: '#38BDF8' }}>DEPARTMENTS</span>
           </h2>
 
-          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-            Premier academic departments powering specialized tournament arenas and technical juries.
+          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7,  }}>
+            Academic departments hosting specialized technical competitions, workshops, and project showcases.
           </p>
         </div>
       </ScrollReveal>

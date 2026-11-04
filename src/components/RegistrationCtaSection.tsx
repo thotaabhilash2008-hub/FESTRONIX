@@ -67,7 +67,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 fontFamily: "'Space Grotesk', sans-serif",
                 letterSpacing: '0.16em',
                 marginBottom: '20px',
-                boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+                boxShadow: 'none'
               }}
             >
               <Ticket size={14} color="#38BDF8" />
@@ -85,7 +85,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 padding: '4px 0'
               }}
             >
-              CLAIM YOUR <span style={{ color: '#38BDF8', textShadow: '0 0 24px rgba(56, 189, 248, 0.5)' }}>FESTRONIX PASS</span>
+              CLAIM YOUR <span style={{ color: '#38BDF8' }}>FESTRONIX PASS</span>
             </h2>
 
             <p
@@ -95,10 +95,10 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 margin: '0 auto 38px',
                 fontSize: 'clamp(0.98rem, 1.4vw, 1.12rem)',
                 lineHeight: 1.75,
-                textShadow: '0 1px 4px rgba(0,0,0,0.8)'
+                
               }}
             >
-              Step directly into the arena. Book your all-access multi-event pass or reserve squad slots in individual technical championships.
+              Register now to participate. Get your festival pass or reserve team slots in individual technical competitions.
             </p>
 
             {/* Perks Strip */}
@@ -112,8 +112,8 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               {[
-                { icon: <QrCode size={16} color="#38BDF8" />, text: 'Cryptographic QR Mobile Pass' },
-                { icon: <Shield size={16} color="#34D399" />, text: 'SAC Official Endorsement' },
+                { icon: <QrCode size={16} color="#38BDF8" />, text: 'Instant Digital Pass & QR Entry' },
+                { icon: <Shield size={16} color="#34D399" />, text: 'Official College Certificate' },
                 { icon: <Trophy size={16} color="#FBBF24" />, text: '₹5,00,000+ Prize Pool Access' }
               ].map((perk, i) => (
                 <div

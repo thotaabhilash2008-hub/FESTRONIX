@@ -39,7 +39,7 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
             }}
           >
             <Camera size={14} color="#88B2AE" />
-            <span>05 // SPATIAL ARCHITECTURE</span>
+            <span>CAMPUS & VENUES</span>
           </div>
 
           <h2
@@ -51,7 +51,7 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
               display: 'inline-block'
             }}
           >
-            THE VARDHAMAN <span style={{ color: '#88B2AE' }}>CAMPUS ARENA</span>
+            THE VARDHAMAN <span style={{ color: '#88B2AE' }}>CAMPUS</span>
           </h2>
 
           <p

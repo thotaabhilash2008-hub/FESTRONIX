@@ -104,7 +104,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
   const categories = [
     { key: 'all', label: 'All Categories', icon: <LayoutGrid size={14} /> },
     { key: 'hackathon', label: 'Hackathons', icon: <Code2 size={14} /> },
-    { key: 'technical', label: 'Technical Battles', icon: <Wrench size={14} /> },
+    { key: 'technical', label: 'Technical Events', icon: <Wrench size={14} /> },
     { key: 'workshop', label: 'Workshops', icon: <Presentation size={14} /> },
     { key: 'gaming', label: 'E-Sports & Gaming', icon: <Gamepad2 size={14} /> },
     { key: 'non-technical', label: 'Non-Tech & Pitch', icon: <Presentation size={14} /> }
@@ -157,7 +157,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
           }}
         >
           <Flame size={14} color="#38BDF8" />
-          <span>FESTRONIX ARENA 2026</span>
+          <span>EVENT DIRECTORY</span>
         </div>
 
         <h2

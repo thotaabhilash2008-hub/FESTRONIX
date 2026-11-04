@@ -14,7 +14,7 @@ import { AuthModal } from './components/AuthModal';
 import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { PublicSponsorsPage } from './components/PublicSponsorsPage';
-import { GlitterBackground } from './components/GlitterBackground';
+
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
@@ -290,11 +290,16 @@ export const App: React.FC = () => {
       <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Background Continuous Scroll-Driven 3D Kinetic Stage */}
       <KineticStage3D />
-
-      {/* Background Glitter Starfield & Cyber Grid */}
-      <GlitterBackground />
-      <div className="glitter-stardust-layer" />
-      <div className="cyber-grid-overlay" />
+      {/* Subtle ambient depth */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+          background: 'radial-gradient(ellipse 70% 35% at 50% 0%, rgba(30, 58, 138, 0.16) 0%, transparent 80%)'
+        }}
+      />
 
       {/* FULLSCREEN INTRO VIDEO: Edge-to-edge with no headings, borders, or frames */}
       <FullscreenIntro

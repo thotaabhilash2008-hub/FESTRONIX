@@ -23,7 +23,7 @@ export const PrizesSection: React.FC = () => {
               fontFamily: "'Space Grotesk', sans-serif",
               letterSpacing: '0.14em',
               marginBottom: '12px',
-              boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
+              boxShadow: 'none'
             }}
           >
             <Crown size={14} color="#38BDF8" />
@@ -39,11 +39,11 @@ export const PrizesSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            ₹5,00,000+ IN <span style={{ color: '#FBBF24', textShadow: '0 0 24px rgba(251, 191, 36, 0.5)' }}>AWARDS & GRANTS</span>
+            ₹5,00,000+ IN <span style={{ color: '#F59E0B' }}>PRIZES & AWARDS</span>
           </h2>
 
-          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-            Direct cash rewards, startup incubation seed funding, and verified SAC podium merit recognition.
+          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7,  }}>
+            Cash rewards, trophies, merit certificates, and incubation support across all flagship events.
           </p>
         </div>
       </ScrollReveal>
@@ -105,7 +105,7 @@ export const PrizesSection: React.FC = () => {
                   color: '#38BDF8',
                   marginBottom: '14px',
                   lineHeight: 1,
-                  textShadow: '0 0 16px rgba(56, 189, 248, 0.4)'
+                  textShadow: 'none'
                 }}
               >
                 ₹3,50,000+
@@ -166,7 +166,7 @@ export const PrizesSection: React.FC = () => {
                   color: '#FBBF24',
                   marginBottom: '14px',
                   lineHeight: 1,
-                  textShadow: '0 0 16px rgba(251, 191, 36, 0.4)'
+                  textShadow: 'none'
                 }}
               >
                 ₹1,50,000+

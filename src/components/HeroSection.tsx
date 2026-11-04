@@ -140,8 +140,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#88B2AE',
-                boxShadow: '0 0 10px #88B2AE'
+                backgroundColor: '#38BDF8'
               }}
             />
             <span
@@ -157,7 +156,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               VARDHAMAN COLLEGE OF ENGINEERING
             </span>
           </div>
-          <span style={{ color: '#7E8D9F', fontSize: '0.75rem' }}>//</span>
+          <span style={{ color: '#7E8D9F', fontSize: '0.75rem' }}>•</span>
           <span
             style={{
               fontSize: '0.7rem',
@@ -204,7 +203,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 color: '#F3F0EA'
               }}
             >
-              2026 EDITION
+              ANNUAL TECHNICAL FESTIVAL
             </span>
           </div>
         </div>
@@ -218,11 +217,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             lineHeight: 1.55,
             margin: '0 auto',
             fontWeight: 400,
-            textShadow: '0 2px 10px rgba(0, 0, 0, 0.85)'
+            
           }}
         >
-          The premier collegiate arena of autonomous robotics, precision algorithmic engineering,
-          and national innovation — uniting 3,500+ competitors across 30+ flagship arenas.
+          Vardhaman College of Engineering's annual national technical festival — featuring hackathons, robotics tournaments, coding competitions, and project exhibitions.
         </p>
 
         {/* Action CTAs */}
