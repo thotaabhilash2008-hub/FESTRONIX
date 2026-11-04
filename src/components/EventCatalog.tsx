@@ -810,9 +810,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <span
                           style={{
-                            backgroundColor: 'rgba(111, 150, 147, 0.12)',
-                            border: '1px solid rgba(136, 178, 174, 0.3)',
-                            color: '#88B2AE',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)', color: '#60A5FA',
                             padding: '3px 8px',
                             borderRadius: '6px',
                             fontSize: '0.7rem',
@@ -844,8 +842,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                             textTransform: 'capitalize',
                             fontSize: '0.7rem',
                             color: '#C7CBD4',
-                            background: 'rgba(21, 24, 32, 0.8)',
-                            border: '1px solid rgba(199, 203, 212, 0.14)',
+                            background: '#1E293B', border: '1px solid #334155',
                             padding: '3px 8px',
                             borderRadius: '6px',
                             fontFamily: "'Space Grotesk', sans-serif"
@@ -928,8 +925,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                       style={{
                         padding: '8px 12px',
                         borderRadius: '8px',
-                        background: 'rgba(8, 12, 22, 0.85)',
-                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                        background: '#162238', border: '1px solid #1E293B',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',

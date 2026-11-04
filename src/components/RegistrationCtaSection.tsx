@@ -29,27 +29,17 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
             className="cyber-card"
             style={{
               position: 'relative',
-              borderRadius: '26px',
+              borderRadius: '16px',
               padding: 'clamp(40px, 6vw, 72px)',
-              background: 'linear-gradient(135deg, rgba(15, 22, 38, 0.96) 0%, rgba(10, 15, 26, 0.98) 100%)',
-              border: '1px solid rgba(148, 163, 184, 0.25)',
-              boxShadow: '0 24px 70px -15px rgba(0, 0, 0, 0.95), 0 0 40px rgba(56, 189, 248, 0.12)',
-              backdropFilter: 'blur(24px)',
+              background: '#0F172A',
+              border: '1px solid #1E293B',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
+              backdropFilter: 'none',
               overflow: 'hidden',
               textAlign: 'center'
             }}
           >
-            {/* Subtle Light Sweep across the Monolith */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(105deg, transparent 25%, rgba(255, 255, 255, 0.06) 48%, rgba(56, 189, 248, 0.15) 50%, transparent 60%)',
-                backgroundSize: '200% 100%',
-                animation: 'gleamSweep 4.5s infinite linear',
-                pointerEvents: 'none'
-              }}
-            />
+            
 
             {/* Top Admission Badge */}
             <div
@@ -124,8 +114,8 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                     gap: '8px',
                     padding: '9px 20px',
                     borderRadius: '10px',
-                    background: 'rgba(8, 12, 22, 0.85)',
-                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    background: '#162238',
+                    border: '1px solid #1E293B',
                     fontSize: '0.84rem',
                     color: '#FFFFFF',
                     fontWeight: 700,

@@ -75,15 +75,15 @@ export const DepartmentsSection: React.FC = () => {
                 <div
                   className="cyber-card"
                   style={{
-                    padding: '28px',
+                    padding: '24px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    borderTop: '2px solid rgba(56, 189, 248, 0.5)',
-                    background: 'rgba(15, 22, 38, 0.94)',
-                    border: '1px solid rgba(148, 163, 184, 0.22)',
-                    boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                    backdropFilter: 'blur(20px)',
+                    
+                    background: '#0F172A',
+                    border: '1px solid #1E293B',
+                    boxShadow: 'none',
+                    backdropFilter: 'none',
                     height: '100%',
                     boxSizing: 'border-box'
                   }}
@@ -93,9 +93,9 @@ export const DepartmentsSection: React.FC = () => {
                       <div
                         style={{
                           padding: '10px',
-                          background: 'rgba(8, 12, 22, 0.85)',
+                          background: 'rgba(59, 130, 246, 0.1)',
                           borderRadius: '10px',
-                          border: '1px solid rgba(148, 163, 184, 0.2)'
+                          border: '1px solid rgba(59, 130, 246, 0.2)'
                         }}
                       >
                         {iconMap[dept.iconName] || <Cpu size={24} color="#38BDF8" />}

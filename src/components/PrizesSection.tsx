@@ -61,12 +61,11 @@ export const PrizesSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderTop: '2px solid #38BDF8',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box'
               }}
@@ -122,12 +121,11 @@ export const PrizesSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderTop: '2px solid #FBBF24',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box'
               }}
@@ -183,12 +181,11 @@ export const PrizesSection: React.FC = () => {
             <div
               className="cyber-card"
               style={{
-                padding: '36px',
-                borderTop: '2px solid #34D399',
-                background: 'rgba(15, 22, 38, 0.94)',
-                border: '1px solid rgba(148, 163, 184, 0.22)',
-                boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.9)',
-                backdropFilter: 'blur(20px)',
+                padding: '28px',
+                                background: '#0F172A',
+                border: '1px solid #1E293B',
+                boxShadow: 'none',
+                backdropFilter: 'none',
                 height: '100%',
                 boxSizing: 'border-box'
               }}
