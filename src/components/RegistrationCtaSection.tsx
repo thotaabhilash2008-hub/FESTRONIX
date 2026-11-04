@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket, Ticket, ArrowRight, Sparkles, Shield, QrCode } from 'lucide-react';
+import { Ticket, ArrowRight, Trophy, Shield, QrCode } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -71,7 +71,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               <Ticket size={14} color="#38BDF8" />
-              <span>07 // OFFICIAL FESTIVAL ADMISSION</span>
+              <span>FESTIVAL PASSES & ADMISSION</span>
             </div>
 
             {/* Heading */}
@@ -114,7 +114,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               {[
                 { icon: <QrCode size={16} color="#38BDF8" />, text: 'Cryptographic QR Mobile Pass' },
                 { icon: <Shield size={16} color="#34D399" />, text: 'SAC Official Endorsement' },
-                { icon: <Sparkles size={16} color="#FBBF24" />, text: '₹5,00,000+ Prize Pool Access' }
+                { icon: <Trophy size={16} color="#FBBF24" />, text: '₹5,00,000+ Prize Pool Access' }
               ].map((perk, i) => (
                 <div
                   key={i}
@@ -159,7 +159,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                   gap: '10px'
                 }}
               >
-                <Rocket size={18} />
+                <Ticket size={18} />
                 <span>Book All-Access Multi-Pass</span>
                 <ArrowRight size={16} />
               </button>

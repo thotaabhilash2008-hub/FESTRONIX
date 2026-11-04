@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, CalendarDays, MapPin, Users, Crown, ArrowRight, Inbox, Flame, Gamepad2, Code2, Wrench, Presentation, Building2, Sparkles, Filter, X } from 'lucide-react';
+import { Search, CalendarDays, MapPin, Users, Crown, ArrowRight, Inbox, Flame, Gamepad2, Code2, Wrench, Presentation, Building2, LayoutGrid, Filter, X } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
@@ -64,7 +64,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
   }, [events]);
 
   const categories = [
-    { key: 'all', label: 'All Categories', icon: <Sparkles size={14} /> },
+    { key: 'all', label: 'All Categories', icon: <LayoutGrid size={14} /> },
     { key: 'hackathon', label: 'Hackathons', icon: <Code2 size={14} /> },
     { key: 'technical', label: 'Technical Battles', icon: <Wrench size={14} /> },
     { key: 'workshop', label: 'Workshops', icon: <Presentation size={14} /> },
@@ -173,7 +173,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
               fontFamily: "'Space Grotesk', sans-serif"
             }}
           >
-            <Sparkles size={14} color={viewMode === 'all' ? '#FFFFFF' : '#88B2AE'} />
+            <LayoutGrid size={14} color={viewMode === 'all' ? '#FFFFFF' : '#88B2AE'} />
             <span>All Events ({events.length})</span>
           </button>
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Users, CheckCircle2, XCircle, Search, QrCode, FileSpreadsheet, 
-  Sparkles, Shield, UserPlus, Eye, AlertTriangle, ArrowRight, ShieldCheck,
+  Shield, UserPlus, Eye, AlertTriangle, ArrowRight, ShieldCheck,
   Printer, Copy, Plus, Trash2
 } from 'lucide-react';
 import { FestEvent, Registration, PaymentStatus, Teammate } from '../types/festronix';

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, Sparkles, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck, Rocket } from 'lucide-react';
+import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Announcement, User as UserType } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
@@ -431,7 +431,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Sparkles size={16} color="#88B2AE" />
+                      <LayoutGrid size={16} color="#88B2AE" />
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F0F4F8' }}>
                         Select by Event Category
                       </span>

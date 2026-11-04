@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Swords, ArrowRight, Users, QrCode, Rocket, Trophy, Radio } from 'lucide-react';
+import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
 import { HeroAnimation } from './animations';
 
@@ -240,12 +240,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             onClick={onExploreEvents}
             className="btn-cyber-primary"
             style={{
-              padding: '10px 24px',
+              padding: '10px 22px',
               fontSize: '0.88rem'
             }}
           >
-            <Swords size={16} color="#C7CBD4" />
-            <span>Explore 30+ Arenas</span>
+            <CalendarDays size={16} color="#CBD5E1" />
+            <span>Explore Events</span>
             <ArrowRight size={15} />
           </button>
 
@@ -253,11 +253,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             onClick={onRegisterNow}
             className="btn-cyber-gold"
             style={{
-              padding: '10px 24px',
+              padding: '10px 22px',
               fontSize: '0.88rem'
             }}
           >
-            <Rocket size={16} />
+            <Ticket size={16} />
             <span>Register Now</span>
           </button>
         </div>
@@ -286,7 +286,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               fontFamily: "'Space Grotesk', sans-serif"
             }}
           >
-            ARENA COMMENCES IN
+            EVENT STARTS IN
           </span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

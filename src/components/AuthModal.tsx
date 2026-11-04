@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Lock, Mail, Phone, School, Eye, EyeOff, LogIn, UserPlus, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, User, Lock, Mail, Phone, School, Eye, EyeOff, LogIn, UserPlus, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AuthService } from '../services/authService';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -230,7 +230,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               gap: '10px'
             }}
           >
-            <Sparkles size={18} color="#BACEBB" style={{ flexShrink: 0 }} />
+            <Lock size={18} color="#BACEBB" style={{ flexShrink: 0 }} />
             <div style={{ fontSize: '0.82rem', color: '#FFFFFF', lineHeight: 1.4 }}>
               <strong>Login Required:</strong> {customNotice}
             </div>
@@ -619,7 +619,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }}
             >
               <span>{isLoading ? 'Creating Account...' : 'Create Account & Continue'}</span>
-              <Sparkles size={16} />
+              <ArrowRight size={16} />
             </button>
           </form>
         )}

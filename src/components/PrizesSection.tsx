@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown, Rocket, Gem } from 'lucide-react';
+import { Crown, TrendingUp, Award } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -27,7 +27,7 @@ export const PrizesSection: React.FC = () => {
             }}
           >
             <Crown size={14} color="#38BDF8" />
-            <span>06 // REWARD POOL & INCUBATION</span>
+            <span>PRIZES & RECOGNITION</span>
           </div>
 
           <h2
@@ -142,7 +142,7 @@ export const PrizesSection: React.FC = () => {
                   border: '1px solid rgba(251, 191, 36, 0.35)'
                 }}
               >
-                <Rocket size={26} color="#FBBF24" />
+                <TrendingUp size={26} color="#FBBF24" />
               </div>
 
               <h3
@@ -203,7 +203,7 @@ export const PrizesSection: React.FC = () => {
                   border: '1px solid rgba(52, 211, 153, 0.35)'
                 }}
               >
-                <Gem size={26} color="#34D399" />
+                <Award size={26} color="#34D399" />
               </div>
 
               <h3

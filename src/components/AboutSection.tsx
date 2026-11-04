@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Cpu, Rocket, Terminal, Sparkles } from 'lucide-react';
+import { ShieldCheck, Layers, Briefcase, Terminal, Info } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -36,8 +36,8 @@ export const AboutSection: React.FC = () => {
               boxShadow: '0 0 16px rgba(56, 189, 248, 0.2)'
             }}
           >
-            <Sparkles size={14} color="#38BDF8" />
-            <span>01 // THE GENESIS & MISSION</span>
+            <Info size={14} color="#38BDF8" />
+            <span>ABOUT THE FESTIVAL</span>
           </div>
 
           <h2
@@ -111,10 +111,10 @@ export const AboutSection: React.FC = () => {
                       justifyContent: 'center'
                     }}
                   >
-                    <Cpu size={22} color="#38BDF8" />
+                    <Layers size={22} color="#38BDF8" />
                   </div>
                   <span className="text-editorial-meta" style={{ color: '#38BDF8', fontWeight: 800 }}>
-                    DOSSIER 01
+                    FEATURE 01
                   </span>
                 </div>
 
@@ -192,7 +192,7 @@ export const AboutSection: React.FC = () => {
                     <ShieldCheck size={22} color="#FFFFFF" />
                   </div>
                   <span className="text-editorial-meta" style={{ color: '#E2E8F0', fontWeight: 800 }}>
-                    DOSSIER 02
+                    FEATURE 02
                   </span>
                 </div>
 
@@ -267,10 +267,10 @@ export const AboutSection: React.FC = () => {
                       justifyContent: 'center'
                     }}
                   >
-                    <Rocket size={22} color="#38BDF8" />
+                    <Briefcase size={22} color="#38BDF8" />
                   </div>
                   <span className="text-editorial-meta" style={{ color: '#38BDF8', fontWeight: 800 }}>
-                    DOSSIER 03
+                    FEATURE 03
                   </span>
                 </div>
 
@@ -307,7 +307,7 @@ export const AboutSection: React.FC = () => {
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <Rocket size={14} color="#38BDF8" />
+                <Briefcase size={14} color="#38BDF8" />
                 <span>₹5,00,000+ AWARDS & CIE GRANTS</span>
               </div>
             </div>

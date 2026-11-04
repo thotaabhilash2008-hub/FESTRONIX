@@ -4,7 +4,7 @@ import {
   ExternalLink, 
   MapPin, 
   Calendar, 
-  Sparkles, 
+ 
   Download, 
   Mail, 
   PhoneCall, 
@@ -524,7 +524,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
             marginBottom: '20px'
           }}
         >
-          <Sparkles size={14} />
+          <Building2 size={14} />
           <span>FESTRONIX 2026 // OFFICIAL SPONSORS & STRATEGIC PARTNERS</span>
         </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, Play, MapPin, Sparkles, Compass } from 'lucide-react';
+import { Camera, Play, MapPin, Compass } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -201,7 +201,7 @@ export const ShowcaseSection: React.FC<ShowcaseSectionProps> = ({ onOpenIntro })
                     marginBottom: '10px'
                   }}
                 >
-                  <Sparkles size={12} color="#C7CBD4" />
+                  <Compass size={12} color="#C7CBD4" />
                   3D CHROME IDENTITY
                 </span>
                 <h3
