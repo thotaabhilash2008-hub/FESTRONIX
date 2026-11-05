@@ -247,7 +247,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           }}
         >
           <p style={{ margin: 0, color: '#BAE6FD', fontSize: '0.82rem', lineHeight: 1.5 }}>
-            Sign in with your verified Supabase admin credentials (e.g. admin@gmail.com / 123456).
+            Sign in with your admin credentials (e.g. dean.sac@vardhaman.org / deansac2026 or admin@gmail.com / admin2026).
           </p>
         </div>
 
