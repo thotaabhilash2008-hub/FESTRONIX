@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, QrCode, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag, Lock } from 'lucide-react';
+import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag, Lock } from 'lucide-react';
 import { Registration, Team, User as UserType } from '../types/festronix';
 import { INITIAL_REGISTRATIONS } from '../data/mockData';
 import { StorageService } from '../services/storageService';
+import { EmailService } from '../services/emailService';
 
 interface DigitalPassModalProps {
   registrations: Registration[];
   currentUser?: UserType | null;
+  activePassId?: string;
   onClose: () => void;
   onBrowseEvents?: () => void;
   onOpenMultiPass?: () => void;
@@ -15,24 +17,55 @@ interface DigitalPassModalProps {
 export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   registrations: initialRegistrations,
   currentUser,
+  activePassId,
   onClose,
   onBrowseEvents,
   onOpenMultiPass
 }) => {
   const normalizeTeamCode = (code?: string) => (code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   const visibleRegistrations = (source: Registration[]) => {
-    if (!currentUser) return source;
-    return source.filter(
-      r =>
-        r.userId === currentUser.id ||
-        r.buyerRoll === currentUser.rollNumber ||
-        r.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase() ||
-        r.leaderEmail.toLowerCase() === currentUser.email.toLowerCase() ||
-        r.teammates?.some(tm =>
-          (tm.rollNumber && tm.rollNumber.toLowerCase() === currentUser.rollNumber.toLowerCase()) ||
-          (tm.email && tm.email.toLowerCase() === currentUser.email.toLowerCase())
-        )
-    );
+    // 1. If currentUser is present
+    if (currentUser) {
+      const userMatches = source.filter(
+        r =>
+          r.userId === currentUser.id ||
+          r.buyerRoll === currentUser.rollNumber ||
+          r.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase() ||
+          r.leaderEmail.toLowerCase() === currentUser.email.toLowerCase() ||
+          r.teammates?.some(tm =>
+            (tm.rollNumber && tm.rollNumber.toLowerCase() === currentUser.rollNumber.toLowerCase()) ||
+            (tm.email && tm.email.toLowerCase() === currentUser.email.toLowerCase())
+          )
+      );
+      if (userMatches.length > 0) return userMatches;
+    }
+
+    // 2. Local device registered passes
+    try {
+      const myPassIds: string[] = JSON.parse(localStorage.getItem('festronix_my_registered_pass_ids') || '[]');
+      const lastEmail = localStorage.getItem('festronix_last_registered_email')?.toLowerCase() || '';
+      const lastRoll = localStorage.getItem('festronix_last_registered_roll')?.toLowerCase() || '';
+      const lastPassId = localStorage.getItem('festronix_last_pass_id') || '';
+
+      if (activePassId && !myPassIds.includes(activePassId)) {
+        myPassIds.push(activePassId);
+      }
+      if (lastPassId && !myPassIds.includes(lastPassId)) {
+        myPassIds.push(lastPassId);
+      }
+
+      if (myPassIds.length > 0 || lastEmail || lastRoll) {
+        const localMatches = source.filter(
+          r =>
+            myPassIds.includes(r.id) ||
+            (lastEmail && r.leaderEmail.toLowerCase() === lastEmail) ||
+            (lastRoll && r.leaderRoll.toLowerCase() === lastRoll)
+        );
+        if (localMatches.length > 0) return localMatches;
+      }
+    } catch {}
+
+    return source;
   };
 
   useEffect(() => {
@@ -60,6 +93,35 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const [lastTeamSync, setLastTeamSync] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (activePassId && activeList.length > 0) {
+      const foundIdx = activeList.findIndex(r => r.id === activePassId);
+      if (foundIdx >= 0) {
+        setSelectedIndex(foundIdx);
+        selectedRegistrationId.current = activePassId;
+      }
+    }
+  }, [activePassId, activeList]);
+
+  const handleResendEmail = async (reg: Registration) => {
+    if (!reg.leaderEmail) return;
+    setResendStatus(prev => ({ ...prev, [reg.id]: 'Sending...' }));
+    try {
+      await EmailService.sendPassEmail(reg);
+      setResendStatus(prev => ({ ...prev, [reg.id]: '✓ Email Sent' }));
+      setTimeout(() => {
+        setResendStatus(prev => {
+          const updated = { ...prev };
+          delete updated[reg.id];
+          return updated;
+        });
+      }, 4000);
+    } catch {
+      setResendStatus(prev => ({ ...prev, [reg.id]: 'Failed to send' }));
+    }
+  };
 
   useEffect(() => {
     const selectedId = selectedRegistrationId.current;

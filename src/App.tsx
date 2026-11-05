@@ -86,6 +86,7 @@ export const App: React.FC = () => {
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
   const [isPassesModalOpen, setIsPassesModalOpen] = useState<boolean>(false);
+  const [activePassId, setActivePassId] = useState<string | undefined>(undefined);
   const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
 
   // Pending actions after login
@@ -237,28 +238,12 @@ export const App: React.FC = () => {
   };
 
   const handleStartEventRegistration = (evt: FestEvent) => {
-    if (!currentUser) {
-      setPendingRegisterEvent(evt);
-      setPendingAction(null);
-      setDetailEvent(null);
-      setAuthCustomNotice(`Sign in to continue registering for "${evt.title}". Your profile details will fill into the registration form.`);
-      handleOpenAuth('signin');
-      return;
-    }
-
     setDetailEvent(null);
     setRegisterEvent(evt);
   };
 
   const handleStartMultiPass = () => {
-    if (!currentUser) {
-      setPendingAction('multipass');
-      setPendingRegisterEvent(null);
-      setAuthCustomNotice('Please sign in with your college credentials to book passes. Your student details will automatically auto-fill!');
-      handleOpenAuth('signin');
-    } else {
-      setIsMultiPassModalOpen(true);
-    }
+    setIsMultiPassModalOpen(true);
   };
 
   const handleOpenAuth = (mode: 'signin' | 'signup' = 'signin') => {
@@ -426,38 +411,17 @@ export const App: React.FC = () => {
         onSuccess={handleMultiPassSuccess}
       />
 
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        initialMode={authModalMode}
-        customNotice={authCustomNotice}
-        onClose={() => {
-          setIsAuthModalOpen(false);
-          setPendingRegisterEvent(null);
-          setPendingAction(null);
-          setAuthCustomNotice(null);
-        }}
-        onSuccess={(user) => {
-          setCurrentUser(user);
-          setIsAuthModalOpen(false);
-          setAuthCustomNotice(null);
-
-          // Resume the selected event registration after authentication.
-          if (pendingRegisterEvent) {
-            const evt = pendingRegisterEvent;
-            setPendingRegisterEvent(null);
-            setRegisterEvent(evt);
-          } else if (pendingAction === 'multipass') {
-            setPendingAction(null);
-            setIsMultiPassModalOpen(true);
-          }
-        }}
-      />
+      {/* AuthModal removed: Direct registration without mandatory sign-in */}
 
       {isPassesModalOpen && (
         <DigitalPassModal
           registrations={registrations}
           currentUser={currentUser}
-          onClose={() => setIsPassesModalOpen(false)}
+          activePassId={activePassId}
+          onClose={() => {
+            setIsPassesModalOpen(false);
+            setActivePassId(undefined);
+          }}
           onBrowseEvents={handleNavigateExplore}
           onOpenMultiPass={() => {
             setIsPassesModalOpen(false);

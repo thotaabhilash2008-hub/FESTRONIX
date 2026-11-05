@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import { FestEvent, Registration, User as UserType, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { EmailService } from '../services/emailService';
 
 interface MultiPassModalProps {
   isOpen: boolean;
@@ -294,6 +295,21 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
       const created = await StorageService.addMultipleRegistrations(batchData);
 
+      // Dispatch pass to attendee's email and track locally so passes are always visible on site
+      try {
+        const myPassIds = JSON.parse(localStorage.getItem('festronix_my_registered_pass_ids') || '[]');
+        created.forEach(reg => {
+          if (!myPassIds.includes(reg.id)) myPassIds.push(reg.id);
+          EmailService.sendPassEmail(reg).catch(err => console.warn('Email send notice:', err));
+        });
+        localStorage.setItem('festronix_my_registered_pass_ids', JSON.stringify(myPassIds));
+        localStorage.setItem('festronix_last_registered_email', buyerInfo.email.trim().toLowerCase());
+        localStorage.setItem('festronix_last_registered_roll', buyerInfo.rollNumber.trim().toUpperCase());
+        if (created.length > 0) localStorage.setItem('festronix_last_pass_id', created[created.length - 1].id);
+      } catch (e) {
+        console.warn('Error saving local pass tracking:', e);
+      }
+
       confetti({
         particleCount: 120,
         spread: 80,
@@ -443,20 +459,9 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <User size={16} color="#BACEBB" />
               <span style={{ fontSize: '0.8rem', color: '#A8B3C2' }}>
-                Have a student account? Sign in to autofill your pass details.
+                Enter your details below — passes are sent directly to your email and accessible on site.
               </span>
             </div>
-          )}
-
-          {!currentUser && (
-            <button
-              type="button"
-              onClick={onOpenAuth}
-              className="btn-cyber-secondary"
-              style={{ padding: '5px 12px', fontSize: '0.75rem' }}
-            >
-              Sign In / Sign Up
-            </button>
           )}
         </div>
 

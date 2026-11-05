@@ -8,6 +8,7 @@ import confetti from 'canvas-confetti';
 import { FestEvent, Teammate, Registration, User as UserType, Team, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { EmailService } from '../services/emailService';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
 interface RegistrationModalProps {
@@ -364,11 +365,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   // Step 1 validation (FR-REG-01, FR-REG-05, FR-REG-06)
   const validateStep1 = () => {
-    if (!currentUser) {
-      setErrorMessage('Please sign in with your college credentials to register for this event.');
-      if (onOpenAuth) onOpenAuth('signin');
-      return false;
-    }
+    // No sign-in required: students and attendees register directly
     const registrationBlockReason = getEventRegistrationBlockReason(
       event,
       isTeamEvent ? 1 : passQuantity
@@ -481,9 +478,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const handleConfirmJoinTeam = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!currentUser) {
-      setErrorMessage('Authentication required. Please sign in to join this team.');
-      if (onOpenAuth) onOpenAuth('signin');
+    if (!leader.name.trim() || !leader.email.trim() || !leader.rollNumber.trim()) {
+      setErrorMessage('Please fill in your name, email, and roll number to join this team.');
       return;
     }
 
@@ -497,11 +493,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     try {
       const memberData: Teammate = {
-        name: leader.name.trim() || currentUser.fullName,
-        email: leader.email.trim() || currentUser.email,
-        phone: leader.phone.trim() || currentUser.phone,
-        college: leader.college.trim() || currentUser.college,
-        rollNumber: leader.rollNumber.trim() || currentUser.rollNumber
+        name: leader.name.trim() || currentUser?.fullName || '',
+        email: leader.email.trim() || currentUser?.email || '',
+        phone: leader.phone.trim() || currentUser?.phone || '',
+        college: leader.college.trim() || currentUser?.college || 'Vardhaman College of Engineering',
+        rollNumber: leader.rollNumber.trim() || currentUser?.rollNumber || ''
       };
 
       const joinRes = await StorageService.joinTeam(verifiedTeam.teamCode, memberData);
@@ -537,11 +533,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     if (isSubmitting) return;
 
-    if (!currentUser) {
-      setErrorMessage('Authentication required. Please sign in to finalize registration.');
-      if (onOpenAuth) onOpenAuth('signin');
-      return;
-    }
+    // No sign-in required: students and attendees register directly
 
     if (event.fee > 0) {
       if (!transactionId.trim()) {
@@ -614,7 +606,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           eventId: event.id,
           eventTitle: event.title,
           registrationId: '',
-          leaderId: currentUser.id,
+          leaderId: currentUser?.id || `leader_${Date.now()}`,
           leaderName: leader.name.trim(),
           leaderRoll: leader.rollNumber.trim().toUpperCase(),
           leaderEmail: leader.email.trim(),
