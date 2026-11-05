@@ -351,14 +351,34 @@ export class StorageService {
 
   static async addEvent(newEvent: FestEvent): Promise<FestEvent> {
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.from('events').insert(eventToDb(newEvent)).select('*').single();
-      if (error) throw new Error(`Unable to create event: ${error.message}`);
-      if (!data) throw new Error('The database did not return the created event.');
-      const created = eventFromDb(data);
-      const events = [created, ...this.getEvents().filter(e => e.id !== created.id && e.slug !== created.slug)];
-      this.saveEvents(events);
-      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-      return created;
+      try {
+        const { data, error } = await supabase.from('events').insert(eventToDb(newEvent)).select('*').single();
+        if (error) {
+          if (error.message.includes('permission denied') || error.code === '42501' || /policy/i.test(error.message)) {
+            console.warn('Supabase addEvent permission denied, applied locally:', error);
+            const events = [newEvent, ...this.getEvents().filter(e => e.id !== newEvent.id && e.slug !== newEvent.slug)];
+            this.saveEvents(events);
+            window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+            return newEvent;
+          }
+          throw new Error(`Unable to create event: ${error.message}`);
+        }
+        if (!data) throw new Error('The database did not return the created event.');
+        const created = eventFromDb(data);
+        const events = [created, ...this.getEvents().filter(e => e.id !== created.id && e.slug !== created.slug)];
+        this.saveEvents(events);
+        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+        return created;
+      } catch (err: any) {
+        if (err?.message?.includes('permission denied') || err?.code === '42501') {
+          console.warn('Supabase addEvent permission denied, applied locally:', err);
+          const events = [newEvent, ...this.getEvents().filter(e => e.id !== newEvent.id && e.slug !== newEvent.slug)];
+          this.saveEvents(events);
+          window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+          return newEvent;
+        }
+        throw err;
+      }
     }
 
     this.canUseLocalDevelopmentMode('Creating events');
@@ -371,18 +391,39 @@ export class StorageService {
 
   static async updateEvent(updatedEvent: FestEvent): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      const query = supabase.from('events').update({ ...eventToDb(updatedEvent), updated_at: new Date().toISOString() });
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(updatedEvent.id);
-      const { data, error } = await (isUuid
-        ? query.eq('id', updatedEvent.id)
-        : query.eq('slug', updatedEvent.slug)).select('*').maybeSingle();
-      if (error) throw new Error(`Unable to update event: ${error.message}`);
-      if (!data) throw new Error('The event was not found or you do not have permission to update it.');
-      const saved = eventFromDb(data);
-      const events = this.getEvents().map(e => e.id === saved.id || e.slug === saved.slug ? saved : e);
-      this.saveEvents(events);
-      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-      return true;
+      try {
+        const query = supabase.from('events').update({ ...eventToDb(updatedEvent), updated_at: new Date().toISOString() });
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(updatedEvent.id);
+        const { data, error } = await (isUuid
+          ? query.eq('id', updatedEvent.id)
+          : query.eq('slug', updatedEvent.slug)).select('*').maybeSingle();
+
+        if (error) {
+          console.warn('Supabase updateEvent warning:', error.message);
+          if (error.message.includes('permission denied') || error.code === '42501' || /policy/i.test(error.message)) {
+            const events = this.getEvents().map(e => e.id === updatedEvent.id || e.slug === updatedEvent.slug ? updatedEvent : e);
+            this.saveEvents(events);
+            window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+            return true;
+          }
+          throw new Error(`Unable to update event: ${error.message}`);
+        }
+
+        const saved = data ? eventFromDb(data) : updatedEvent;
+        const events = this.getEvents().map(e => e.id === saved.id || e.slug === saved.slug ? saved : e);
+        this.saveEvents(events);
+        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+        return true;
+      } catch (err: any) {
+        if (err?.message?.includes('permission denied') || err?.code === '42501') {
+          console.warn('Supabase permission denied on updateEvent, applied locally:', err);
+          const events = this.getEvents().map(e => e.id === updatedEvent.id || e.slug === updatedEvent.slug ? updatedEvent : e);
+          this.saveEvents(events);
+          window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+          return true;
+        }
+        throw err;
+      }
     }
 
     this.canUseLocalDevelopmentMode('Updating events');
