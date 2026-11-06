@@ -10,6 +10,7 @@ import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { EmailService } from '../services/emailService';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
+import { sendRegistrationPassEmail } from '../services/registrationEmailService';
 
 interface RegistrationModalProps {
   event: FestEvent | null;
@@ -365,7 +366,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   // Step 1 validation (FR-REG-01, FR-REG-05, FR-REG-06)
   const validateStep1 = () => {
-    // No sign-in required: students and attendees register directly
+    if (!currentUser && isTeamEvent) {
+      setErrorMessage('Team registrations require a signed-in account so the team leader and members can be tracked securely.');
+      if (onOpenAuth) onOpenAuth('signin');
+      return false;
+    }
     const registrationBlockReason = getEventRegistrationBlockReason(
       event,
       isTeamEvent ? 1 : passQuantity
@@ -533,7 +538,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     if (isSubmitting) return;
 
-    // No sign-in required: students and attendees register directly
+    if (!currentUser && isTeamEvent) {
+      setErrorMessage('Team registrations require a signed-in account so the team leader and members can be tracked securely.');
+      if (onOpenAuth) onOpenAuth('signin');
+      return;
+    }
+    const signedInUser = currentUser;
 
     if (event.fee > 0) {
       if (!transactionId.trim()) {
@@ -557,7 +567,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       let finalScreenshotUrl = screenshotPreview || undefined;
 
       if (screenshotFile) {
-        const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, leader.rollNumber);
+        const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, leader.rollNumber, leader.email);
         if (!uploadRes.success || !uploadRes.url) throw new Error(uploadRes.error || 'Unable to upload payment proof.');
         finalScreenshotUrl = uploadRes.url;
       }
@@ -606,7 +616,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           eventId: event.id,
           eventTitle: event.title,
           registrationId: '',
-          leaderId: currentUser?.id || `leader_${Date.now()}`,
+          leaderId: signedInUser?.id || '',
           leaderName: leader.name.trim(),
           leaderRoll: leader.rollNumber.trim().toUpperCase(),
           leaderEmail: leader.email.trim(),
@@ -652,6 +662,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
       const created = await StorageService.addMultipleRegistrations(batch);
       const finalReg = created[created.length - 1];
+
+      const emailResults = await Promise.all(created.map(registration => sendRegistrationPassEmail(registration)));
+      const emailFailure = emailResults.find(result => !result.sent);
+      if (emailFailure) {
+        window.alert(`Registration completed successfully, but the pass email could not be sent yet. ${emailFailure.message}`);
+      }
 
       // Fire festive celebration
       confetti({
@@ -715,6 +731,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <X size={18} />
           </button>
         </div>
+
+        {!currentUser && !isTeamEvent && (
+          <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.10)', border: '1px solid rgba(56, 189, 248, 0.32)', color: '#DCE3E5', fontSize: '0.82rem', lineHeight: 1.45 }}>
+            You can register as a guest. Enter your details and Gmail below; your registration pass will be sent after submission.
+          </div>
+        )}
 
         {/* Multi-Pass Shortcut (Only for solo passes) */}
         {!isTeamEvent && onOpenMultiPass && (

@@ -150,6 +150,7 @@ export interface Registration {
   paymentMethod?: string;
   transactionId?: string;
   paymentScreenshotUrl?: string;
+  emailDeliveryToken?: string;
   rejectionReason?: string;
   verifiedBy?: string;
   verifiedAt?: string;

@@ -701,12 +701,15 @@ export class StorageService {
     if (isSupabaseConfigured()) {
       try {
         const { id: targetEventUuid, event: matchedEvent } = await this.resolveRegistrationEvent(newReg.eventId);
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError || !authData.user) throw new Error('Your sign-in session has expired. Sign in again before registering.');
+        const { data: authData } = await supabase.auth.getUser();
+        const actorId = authData.user?.id;
+        if (newReg.source !== 'spot' && newReg.format !== 'individual' && !actorId) {
+          throw new Error('Sign in before creating or joining a team registration.');
+        }
 
         const rpcPayload = {
           p_event_id: targetEventUuid,
-          p_user_id: newReg.source === 'spot' ? null : authData.user.id,
+          p_user_id: newReg.source === 'spot' ? null : actorId || null,
           p_buyer_roll: newReg.buyerRoll || newReg.leaderRoll || null,
           p_leader_name: newReg.leaderName,
           p_leader_email: newReg.leaderEmail,
@@ -731,7 +734,7 @@ export class StorageService {
           const regPayload = (rpcRes as any).registration;
           const fullReg: Registration = {
             id: regPayload.id,
-            userId: newReg.source === 'spot' ? undefined : authData.user.id,
+            userId: newReg.source === 'spot' ? undefined : actorId,
             buyerRoll: newReg.buyerRoll,
             eventId: targetEventUuid,
             eventTitle: regPayload.eventTitle || newReg.eventTitle,
@@ -751,6 +754,7 @@ export class StorageService {
             paymentStatus: regPayload.paymentStatus || newReg.paymentStatus,
             transactionId: regPayload.transactionId || newReg.transactionId,
             paymentScreenshotUrl: newReg.paymentScreenshotUrl,
+            emailDeliveryToken: regPayload.emailDeliveryToken,
             qrToken: regPayload.qrToken,
             checkedIn: false
           };
@@ -760,7 +764,13 @@ export class StorageService {
           let regWithSignedProof = fullReg;
           try {
             const liveRegs = await this.fetchRegistrations();
-            regWithSignedProof = liveRegs.find(reg => reg.id === fullReg.id) || fullReg;
+            const canonical = liveRegs.find(reg => reg.id === fullReg.id);
+            // The delivery token is intentionally not exposed by list/read
+            // queries. Preserve the one-time token returned by the create RPC
+            // so the caller can trigger the confirmation email immediately.
+            regWithSignedProof = canonical
+              ? { ...canonical, emailDeliveryToken: fullReg.emailDeliveryToken }
+              : fullReg;
           } catch (refreshError) {
             console.warn('Registration created, but the immediate canonical refresh failed:', refreshError);
             [regWithSignedProof] = await this.signPaymentProofUrls([fullReg]);
@@ -779,7 +789,7 @@ export class StorageService {
               eventId: targetEventUuid,
               eventTitle: matchedEvent?.title || newReg.eventTitle,
               registrationId: regWithSignedProof.id,
-              leaderId: newReg.source === 'spot' ? undefined : authData.user.id,
+              leaderId: newReg.source === 'spot' ? undefined : actorId,
               leaderName: newReg.leaderName,
               leaderRoll: newReg.leaderRoll,
               leaderEmail: newReg.leaderEmail,
@@ -865,8 +875,11 @@ export class StorageService {
     if (isSupabaseConfigured()) {
       if (batch.length > 10) throw new Error('You can create at most 10 passes in one order.');
 
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) throw new Error('Your sign-in session has expired. Sign in again before registering.');
+      const { data: authData } = await supabase.auth.getUser();
+      const actorId = authData.user?.id;
+      if (batch.some(item => item.format !== 'individual') && !actorId) {
+        throw new Error('Sign in before creating or joining a team registration.');
+      }
 
       const resolved = await Promise.all(batch.map(async item => {
         const { id } = await this.resolveRegistrationEvent(item.eventId);
@@ -890,7 +903,7 @@ export class StorageService {
       }));
 
       const { data, error } = await supabase.rpc('create_registrations', {
-        p_user_id: authData.user.id,
+        p_user_id: actorId || null,
         p_items: resolved as any,
         p_source: 'online'
       });
@@ -902,7 +915,7 @@ export class StorageService {
       await this.fetchEvents().catch(() => undefined);
       const created = createdPayloads.map((payload: any, index: number) => {
         const canonical = liveRegs.find(reg => reg.id === payload.id);
-        if (canonical) return canonical;
+        if (canonical) return { ...canonical, emailDeliveryToken: payload.emailDeliveryToken };
         const source = batch[index];
         return {
           ...source,
@@ -911,6 +924,7 @@ export class StorageService {
           fee: Number(payload.fee ?? source.fee) || 0,
           paymentStatus: payload.paymentStatus || source.paymentStatus,
           qrToken: payload.qrToken || '',
+          emailDeliveryToken: payload.emailDeliveryToken,
           checkedIn: false
         } as Registration;
       });
@@ -1129,16 +1143,28 @@ export class StorageService {
    */
   static async uploadPaymentScreenshot(
     file: File,
-    _regDisplayId: string
+    _regDisplayId: string,
+    guestEmail?: string
   ): Promise<{ success: boolean; url?: string; error?: string }> {
     if (isSupabaseConfigured()) {
       try {
         const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
         if (!allowedTypes.has(file.type)) throw new Error('Upload a JPEG, PNG, or WebP image.');
         if (file.size > 5 * 1024 * 1024) throw new Error('Payment proof must be 5 MB or smaller.');
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError || !authData.user) throw new Error('Sign in before uploading payment proof.');
         const fileExt = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) {
+          if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+            throw new Error('Enter a valid Gmail address before uploading payment proof.');
+          }
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('email', guestEmail.trim().toLowerCase());
+          const { data, error } = await supabase.functions.invoke('guest-payment-upload', { body: formData });
+          if (error) throw new Error(error.message || 'Unable to upload guest payment proof.');
+          if (!(data as any)?.success || !(data as any)?.path) throw new Error((data as any)?.error || 'Unable to upload guest payment proof.');
+          return { success: true, url: String((data as any).path) };
+        }
         const filePath = `${authData.user.id}/${crypto.randomUUID()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
