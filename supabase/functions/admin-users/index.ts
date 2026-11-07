@@ -66,7 +66,7 @@ function normalizeRolePayload(raw: Record<string, unknown>) {
   const assignedEvents = Array.isArray(raw.assignedEvents)
     ? [...new Set(raw.assignedEvents.filter((item): item is string => typeof item === 'string' && item.length > 0))]
     : [];
-  if (role !== 'event_coordinator' && role !== 'faculty_coord' && role !== 'student_coord' && assignedEvents.length > 0) {
+  if (!['event_coordinator', 'faculty_coord', 'student_coord', 'volunteer_checkin', 'checkin_staff'].includes(role) && assignedEvents.length > 0) {
     throw new Error('Event assignments are only valid for event coordinator roles.');
   }
 
@@ -153,8 +153,11 @@ Deno.serve(async (req: Request) => {
     .eq('user_id', caller.id);
   if (roleError) return response({ error: 'Unable to verify your admin role.' }, 500);
 
-  const activeRoles = (callerRoles || []).filter(row => row.active).map(row => row.role as string);
+  const activeRoleRows = (callerRoles || []).filter(row => row.active) as Array<{ role: string; active: boolean; department_code?: string | null }>;
+  const activeRoles = activeRoleRows.map(row => row.role);
   const isGlobalAdmin = activeRoles.some(role => GLOBAL_ADMIN_ROLES.has(role));
+  const isEventCoordinator = activeRoles.some(role => ['event_coordinator', 'faculty_coord', 'student_coord'].includes(role));
+  const callerDepartmentCode = activeRoleRows.find(row => ['event_coordinator', 'faculty_coord', 'student_coord'].includes(row.role))?.department_code?.toUpperCase() || '';
 
   if (action === 'me') {
     const { data, error } = await db.from('admin_roles').select('*').eq('user_id', caller.id).eq('active', true).limit(1).maybeSingle();
@@ -164,7 +167,7 @@ Deno.serve(async (req: Request) => {
     return response(toAdminUser(data as AdminRow, assignments.get(caller.id) || []));
   }
 
-  if (!isGlobalAdmin) return response({ error: 'Only super admins can manage admin accounts.' }, 403);
+  if (!isGlobalAdmin && !isEventCoordinator) return response({ error: 'Only authorized coordinators can manage these admin accounts.' }, 403);
 
   try {
     if (action === 'list') {
@@ -177,6 +180,26 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'create') {
       const admin = normalizeRolePayload((body.admin || {}) as Record<string, unknown>);
+      if (!isGlobalAdmin) {
+        if (!['volunteer_checkin', 'checkin_staff'].includes(admin.role)) {
+          throw new Error('Event coordinators may only create gate volunteer accounts.');
+        }
+        if (admin.assignedEvents.length !== 1) {
+          throw new Error('A gate volunteer must be assigned to exactly one event.');
+        }
+        if (!callerDepartmentCode || admin.departmentCode !== callerDepartmentCode) {
+          throw new Error('Gate volunteers must belong to the coordinator\'s department.');
+        }
+        const { data: callerAssignments, error: callerAssignmentError } = await db
+          .from('admin_event_assignments')
+          .select('event_id')
+          .eq('admin_user_id', caller.id)
+          .eq('event_id', admin.assignedEvents[0]);
+        if (callerAssignmentError) throw callerAssignmentError;
+        if (!callerAssignments || callerAssignments.length !== 1) {
+          throw new Error('You can only assign volunteers to events assigned to you.');
+        }
+      }
       const { data: duplicateName, error: duplicateNameError } = await db.from('admin_roles').select('user_id').eq('username', admin.username).eq('active', true).maybeSingle();
       if (duplicateNameError) throw duplicateNameError;
       const { data: duplicateEmail, error: duplicateEmailError } = await db.from('admin_roles').select('user_id').eq('email', admin.email).eq('active', true).maybeSingle();

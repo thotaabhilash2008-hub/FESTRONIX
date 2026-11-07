@@ -23,6 +23,32 @@ import { KineticStage3D } from './components/3d';
 import { AboutSection } from './components/AboutSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
+const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
+
+const cachePassesOnDevice = (passes: Registration[]) => {
+  if (typeof window === 'undefined' || passes.length === 0) return;
+
+  try {
+    const existing = JSON.parse(localStorage.getItem(GUEST_PASS_CACHE_KEY) || '[]');
+    const byId = new Map<string, Registration>();
+    [...(Array.isArray(existing) ? existing : []), ...passes].forEach(pass => {
+      if (!pass?.id) return;
+      // Do not cache large payment screenshots or one-time delivery tokens.
+      byId.set(pass.id, { ...pass, paymentScreenshotUrl: undefined, emailDeliveryToken: undefined });
+    });
+    localStorage.setItem(GUEST_PASS_CACHE_KEY, JSON.stringify(Array.from(byId.values()).slice(-25)));
+
+    const ids = Array.from(byId.keys()).slice(-25);
+    localStorage.setItem('festronix_my_registered_pass_ids', JSON.stringify(ids));
+    const latest = passes[passes.length - 1];
+    if (latest.leaderEmail) localStorage.setItem('festronix_last_registered_email', latest.leaderEmail);
+    if (latest.leaderRoll) localStorage.setItem('festronix_last_registered_roll', latest.leaderRoll);
+    localStorage.setItem('festronix_last_pass_id', latest.id);
+  } catch (error) {
+    console.warn('Unable to cache guest pass on this device:', error);
+  }
+};
+
 export const App: React.FC = () => {
   // Admin View State (supports #admin hash, /admin pathname, or portal button)
   const checkIsAdmin = () => {
@@ -62,6 +88,22 @@ export const App: React.FC = () => {
   };
 
   const [isSponsorsPageOpen, setIsSponsorsPageOpen] = useState<boolean>(checkIsSponsorsPage);
+
+  const checkIsPassesPage = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    return path === '/passes' || path === '/passes/';
+  };
+
+  const getRegistrationSlug = () => {
+    if (typeof window === 'undefined') return '';
+    const match = window.location.pathname.match(/^\/register\/([^/]+)\/?$/i);
+    return match ? decodeURIComponent(match[1]) : '';
+  };
+
+  const [isPassesPageOpen, setIsPassesPageOpen] = useState<boolean>(checkIsPassesPage);
+  const [isRegistrationPageOpen, setIsRegistrationPageOpen] = useState<boolean>(() => Boolean(getRegistrationSlug()));
+  const [registrationSlug, setRegistrationSlug] = useState<string>(getRegistrationSlug);
 
 
   // User Authentication State
@@ -137,6 +179,11 @@ export const App: React.FC = () => {
     // Reactive listener for #admin, /admin, and back/forward navigation
     const handleLocationChange = () => {
       setIsAdminView(checkIsAdmin());
+      setIsSponsorsPageOpen(checkIsSponsorsPage());
+      setIsPassesPageOpen(checkIsPassesPage());
+      const slug = getRegistrationSlug();
+      setRegistrationSlug(slug);
+      setIsRegistrationPageOpen(Boolean(slug));
     };
     window.addEventListener('hashchange', handleLocationChange);
     window.addEventListener('popstate', handleLocationChange);
@@ -151,6 +198,13 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isRegistrationPageOpen || !registrationSlug || registerEvent || events.length === 0) return;
+    const cleanSlug = registrationSlug.toLowerCase();
+    const event = events.find(item => item.slug.toLowerCase() === cleanSlug || item.id.toLowerCase() === cleanSlug);
+    if (event) setRegisterEvent(event);
+  }, [events, isRegistrationPageOpen, registrationSlug, registerEvent]);
+
   const handleOpenAdmin = () => {
     window.location.hash = '#admin';
     setIsAdminView(true);
@@ -159,6 +213,26 @@ export const App: React.FC = () => {
   const handleOpenSponsorsPage = () => {
     window.location.hash = '#sponsors';
     setIsSponsorsPageOpen(true);
+  };
+
+  const navigateHome = () => {
+    window.history.pushState(null, '', '/');
+    window.location.hash = '';
+    setIsPassesPageOpen(false);
+    setIsRegistrationPageOpen(false);
+    setRegistrationSlug('');
+    setRegisterEvent(null);
+    setIsPassesModalOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenPassesPage = (passId?: string) => {
+    const suffix = passId ? `?registration=${encodeURIComponent(passId)}` : '';
+    window.history.pushState(null, '', `/passes${suffix}`);
+    setActivePassId(passId);
+    setIsPassesPageOpen(true);
+    setIsRegistrationPageOpen(false);
+    setIsPassesModalOpen(false);
   };
 
   const handleBackFromSponsorsPage = () => {
@@ -183,15 +257,17 @@ export const App: React.FC = () => {
   };
 
   const handleRegistrationSuccess = (newReg: Registration) => {
+    cachePassesOnDevice([newReg]);
     setRegisterEvent(null);
     refreshData();
-    setIsPassesModalOpen(true);
+    handleOpenPassesPage(newReg.id);
   };
 
   const handleMultiPassSuccess = (newRegs: Registration[]) => {
+    cachePassesOnDevice(newRegs);
     setIsMultiPassModalOpen(false);
     refreshData();
-    setIsPassesModalOpen(true);
+    handleOpenPassesPage(newRegs[newRegs.length - 1]?.id);
   };
 
   // Navigation handlers
@@ -232,12 +308,19 @@ export const App: React.FC = () => {
 
   const handleStartEventRegistration = (evt: FestEvent) => {
     setDetailEvent(null);
+    window.history.pushState(null, '', `/register/${encodeURIComponent(evt.slug || evt.id)}`);
+    setRegistrationSlug(evt.slug || evt.id);
+    setIsRegistrationPageOpen(true);
     setRegisterEvent(evt);
   };
 
   const handleStartMultiPass = () => {
     setIsMultiPassModalOpen(true);
   };
+
+  const activePassLookup = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('registration') || activePassId
+    : activePassId;
 
   // Render Public Sponsors Page if in #sponsors or #partners view
   if (isSponsorsPageOpen) {
@@ -250,6 +333,47 @@ export const App: React.FC = () => {
         }}
         onRegisterNow={handleStartMultiPass}
       />
+    );
+  }
+
+  if (isPassesPageOpen) {
+    return (
+      <DigitalPassModal
+        registrations={[]}
+        currentUser={currentUser}
+        activePassId={activePassLookup}
+        pageMode
+        onClose={navigateHome}
+        onBrowseEvents={navigateHome}
+        onOpenMultiPass={() => {
+          navigateHome();
+          setIsMultiPassModalOpen(true);
+        }}
+      />
+    );
+  }
+
+  if (isRegistrationPageOpen) {
+    return registerEvent ? (
+      <RegistrationModal
+        event={registerEvent}
+        currentUser={currentUser}
+        pageMode
+        onClose={navigateHome}
+        onSuccess={handleRegistrationSuccess}
+        onOpenMultiPass={() => {
+          navigateHome();
+          setIsMultiPassModalOpen(true);
+        }}
+      />
+    ) : (
+      <div className="registration-page-shell registration-page-loading">
+        <div>
+          <span className="pass-page-kicker"><span className="live-dot" /> LOADING LIVE EVENT</span>
+          <h1>Preparing registration desk…</h1>
+          <p>Loading the current event details from the backend.</p>
+        </div>
+      </div>
     );
   }
 
@@ -299,7 +423,7 @@ export const App: React.FC = () => {
       {/* Floating Modern Navbar */}
       <Navbar
         onOpenIntro={() => setIsIntroOpen(true)}
-        onOpenPasses={() => setIsPassesModalOpen(true)}
+        onOpenPasses={() => handleOpenPassesPage()}
         onOpenMultiPass={handleStartMultiPass}
         announcements={announcements}
         passesCount={registrations.length}

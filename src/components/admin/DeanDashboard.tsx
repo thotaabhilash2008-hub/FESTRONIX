@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Award, Users, IndianRupee, Clock, CheckCircle2, XCircle, Search, 
   Download, Bell, Plus, Trash2, Edit3, LogOut, Globe, 
   Layers, Eye, RefreshCw, Building2,
   UserCheck, UserPlus, Phone, Mail, Copy, Check,
   Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key,
-  Calendar, ArrowRight
+  Calendar, ArrowRight, QrCode, Camera, StopCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
@@ -21,6 +21,7 @@ import { AdminTopNav } from './AdminTopNav';
 import { AdminHeroBanner } from './AdminHeroBanner';
 import { AdminKpiCards } from './AdminKpiCards';
 import { SponsorManagerTab } from './SponsorManagerTab';
+import { EventOverviewGrid, EventOverviewItem } from './EventOverviewGrid';
 
 interface DeanDashboardProps {
   adminUser: AdminUser;
@@ -36,6 +37,15 @@ const requiresDepartment = (role: AdminRole): boolean => DEPARTMENT_SCOPED_ROLES
 
 const departmentHandle = (code: string): string =>
   code.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'department';
+
+const toDateInputValue = (value?: string): string => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value.slice(0, 10) : parsed.toISOString().slice(0, 10);
+};
+
+const toDeadlineStorageValue = (value: string): string =>
+  value ? new Date(`${value}T23:59:59`).toISOString() : '';
 
 export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogout, onSwitchToFest }) => {
   const [activeTab, setActiveTab] = useState<AdminNavTab>('dashboard');
@@ -56,6 +66,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [rosterDeptFilter, setRosterDeptFilter] = useState('all');
   const [rosterPaymentFilter, setRosterPaymentFilter] = useState('all');
   const [rosterCheckInFilter, setRosterCheckInFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all');
+  const [rosterPage, setRosterPage] = useState(1);
+  const ROSTER_PAGE_SIZE = 10;
 
   // Events Filters
   const [eventSearch, setEventSearch] = useState('');
@@ -73,6 +85,14 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [paymentSearch, setPaymentSearch] = useState('');
   const [paymentDeptFilter, setPaymentDeptFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'pending' | 'verified' | 'rejected' | 'all'>('pending');
+  const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(null);
+  const [selectedRosterEventId, setSelectedRosterEventId] = useState<string | null>(null);
+  const [gateQuery, setGateQuery] = useState('');
+  const [gateMatch, setGateMatch] = useState<Registration | null>(null);
+  const [gateScannerOpen, setGateScannerOpen] = useState(false);
+  const [gateScannerError, setGateScannerError] = useState('');
+  const gateVideoRef = useRef<HTMLVideoElement>(null);
+  const gateStreamRef = useRef<MediaStream | null>(null);
 
   // New Announcement Form State
   const [newAnnTitle, setNewAnnTitle] = useState('');
@@ -83,6 +103,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
   const [isAddCoordinatorOpen, setIsAddCoordinatorOpen] = useState(false);
+  const [coordinatorCreatedForEventId, setCoordinatorCreatedForEventId] = useState<string | null>(null);
 
   // Clipboard copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -418,6 +439,73 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     }
   };
 
+  const findGateRegistration = (query: string): Registration | null => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return null;
+    return registrations.find(reg => [reg.id, reg.qrToken, reg.leaderRoll, reg.leaderEmail, reg.teamCode]
+      .filter(Boolean)
+      .some(value => String(value).toLowerCase() === normalized)) || null;
+  };
+
+  const handleGateLookup = () => {
+    const match = findGateRegistration(gateQuery);
+    setGateMatch(match);
+    if (!match) setGateScannerError('No live registration matched that ticket, QR token, roll number, email, or team code.');
+    else setGateScannerError('');
+  };
+
+  useEffect(() => {
+    if (!gateScannerOpen) {
+      gateStreamRef.current?.getTracks().forEach(track => track.stop());
+      gateStreamRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+    let frame = 0;
+    const startScanner = async () => {
+      try {
+        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+        if (!BarcodeDetectorCtor) throw new Error('QR scanning is not supported in this browser. Use manual ticket lookup.');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        if (cancelled) return stream.getTracks().forEach(track => track.stop());
+        gateStreamRef.current = stream;
+        if (gateVideoRef.current) {
+          gateVideoRef.current.srcObject = stream;
+          await gateVideoRef.current.play();
+        }
+        const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+        const scan = async () => {
+          if (cancelled || !gateVideoRef.current) return;
+          try {
+            const codes = await detector.detect(gateVideoRef.current);
+            const value = codes[0]?.rawValue;
+            if (value) {
+              setGateQuery(value);
+              const match = findGateRegistration(value);
+              setGateMatch(match);
+              setGateScannerError(match ? '' : 'QR scanned, but no live registration matched this ticket.');
+              setGateScannerOpen(false);
+              return;
+            }
+          } catch { /* camera frames can be unavailable while the video warms up */ }
+          frame = requestAnimationFrame(scan);
+        };
+        frame = requestAnimationFrame(scan);
+      } catch (error) {
+        setGateScannerError((error as Error).message || 'Unable to start the QR scanner.');
+        setGateScannerOpen(false);
+      }
+    };
+    startScanner();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      gateStreamRef.current?.getTracks().forEach(track => track.stop());
+      gateStreamRef.current = null;
+    };
+  }, [gateScannerOpen, registrations]);
+
   // Broadcast Bulletin Handler
   const handleCreateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -603,18 +691,52 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     try {
       await StorageService.updateEvent(editingEvent);
       setEditingEvent(null);
+      setCoordinatorCreatedForEventId(null);
       await refreshAllData();
     } catch (error) {
       window.alert((error as Error).message || 'Unable to save event changes.');
     }
   };
 
+  const openCreateCoordinatorForEvent = (event: FestEvent) => {
+    setCoordinatorCreatedForEventId(event.id);
+    setCreatedCredential(null);
+    // A new account must be entered as a new person. Keep the event context,
+    // department, and assignment prefilled, but do not accidentally reuse an
+    // old coordinator's identity or email address.
+    setCoordFullName('');
+    setCoordDeptCode(event.departmentCode);
+    setCoordRole('event_coordinator');
+    setCoordDesignation(`Event Operations Coordinator — ${event.title}`);
+    setCoordEmail('');
+    setCoordPhone('+91 ');
+    setCoordUsername(`coord_${departmentHandle(event.departmentCode)}_${Math.floor(100 + Math.random() * 900)}`);
+    setCoordPassword(`fest_${departmentHandle(event.departmentCode)}_${Math.floor(1000 + Math.random() * 9000)}`);
+    setCoordAssignedEvents([event.id]);
+    setCoordFormError('');
+    setIsAddCoordinatorOpen(true);
+  };
+
   // Create Coordinator / HOD / Operational Staff Handler
   const handleCreateCoordinator = async (e: React.FormEvent) => {
     e.preventDefault();
     setCoordFormError('');
-    if (!coordFullName.trim() || !coordUsername.trim() || !coordPassword.trim()) {
+    const normalizedUsername = coordUsername.trim().toLowerCase();
+    const normalizedEmail = coordEmail.trim().toLowerCase();
+    if (!coordFullName.trim() || !normalizedUsername || !coordPassword.trim() || !normalizedEmail) {
       setCoordFormError('Please fill out all required credentials.');
+      return;
+    }
+    if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(normalizedUsername)) {
+      setCoordFormError('Username must be 3–64 characters and use only letters, numbers, dots, underscores, or hyphens.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setCoordFormError('Enter a valid official email address.');
+      return;
+    }
+    if (coordPassword.trim().length < 12) {
+      setCoordFormError('Portal passcodes must be at least 12 characters.');
       return;
     }
 
@@ -624,15 +746,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
     setCoordSubmitting(true);
     try {
-      await AdminAuthService.addCoordinator({
-        username: coordUsername.trim().toLowerCase(),
+      const created = await AdminAuthService.addCoordinator({
+        username: normalizedUsername,
         password: coordPassword.trim(),
         fullName: coordFullName.trim(),
         designation: coordDesignation.trim(),
         role: coordRole,
         departmentCode: coordRole === 'finance_reviewer' ? 'FINANCE' : coordDeptCode,
         departmentName: deptName,
-        email: coordEmail.trim(),
+        email: normalizedEmail,
         phone: coordPhone.trim(),
         assignedEvents: supportsEventAssignments(coordRole) ? coordAssignedEvents : [],
         accessBoundary: coordRole === 'finance_reviewer'
@@ -644,8 +766,25 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           : 'Assigned event(s) only unless separately authorised'
       });
 
+      setCoordinators(previous => [
+        ...previous.filter(coordinator => coordinator.id !== created.id && coordinator.email !== created.email),
+        created
+      ]);
+
+      // If the account was created from an event editor, immediately bind the
+      // event to the new portal account in the editor without another manual
+      // selection or page refresh.
+      if (coordinatorCreatedForEventId && editingEvent?.id === coordinatorCreatedForEventId) {
+        setEditingEvent(previous => previous ? {
+          ...previous,
+          coordinatorName: created.fullName,
+          coordinatorEmail: created.email,
+          coordinatorPhone: created.phone || ''
+        } : previous);
+      }
+
       setCreatedCredential({
-        username: coordUsername.trim().toLowerCase(),
+        username: normalizedUsername,
         password: coordPassword.trim(),
         role: coordRole
       });
@@ -788,8 +927,82 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     document.body.removeChild(link);
   };
 
+  // Keep the admin workspaces event-scoped even though the live source is one registration stream.
+  const eventOverviewItems = useMemo<EventOverviewItem[]>(() => {
+    const byKey = new Map<string, EventOverviewItem>();
+    const eventForRegistration = (registration: Registration) =>
+      events.find(event => event.id === registration.eventId || event.slug === registration.eventId || event.title === registration.eventTitle);
+
+    events.forEach(event => {
+      byKey.set(event.id, {
+        key: event.id,
+        event,
+        title: event.title,
+        departmentCode: event.departmentCode,
+        registrations: []
+      });
+    });
+
+    registrations.forEach(registration => {
+      const event = eventForRegistration(registration);
+      const key = event?.id || registration.eventId || `title:${registration.eventTitle}`;
+      const existing = byKey.get(key);
+      if (existing) {
+        existing.registrations.push(registration);
+      } else {
+        byKey.set(key, {
+          key,
+          event: event || null,
+          title: registration.eventTitle,
+          departmentCode: event?.departmentCode || StorageService.resolveDepartmentForRegistration(registration, events),
+          registrations: [registration]
+        });
+      }
+    });
+
+    return Array.from(byKey.values()).sort((a, b) => a.title.localeCompare(b.title));
+  }, [events, registrations]);
+
+  const selectedRosterEvent = eventOverviewItems.find(item => item.key === selectedRosterEventId);
+  const selectedPaymentEvent = eventOverviewItems.find(item => item.key === selectedPaymentEventId);
+
+  const eventCoordinatorOptions = useMemo<Array<AdminUser & { password?: string; assignedEvents?: string[] }>>(() => {
+    if (!editingEvent) return [];
+
+    const matchingAccounts = coordinators.filter(coordinator =>
+      DEPARTMENT_SCOPED_ROLES.includes(coordinator.role) &&
+      (!coordinator.departmentCode || coordinator.departmentCode.toUpperCase() === editingEvent.departmentCode.toUpperCase())
+    );
+
+    // Keep an event's existing coordinator selectable even when the event was
+    // created before that person received a portal account.
+    const currentCoordinator = editingEvent.coordinatorEmail
+      ? [{
+          id: `event-coordinator-${editingEvent.id}`,
+          username: editingEvent.coordinatorEmail,
+          fullName: editingEvent.coordinatorName || 'Current event coordinator',
+          designation: 'Current event coordinator',
+          role: 'event_coordinator' as AdminRole,
+          departmentCode: editingEvent.departmentCode,
+          departmentName: editingEvent.departmentCode,
+          email: editingEvent.coordinatorEmail,
+          phone: editingEvent.coordinatorPhone || '',
+          assignedEvents: [editingEvent.id]
+        }]
+      : [];
+
+    return [...currentCoordinator, ...matchingAccounts].filter((coordinator, index, list) =>
+      list.findIndex(candidate => candidate.email.toLowerCase() === coordinator.email.toLowerCase()) === index
+    );
+  }, [coordinators, editingEvent]);
+
   // Filtered Roster
   const filteredRoster = registrations.filter(r => {
+    if (selectedRosterEventId) {
+      const event = events.find(candidate => candidate.id === r.eventId || candidate.slug === r.eventId || candidate.title === r.eventTitle);
+      const eventKey = event?.id || r.eventId || `title:${r.eventTitle}`;
+      if (eventKey !== selectedRosterEventId) return false;
+    }
     const matchSearch = 
       r.leaderName.toLowerCase().includes(rosterSearch.toLowerCase()) ||
       r.leaderRoll.toLowerCase().includes(rosterSearch.toLowerCase()) ||
@@ -809,8 +1022,24 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     return matchSearch && matchDept && matchPay && matchCheckIn;
   });
 
+  const rosterPageCount = Math.max(1, Math.ceil(filteredRoster.length / ROSTER_PAGE_SIZE));
+  const paginatedRoster = filteredRoster.slice((rosterPage - 1) * ROSTER_PAGE_SIZE, rosterPage * ROSTER_PAGE_SIZE);
+
+  useEffect(() => {
+    setRosterPage(1);
+  }, [rosterSearch, rosterDeptFilter, rosterPaymentFilter, rosterCheckInFilter, selectedRosterEventId]);
+
+  useEffect(() => {
+    if (rosterPage > rosterPageCount) setRosterPage(rosterPageCount);
+  }, [rosterPage, rosterPageCount]);
+
   // Filtered Payments (Tab 2)
   const filteredPayments = registrations.filter(r => {
+    if (selectedPaymentEventId) {
+      const event = events.find(candidate => candidate.id === r.eventId || candidate.slug === r.eventId || candidate.title === r.eventTitle);
+      const eventKey = event?.id || r.eventId || `title:${r.eventTitle}`;
+      if (eventKey !== selectedPaymentEventId) return false;
+    }
     if (paymentStatusFilter === 'pending' && r.paymentStatus !== 'verification_pending') return false;
     if (paymentStatusFilter === 'verified' && r.paymentStatus !== 'verified' && r.paymentStatus !== 'not_applicable') return false;
     if (paymentStatusFilter === 'rejected' && r.paymentStatus !== 'rejected') return false;
@@ -1167,7 +1396,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             style={{ padding: '7px 8px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
                           >
                             <Users size={13} color="#94A3B8" />
-                            <span>Roster ({deptRegs.length})</span>
+                            <span>Participants ({deptRegs.length})</span>
                           </button>
                           <button
                             onClick={() => {
@@ -1196,7 +1425,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           {/* TAB 1: DEPARTMENT LEADERBOARD */}
           {activeTab === 'departments' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
                   Engineering Department Performance Matrix
@@ -1449,7 +1678,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             textAlign: 'center'
                           }}
                         >
-                          Roster ({deptStats.totalRegistrations})
+                          Participants ({deptStats.totalRegistrations})
                         </button>
 
                         <button
@@ -1477,13 +1706,26 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </div>
                 );
               })}
-            </div>
+                </div>
           </div>
         )}
 
         {/* TAB 2: PAYMENT VERIFICATION DESK */}
         {activeTab === 'payments' && (
           <div>
+            {!selectedPaymentEventId ? (
+              <EventOverviewGrid items={eventOverviewItems} mode="payments" onSelect={setSelectedPaymentEventId} />
+            ) : (
+            <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #FBBF24', background: 'rgba(251, 191, 36, 0.06)', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ color: '#FBBF24', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Selected event payment reviews</div>
+                <div style={{ color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 800, marginTop: '3px' }}>{selectedPaymentEvent?.title || 'Event payment reviews'}</div>
+              </div>
+              <button type="button" onClick={() => setSelectedPaymentEventId(null)} style={{ padding: '7px 11px', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.35)', background: 'rgba(251, 191, 36, 0.1)', color: '#FDE68A', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem' }}>
+                ← All events
+              </button>
+            </div>
             {/* Payment Reviewer Operations Desk Banner */}
             <div
               style={{
@@ -2090,6 +2332,68 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 })}
               </div>
             )}
+            </>
+            )}
+          </div>
+        )}
+
+        {/* TAB: LIVE GATE CHECK-IN */}
+        {activeTab === 'checkin' && (
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>Live Gate Check-in</h3>
+              <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: '4px 0 0' }}>Scan a participant ticket or search the live registration database before granting entry.</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, 0.85fr)', gap: '16px', alignItems: 'start' }}>
+              <div style={{ background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(56, 189, 248, 0.28)', borderRadius: '14px', padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
+                  <QrCode size={19} color="#38BDF8" />
+                  <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem' }}>Ticket scanner</h4>
+                </div>
+                <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: '0 0 14px' }}>Use the camera to scan the QR code printed on the participant’s pass.</p>
+                {gateScannerOpen ? (
+                  <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px', background: '#020617', minHeight: '250px' }}>
+                    <video ref={gateVideoRef} muted playsInline style={{ width: '100%', display: 'block', minHeight: '250px', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', inset: '22% 16%', border: '2px solid #38BDF8', borderRadius: '14px', boxShadow: '0 0 0 999px rgba(2, 6, 23, 0.35)' }} />
+                    <button type="button" onClick={() => setGateScannerOpen(false)} style={{ position: 'absolute', right: '10px', top: '10px', padding: '7px 10px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(2,6,23,0.75)', color: '#FFFFFF', cursor: 'pointer' }}><StopCircle size={14} /></button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => { setGateScannerError(''); setGateScannerOpen(true); }} className="admin-btn admin-btn-primary" style={{ width: '100%', padding: '12px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Camera size={17} /> Open camera scanner
+                  </button>
+                )}
+                {gateScannerError && <div style={{ marginTop: '12px', color: '#FCA5A5', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid rgba(248, 113, 113, 0.35)', borderRadius: '8px', padding: '9px 11px', fontSize: '0.76rem' }}>{gateScannerError}</div>}
+              </div>
+
+              <div style={{ background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(220, 227, 229, 0.16)', borderRadius: '14px', padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
+                  <Search size={18} color="#BACEBB" />
+                  <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem' }}>Manual check-in</h4>
+                </div>
+                <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: '0 0 14px' }}>Search by registration ID, QR token, roll number, email, or team code.</p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input value={gateQuery} onChange={e => setGateQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGateLookup()} placeholder="FEST-2026-… or roll no." style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: '8px', background: 'rgba(8, 12, 22, 0.8)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }} />
+                  <button type="button" onClick={handleGateLookup} className="admin-btn admin-btn-primary" style={{ padding: '10px 13px' }}>Find</button>
+                </div>
+                {gateMatch && (
+                  <div style={{ marginTop: '16px', padding: '14px', borderRadius: '10px', border: `1px solid ${gateMatch.checkedIn ? 'rgba(52, 211, 153, 0.4)' : 'rgba(56, 189, 248, 0.35)'}`, background: 'rgba(8, 12, 22, 0.45)' }}>
+                    <div style={{ color: '#FFFFFF', fontWeight: 800 }}>{gateMatch.leaderName}</div>
+                    <div style={{ color: '#94A3B8', fontSize: '0.75rem', marginTop: '4px' }}>{gateMatch.eventTitle} • {gateMatch.leaderRoll}</div>
+                    <div style={{ color: '#BACEBB', fontSize: '0.75rem', marginTop: '4px' }}>{gateMatch.id}</div>
+                    <button type="button" onClick={() => handleToggleCheckIn(gateMatch.id)} className="admin-btn admin-btn-primary" style={{ marginTop: '13px', width: '100%', justifyContent: 'center', display: 'flex', gap: '7px', padding: '10px' }}>
+                      {gateMatch.checkedIn ? <Clock size={15} /> : <CheckCircle2 size={15} />}
+                      {gateMatch.checkedIn ? 'Revert check-in' : 'Confirm manual check-in'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: '18px', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '15px 18px', borderRadius: '12px', background: 'rgba(20, 31, 62, 0.7)', border: '1px solid rgba(220, 227, 229, 0.14)' }}>
+              <span style={{ color: '#A8B3C2', fontSize: '0.8rem' }}>Live attendance</span>
+              <strong style={{ color: '#34D399', fontSize: '0.85rem' }}>{stats.checkedInCount} of {stats.totalRegistrations} participants checked in</strong>
+            </div>
           </div>
         )}
 
@@ -3168,7 +3472,21 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 }}
               >
                 <Download size={15} />
-                <span>Download Master CSV Roster</span>
+                <span>Download Participant CSV</span>
+              </button>
+            </div>
+
+            {activeTab === 'registrations' && !selectedRosterEventId ? (
+              <EventOverviewGrid items={eventOverviewItems} mode="registrations" onSelect={setSelectedRosterEventId} />
+            ) : (
+            <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #38BDF8', background: 'rgba(56, 189, 248, 0.06)', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ color: '#38BDF8', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{activeTab === 'registrations' && selectedRosterEvent ? 'Selected event registrations' : 'Participant directory'}</div>
+                <div style={{ color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 800, marginTop: '3px' }}>{activeTab === 'registrations' && selectedRosterEvent ? selectedRosterEvent.title : rosterDeptFilter === 'all' ? 'All participants' : `${rosterDeptFilter} department participants`}</div>
+              </div>
+              <button type="button" onClick={() => { setSelectedRosterEventId(null); setRosterDeptFilter('all'); }} style={{ padding: '7px 11px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.35)', background: 'rgba(56, 189, 248, 0.1)', color: '#7DD3FC', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem' }}>
+                {activeTab === 'registrations' ? '← All events' : 'Reset directory'}
               </button>
             </div>
 
@@ -3281,7 +3599,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRoster.map(r => (
+                  {paginatedRoster.map(r => (
                     <tr
                       key={r.id}
                       style={{
@@ -3357,6 +3675,36 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </tbody>
               </table>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginTop: '14px', flexWrap: 'wrap' }}>
+              <span style={{ color: '#94A3B8', fontSize: '0.78rem' }}>
+                Showing {filteredRoster.length === 0 ? 0 : (rosterPage - 1) * ROSTER_PAGE_SIZE + 1}–{Math.min(rosterPage * ROSTER_PAGE_SIZE, filteredRoster.length)} of {filteredRoster.length} participants
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  disabled={rosterPage <= 1}
+                  onClick={() => setRosterPage(page => Math.max(1, page - 1))}
+                  className="admin-btn admin-btn-ghost"
+                  style={{ padding: '7px 12px', opacity: rosterPage <= 1 ? 0.45 : 1, cursor: rosterPage <= 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  ← Previous
+                </button>
+                <span style={{ minWidth: '76px', textAlign: 'center', color: '#DCE3E5', fontSize: '0.78rem', fontWeight: 700 }}>
+                  Page {rosterPage} / {rosterPageCount}
+                </span>
+                <button
+                  type="button"
+                  disabled={rosterPage >= rosterPageCount}
+                  onClick={() => setRosterPage(page => Math.min(rosterPageCount, page + 1))}
+                  className="admin-btn admin-btn-ghost"
+                  style={{ padding: '7px 12px', opacity: rosterPage >= rosterPageCount ? 0.45 : 1, cursor: rosterPage >= rosterPageCount ? 'not-allowed' : 'pointer' }}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+            </>
+            )}
           </div>
         )}
 
@@ -4148,7 +4496,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             padding: '20px',
             overflowY: 'auto'
           }}
-          onClick={() => setEditingEvent(null)}
+          onClick={() => {
+            setEditingEvent(null);
+            setCoordinatorCreatedForEventId(null);
+          }}
         >
           <div
             style={{
@@ -4168,7 +4519,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 Edit Event: {editingEvent.title}
               </h3>
               <button
-                onClick={() => setEditingEvent(null)}
+                onClick={() => {
+                  setEditingEvent(null);
+                  setCoordinatorCreatedForEventId(null);
+                }}
                 style={{ background: 'none', border: 'none', color: '#A8B3C2', cursor: 'pointer', fontSize: '1.4rem' }}
               >
                 ✕
@@ -4196,6 +4550,60 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     boxSizing: 'border-box'
                   }}
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Minimum Team Size</label>
+                  <input type="number" min={1} value={editingEvent.minTeamSize} onChange={e => setEditingEvent({ ...editingEvent, minTeamSize: Number(e.target.value) })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Maximum Team Size</label>
+                  <input type="number" min={1} value={editingEvent.maxTeamSize} onChange={e => setEditingEvent({ ...editingEvent, maxTeamSize: Number(e.target.value) })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Event Date</label>
+                  <input type="text" value={editingEvent.date} onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Registration Deadline</label>
+                  <input type="date" value={toDateInputValue(editingEvent.deadline)} onChange={e => setEditingEvent({ ...editingEvent, deadline: toDeadlineStorageValue(e.target.value) })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box', colorScheme: 'dark' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Event Slug</label>
+                  <input type="text" value={editingEvent.slug} onChange={e => setEditingEvent({ ...editingEvent, slug: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Tagline</label>
+                  <input type="text" value={editingEvent.tagline || ''} onChange={e => setEditingEvent({ ...editingEvent, tagline: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Department</label>
+                  <select value={editingEvent.departmentCode} onChange={e => setEditingEvent({ ...editingEvent, departmentCode: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem' }}>
+                    {departments.map(dept => <option key={dept.code} value={dept.code}>{dept.code}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Category</label>
+                  <select value={editingEvent.category} onChange={e => setEditingEvent({ ...editingEvent, category: e.target.value as EventCategory })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem' }}>
+                    {['technical', 'workshop', 'hackathon', 'gaming', 'non-technical', 'departmental'].map(value => <option key={value} value={value}>{value.replace('-', ' ')}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Format</label>
+                  <select value={editingEvent.format} onChange={e => setEditingEvent({ ...editingEvent, format: e.target.value as EventFormat })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem' }}>
+                    {['individual', 'duo', 'team'].map(value => <option key={value} value={value}>{value.toUpperCase()}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
@@ -4310,10 +4718,90 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Coordinator Email</label>
+                  <input type="email" value={editingEvent.coordinatorEmail} onChange={e => setEditingEvent({ ...editingEvent, coordinatorEmail: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Eligibility</label>
+                  <input type="text" value={editingEvent.eligibility || ''} onChange={e => setEditingEvent({ ...editingEvent, eligibility: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                  Assigned Coordinator Contact
-                </label>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Event Description</label>
+                <textarea rows={3} value={editingEvent.description} onChange={e => setEditingEvent({ ...editingEvent, description: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box', resize: 'vertical' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Rules & Regulations (one per line)</label>
+                <textarea rows={4} value={editingEvent.rules.join('\n')} onChange={e => setEditingEvent({ ...editingEvent, rules: e.target.value.split('\n').map(rule => rule.trim()).filter(Boolean) })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box', resize: 'vertical' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Payment Instructions</label>
+                <textarea rows={3} value={editingEvent.paymentInstructions || ''} onChange={e => setEditingEvent({ ...editingEvent, paymentInstructions: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box', resize: 'vertical' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Prize Details</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {(['first', 'second', 'third', 'special'] as const).map(prize => (
+                    <input key={prize} type="text" value={editingEvent.prizes[prize] || ''} onChange={e => setEditingEvent({ ...editingEvent, prizes: { ...editingEvent.prizes, [prize]: e.target.value } })} placeholder={`${prize.charAt(0).toUpperCase() + prize.slice(1)} prize`} style={{ padding: '9px 10px', borderRadius: '7px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', fontSize: '0.8rem' }} />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5' }}>Assigned Coordinator</label>
+                  <button
+                    type="button"
+                    onClick={() => openCreateCoordinatorForEvent(editingEvent)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', border: '1px solid rgba(96, 165, 250, 0.55)', background: 'rgba(37, 99, 235, 0.18)', color: '#93C5FD', borderRadius: '7px', padding: '6px 9px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    <UserPlus size={13} /> Create coordinator
+                  </button>
+                </div>
+                <select
+                  value={editingEvent.coordinatorEmail || ''}
+                  onChange={e => {
+                    const selected = eventCoordinatorOptions.find(coordinator => coordinator.email === e.target.value);
+                    if (selected) {
+                      setEditingEvent({ ...editingEvent, coordinatorName: selected.fullName, coordinatorEmail: selected.email, coordinatorPhone: selected.phone || '' });
+                    }
+                  }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', marginBottom: '8px' }}
+                >
+                  <option value="">Select coordinator</option>
+                  {eventCoordinatorOptions.map(coordinator => (
+                    <option key={coordinator.id} value={coordinator.email}>
+                      {coordinator.fullName} — {coordinator.designation}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#8FA3B8', fontSize: '0.7rem', marginBottom: '10px' }}>
+                  <Users size={13} />
+                  {eventCoordinatorOptions.length > 0
+                    ? `${eventCoordinatorOptions.length} coordinator account${eventCoordinatorOptions.length === 1 ? '' : 's'} available for ${editingEvent.departmentCode}`
+                    : `No coordinator account is assigned to ${editingEvent.departmentCode} yet. Create one to grant portal access.`}
+                </div>
+                {createdCredential && coordinatorCreatedForEventId === editingEvent.id && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(52, 211, 153, 0.35)', color: '#D1FAE5', fontSize: '0.74rem' }}>
+                    <span>
+                      <strong>Coordinator account created and assigned.</strong><br />
+                      Username: <code>{createdCredential.username}</code> · Passcode: <code>{createdCredential.password}</code>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(`${createdCredential.username}\n${createdCredential.password}`, 'event-coordinator-credential')}
+                      style={{ flexShrink: 0, background: 'rgba(52, 211, 153, 0.18)', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: '6px', padding: '5px 8px', color: '#D1FAE5', cursor: 'pointer', fontSize: '0.7rem' }}
+                    >
+                      {copiedId === 'event-coordinator-credential' ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <input
                     type="text"
@@ -4349,7 +4837,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
                 <button
                   type="button"
-                  onClick={() => setEditingEvent(null)}
+                  onClick={() => {
+                    setEditingEvent(null);
+                    setCoordinatorCreatedForEventId(null);
+                  }}
                   style={{
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: '1px solid rgba(220, 227, 229, 0.2)',

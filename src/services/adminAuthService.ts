@@ -352,10 +352,16 @@ async function invokeAdminApi<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke<T>('admin-users', { body });
   if (error) {
     const context = (error as any).context;
-    const details = context && typeof context.json === 'function'
-      ? await context.json().catch(() => null)
-      : null;
-    throw new Error(details?.error || error.message || 'The admin request failed.');
+    let details: any = null;
+    if (context && typeof context.clone === 'function') {
+      const responseBody = await context.clone().text().catch(() => '');
+      if (responseBody) {
+        try { details = JSON.parse(responseBody); } catch { details = { error: responseBody }; }
+      }
+    } else if (context && typeof context.json === 'function') {
+      details = await context.json().catch(() => null);
+    }
+    throw new Error(details?.error || details?.message || error.message || 'The admin request failed.');
   }
   if (!data) throw new Error('The admin service returned an empty response.');
   return data;

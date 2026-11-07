@@ -12,6 +12,7 @@ interface AdminHeaderProps {
   titleOverride?: string;
   badgeOverride?: string;
   badgeType?: 'super_admin' | 'dept' | 'finance' | 'volunteer' | 'event';
+  fluid?: boolean;
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
@@ -20,7 +21,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   onSwitchToFest,
   titleOverride,
   badgeOverride,
-  badgeType
+  badgeType,
+  fluid = false
 }) => {
   // Live Clock in IST
   const [timeStr, setTimeStr] = useState(() => {
@@ -133,9 +135,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     <header className="admin-exec-header">
       <div
         style={{
-          maxWidth: '1360px',
+          maxWidth: fluid ? '100%' : '1360px',
           margin: '0 auto',
-          padding: '14px 24px',
+          padding: fluid ? '14px 28px' : '14px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

@@ -613,6 +613,78 @@ export class StorageService {
     return this.getRegistrations();
   }
 
+  /**
+   * Public, account-free pass lookup. This is deliberately separate from
+   * fetchRegistrations(): anonymous visitors must never receive a table-wide
+   * registration read. The RPC returns only exact matches and only live
+   * backend rows.
+   */
+  static async lookupPublicPasses(query: string): Promise<Registration[]> {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return [];
+
+    if (!isSupabaseConfigured()) {
+      // Development fallback is intentionally empty rather than returning
+      // seeded/mock passes that could be mistaken for real registrations.
+      return [];
+    }
+
+    const { data, error } = await supabase.rpc('lookup_public_passes_unlocked', { p_query: cleanQuery });
+    if (error) throw new Error(`Unable to look up passes: ${error.message}`);
+    if (!(data as any)?.success) {
+      throw new Error(String((data as any)?.error || 'No live pass was found.'));
+    }
+
+    const rows = Array.isArray((data as any)?.registrations) ? (data as any).registrations : [];
+    return rows.map((row: any) => ({
+      ...registrationFromDb({
+        ...row,
+        display_id: row.id,
+        user_id: row.userId,
+        buyer_roll: row.buyerRoll,
+        event_id: row.eventId,
+        event_title: row.eventTitle,
+        department_code: row.departmentCode,
+        team_name: row.teamName,
+        team_code: row.teamCode,
+        leader_name: row.leaderName,
+        leader_email: row.leaderEmail,
+        leader_phone: row.leaderPhone,
+        leader_college: row.leaderCollege,
+        leader_roll: row.leaderRoll,
+        registration_members: row.teammates || [],
+        format: row.format,
+        fee: row.fee,
+        source: row.source,
+        created_at: row.registrationDate,
+        payment_status: row.paymentStatus,
+        transaction_id: row.transactionId,
+        rejection_reason: row.rejectionReason,
+        verified_by: row.verifiedBy,
+        verified_at: row.verifiedAt,
+        tickets: row.qrToken ? [{
+          qr_token: row.qrToken,
+          checked_in: row.checkedIn,
+          checked_in_at: row.checkedInAt,
+          checked_in_by: row.checkedInBy
+        }] : []
+      }),
+      // registrationFromDb has a legacy synthetic fallback for local seed
+      // data. Public lookup must preserve a genuinely absent QR token.
+      qrToken: row.qrToken || '',
+      teammates: Array.isArray(row.teammates) ? row.teammates.map((member: any) => ({
+        name: member.name || '',
+        email: member.email || '',
+        phone: member.phone || '',
+        college: member.college || '',
+        rollNumber: member.rollNumber || '',
+        registrationStatus: member.registrationStatus,
+        qrGenerated: Boolean(member.qrGenerated),
+        registeredAt: member.registeredAt
+      })) : []
+    }));
+  }
+
   private static async signPaymentProofUrls(registrations: Registration[]): Promise<Registration[]> {
     const pathsByRegistration = registrations
       .map(registration => ({ id: registration.id, path: paymentProofObjectPath(registration.paymentScreenshotUrl) }))
@@ -949,12 +1021,32 @@ export class StorageService {
     rejectionReason?: string
   ): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.rpc('review_registration_payment', {
-        p_display_id: regId,
-        p_status: status,
-        p_rejection_reason: rejectionReason || null
-      });
-      if (error) throw new Error(`Unable to update payment status: ${error.message}`);
+      let data: any = null;
+      let lastError: any = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const result = await supabase.rpc('review_registration_payment', {
+          p_display_id: regId,
+          p_status: status,
+          p_rejection_reason: rejectionReason || null
+        });
+        data = result.data;
+        lastError = result.error;
+        if (!lastError) break;
+
+        const message = String(lastError.message || '').toLowerCase();
+        const transient = message.includes('statement timeout') ||
+          message.includes('canceling statement') ||
+          message.includes('deadlock') ||
+          message.includes('could not serialize');
+        if (!transient || attempt === 2) break;
+        await new Promise(resolve => window.setTimeout(resolve, 500 * (attempt + 1)));
+      }
+      if (lastError) {
+        const message = String(lastError.message || 'The payment review request failed.');
+        throw new Error(message.toLowerCase().includes('timeout')
+          ? 'Payment review is temporarily busy because another registration update is still being committed. Please retry once.'
+          : `Unable to update payment status: ${message}`);
+      }
       if (!(data as any)?.success) throw new Error((data as any)?.error || 'The database rejected the payment update.');
 
       const regs = this.getRegistrations();

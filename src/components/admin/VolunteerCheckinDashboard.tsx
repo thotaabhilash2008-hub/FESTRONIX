@@ -29,8 +29,11 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
   }>({ type: 'idle', message: '' });
 
   const [registrations, setRegistrations] = useState<Registration[]>(() => StorageService.getRegistrations());
-  const checkedInCount = registrations.filter(r => r.checkedIn).length;
-  const totalCount = registrations.length;
+  const scopedRegistrations = adminUser.assignedEvents && adminUser.assignedEvents.length > 0
+    ? registrations.filter(r => adminUser.assignedEvents!.includes(r.eventId) || adminUser.assignedEvents!.includes(r.eventTitle))
+    : registrations;
+  const checkedInCount = scopedRegistrations.filter(r => r.checkedIn).length;
+  const totalCount = scopedRegistrations.length;
 
   const refreshList = async () => {
     setRegistrations(StorageService.getRegistrations());
@@ -61,7 +64,7 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
     const query = tokenInput.trim();
     if (!query) return;
 
-    const allRegs = StorageService.getRegistrations();
+    const allRegs = scopedRegistrations;
     const cleanQ = query.toLowerCase();
 
     // Match by QR Token, Reg ID, Roll Number, or Buyer Roll
@@ -408,14 +411,14 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
                 </tr>
               </thead>
               <tbody>
-                {registrations.filter(r => r.checkedIn).length === 0 ? (
+                {scopedRegistrations.filter(r => r.checkedIn).length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#64748B' }}>
                       No participants checked in yet today. Ready to scan at gates.
                     </td>
                   </tr>
                 ) : (
-                  registrations.filter(r => r.checkedIn).map(r => (
+                  scopedRegistrations.filter(r => r.checkedIn).map(r => (
                     <tr key={r.id}>
                       <td style={{ fontWeight: 700, color: '#38BDF8', fontFamily: 'monospace' }}>{r.id}</td>
                       <td style={{ color: '#FFFFFF', fontWeight: 600 }}>{r.leaderName}</td>

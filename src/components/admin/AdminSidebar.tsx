@@ -52,7 +52,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     },
     { id: 'coordinators' as AdminNavTab, label: 'Event Coordinators', icon: Users },
     { id: 'checkin' as AdminNavTab, label: 'Gate Check-in', icon: QrCode },
-    { id: 'roster' as AdminNavTab, label: 'Master Student Roster', icon: Layers },
+    { id: 'roster' as AdminNavTab, label: 'Participants', icon: Layers },
     { id: 'bulletins' as AdminNavTab, label: 'Campus Bulletins', icon: Bell },
     { id: 'reports' as AdminNavTab, label: 'Analytics & Reports', icon: BarChart3 },
     { id: 'structure' as AdminNavTab, label: 'User Management', icon: UserCog },
@@ -63,30 +63,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     <aside className="admin-sidebar admin-scrollbar">
       {/* Top Branding Crest */}
       <div className="admin-sidebar-brand">
-        {/* Stylized Neon Winged Phoenix Crest */}
-        <div style={{ position: 'relative', width: '42px', height: '42px', flexShrink: 0 }}>
-          <svg viewBox="0 0 100 100" width="42" height="42" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="phoenixGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#C084FC" />
-                <stop offset="50%" stopColor="#38BDF8" />
-                <stop offset="100%" stopColor="#EC4899" />
-              </linearGradient>
-              <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-            {/* Outer Wing Left */}
-            <path d="M50 15 C35 15, 12 35, 10 65 C22 55, 36 60, 48 50 C44 40, 42 30, 50 15 Z" fill="url(#phoenixGrad)" filter="url(#glowFilter)" opacity="0.9" />
-            {/* Outer Wing Right */}
-            <path d="M50 15 C65 15, 88 35, 90 65 C78 55, 64 60, 52 50 C56 40, 58 30, 50 15 Z" fill="url(#phoenixGrad)" filter="url(#glowFilter)" opacity="0.9" />
-            {/* Core Heart Diamond */}
-            <polygon points="50,22 62,55 50,88 38,55" fill="#FFFFFF" opacity="0.9" />
-            <polygon points="50,28 58,54 50,78 42,54" fill="url(#phoenixGrad)" />
-          </svg>
-        </div>
-
         <div>
           <div
             style={{

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag, Lock } from 'lucide-react';
+import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag } from 'lucide-react';
 import { Registration, Team, User as UserType } from '../types/festronix';
-import { INITIAL_REGISTRATIONS } from '../data/mockData';
 import { StorageService } from '../services/storageService';
 import { EmailService } from '../services/emailService';
 
@@ -9,15 +8,36 @@ interface DigitalPassModalProps {
   registrations: Registration[];
   currentUser?: UserType | null;
   activePassId?: string;
+  pageMode?: boolean;
   onClose: () => void;
   onBrowseEvents?: () => void;
   onOpenMultiPass?: () => void;
 }
 
+const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
+
+const readGuestPassCache = (): Registration[] => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(GUEST_PASS_CACHE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const mergePasses = (primary: Registration[], secondary: Registration[]): Registration[] => {
+  const byId = new Map<string, Registration>();
+  [...secondary, ...primary].forEach(registration => {
+    if (registration?.id) byId.set(registration.id, registration);
+  });
+  return Array.from(byId.values());
+};
+
 export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   registrations: initialRegistrations,
   currentUser,
   activePassId,
+  pageMode = false,
   onClose,
   onBrowseEvents,
   onOpenMultiPass
@@ -69,6 +89,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   useEffect(() => {
+    if (pageMode) return;
     const prevOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -78,13 +99,18 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       document.body.style.overflow = prevOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
     };
-  }, []);
+  }, [pageMode]);
 
-  const allRegs = initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS;
-  const userFiltered = visibleRegistrations(allRegs);
+  const [liveRegistrations, setLiveRegistrations] = useState<Registration[]>(() =>
+    mergePasses(initialRegistrations, readGuestPassCache())
+  );
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const allRegs = liveRegistrations;
+  const userFiltered = pageMode ? allRegs : visibleRegistrations(allRegs);
 
   const [activeList, setActiveList] = useState<Registration[]>(
-    userFiltered.length > 0 ? userFiltered : allRegs
+    userFiltered
   );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selectedRegistrationId = useRef<string | null>(null);
@@ -94,6 +120,79 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<Record<string, string>>({});
+
+  const lookupLivePasses = async (query: string, silent = false) => {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
+    if (!silent) {
+      setIsLookupLoading(true);
+      setLookupError(null);
+      setSearchFeedback(null);
+    }
+    try {
+      const found = await StorageService.lookupPublicPasses(cleanQuery);
+      const normalizedQuery = cleanQuery.toLowerCase();
+      const cachedMatches = readGuestPassCache().filter(registration => [
+        registration.id,
+        registration.leaderEmail,
+        registration.leaderRoll,
+        registration.teamCode
+      ].filter(Boolean).some(value => String(value).toLowerCase() === normalizedQuery));
+      const resolved = mergePasses(found, cachedMatches);
+      setLiveRegistrations(resolved);
+      setActiveList(resolved);
+      setSelectedIndex(0);
+      setSearchFeedback(found.length > 0
+        ? `Live result • ${found.length} pass${found.length === 1 ? '' : 'es'} found`
+        : cachedMatches.length > 0
+          ? 'Saved on this device • live sync will update when available'
+          : 'No live pass matched that lookup.');
+      if (resolved.length === 0) setLookupError('No registration matched. Check the registration ID, roll number, email, or team code.');
+      else setLookupError(null);
+    } catch (error: any) {
+      const normalizedQuery = cleanQuery.toLowerCase();
+      const cachedMatches = readGuestPassCache().filter(registration => [
+        registration.id,
+        registration.leaderEmail,
+        registration.leaderRoll,
+        registration.teamCode
+      ].filter(Boolean).some(value => String(value).toLowerCase() === normalizedQuery));
+      if (cachedMatches.length > 0) {
+        setLiveRegistrations(cachedMatches);
+        setActiveList(cachedMatches);
+        setLookupError(null);
+        setSearchFeedback('Saved on this device • live lookup is temporarily unavailable');
+      } else {
+        if (!silent) setActiveList([]);
+        setLookupError(error?.message || 'Live pass lookup is temporarily unavailable.');
+        setSearchFeedback(null);
+      }
+    } finally {
+      if (!silent) setIsLookupLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const nextRegistrations = mergePasses(initialRegistrations, readGuestPassCache());
+    setLiveRegistrations(nextRegistrations);
+    if (!pageMode && nextRegistrations.length > 0) {
+      setActiveList(visibleRegistrations(nextRegistrations));
+    }
+  }, [initialRegistrations, pageMode]);
+
+  useEffect(() => {
+    if (!pageMode || !activePassId) return;
+    setSearchQuery(activePassId);
+    void lookupLivePasses(activePassId);
+  }, [pageMode, activePassId]);
+
+  useEffect(() => {
+    if (!pageMode || !searchQuery.trim()) return;
+    const intervalId = window.setInterval(() => {
+      void lookupLivePasses(searchQuery, true);
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+  }, [pageMode, searchQuery]);
 
   useEffect(() => {
     if (activePassId && activeList.length > 0) {
@@ -125,7 +224,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
   useEffect(() => {
     const selectedId = selectedRegistrationId.current;
-    const next = visibleRegistrations(initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS);
+    const next = pageMode ? liveRegistrations : visibleRegistrations(liveRegistrations);
     setActiveList(next);
     setSelectedIndex(previousIndex => {
       if (selectedId) {
@@ -134,7 +233,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       }
       return Math.min(previousIndex, Math.max(next.length - 1, 0));
     });
-  }, [initialRegistrations, currentUser]);
+  }, [initialRegistrations, currentUser, pageMode, liveRegistrations]);
 
   useEffect(() => {
     selectedRegistrationId.current = activeList[selectedIndex]?.id || null;
@@ -194,6 +293,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
+    if (pageMode) {
+      void lookupLivePasses(searchQuery);
+      return;
+    }
+
     const q = searchQuery.trim().toLowerCase();
     const found = activeList.filter(
       r =>
@@ -216,11 +320,13 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   const handleResetSearch = () => {
-    const next = visibleRegistrations(initialRegistrations.length > 0 ? initialRegistrations : INITIAL_REGISTRATIONS);
-    setActiveList(next.length > 0 ? next : allRegs);
+    const next = pageMode ? [] : visibleRegistrations(liveRegistrations);
+    setLiveRegistrations(next);
+    setActiveList(next);
     setSelectedIndex(0);
     setSearchQuery('');
     setSearchFeedback(null);
+    setLookupError(null);
   };
 
   const reg = activeList[selectedIndex] || activeList[0];
@@ -301,18 +407,22 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" data-lenis-prevent onClick={onClose}>
+    <div
+      className={pageMode ? 'pass-page-shell' : 'modal-backdrop'}
+      data-lenis-prevent={pageMode ? undefined : true}
+      onClick={pageMode ? undefined : onClose}
+    >
       <div
-        className="modal-content"
+        className={pageMode ? 'pass-page-content' : 'modal-content'}
         data-lenis-prevent-wheel
         data-lenis-prevent-touch
-        onClick={e => e.stopPropagation()}
+        onClick={pageMode ? undefined : e => e.stopPropagation()}
         style={{
-          padding: '28px',
-          maxWidth: '700px',
-          width: '95%',
-          maxHeight: 'calc(100dvh - 40px)',
-          overflowY: 'auto',
+          padding: pageMode ? 'clamp(24px, 4vw, 56px) 0 72px' : '28px',
+          maxWidth: pageMode ? '1120px' : '700px',
+          width: pageMode ? 'min(100% - 32px, 1120px)' : '95%',
+          maxHeight: pageMode ? 'none' : 'calc(100dvh - 40px)',
+          overflowY: pageMode ? 'visible' : 'auto',
           overscrollBehavior: 'contain',
           WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-y'
@@ -331,7 +441,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 fontWeight: 700
               }}
             >
-              OFFICIAL FESTRONIX REGISTRATION PASS
+              {pageMode ? 'FESTRONIX PASS PORTAL' : 'OFFICIAL FESTRONIX REGISTRATION PASS'}
             </span>
           </div>
 
@@ -341,7 +451,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               background: 'rgba(220, 227, 229, 0.08)',
               border: '1px solid rgba(220, 227, 229, 0.15)',
               color: '#A8B3C2',
-              borderRadius: '50%',
+              borderRadius: '8px',
               width: '34px',
               height: '34px',
               display: 'flex',
@@ -358,6 +468,14 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         </div>
 
         {/* Quick Search Pass Finder */}
+        {pageMode && (
+          <div className="pass-page-intro">
+
+            <h1>Find your official pass</h1>
+            <p>Search with the registration ID, roll number, email, or team code used during registration. Guest access is supported—no sign-in required.</p>
+          </div>
+        )}
+
         <form onSubmit={handleSearchPass} style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', gap: '8px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
@@ -371,7 +489,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 className="cyber-input"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Find your pass: enter Roll No, Registration ID (FEST-...), or Email"
+              placeholder="Registration ID, roll number, email, or team code"
                 style={{
                   paddingLeft: '36px',
                   height: '38px',
@@ -388,7 +506,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               className="btn-cyber-primary"
               style={{ padding: '0 16px', height: '38px', fontSize: '0.8rem' }}
             >
-              Lookup
+                {isLookupLoading ? 'Checking…' : 'Find pass'}
             </button>
             {searchQuery && (
               <button
@@ -412,6 +530,9 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             >
               {searchFeedback}
             </div>
+          )}
+          {lookupError && (
+            <div className="pass-lookup-error" role="status">{lookupError}</div>
           )}
         </form>
 
@@ -645,7 +766,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
                 {/* Verification/Entry Status */}
                 <div style={{ marginTop: '14px' }}>
-                  {effectivePaymentStatus === 'payment_required' || !reg.qrToken ? (
+                  {!reg.qrToken ? (
                     <div
                       style={{
                         display: 'inline-flex',
@@ -660,8 +781,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                         fontWeight: 700
                       }}
                     >
-                      <Lock size={14} />
-                      <span>ENTRY QR LOCKED • AWAITING LEADER PAYMENT</span>
+                      <QrCode size={14} />
+                      <span>QR NOT AVAILABLE YET • REGISTRATION RECORD IS LIVE</span>
                     </div>
                   ) : reg.checkedIn ? (
                     <div
@@ -702,8 +823,9 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </div>
               </div>
 
-              {/* QR Code token or Locked Placeholder */}
-              {effectivePaymentStatus === 'payment_required' || !reg.qrToken ? (
+              {/* QR Code token or not-yet-generated placeholder. Payment status
+                  is informational and never gates QR visibility. */}
+              {!reg.qrToken ? (
                 <div
                   style={{
                     textAlign: 'center',
@@ -724,34 +846,34 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                       height: '44px',
                       borderRadius: '50%',
                       background: 'rgba(245, 158, 11, 0.2)',
-                      color: '#FBBF24',
+                      color: '#67E8F9',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginBottom: '8px'
                     }}
                   >
-                    <Lock size={22} />
+                    <QrCode size={22} />
                   </div>
                   <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#FBBF24', letterSpacing: '0.04em' }}>
-                    QR PASS LOCKED
+                    QR PASS NOT AVAILABLE YET
                   </div>
                   <div style={{ fontSize: '0.7rem', color: '#FEF3C7', marginTop: '4px', maxWidth: '170px', lineHeight: 1.3 }}>
-                    Awaiting Team Leader's payment submission.
+                    The registration is live, but its entry ticket has not been generated yet.
                   </div>
                   <div
                     style={{
                       marginTop: '8px',
                       padding: '3px 8px',
                       borderRadius: '4px',
-                      background: 'rgba(245, 158, 11, 0.25)',
-                      color: '#FBBF24',
+                      background: 'rgba(56, 189, 248, 0.18)',
+                      color: '#67E8F9',
                       fontSize: '0.66rem',
                       fontWeight: 700,
                       fontFamily: 'monospace'
                     }}
                   >
-                    SLOT SECURED
+                    REGISTRATION RECORDED
                   </div>
                 </div>
               ) : (
@@ -804,8 +926,10 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             </div>
           </div>
         ) : (
-          <div style={{ padding: '30px', textAlign: 'center', color: '#A8B3C2' }}>
-            <p>No pass selected.</p>
+          <div className="pass-empty-state">
+            <Ticket size={32} />
+            <h2>{pageMode ? 'Your live pass will appear here' : 'No pass selected'}</h2>
+            <p>{pageMode ? 'Enter a lookup value above to retrieve the latest registration state from Supabase.' : 'Search for a pass to view its latest status.'}</p>
           </div>
         )}
 

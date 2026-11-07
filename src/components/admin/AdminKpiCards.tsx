@@ -53,7 +53,7 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
         </div>
 
         {/* Glowing Blue SVG Sparkline */}
-        <div style={{ margin: '10px 0 6px', height: '36px' }}>
+        <div className="admin-kpi-sparkline" style={{ '--spark-color': '#38BDF8' } as React.CSSProperties}>
           <svg viewBox="0 0 200 40" width="100%" height="36" preserveAspectRatio="none">
             <defs>
               <linearGradient id="blueSparkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -61,8 +61,10 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
                 <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
               </linearGradient>
             </defs>
-            <path d="M0,32 Q30,35 60,24 T120,20 T160,12 T200,8 L200,40 L0,40 Z" fill="url(#blueSparkGrad)" />
-            <path d="M0,32 Q30,35 60,24 T120,20 T160,12 T200,8" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M0,10 H200 M0,20 H200 M0,30 H200" stroke="rgba(148,163,184,0.12)" strokeWidth="0.6" strokeDasharray="2 4" />
+            <path d="M0,31 L38,30 L76,26 L114,25 L152,19 L176,16 L200,12 L200,40 L0,40 Z" fill="url(#blueSparkGrad)" />
+            <path d="M0,31 L38,30 L76,26 L114,25 L152,19 L176,16 L200,12" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="200" cy="12" r="2.8" fill="#38BDF8" stroke="#07111f" strokeWidth="1.5" />
           </svg>
         </div>
 
@@ -89,7 +91,7 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
         </div>
 
         {/* Glowing Green SVG Sparkline */}
-        <div style={{ margin: '10px 0 6px', height: '36px' }}>
+        <div className="admin-kpi-sparkline" style={{ '--spark-color': '#10B981' } as React.CSSProperties}>
           <svg viewBox="0 0 200 40" width="100%" height="36" preserveAspectRatio="none">
             <defs>
               <linearGradient id="greenSparkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -97,8 +99,10 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
                 <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
               </linearGradient>
             </defs>
-            <path d="M0,35 Q40,32 70,22 T130,26 T170,14 T200,6 L200,40 L0,40 Z" fill="url(#greenSparkGrad)" />
-            <path d="M0,35 Q40,32 70,22 T130,26 T170,14 T200,6" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M0,10 H200 M0,20 H200 M0,30 H200" stroke="rgba(148,163,184,0.12)" strokeWidth="0.6" strokeDasharray="2 4" />
+            <path d="M0,33 L40,31 L80,27 L120,22 L154,24 L178,15 L200,9 L200,40 L0,40 Z" fill="url(#greenSparkGrad)" />
+            <path d="M0,33 L40,31 L80,27 L120,22 L154,24 L178,15 L200,9" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="200" cy="9" r="2.8" fill="#10B981" stroke="#071f18" strokeWidth="1.5" />
           </svg>
         </div>
 
@@ -125,7 +129,7 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
         </div>
 
         {/* Glowing Amber SVG Sparkline */}
-        <div style={{ margin: '10px 0 6px', height: '36px' }}>
+        <div className="admin-kpi-sparkline" style={{ '--spark-color': '#F59E0B' } as React.CSSProperties}>
           <svg viewBox="0 0 200 40" width="100%" height="36" preserveAspectRatio="none">
             <defs>
               <linearGradient id="amberSparkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -133,8 +137,10 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
                 <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
               </linearGradient>
             </defs>
-            <path d="M0,36 Q30,38 70,28 T120,30 T165,16 T200,10 L200,40 L0,40 Z" fill="url(#amberSparkGrad)" />
-            <path d="M0,36 Q30,38 70,28 T120,30 T165,16 T200,10" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M0,10 H200 M0,20 H200 M0,30 H200" stroke="rgba(148,163,184,0.12)" strokeWidth="0.6" strokeDasharray="2 4" />
+            <path d="M0,34 L42,34 L82,29 L120,27 L145,30 L170,20 L200,13 L200,40 L0,40 Z" fill="url(#amberSparkGrad)" />
+            <path d="M0,34 L42,34 L82,29 L120,27 L145,30 L170,20 L200,13" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="200" cy="13" r="2.8" fill="#F59E0B" stroke="#241805" strokeWidth="1.5" />
           </svg>
         </div>
 

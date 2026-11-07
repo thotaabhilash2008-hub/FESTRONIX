@@ -15,6 +15,7 @@ import { sendRegistrationPassEmail } from '../services/registrationEmailService'
 interface RegistrationModalProps {
   event: FestEvent | null;
   currentUser?: UserType | null;
+  pageMode?: boolean;
   onClose: () => void;
   onSuccess: (registration: Registration) => void;
   onOpenMultiPass?: () => void;
@@ -23,6 +24,7 @@ interface RegistrationModalProps {
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   event,
   currentUser,
+  pageMode = false,
   onClose,
   onSuccess,
   onOpenMultiPass,
@@ -105,7 +107,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   // Prevent background scroll
   useEffect(() => {
-    if (!event) return;
+    if (!event || pageMode) return;
     const prevOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -115,7 +117,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       document.body.style.overflow = prevOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
     };
-  }, [event]);
+  }, [event, pageMode]);
 
   // Sync user credentials & initialize generated team code
   useEffect(() => {
@@ -133,10 +135,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       if (!generatedTeamCode) {
         setGeneratedTeamCode(code);
       }
-      const initialSquadName = teamName || (currentUser?.fullName ? `${currentUser.fullName.split(' ')[0]}'s Squad` : 'Alpha Squad');
-      if (!teamName) {
-        setTeamName(initialSquadName);
-      }
+      // Team names must be intentionally entered by the participant. Do not
+      // prefill a generic or leader-derived squad name.
     }
   }, [currentUser, event, isTeamEvent]);
 
@@ -254,7 +254,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     if (generatedTeamCode && event && isTeamEvent && updatedLeader.name.trim() && updatedLeader.email.trim() && updatedLeader.rollNumber.trim()) {
       StorageService.reserveOrRegisterTeam({
         teamCode: generatedTeamCode,
-        teamName: teamName || (updatedLeader.name ? `${updatedLeader.name.split(' ')[0]}'s Squad` : 'Alpha Squad'),
+        teamName: teamName.trim(),
         eventId: event.id,
         eventTitle: event.title,
         registrationId: '',
@@ -637,12 +637,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       const created = await StorageService.addMultipleRegistrations(batch);
       const finalReg = created[created.length - 1];
 
-      const emailResults = await Promise.all(created.map(registration => sendRegistrationPassEmail(registration)));
-      const emailFailure = emailResults.find(result => !result.sent);
-      if (emailFailure) {
-        window.alert(`Registration completed successfully, but the pass email could not be sent yet. ${emailFailure.message}`);
-      }
-
       // Fire festive celebration
       confetti({
         particleCount: 110,
@@ -650,7 +644,26 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         origin: { y: 0.6 }
       });
 
-      if (finalReg) onSuccess(finalReg);
+      if (finalReg) {
+        // The database response is the source of truth. Do not hold the
+        // registration screen open while an external email provider responds.
+        // The pass is already created and can be opened immediately.
+        onSuccess(finalReg);
+
+        // Deliver confirmation emails independently after the successful
+        // registration. A temporary email outage must never make a student
+        // retry a completed registration and risk a duplicate attempt.
+        void Promise.all(created.map(registration => sendRegistrationPassEmail(registration)))
+          .then(emailResults => {
+            const emailFailure = emailResults.find(result => !result.sent);
+            if (emailFailure) {
+              console.warn('Registration completed, but pass email delivery is pending:', emailFailure.message);
+            }
+          })
+          .catch(error => {
+            console.warn('Registration completed, but pass email delivery failed:', error);
+          });
+      }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Registration failed. Please try again.');
     } finally {
@@ -659,23 +672,35 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" data-lenis-prevent onClick={onClose}>
+    <div
+      className={pageMode ? 'registration-page-shell' : 'modal-backdrop'}
+      data-lenis-prevent={pageMode ? undefined : true}
+      onClick={pageMode ? undefined : onClose}
+    >
       <div
-        className="modal-content"
+        className={pageMode ? 'registration-page-content' : 'modal-content'}
         data-lenis-prevent-wheel
         data-lenis-prevent-touch
-        onClick={e => e.stopPropagation()}
+        onClick={pageMode ? undefined : e => e.stopPropagation()}
         style={{
-          padding: '28px',
-          maxWidth: '720px',
-          width: '95%',
-          maxHeight: 'calc(100dvh - 40px)',
-          overflowY: 'auto',
+          padding: pageMode ? 'clamp(24px, 4vw, 56px) 0 72px' : '28px',
+          maxWidth: pageMode ? '900px' : '720px',
+          width: pageMode ? 'min(100% - 32px, 900px)' : '95%',
+          maxHeight: pageMode ? 'none' : 'calc(100dvh - 40px)',
+          overflowY: pageMode ? 'visible' : 'auto',
           overscrollBehavior: 'contain',
           WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-y'
         }}
       >
+        {pageMode && (
+          <div className="registration-page-intro">
+            <div className="pass-page-kicker"><span className="live-dot" /> OPEN REGISTRATION • GUEST ACCESS</div>
+            <h1>Secure your place at FESTRONIX</h1>
+            <p>Enter your details manually. No account is required; your registration status and pass are linked to your email and registration ID.</p>
+          </div>
+        )}
+
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div>

@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Building2, Users, IndianRupee, Layers, CheckCircle2, Clock, Search, 
-  Download, Plus, Edit3, Trash2, ArrowRight, LogOut, Globe, QrCode, 
-  Sparkles, Check, AlertCircle, RefreshCw, XCircle, Eye, Phone, Mail, 
-  Copy, Megaphone, UserPlus, FileSpreadsheet, ShieldCheck, Award, 
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Building2, Users, IndianRupee, Layers, CheckCircle2, Clock, Search,
+  Download, Plus, Edit3, Trash2, ArrowRight, LogOut, Globe, QrCode,
+  Sparkles, Check, AlertCircle, RefreshCw, XCircle, Eye, Phone, Mail,
+  Copy, Megaphone, UserPlus, FileSpreadsheet, ShieldCheck, Award, Camera, StopCircle,
   Percent, ChevronRight, Share2, Printer, MapPin, Calendar, Bell, Filter, HelpCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -13,6 +13,7 @@ import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
 import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
+import { DeptSidebar } from './DeptSidebar';
 
 interface DeptCoordinatorDashboardProps {
   adminUser: AdminUser;
@@ -20,13 +21,13 @@ interface DeptCoordinatorDashboardProps {
   onSwitchToFest: () => void;
 }
 
-export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> = ({ 
-  adminUser, 
-  onLogout, 
-  onSwitchToFest 
+export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> = ({
+  adminUser,
+  onLogout,
+  onSwitchToFest
 }) => {
   const deptCode = adminUser.departmentCode || 'CSE';
-  const deptInfo = StorageService.getDepartments().find(d => d.code.toUpperCase() === deptCode.toUpperCase()) || 
+  const deptInfo = StorageService.getDepartments().find(d => d.code.toUpperCase() === deptCode.toUpperCase()) ||
                    DEPARTMENTS.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
 
   // Role Checks (8.1 Event Coordinator vs 8.2 Department Chief Coordinator)
@@ -42,8 +43,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     StorageService.getDepartmentRegistrations(deptCode)
   );
   const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
-    StorageService.getAnnouncements().filter(a => 
-      a.scope === 'fest-wide' || 
+    StorageService.getAnnouncements().filter(a =>
+      a.scope === 'fest-wide' ||
       (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
     )
   );
@@ -89,6 +90,18 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     registration?: Registration;
     message: string;
   } | null>(null);
+  const [checkInScannerOpen, setCheckInScannerOpen] = useState(false);
+  const [checkInScannerError, setCheckInScannerError] = useState('');
+  const checkInVideoRef = useRef<HTMLVideoElement>(null);
+  const checkInStreamRef = useRef<MediaStream | null>(null);
+
+  const [volunteerFormOpen, setVolunteerFormOpen] = useState(false);
+  const [volunteerEventId, setVolunteerEventId] = useState('');
+  const [volunteerName, setVolunteerName] = useState('');
+  const [volunteerEmail, setVolunteerEmail] = useState('');
+  const [volunteerUsername, setVolunteerUsername] = useState('');
+  const [volunteerPassword, setVolunteerPassword] = useState('GateVolunteer2026!');
+  const [volunteerError, setVolunteerError] = useState('');
 
   // Search Filter in Roster
   const [rosterSearch, setRosterSearch] = useState('');
@@ -150,8 +163,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     setEvents(deptEvts);
     setRegistrations(StorageService.getDepartmentRegistrations(deptCode));
     setAnnouncements(
-      StorageService.getAnnouncements().filter(a => 
-        a.scope === 'fest-wide' || 
+      StorageService.getAnnouncements().filter(a =>
+        a.scope === 'fest-wide' ||
         (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
       )
     );
@@ -235,7 +248,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Filtered Roster with Search and Status
   const filteredRoster = useMemo(() => {
     return scopedRegistrations.filter(r => {
-      const matchesSearch = 
+      const matchesSearch =
         r.leaderName.toLowerCase().includes(rosterSearch.toLowerCase()) ||
         r.leaderRoll.toLowerCase().includes(rosterSearch.toLowerCase()) ||
         r.eventTitle.toLowerCase().includes(rosterSearch.toLowerCase()) ||
@@ -384,8 +397,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         return;
       }
     }
-    const autoGenTxn = spotPaymentMethod === 'cash' 
-      ? `CASH-SPOT-${Date.now().toString().slice(-6)}` 
+    const autoGenTxn = spotPaymentMethod === 'cash'
+      ? `CASH-SPOT-${Date.now().toString().slice(-6)}`
       : (spotTxnId.trim() || `UPI-SPOT-${Date.now().toString().slice(-6)}`);
 
     try {
@@ -449,14 +462,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   };
 
   // Fast Gate Check-In Handler (8.1 • Validate QR tickets and view attendance)
-  const handleCheckInSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!checkInInput.trim()) return;
-
-    const query = checkInInput.trim().toLowerCase();
+  const handleCheckInValue = async (value: string) => {
+    const query = value.trim().toLowerCase();
+    if (!query) return;
     const matchingReg = registrations.find(
-      r => r.id.toLowerCase() === query || 
-           r.qrToken.toLowerCase() === query || 
+      r => r.id.toLowerCase() === query ||
+           r.qrToken.toLowerCase() === query ||
            (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
            (r.buyerRoll && r.buyerRoll.toLowerCase() === query) ||
            (r.teamCode && r.teamCode.toLowerCase() === query) ||
@@ -467,7 +478,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       setCheckInResult({
         success: false,
         status: 'NOT_FOUND',
-        message: `No registration found matching "${checkInInput}" for the ${deptCode} department.`
+        message: `No registration found matching "${value}" for the ${deptCode} department.`
       });
       return;
     }
@@ -480,6 +491,95 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       setCheckInInput('');
     }
     refreshDeptData();
+  };
+
+  const handleCheckInSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleCheckInValue(checkInInput);
+  };
+
+  useEffect(() => {
+    if (!checkInScannerOpen) {
+      checkInStreamRef.current?.getTracks().forEach(track => track.stop());
+      checkInStreamRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    let frame = 0;
+    const startScanner = async () => {
+      try {
+        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+        if (!BarcodeDetectorCtor) throw new Error('QR scanning is not supported in this browser. Use manual lookup.');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        if (cancelled) return stream.getTracks().forEach(track => track.stop());
+        checkInStreamRef.current = stream;
+        if (checkInVideoRef.current) {
+          checkInVideoRef.current.srcObject = stream;
+          await checkInVideoRef.current.play();
+        }
+        const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+        const scan = async () => {
+          if (cancelled || !checkInVideoRef.current) return;
+          try {
+            const codes = await detector.detect(checkInVideoRef.current);
+            const value = codes[0]?.rawValue;
+            if (value) {
+              setCheckInInput(value);
+              setCheckInScannerOpen(false);
+              await handleCheckInValue(value);
+              return;
+            }
+          } catch { /* camera frame not ready */ }
+          frame = requestAnimationFrame(scan);
+        };
+        frame = requestAnimationFrame(scan);
+      } catch (error) {
+        setCheckInScannerError((error as Error).message || 'Unable to start the QR scanner.');
+        setCheckInScannerOpen(false);
+      }
+    };
+    startScanner();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      checkInStreamRef.current?.getTracks().forEach(track => track.stop());
+      checkInStreamRef.current = null;
+    };
+  }, [checkInScannerOpen, registrations]);
+
+  const openVolunteerForm = (eventId: string) => {
+    const event = visibleEvents.find(item => item.id === eventId);
+    setVolunteerEventId(eventId);
+    setVolunteerName('');
+    setVolunteerEmail('');
+    setVolunteerUsername(`gate_${event?.slug?.replace(/[^a-z0-9]+/gi, '_').slice(0, 22) || 'volunteer'}`.toLowerCase());
+    setVolunteerPassword('GateVolunteer2026!');
+    setVolunteerError('');
+    setVolunteerFormOpen(true);
+  };
+
+  const handleAssignVolunteer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const event = visibleEvents.find(item => item.id === volunteerEventId);
+    if (!event || !volunteerName.trim() || !volunteerEmail.trim() || !volunteerUsername.trim()) return;
+    try {
+      await AdminAuthService.addCoordinator({
+        username: volunteerUsername.trim().toLowerCase(),
+        fullName: volunteerName.trim(),
+        email: volunteerEmail.trim().toLowerCase(),
+        phone: '',
+        role: 'volunteer_checkin',
+        designation: `Gate Volunteer — ${event.title}`,
+        departmentCode: deptCode,
+        departmentName: deptInfo?.name,
+        accessBoundary: `Gate check-in access for ${event.title} only`,
+        assignedEvents: [event.id],
+        password: volunteerPassword
+      });
+      setVolunteerFormOpen(false);
+    } catch (error) {
+      setVolunteerError((error as Error).message || 'Unable to assign gate volunteer.');
+    }
   };
 
   // 1-Click Check-in directly from the roster table
@@ -512,8 +612,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) return;
 
-    const fullTitle = broadcastScope === 'event' && broadcastEventTitle 
-      ? `[${broadcastEventTitle}] ${broadcastTitle.trim()}` 
+    const fullTitle = broadcastScope === 'event' && broadcastEventTitle
+      ? `[${broadcastEventTitle}] ${broadcastTitle.trim()}`
       : broadcastTitle.trim();
 
     await StorageService.addAnnouncement({
@@ -543,8 +643,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const handleExportCSV = (scopeName: 'filtered' | 'all') => {
     const targetList = scopeName === 'filtered' ? filteredRoster : registrations;
     const headers = [
-      'Reg ID', 'Event Title', 'Student Name', 'Roll Number', 'Team Name', 
-      'Team Code', 'Email', 'Phone', 'College', 'Fee (INR)', 'Payment Status', 
+      'Reg ID', 'Event Title', 'Student Name', 'Roll Number', 'Team Name',
+      'Team Code', 'Email', 'Phone', 'College', 'Fee (INR)', 'Payment Status',
       'Checked In', 'Source', 'Transaction ID'
     ];
     const rows = targetList.map(r => [
@@ -578,7 +678,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const handleExportDeptExecutiveReport = () => {
     const headers = [
       'Event ID', 'Event Title', 'Category', 'Format', 'Coordinator', 'Phone', 'Email',
-      'Capacity', 'Enrolled Count', 'Capacity Fill %', 'Fee (INR)', 'Total Revenue (INR)', 
+      'Capacity', 'Enrolled Count', 'Capacity Fill %', 'Fee (INR)', 'Total Revenue (INR)',
       'Checked-In (Turnout)', 'Turnout %'
     ];
     const rows = events.map(evt => {
@@ -702,17 +802,39 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   }, [events, registrations, deptStats]);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'transparent', color: '#FFFFFF', paddingBottom: '70px' }}>
-      {/* Shared Executive Command Header */}
-      <AdminHeader
+    <div className="admin-shell-layout">
+      {/* 1. Left Vertical Sidebar Navigation */}
+      <DeptSidebar
         adminUser={adminUser}
-        onLogout={onLogout}
+        deptCode={deptCode}
+        deptName={deptInfo?.name}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        isDeptChief={isDeptChief}
+        isEventCoord={isEventCoord}
+        eventsCount={isEventCoord ? visibleEvents.length : events.length}
+        readinessScore={readinessMetrics.score}
+        rosterCount={scopedRegistrations.length}
+        pendingPaymentsCount={scopedRegistrations.filter(r => r.paymentStatus === 'verification_pending').length}
+        announcementsCount={announcements.length}
+        coordinatorsCount={departmentCoordinatorsList.length}
         onSwitchToFest={onSwitchToFest}
+        onLogout={onLogout}
       />
 
-      {/* Main Container */}
-      <main style={{ maxWidth: '1360px', margin: '0 auto', padding: '28px 24px' }}>
-        
+      {/* 2. Main Viewport Canvas */}
+      <div className="admin-main-viewport">
+        {/* Shared Executive Command Header */}
+        <AdminHeader
+          adminUser={adminUser}
+          onLogout={onLogout}
+          onSwitchToFest={onSwitchToFest}
+          fluid={true}
+        />
+
+        {/* Main Content Area */}
+        <main style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
+
         {/* Copy Feedback Toast */}
         {copyFeedback && (
           <div
@@ -936,38 +1058,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         </div>
 
-        {/* Tab Navigation Segment Bar */}
-        <div className="admin-tab-nav">
-          {[
-            { id: 'events', label: isEventCoord ? `Events (${visibleEvents.length})` : `${deptCode} Events (${events.length})`, icon: Layers },
-            ...(isDeptChief ? [{ id: 'readiness', label: `Department Readiness (${readinessMetrics.score}%)`, icon: ShieldCheck }] : []),
-            { id: 'roster', label: `Attendee Roster (${scopedRegistrations.length})`, icon: Users },
-            { id: 'checkin', label: 'Fast Gate Check-In', icon: QrCode },
-            { 
-              id: 'payments', 
-              label: `Payment Review (${scopedRegistrations.filter(r => r.paymentStatus === 'verification_pending').length})`, 
-              icon: Clock 
-            },
-            ...(isDeptChief ? [{ id: 'announcements', label: `Announcements (${announcements.length})`, icon: Megaphone }] : []),
-            ...(isDeptChief ? [
-              { id: 'reports', label: 'Consolidated Reports', icon: FileSpreadsheet },
-              { id: 'coordinators', label: `Coordinators Directory (${departmentCoordinatorsList.length})`, icon: Phone }
-            ] : [])
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`admin-tab-item ${isActive ? 'active' : ''}`}
-              >
-                <Icon size={16} color={isActive ? '#38BDF8' : '#94A3B8'} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Active Module Canvas */}
 
         {/* TAB 1: EVENTS MANAGEMENT */}
         {activeTab === 'events' && (
@@ -1111,12 +1202,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                             </span>
                           </div>
                           <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '9999px', overflow: 'hidden' }}>
-                            <div 
-                              style={{ 
-                                width: `${Math.min(100, fillPct)}%`, 
-                                height: '100%', 
-                                background: fillPct >= 90 ? '#f87171' : fillPct >= 70 ? '#FBBF24' : '#34D399' 
-                              }} 
+                            <div
+                              style={{
+                                width: `${Math.min(100, fillPct)}%`,
+                                height: '100%',
+                                background: fillPct >= 90 ? '#f87171' : fillPct >= 70 ? '#FBBF24' : '#34D399'
+                              }}
                             />
                           </div>
                         </div>
@@ -1540,7 +1631,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                               padding: '3px 8px',
                               borderRadius: '4px',
                               fontWeight: 700,
-                              background: 
+                              background:
                                 r.paymentStatus === 'verified' ? 'rgba(52, 211, 153, 0.15)' :
                                 r.paymentStatus === 'verification_pending' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(239, 68, 68, 0.15)',
                               color:
@@ -1631,6 +1722,29 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   Enter student Roll Number, Registration ID, Team Code, or paste QR Token to validate entry pass
                 </p>
               </div>
+
+              {isEventCoord && visibleEvents.length > 0 && (
+                <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.22)' }}>
+                  <div style={{ color: '#A8B3C2', fontSize: '0.75rem', marginBottom: '8px' }}>Assign a gate volunteer to one assigned event</div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <select value={volunteerEventId || visibleEvents[0].id} onChange={e => setVolunteerEventId(e.target.value)} style={{ flex: 1, minWidth: '220px', padding: '9px', borderRadius: '8px', background: '#101A35', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }}>
+                      {visibleEvents.map(event => <option key={event.id} value={event.id}>{event.title}</option>)}
+                    </select>
+                    <button type="button" onClick={() => openVolunteerForm(volunteerEventId || visibleEvents[0].id)} className="admin-btn admin-btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 12px' }}><UserPlus size={15} /> Assign volunteer</button>
+                  </div>
+                </div>
+              )}
+
+              {checkInScannerOpen ? (
+                <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', background: '#020617', minHeight: '250px', marginBottom: '16px' }}>
+                  <video ref={checkInVideoRef} muted playsInline style={{ width: '100%', minHeight: '250px', display: 'block', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', inset: '20% 15%', border: '2px solid #38BDF8', borderRadius: '14px', boxShadow: '0 0 0 999px rgba(2, 6, 23, 0.32)' }} />
+                  <button type="button" onClick={() => setCheckInScannerOpen(false)} style={{ position: 'absolute', right: '10px', top: '10px', padding: '7px 10px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(2,6,23,0.75)', color: '#FFFFFF', cursor: 'pointer' }}><StopCircle size={14} /></button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => { setCheckInScannerError(''); setCheckInScannerOpen(true); }} className="admin-btn admin-btn-ghost" style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '7px', padding: '11px', marginBottom: '14px' }}><Camera size={16} /> Open camera QR scanner</button>
+              )}
+              {checkInScannerError && <div style={{ marginBottom: '14px', color: '#FCA5A5', fontSize: '0.76rem' }}>{checkInScannerError}</div>}
 
               <form onSubmit={handleCheckInSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
@@ -3287,6 +3401,24 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         </div>
       )}
 
+      {volunteerFormOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)', display: 'grid', placeItems: 'center', padding: '20px' }}>
+          <form onSubmit={handleAssignVolunteer} style={{ width: 'min(520px, 100%)', background: '#101A35', border: '1px solid rgba(56,189,248,0.35)', borderRadius: '16px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h3 style={{ color: '#FFFFFF', margin: 0 }}>Assign Gate Volunteer</h3>
+            <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: 0 }}>This account will be restricted to gate check-in for <strong style={{ color: '#BACEBB' }}>{visibleEvents.find(event => event.id === volunteerEventId)?.title}</strong> only.</p>
+            <input required value={volunteerName} onChange={e => setVolunteerName(e.target.value)} placeholder="Volunteer full name" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
+            <input required type="email" value={volunteerEmail} onChange={e => setVolunteerEmail(e.target.value)} placeholder="Volunteer email" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
+            <input required value={volunteerUsername} onChange={e => setVolunteerUsername(e.target.value)} placeholder="Portal username" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
+            <input required minLength={12} value={volunteerPassword} onChange={e => setVolunteerPassword(e.target.value)} placeholder="Initial password (12+ characters)" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
+            {volunteerError && <div style={{ color: '#FCA5A5', fontSize: '0.78rem' }}>{volunteerError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '5px' }}>
+              <button type="button" onClick={() => setVolunteerFormOpen(false)} className="admin-btn admin-btn-ghost">Cancel</button>
+              <button type="submit" className="btn-cyber-primary" style={{ padding: '9px 14px' }}>Create event volunteer</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Proof Lightbox */}
       {selectedProofUrl && (
         <div
@@ -3331,6 +3463,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
