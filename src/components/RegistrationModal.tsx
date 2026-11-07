@@ -18,7 +18,6 @@ interface RegistrationModalProps {
   onClose: () => void;
   onSuccess: (registration: Registration) => void;
   onOpenMultiPass?: () => void;
-  onOpenAuth?: (mode?: 'signin' | 'signup') => void;
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({
@@ -27,7 +26,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   onClose,
   onSuccess,
   onOpenMultiPass,
-  onOpenAuth
 }) => {
   const isTeamEvent = event ? event.format !== 'individual' : false;
 
@@ -60,6 +58,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     college: currentUser?.college || 'Vardhaman College of Engineering',
     rollNumber: currentUser?.rollNumber || ''
   });
+  // Public registrations use a stable browser-session identity only for
+  // keeping a guest-created team reservation coherent. It is not an auth
+  // account and is never used to grant admin or participant permissions.
+  const [guestLeaderId] = useState(() => `guest-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`);
 
   // Team Specific States
   const [teamName, setTeamName] = useState<string>('');
@@ -126,7 +128,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         rollNumber: currentUser.rollNumber
       });
     }
-    if (currentUser && event && isTeamEvent) {
+    if (event && isTeamEvent) {
       const code = generatedTeamCode || StorageService.generateTeamCode(event.departmentCode || event.slug || 'FX');
       if (!generatedTeamCode) {
         setGeneratedTeamCode(code);
@@ -135,24 +137,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       if (!teamName) {
         setTeamName(initialSquadName);
       }
-
-      // Instantly reserve squad so team code is LIVE and JOINABLE across the whole app
-      StorageService.reserveOrRegisterTeam({
-        teamCode: code,
-        teamName: initialSquadName,
-        eventId: event.id,
-        eventTitle: event.title,
-        registrationId: '',
-        leaderId: currentUser?.id,
-        leaderName: currentUser?.fullName || leader.name || 'Team Leader',
-        leaderRoll: currentUser?.rollNumber || leader.rollNumber || '',
-        leaderEmail: currentUser?.email || leader.email || '',
-        leaderPhone: currentUser?.phone || leader.phone || '',
-        leaderCollege: currentUser?.college || leader.college || 'Vardhaman College of Engineering',
-        members: teammates || [],
-        maxTeamSize: event.maxTeamSize || 4,
-        minTeamSize: event.minTeamSize || 2
-      }).catch(err => console.warn('Instant team reservation error:', err));
     }
   }, [currentUser, event, isTeamEvent]);
 
@@ -245,14 +229,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const handleTeamNameChange = (newName: string) => {
     setTeamName(newName);
-    if (currentUser && generatedTeamCode && event && isTeamEvent) {
+    if (generatedTeamCode && event && isTeamEvent && leader.name.trim() && leader.email.trim() && leader.rollNumber.trim()) {
       StorageService.reserveOrRegisterTeam({
         teamCode: generatedTeamCode,
         teamName: newName,
         eventId: event.id,
         eventTitle: event.title,
         registrationId: '',
-        leaderId: currentUser?.id,
+        leaderId: currentUser?.id || guestLeaderId,
         leaderName: leader.name || currentUser?.fullName || '',
         leaderRoll: leader.rollNumber || currentUser?.rollNumber || '',
         leaderEmail: leader.email || currentUser?.email || '',
@@ -267,14 +251,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const updateLeaderAndSyncTeam = (updatedLeader: typeof leader) => {
     setLeader(updatedLeader);
-    if (currentUser && generatedTeamCode && event && isTeamEvent) {
+    if (generatedTeamCode && event && isTeamEvent && updatedLeader.name.trim() && updatedLeader.email.trim() && updatedLeader.rollNumber.trim()) {
       StorageService.reserveOrRegisterTeam({
         teamCode: generatedTeamCode,
         teamName: teamName || (updatedLeader.name ? `${updatedLeader.name.split(' ')[0]}'s Squad` : 'Alpha Squad'),
         eventId: event.id,
         eventTitle: event.title,
         registrationId: '',
-        leaderId: currentUser?.id,
+        leaderId: currentUser?.id || guestLeaderId,
         leaderName: updatedLeader.name || 'Team Leader',
         leaderRoll: updatedLeader.rollNumber || '',
         leaderEmail: updatedLeader.email || '',
@@ -366,11 +350,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   // Step 1 validation (FR-REG-01, FR-REG-05, FR-REG-06)
   const validateStep1 = () => {
-    if (!currentUser && isTeamEvent) {
-      setErrorMessage('Team registrations require a signed-in account so the team leader and members can be tracked securely.');
-      if (onOpenAuth) onOpenAuth('signin');
-      return false;
-    }
     const registrationBlockReason = getEventRegistrationBlockReason(
       event,
       isTeamEvent ? 1 : passQuantity
@@ -538,11 +517,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     if (isSubmitting) return;
 
-    if (!currentUser && isTeamEvent) {
-      setErrorMessage('Team registrations require a signed-in account so the team leader and members can be tracked securely.');
-      if (onOpenAuth) onOpenAuth('signin');
-      return;
-    }
     const signedInUser = currentUser;
 
     if (event.fee > 0) {
@@ -616,7 +590,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           eventId: event.id,
           eventTitle: event.title,
           registrationId: '',
-          leaderId: signedInUser?.id || '',
+          leaderId: signedInUser?.id || guestLeaderId,
           leaderName: leader.name.trim(),
           leaderRoll: leader.rollNumber.trim().toUpperCase(),
           leaderEmail: leader.email.trim(),
@@ -732,9 +706,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </button>
         </div>
 
-        {!currentUser && !isTeamEvent && (
+        {!currentUser && (
           <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.10)', border: '1px solid rgba(56, 189, 248, 0.32)', color: '#DCE3E5', fontSize: '0.82rem', lineHeight: 1.45 }}>
-            You can register as a guest. Enter your details and Gmail below; your registration pass will be sent after submission.
+            Guest registration is enabled. Enter your details manually; your registration pass and status updates will be sent to your Gmail.
           </div>
         )}
 
@@ -1030,44 +1004,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   DELEGATE
                 </span>
               </div>
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: 'rgba(251, 191, 36, 0.12)',
-                  border: '1px solid rgba(251, 191, 36, 0.35)',
-                  borderRadius: '10px'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlertTriangle size={16} color="#FBBF24" />
-                  <span style={{ fontSize: '0.8rem', color: '#FBBF24' }}>
-                    Please sign in with your college credentials to join a team.
-                  </span>
-                </div>
-                {onOpenAuth && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenAuth('signin')}
-                    style={{
-                      background: 'rgba(251, 191, 36, 0.2)',
-                      border: '1px solid #FBBF24',
-                      borderRadius: '6px',
-                      padding: '4px 10px',
-                      color: '#FBBF24',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Sign In
-                  </button>
-                )}
-              </div>
-            )}
+            ) : null}
 
             {/* Team Code Input Card */}
             <div
@@ -1542,44 +1479,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   VERIFIED DELEGATE
                 </span>
               </div>
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: 'rgba(251, 191, 36, 0.12)',
-                  border: '1px solid rgba(251, 191, 36, 0.35)',
-                  borderRadius: '10px'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlertTriangle size={16} color="#FBBF24" />
-                  <span style={{ fontSize: '0.8rem', color: '#FBBF24' }}>
-                    Please sign in with your college credentials to continue.
-                  </span>
-                </div>
-                {onOpenAuth && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenAuth('signin')}
-                    style={{
-                      background: 'rgba(251, 191, 36, 0.2)',
-                      border: '1px solid #FBBF24',
-                      borderRadius: '6px',
-                      padding: '4px 10px',
-                      color: '#FBBF24',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Sign In
-                  </button>
-                )}
-              </div>
-            )}
+            ) : null}
 
             {/* TEAM CREATION CARD: Generated Code & Team Name */}
             {isTeamEvent && (

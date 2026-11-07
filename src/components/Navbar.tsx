@@ -1,15 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck, CalendarDays } from 'lucide-react';
-import { Announcement, User as UserType } from '../types/festronix';
+import { Announcement } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
 interface NavbarProps {
   onOpenIntro?: () => void;
   onOpenPasses: () => void;
   onOpenMultiPass: () => void;
-  currentUser: UserType | null;
-  onOpenAuth: (mode?: 'signin' | 'signup') => void;
-  onSignOut: () => void;
   announcements: Announcement[];
   passesCount: number;
   onNavigateExplore?: () => void;
@@ -25,9 +22,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenIntro,
   onOpenPasses,
   onOpenMultiPass,
-  currentUser,
-  onOpenAuth,
-  onSignOut,
   announcements,
   passesCount,
   onNavigateExplore,

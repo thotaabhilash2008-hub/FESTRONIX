@@ -703,9 +703,6 @@ export class StorageService {
         const { id: targetEventUuid, event: matchedEvent } = await this.resolveRegistrationEvent(newReg.eventId);
         const { data: authData } = await supabase.auth.getUser();
         const actorId = authData.user?.id;
-        if (newReg.source !== 'spot' && newReg.format !== 'individual' && !actorId) {
-          throw new Error('Sign in before creating or joining a team registration.');
-        }
 
         const rpcPayload = {
           p_event_id: targetEventUuid,
@@ -877,9 +874,6 @@ export class StorageService {
 
       const { data: authData } = await supabase.auth.getUser();
       const actorId = authData.user?.id;
-      if (batch.some(item => item.format !== 'individual') && !actorId) {
-        throw new Error('Sign in before creating or joining a team registration.');
-      }
 
       const resolved = await Promise.all(batch.map(async item => {
         const { id } = await this.resolveRegistrationEvent(item.eventId);

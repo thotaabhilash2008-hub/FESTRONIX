@@ -10,7 +10,6 @@ import { FullscreenIntro } from './components/FullscreenIntro';
 import { EventDetailModal } from './components/EventDetailModal';
 import { RegistrationModal } from './components/RegistrationModal';
 import { DigitalPassModal } from './components/DigitalPassModal';
-import { AuthModal } from './components/AuthModal';
 import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { PublicSponsorsPage } from './components/PublicSponsorsPage';
@@ -67,8 +66,6 @@ export const App: React.FC = () => {
 
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
 
   // State
   const [events, setEvents] = useState<FestEvent[]>([]);
@@ -89,10 +86,6 @@ export const App: React.FC = () => {
   const [activePassId, setActivePassId] = useState<string | undefined>(undefined);
   const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
 
-  // Pending actions after login
-  const [pendingRegisterEvent, setPendingRegisterEvent] = useState<FestEvent | null>(null);
-  const [pendingAction, setPendingAction] = useState<'multipass' | null>(null);
-  const [authCustomNotice, setAuthCustomNotice] = useState<string | null>(null);
 
   const refreshData = async () => {
     // The configured build is backend-only: never render an old browser cache
@@ -246,14 +239,6 @@ export const App: React.FC = () => {
     setIsMultiPassModalOpen(true);
   };
 
-  const handleOpenAuth = (mode: 'signin' | 'signup' = 'signin') => {
-    setAuthModalMode(mode);
-    if (!currentUser && registerEvent && mode === 'signin') {
-      setAuthCustomNotice(`Sign in to continue registering for "${registerEvent.title}". Your profile details will fill into the registration form.`);
-    }
-    setIsAuthModalOpen(true);
-  };
-
   // Render Public Sponsors Page if in #sponsors or #partners view
   if (isSponsorsPageOpen) {
     return (
@@ -316,9 +301,6 @@ export const App: React.FC = () => {
         onOpenIntro={() => setIsIntroOpen(true)}
         onOpenPasses={() => setIsPassesModalOpen(true)}
         onOpenMultiPass={handleStartMultiPass}
-        currentUser={currentUser}
-        onOpenAuth={handleOpenAuth}
-        onSignOut={() => AuthService.signOut()}
         announcements={announcements}
         passesCount={registrations.length}
         onNavigateExplore={handleNavigateExplore}
@@ -394,7 +376,6 @@ export const App: React.FC = () => {
           currentUser={currentUser}
           onClose={() => setRegisterEvent(null)}
           onSuccess={handleRegistrationSuccess}
-          onOpenAuth={handleOpenAuth}
           onOpenMultiPass={() => {
             setRegisterEvent(null);
             handleStartMultiPass();
@@ -407,11 +388,9 @@ export const App: React.FC = () => {
         onClose={() => setIsMultiPassModalOpen(false)}
         events={events}
         currentUser={currentUser}
-        onOpenAuth={() => handleOpenAuth('signin')}
         onSuccess={handleMultiPassSuccess}
       />
 
-      {/* AuthModal removed: Direct registration without mandatory sign-in */}
 
       {isPassesModalOpen && (
         <DigitalPassModal

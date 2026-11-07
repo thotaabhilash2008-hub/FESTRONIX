@@ -4,14 +4,13 @@ import confetti from 'canvas-confetti';
 import { FestEvent, Registration, User as UserType, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { EmailService } from '../services/emailService';
+import { sendRegistrationPassEmail } from '../services/registrationEmailService';
 
 interface MultiPassModalProps {
   isOpen: boolean;
   onClose: () => void;
   events: FestEvent[];
   currentUser: UserType | null;
-  onOpenAuth: () => void;
   onSuccess: (newRegistrations: Registration[]) => void;
 }
 
@@ -25,7 +24,6 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   onClose,
   events,
   currentUser,
-  onOpenAuth,
   onSuccess
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
@@ -255,7 +253,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
       // Upload to Supabase Storage if file is present
       if (screenshotFile) {
-        const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, buyerInfo.rollNumber);
+        const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, buyerInfo.rollNumber, buyerInfo.email);
         if (!uploadRes.success || !uploadRes.url) throw new Error(uploadRes.error || 'Unable to upload payment proof.');
         finalScreenshotUrl = uploadRes.url;
       }
@@ -300,7 +298,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
         const myPassIds = JSON.parse(localStorage.getItem('festronix_my_registered_pass_ids') || '[]');
         created.forEach(reg => {
           if (!myPassIds.includes(reg.id)) myPassIds.push(reg.id);
-          EmailService.sendPassEmail(reg).catch(err => console.warn('Email send notice:', err));
+          sendRegistrationPassEmail(reg).catch(err => console.warn('Email send notice:', err));
         });
         localStorage.setItem('festronix_my_registered_pass_ids', JSON.stringify(myPassIds));
         localStorage.setItem('festronix_last_registered_email', buyerInfo.email.trim().toLowerCase());
