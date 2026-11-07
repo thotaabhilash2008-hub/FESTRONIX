@@ -18,8 +18,9 @@ export async function sendRegistrationPassEmail(registration: Registration): Pro
     body: { deliveryToken: registration.emailDeliveryToken }
   });
   if (error) return { sent: false, message: error.message || 'The pass email could not be sent.' };
+  const response = data as { sent?: boolean; message?: string; error?: string } | null;
   return {
-    sent: Boolean((data as { sent?: boolean } | null)?.sent),
-    message: String((data as { message?: string } | null)?.message || 'The pass email could not be sent.')
+    sent: Boolean(response?.sent),
+    message: String(response?.message || response?.error || 'The pass email could not be sent.')
   };
 }

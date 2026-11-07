@@ -61,7 +61,14 @@ Deno.serve(async request => {
   if (!response.ok) {
     const detail = await response.text();
     await db.from('registration_email_deliveries').update({ status: 'failed', last_error: detail.slice(0, 500), updated_at: new Date().toISOString() }).eq('id', delivery.id);
-    return respond({ sent: false, error: 'The email provider rejected the pass email.' }, 502);
+    let providerMessage = 'The email provider rejected the pass email.';
+    try {
+      const parsed = JSON.parse(detail);
+      if (typeof parsed?.message === 'string' && parsed.message.trim()) providerMessage = parsed.message.trim();
+    } catch {
+      // Keep the safe fallback when the provider does not return JSON.
+    }
+    return respond({ sent: false, error: providerMessage }, 200);
   }
 
   await db.from('registration_email_deliveries').update({ status: 'sent', sent_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() }).eq('id', delivery.id);
