@@ -591,6 +591,11 @@ export class StorageService {
    */
   static async fetchRegistrations(): Promise<Registration[]> {
     if (isSupabaseConfigured()) {
+      // Registration rows are intentionally private. The public site must not
+      // query the table anonymously; guest registrations are returned only by
+      // the create RPC and by scoped team/pass lookup flows.
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return [];
       const { data, error } = await supabase
         .from('registrations')
         .select(`
