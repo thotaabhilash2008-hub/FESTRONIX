@@ -24,6 +24,9 @@ export const isDepartmentAdminRole = (role: AdminRole): boolean =>
   role === 'faculty_coord' ||
   role === 'student_coord';
 
+export const canonicalAdminRole = (role: AdminRole): AdminRole =>
+  role === 'dept_chief_coordinator' ? 'dept_coordinator' : role;
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -123,13 +126,13 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     assignedEvents: ['evt-1', 'evt-2']
   },
 
-  // 4. Department Chief Coordinators (9 Departments)
+  // 4. Department Coordinators (9 Departments)
   {
     id: '0a78361f-984b-45d7-b43d-613cb02bd7af',
-    username: 'hod_cse',
+    username: 'dept_cse',
     fullName: 'Dr. K. S. Reddy',
-    designation: 'Department Chief Coordinator (CSE)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (CSE)',
+    role: 'dept_coordinator',
     departmentCode: 'CSE',
     departmentName: 'Computer Science & Engineering',
     email: 'cse.festronix@vardhaman.org',
@@ -137,11 +140,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_csd',
-    username: 'hod_csd',
+    id: 'admin_dept_csd',
+    username: 'dept_csd',
     fullName: 'Dr. S. Radhika',
-    designation: 'Department Chief Coordinator (CSD)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (CSD)',
+    role: 'dept_coordinator',
     departmentCode: 'CSD',
     departmentName: 'CSE (Data Science)',
     email: 'csd.festronix@vardhaman.org',
@@ -149,23 +152,23 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_csm',
-    username: 'hod_csm',
+    id: 'admin_dept_csm',
+    username: 'dept_csm',
     fullName: 'Dr. V. Prasad',
-    designation: 'Department Chief Coordinator (CSM)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (CSM)',
+    role: 'dept_coordinator',
     departmentCode: 'CSM',
-    departmentName: 'CSE (AI & Machine Learning)',
+    departmentName: 'Computer Science & Machine Learning (CSM)',
     email: 'csm.festronix@vardhaman.org',
     phone: '+91 98480 22007',
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_it',
-    username: 'hod_it',
+    id: 'admin_dept_it',
+    username: 'dept_it',
     fullName: 'Prof. Anitha Sharma',
-    designation: 'Department Chief Coordinator (IT)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (IT)',
+    role: 'dept_coordinator',
     departmentCode: 'IT',
     departmentName: 'Information Technology',
     email: 'it.festronix@vardhaman.org',
@@ -173,11 +176,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_mechanical',
-    username: 'hod_mechanical',
+    id: 'admin_dept_mechanical',
+    username: 'dept_mechanical',
     fullName: 'Dr. C. H. Rao',
-    designation: 'Department Chief Coordinator (MECHANICAL)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (MECHANICAL)',
+    role: 'dept_coordinator',
     departmentCode: 'MECHANICAL',
     departmentName: 'Mechanical Engineering',
     email: 'mechanical.festronix@vardhaman.org',
@@ -185,11 +188,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_civil',
-    username: 'hod_civil',
+    id: 'admin_dept_civil',
+    username: 'dept_civil',
     fullName: 'Prof. P. Sunitha',
-    designation: 'Department Chief Coordinator (CIVIL)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (CIVIL)',
+    role: 'dept_coordinator',
     departmentCode: 'CIVIL',
     departmentName: 'Civil Engineering',
     email: 'civil.festronix@vardhaman.org',
@@ -197,11 +200,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_eee',
-    username: 'hod_eee',
+    id: 'admin_dept_eee',
+    username: 'dept_eee',
     fullName: 'Dr. B. Srinivas',
-    designation: 'Department Chief Coordinator (EEE)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (EEE)',
+    role: 'dept_coordinator',
     departmentCode: 'EEE',
     departmentName: 'Electrical & Electronics',
     email: 'eee.festronix@vardhaman.org',
@@ -209,11 +212,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_ece',
-    username: 'hod_ece',
+    id: 'admin_dept_ece',
+    username: 'dept_ece',
     fullName: 'Dr. M. V. Ramana',
-    designation: 'Department Chief Coordinator (ECE)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (ECE)',
+    role: 'dept_coordinator',
     departmentCode: 'ECE',
     departmentName: 'Electronics & Communication',
     email: 'ece.festronix@vardhaman.org',
@@ -221,11 +224,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "Their department's events"
   },
   {
-    id: 'admin_hod_mba',
-    username: 'hod_mba',
+    id: 'admin_dept_mba',
+    username: 'dept_mba',
     fullName: 'Prof. R. L. Narayana',
-    designation: 'Department Chief Coordinator (MBA)',
-    role: 'dept_chief_coordinator',
+    designation: 'Department Coordinator (MBA)',
+    role: 'dept_coordinator',
     departmentCode: 'MBA',
     departmentName: 'Master of Business Administration',
     email: 'mba.festronix@vardhaman.org',
@@ -246,7 +249,7 @@ export const PRESET_ADMIN_PASSWORDS: Record<string, string[]> = {
   'volunteers.fest@vardhaman.org': ['volunteer2026', 'volunteers2026', 'volunteer', 'festronix2026'],
   'eventcoord.fest@vardhaman.org': ['eventcoord2026', 'events2026', 'festcoord2026', 'festronix2026'],
 
-  // Department Chief Coordinators
+  // Department Coordinators (legacy username aliases remain supported)
   'cse.festronix@vardhaman.org': ['cse2026', 'festcoord2026', 'festronix2026'],
   'csd.festronix@vardhaman.org': ['csd2026', 'festcoord2026', 'festronix2026'],
   'csm.festronix@vardhaman.org': ['csm2026', 'festcoord2026', 'festronix2026'],
@@ -288,6 +291,15 @@ const USER_ALIAS_MAP: Record<string, string> = {
   'eee': 'eee.festronix@vardhaman.org',
   'ece': 'ece.festronix@vardhaman.org',
   'mba': 'mba.festronix@vardhaman.org',
+  'dept_cse': 'cse.festronix@vardhaman.org',
+  'dept_csd': 'csd.festronix@vardhaman.org',
+  'dept_csm': 'csm.festronix@vardhaman.org',
+  'dept_it': 'it.festronix@vardhaman.org',
+  'dept_mechanical': 'mechanical.festronix@vardhaman.org',
+  'dept_civil': 'civil.festronix@vardhaman.org',
+  'dept_eee': 'eee.festronix@vardhaman.org',
+  'dept_ece': 'ece.festronix@vardhaman.org',
+  'dept_mba': 'mba.festronix@vardhaman.org',
   'hod_cse': 'cse.festronix@vardhaman.org',
   'hod_csd': 'csd.festronix@vardhaman.org',
   'hod_csm': 'csm.festronix@vardhaman.org',
@@ -394,7 +406,9 @@ export class AdminAuthService {
 
   static getAllAdmins(): ManagedAdmin[] {
     const cached = readCached<ManagedAdmin[]>(STORAGE_KEY_ADMIN_DIRECTORY, []);
-    if (cached.length > 0) return cached;
+    if (cached.length > 0) {
+      return cached.map(admin => ({ ...admin, role: canonicalAdminRole(admin.role) }));
+    }
     const initial = PRESET_ADMINS.map(({ password: _, ...admin }) => admin);
     localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(initial));
     return initial;
@@ -426,7 +440,7 @@ export class AdminAuthService {
           username: roleRow.username || userMeta.username || emailLower.split('@')[0],
           fullName: roleRow.full_name || userMeta.full_name || emailLower,
           designation: roleRow.designation || userMeta.designation || 'Administrator',
-          role: roleRow.role as AdminRole,
+          role: canonicalAdminRole(roleRow.role as AdminRole),
           departmentCode: roleRow.department_code || userMeta.department_code || undefined,
           email: user.email || fallbackEmail,
           phone: roleRow.phone || userMeta.phone || undefined,
@@ -564,7 +578,7 @@ export class AdminAuthService {
   }
 
   /**
-   * Department Chief & Coordinator login (verifies against Supabase backend)
+   * Department Coordinator & Event Coordinator login (verifies against Supabase backend)
    */
   static async loginDepartment(
     deptCode: string,
@@ -628,7 +642,7 @@ export class AdminAuthService {
             username: r.username,
             fullName: r.full_name,
             designation: r.designation || 'Administrator',
-            role: r.role as AdminRole,
+            role: canonicalAdminRole(r.role as AdminRole),
             departmentCode: r.department_code || undefined,
             email: r.email,
             phone: r.phone || undefined,

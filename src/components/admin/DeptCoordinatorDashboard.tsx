@@ -30,7 +30,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const deptInfo = StorageService.getDepartments().find(d => d.code.toUpperCase() === deptCode.toUpperCase()) ||
                    DEPARTMENTS.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
 
-  // Role Checks (8.1 Event Coordinator vs 8.2 Department Chief Coordinator)
+  // Role Checks (8.1 Event Coordinator vs 8.2 Department Coordinator)
   const isEventCoord = adminUser.role === 'event_coordinator' || adminUser.role === 'faculty_coord' || adminUser.role === 'student_coord';
   const isDeptChief = adminUser.role === 'dept_chief_coordinator' || adminUser.role === 'dept_coordinator';
 
@@ -78,7 +78,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     return isEventCoord ? 'assigned' : 'all';
   });
 
-  // Active Tab: Event Coordinator vs Department Chief Coordinator defaults
+  // Active Tab: Event Coordinator vs Department Coordinator defaults
   type DashboardTab = 'events' | 'readiness' | 'roster' | 'checkin' | 'payments' | 'announcements' | 'reports' | 'coordinators';
   const [activeTab, setActiveTab] = useState<DashboardTab>('events');
 
@@ -297,7 +297,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const handleCreateNewEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDeptChief) {
-      alert('Only the department HOD can create department events.');
+      alert('Only the department coordinator can create department events.');
       return;
     }
     if (!newEventTitle.trim()) return;
@@ -607,7 +607,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const handleBroadcastAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDeptChief) {
-      alert('Only the department HOD can publish department announcements.');
+      alert('Only the department coordinator can publish department announcements.');
       return;
     }
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) return;
@@ -674,7 +674,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     document.body.removeChild(link);
   };
 
-  // Department Executive Report CSV for HODs (8.2 • Access departmental reports)
+  // Department Executive Report CSV for department coordinators (8.2 • Access departmental reports)
   const handleExportDeptExecutiveReport = () => {
     const headers = [
       'Event ID', 'Event Title', 'Category', 'Format', 'Coordinator', 'Phone', 'Email',
@@ -900,7 +900,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 >
                   <span>🏢 All {deptCode} Events ({events.length})</span>
                   <span style={{ fontSize: '0.62rem', background: '#38BDF8', color: '#000', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
-                    HOD VIEW
+                    DEPARTMENT COORDINATOR VIEW
                   </span>
                 </button>
               )}
@@ -1309,7 +1309,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         )}
 
-        {/* TAB: DEPARTMENT READINESS & CAPACITY MONITOR (8.2 Department Chief Coordinator) */}
+        {/* TAB: DEPARTMENT READINESS & CAPACITY MONITOR (8.2 Department Coordinator) */}
         {activeTab === 'readiness' && isDeptChief && (
           <div>
             <div style={{ marginBottom: '20px' }}>
@@ -2112,7 +2112,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         )}
 
-        {/* TAB 6: CONSOLIDATED DEPARTMENT REPORTS (8.2 Department Chief Coordinator) */}
+        {/* TAB 6: CONSOLIDATED DEPARTMENT REPORTS (8.2 Department Coordinator) */}
         {activeTab === 'reports' && isDeptChief && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>

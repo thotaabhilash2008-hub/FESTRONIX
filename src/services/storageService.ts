@@ -500,14 +500,14 @@ export class StorageService {
       return r.departmentCode.toUpperCase();
     }
 
-    // 2. Derive from teamCode prefix (e.g. FX-CS-..., FX-ECE-..., FX-IT-..., FX-AIML-...)
+    // 2. Derive from teamCode prefix (e.g. FX-CS-..., FX-ECE-..., FX-IT-..., FX-CSM-...)
     if (r.teamCode) {
       const match = r.teamCode.match(/^FX-([A-Za-z&]+)-/i);
       if (match) {
         const prefix = match[1].toUpperCase();
         if (prefix === 'CS' || prefix === 'CSE') return 'CSE';
         if (prefix === 'ECE') return 'ECE';
-        if (prefix === 'AIML' || prefix === 'AI&ML') return 'AI&ML';
+        if (prefix === 'AIML' || prefix === 'AI&ML' || prefix === 'CSM') return 'CSM';
         if (prefix === 'IT') return 'IT';
         if (prefix === 'EEE') return 'EEE';
         if (prefix === 'MECH' || prefix === 'ME') return 'MECH';
@@ -535,7 +535,7 @@ export class StorageService {
     const title = (r.eventTitle || '').toLowerCase();
     if (title.includes('hackathon') || title.includes('code') || title.includes('web') || title.includes('bug')) return 'CSE';
     if (title.includes('circuit') || title.includes('embedded') || title.includes('iot') || title.includes('signal') || title.includes('silicon')) return 'ECE';
-    if (title.includes('prompt') || title.includes('ai') || title.includes('ml') || title.includes('vision') || title.includes('bot') || title.includes('neural')) return 'AI&ML';
+    if (title.includes('prompt') || title.includes('ai') || title.includes('ml') || title.includes('vision') || title.includes('bot') || title.includes('neural')) return 'CSM';
     if (title.includes('apex') || title.includes('valorant') || title.includes('cloud') || title.includes('cyber') || title.includes('security') || title.includes('devops')) return 'IT';
     if (title.includes('solar') || title.includes('grid') || title.includes('ev') || title.includes('power') || title.includes('voltrush')) return 'EEE';
     if (title.includes('cad') || title.includes('robo') || title.includes('thermal') || title.includes('mech') || title.includes('drone') || title.includes('aerowings')) return 'MECH';
@@ -1492,7 +1492,7 @@ export class StorageService {
       code: cleanCode,
       name: dept.name.trim(),
       description: dept.description?.trim() || 'Academic Department for FESTRONIX 2026',
-      chief_coordinator: dept.chiefCoordinator?.trim() || 'Department Chief',
+      chief_coordinator: dept.chiefCoordinator?.trim() || 'Department Coordinator',
       contact: dept.contact?.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
       icon_name: dept.iconName || 'Cpu'
     };

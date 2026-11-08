@@ -14,6 +14,7 @@ export const OrganisationalStructureModal: React.FC<OrganisationalStructureModal
     switch (scope) {
       case 'super_admin':
         return <Award size={18} color="#f59e0b" />;
+      case 'dept_coordinator':
       case 'dept_chief_coordinator':
         return <Shield size={18} color="#38bdf8" />;
       case 'event_coordinator':

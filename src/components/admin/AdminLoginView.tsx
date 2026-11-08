@@ -35,7 +35,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const [superEmail, setSuperEmail] = useState('');
   const [superPassword, setSuperPassword] = useState('');
 
-  // 2. Department Chief Coordinator & Event Coordinator Form
+  // 2. Department Coordinator & Event Coordinator Form
   const [selectedDept, setSelectedDept] = useState('CSE');
   const [deptEmail, setDeptEmail] = useState('');
   const [deptPassword, setDeptPassword] = useState('');
@@ -74,7 +74,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     }
   };
 
-  // Submit Handler: Department Chief & Event Coordinators
+  // Submit Handler: Department & Event Coordinators
   const handleDeptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -398,7 +398,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           </form>
         )}
 
-        {/* TAB 2: DEPT CHIEF COORDINATOR & EVENT COORDINATOR */}
+        {/* TAB 2: DEPARTMENT COORDINATOR & EVENT COORDINATOR */}
         {activeTab === 'dept' && (
           <form onSubmit={handleDeptSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div
@@ -452,7 +452,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Department HOD or Event Coordinator Email
+                Department Coordinator or Event Coordinator Email
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />

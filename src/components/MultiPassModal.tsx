@@ -581,7 +581,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                 <option value="EEE">EEE</option>
                 <option value="MECH">MECH</option>
                 <option value="CIVIL">CIVIL</option>
-                <option value="CSM">AI & ML</option>
+                <option value="CSM">CSM — Computer Science & Machine Learning</option>
                 <option value="CSD">Data Science</option>
               </select>
             </div>

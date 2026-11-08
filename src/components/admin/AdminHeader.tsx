@@ -116,10 +116,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         iconBg: 'linear-gradient(135deg, #0369A1 0%, #0284C7 50%, #38BDF8 100%)'
       };
     }
-    // Department Chief / HOD
+    // Department Coordinator
     return {
       title: titleOverride || `DEPARTMENT OF ${adminUser.departmentName?.toUpperCase() || adminUser.departmentCode || 'ENGINEERING'}`,
-      badge: badgeOverride || `🏛️ ${adminUser.departmentCode || ''} CHIEF HOD`,
+      badge: badgeOverride || `🏛️ ${adminUser.departmentCode || ''} DEPARTMENT COORD`,
       badgeBg: 'rgba(56, 189, 248, 0.15)',
       badgeBorder: 'rgba(56, 189, 248, 0.45)',
       badgeColor: '#38BDF8',

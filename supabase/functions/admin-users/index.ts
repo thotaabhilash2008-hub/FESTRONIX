@@ -47,6 +47,12 @@ function requiredString(value: unknown, field: string, max = 200): string {
   return clean;
 }
 
+function canonicalAdminRole(role: string): string {
+  // Keep existing production rows and older credentials readable while all
+  // newly-created and returned accounts use the department-coordinator name.
+  return role === 'dept_chief_coordinator' ? 'dept_coordinator' : role;
+}
+
 function normalizeRolePayload(raw: Record<string, unknown>) {
   const username = requiredString(raw.username, 'Username', 64).toLowerCase();
   if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(username)) throw new Error('Username must be 3–64 characters using letters, numbers, dots, underscores, or hyphens.');
@@ -54,7 +60,7 @@ function normalizeRolePayload(raw: Record<string, unknown>) {
   const email = requiredString(raw.email, 'Email', 254).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.');
 
-  const role = requiredString(raw.role, 'Role', 64);
+  const role = canonicalAdminRole(requiredString(raw.role, 'Role', 64));
   if (!VALID_ADMIN_ROLES.has(role)) throw new Error('The selected admin role is not supported.');
 
   const fullName = requiredString(raw.fullName, 'Full name');
@@ -93,7 +99,7 @@ function toAdminUser(row: AdminRow, assignedEvents: string[] = []) {
     username: row.username,
     fullName: row.full_name,
     designation: row.designation || '',
-    role: row.role,
+    role: canonicalAdminRole(row.role) as AdminRow['role'],
     departmentCode: row.department_code || undefined,
     email: row.email,
     phone: row.phone || undefined,

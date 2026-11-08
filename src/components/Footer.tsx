@@ -295,7 +295,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) =
                   }}
                 >
                   <Shield size={14} color="#BACEBB" />
-                  <span>Admin Portal (Dean SAC & HODs)</span>
+                  <span>Admin Portal (Dean SAC & Department Coordinators)</span>
                 </button>
               </div>
             )}

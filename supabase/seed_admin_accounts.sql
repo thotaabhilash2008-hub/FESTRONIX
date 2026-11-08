@@ -291,14 +291,14 @@ BEGIN
     '+91 98480 33001'
   );
 
-  -- 6.3 Department Chief Coordinators / HODs (9 Departments)
+  -- 6.3 Department Coordinators (9 Departments)
   PERFORM public.provision_festronix_admin(
     'cse.festronix@vardhaman.org',
     'cse2026',
     'Dr. K. S. Reddy',
-    'hod_cse',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (CSE)',
+    'dept_cse',
+    'dept_coordinator',
+    'Department Coordinator (CSE)',
     'CSE',
     '+91 98480 22001'
   );
@@ -307,9 +307,9 @@ BEGIN
     'csd.festronix@vardhaman.org',
     'csd2026',
     'Dr. S. Radhika',
-    'hod_csd',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (CSD)',
+    'dept_csd',
+    'dept_coordinator',
+    'Department Coordinator (CSD)',
     'CSD',
     '+91 98480 22009'
   );
@@ -318,9 +318,9 @@ BEGIN
     'csm.festronix@vardhaman.org',
     'csm2026',
     'Dr. V. Prasad',
-    'hod_csm',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (CSM)',
+    'dept_csm',
+    'dept_coordinator',
+    'Department Coordinator (CSM)',
     'CSM',
     '+91 98480 22007'
   );
@@ -329,9 +329,9 @@ BEGIN
     'it.festronix@vardhaman.org',
     'it2026',
     'Prof. Anitha Sharma',
-    'hod_it',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (IT)',
+    'dept_it',
+    'dept_coordinator',
+    'Department Coordinator (IT)',
     'IT',
     '+91 98480 22002'
   );
@@ -340,9 +340,9 @@ BEGIN
     'mechanical.festronix@vardhaman.org',
     'mechanical2026',
     'Dr. C. H. Rao',
-    'hod_mechanical',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (MECHANICAL)',
+    'dept_mechanical',
+    'dept_coordinator',
+    'Department Coordinator (MECHANICAL)',
     'MECH',
     '+91 98480 22005'
   );
@@ -351,9 +351,9 @@ BEGIN
     'civil.festronix@vardhaman.org',
     'civil2026',
     'Prof. P. Sunitha',
-    'hod_civil',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (CIVIL)',
+    'dept_civil',
+    'dept_coordinator',
+    'Department Coordinator (CIVIL)',
     'CIVIL',
     '+91 98480 22006'
   );
@@ -362,9 +362,9 @@ BEGIN
     'eee.festronix@vardhaman.org',
     'eee2026',
     'Dr. B. Srinivas',
-    'hod_eee',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (EEE)',
+    'dept_eee',
+    'dept_coordinator',
+    'Department Coordinator (EEE)',
     'EEE',
     '+91 98480 22004'
   );
@@ -373,9 +373,9 @@ BEGIN
     'ece.festronix@vardhaman.org',
     'ece2026',
     'Dr. M. V. Ramana',
-    'hod_ece',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (ECE)',
+    'dept_ece',
+    'dept_coordinator',
+    'Department Coordinator (ECE)',
     'ECE',
     '+91 98480 22003'
   );
@@ -384,9 +384,9 @@ BEGIN
     'mba.festronix@vardhaman.org',
     'mba2026',
     'Prof. R. L. Narayana',
-    'hod_mba',
-    'dept_chief_coordinator',
-    'Department Chief Coordinator (MBA)',
+    'dept_mba',
+    'dept_coordinator',
+    'Department Coordinator (MBA)',
     'MBA',
     '+91 98480 22008'
   );

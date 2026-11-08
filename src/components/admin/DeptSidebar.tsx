@@ -203,7 +203,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
                 letterSpacing: '0.03em'
               }}
             >
-              {isDeptChief ? '🏛️ Chief HOD Desk' : '🎯 Coordinator Desk'}
+              {isDeptChief ? '🏛️ Department Coordinator Desk' : '🎯 Event Coordinator Desk'}
             </div>
           </div>
         </div>

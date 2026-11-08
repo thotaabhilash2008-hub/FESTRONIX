@@ -22,8 +22,8 @@ export const DEPARTMENTS: Department[] = [
   {
     id: 'dept-csm',
     code: 'CSM',
-    name: 'CSE (AI & Machine Learning)',
-    description: 'Deep neural networks, computer vision, robotics reinforcement learning, and autonomous LLM agents.',
+    name: 'Computer Science & Machine Learning (CSM)',
+    description: 'Applied computing, machine learning, computer vision, robotics, and autonomous systems.',
     chiefCoordinator: 'Dr. V. Prasad',
     contact: 'csm.festronix@vardhaman.org',
     iconName: 'Brain'
@@ -188,7 +188,7 @@ export const INITIAL_EVENTS: FestEvent[] = [
     eligibility: 'Open to all registered tech students.',
     coordinatorName: 'Divya Sri',
     coordinatorPhone: '+91 94401 23456',
-    coordinatorEmail: 'divyasri.aiml@vardhaman.org',
+    coordinatorEmail: 'divyasri.csm@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)'
   },
@@ -530,7 +530,7 @@ export const INITIAL_REGISTRATIONS: Registration[] = [
     checkedInBy: 'Gate 1 Lead',
     departmentCode: 'ECE'
   },
-  // 3. AI&ML
+  // 3. CSM
   {
     id: 'FEST-2026-3401',
     eventId: 'evt-3',
@@ -553,14 +553,14 @@ export const INITIAL_REGISTRATIONS: Registration[] = [
     checkedIn: true,
     checkedInAt: '11:35 AM',
     checkedInBy: 'Gate 2 Desk',
-    departmentCode: 'AI&ML'
+    departmentCode: 'CSM'
   },
   {
     id: 'FEST-2026-3410',
     eventId: 'evt-3',
     eventTitle: 'PromptMatrix: Autonomous AI Agents & Vision',
     leaderName: 'Aditya Reddy',
-    leaderEmail: 'aditya.aiml@vardhaman.org',
+    leaderEmail: 'aditya.csm@vardhaman.org',
     leaderPhone: '+91 99112 23344',
     leaderCollege: 'Vardhaman College of Engineering',
     leaderRoll: '23VCEAI044',
@@ -574,7 +574,7 @@ export const INITIAL_REGISTRATIONS: Registration[] = [
     paymentScreenshotUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
     qrToken: 'FEST26-TOKEN-ADI3410',
     checkedIn: false,
-    departmentCode: 'AI&ML'
+    departmentCode: 'CSM'
   },
   // 4. IT
   {
@@ -924,20 +924,20 @@ export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
     accounts: ['event_coord (eventcoord2026)', 'Universal Coordinator Passcode (festcoord2026)']
   },
   {
-    role: 'Department Chief Coordinator',
-    scopeTag: 'dept_chief_coordinator',
+    role: 'Department Coordinator',
+    scopeTag: 'dept_coordinator',
     responsibilities: 'Monitor department events, capacity, registrations and readiness.',
     accessBoundary: "Their department's events.",
     accounts: [
-      'HOD CSE (hod_cse / cse2026)',
-      'HOD CSD (hod_csd / csd2026)',
-      'HOD CSM (hod_csm / csm2026)',
-      'HOD IT (hod_it / it2026)',
-      'HOD MECHANICAL (hod_mechanical / mechanical2026)',
-      'HOD CIVIL (hod_civil / civil2026)',
-      'HOD EEE (hod_eee / eee2026)',
-      'HOD ECE (hod_ece / ece2026)',
-      'HOD MBA (hod_mba / mba2026)'
+      'Department Coordinator CSE',
+      'Department Coordinator CSD',
+      'Department Coordinator CSM',
+      'Department Coordinator IT',
+      'Department Coordinator MECHANICAL',
+      'Department Coordinator CIVIL',
+      'Department Coordinator EEE',
+      'Department Coordinator ECE',
+      'Department Coordinator MBA'
     ]
   },
   {

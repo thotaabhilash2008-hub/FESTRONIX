@@ -116,7 +116,7 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
                 <tr style={{ borderBottom: '1px solid rgba(120, 149, 147, 0.35)', color: '#BACEBB' }}>
                   <th style={{ padding: '8px' }}>Code</th>
                   <th style={{ padding: '8px' }}>Department</th>
-                  <th style={{ padding: '8px' }}>Chief Coordinator</th>
+                  <th style={{ padding: '8px' }}>Department Coordinator</th>
                   <th style={{ padding: '8px' }}>Events</th>
                   <th style={{ padding: '8px' }}>Registrations</th>
                 </tr>

@@ -274,7 +274,7 @@ export const AMBASSADOR_PROFILES: AmbassadorProfile[] = [
       { id: 'r1', studentName: 'Sai Tarun', college: 'VCE - CSE', eventsRegistered: ['CodeSprint 2026', 'RoboWars'], date: 'Today, 2:15 PM', amount: 500 },
       { id: 'r2', studentName: 'Priya Nambiar', college: 'VCE - ECE', eventsRegistered: ['Circuitrix Hack'], date: 'Today, 11:30 AM', amount: 300 },
       { id: 'r3', studentName: 'Farhan Ali', college: 'VCE - IT', eventsRegistered: ['All-Access VIP Fest Pass'], date: 'Yesterday', amount: 800 },
-      { id: 'r4', studentName: 'Meghana Rao', college: 'VCE - AIML', eventsRegistered: ['NeuroHacks Hackathon'], date: 'Yesterday', amount: 450 }
+      { id: 'r4', studentName: 'Meghana Rao', college: 'VCE - CSM', eventsRegistered: ['NeuroHacks Hackathon'], date: 'Yesterday', amount: 450 }
     ]
   },
   {

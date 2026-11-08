@@ -135,7 +135,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [eventCreateError, setEventCreateError] = useState('');
 
-  // Form State: Add New Coordinator / HOD / Staff
+  // Form State: Add New Coordinator / Department Coordinator / Staff
   const [coordFullName, setCoordFullName] = useState('');
   const [coordDeptCode, setCoordDeptCode] = useState('CSE');
   const [coordRole, setCoordRole] = useState<AdminRole>('faculty_coord');
@@ -150,7 +150,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [coordFormError, setCoordFormError] = useState('');
   const [createdCredential, setCreatedCredential] = useState<{ username: string; password: string; role: string } | null>(null);
 
-  // Form State: Edit Coordinator / HOD / Staff
+  // Form State: Edit Coordinator / Department Coordinator / Staff
   const [isEditCoordinatorOpen, setIsEditCoordinatorOpen] = useState(false);
   const [editingCoordinator, setEditingCoordinator] = useState<(AdminUser & { password?: string; assignedEvents?: string[] }) | null>(null);
   const [editCoordFullName, setEditCoordFullName] = useState('');
@@ -279,23 +279,23 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         code: cleanCode,
         name: deptName.trim(),
         description: deptDesc.trim() || `${deptName.trim()} engineering division for FESTRONIX 2026.`,
-        chiefCoordinator: deptChief.trim() || 'Department Chief',
+        chiefCoordinator: deptChief.trim() || 'Department Coordinator',
         contact: deptContact.trim() || `${departmentHandle(cleanCode)}.festronix@vardhaman.org`,
         iconName: deptIcon || 'Cpu'
       });
 
-      // If a chief was provided, persist the HOD account after the department exists.
+      // If a coordinator was provided, persist the department account after the department exists.
       if (deptChief.trim()) {
-        const existingHod = AdminAuthService.getAllAdmins().find(
+        const existingDeptCoordinator = AdminAuthService.getAllAdmins().find(
           a => a.departmentCode?.toUpperCase() === cleanCode && (a.role === 'dept_chief_coordinator' || a.role === 'dept_coordinator')
         );
-        if (!existingHod) {
+        if (!existingDeptCoordinator) {
           await AdminAuthService.addAdmin({
-            username: `hod_${departmentHandle(cleanCode)}`,
+            username: `dept_${departmentHandle(cleanCode)}`,
             password: `fest${departmentHandle(cleanCode)}2026secure`,
             fullName: deptChief.trim(),
-            designation: `Department Chief Coordinator (${cleanCode})`,
-            role: 'dept_chief_coordinator',
+            designation: `Department Coordinator (${cleanCode})`,
+            role: 'dept_coordinator',
             departmentCode: cleanCode,
             departmentName: deptName.trim(),
             email: deptContact.trim() || `${departmentHandle(cleanCode)}.festronix@vardhaman.org`,
@@ -314,7 +314,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setDeptIcon('Cpu');
       await refreshAllData();
     } catch (error) {
-      window.alert((error as Error).message || 'Unable to create the department and HOD account.');
+      window.alert((error as Error).message || 'Unable to create the department coordinator account.');
     }
   };
 
@@ -717,7 +717,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setIsAddCoordinatorOpen(true);
   };
 
-  // Create Coordinator / HOD / Operational Staff Handler
+  // Create Coordinator / Department Coordinator / Operational Staff Handler
   const handleCreateCoordinator = async (e: React.FormEvent) => {
     e.preventDefault();
     setCoordFormError('');
@@ -806,7 +806,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     }
   };
 
-  // Open Edit Modal for Coordinator / HOD / Payment Reviewer
+  // Open Edit Modal for Coordinator / Department Coordinator / Payment Reviewer
   const handleOpenEditCoordinator = (coord: AdminUser & { password?: string; assignedEvents?: string[] }) => {
     setEditingCoordinator(coord);
     setEditCoordFullName(coord.fullName || '');
@@ -823,7 +823,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setIsEditCoordinatorOpen(true);
   };
 
-  // Submit Update for Coordinator / HOD / Payment Reviewer
+  // Submit Update for Coordinator / Department Coordinator / Payment Reviewer
   const handleUpdateCoordinator = async (e: React.FormEvent) => {
     e.preventDefault();
     setCoordFormError('');
@@ -1092,10 +1092,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       (coordDeptFilter === 'SAC' && (!c.departmentCode || c.departmentCode === 'SAC' || c.departmentCode === 'FINANCE'));
 
     const matchRole = coordRoleFilter === 'all' ||
-      (coordRoleFilter === 'dept_chief_coordinator' && (c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator')) ||
+      (coordRoleFilter === 'dept_coordinator' && (c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator')) ||
       (coordRoleFilter === 'faculty_coord' && supportsEventAssignments(c.role)) ||
       (coordRoleFilter === 'volunteer_checkin' && (c.role === 'volunteer_checkin' || c.role === 'checkin_staff')) ||
-      (coordRoleFilter !== 'dept_chief_coordinator' && coordRoleFilter !== 'faculty_coord' && coordRoleFilter !== 'volunteer_checkin' && c.role === coordRoleFilter);
+      (coordRoleFilter !== 'dept_coordinator' && coordRoleFilter !== 'dept_chief_coordinator' && coordRoleFilter !== 'faculty_coord' && coordRoleFilter !== 'volunteer_checkin' && c.role === coordRoleFilter);
 
     return matchSearch && matchDept && matchRole;
   });
@@ -1337,7 +1337,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           </span>
                           <span className="admin-dept-active-badge">
                             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
-                            <span>HOD Active</span>
+                            <span>Coordinator Active</span>
                           </span>
                         </div>
 
@@ -1349,7 +1349,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           {dept.description}
                         </p>
                         <div style={{ fontSize: '0.76rem', color: '#CBD5E1', marginBottom: '14px', position: 'relative', zIndex: 1 }}>
-                          Chief: <strong style={{ color: '#FFFFFF' }}>{dept.chiefCoordinator}</strong>
+                          Coordinator: <strong style={{ color: '#FFFFFF' }}>{dept.chiefCoordinator}</strong>
                         </div>
                       </div>
 
@@ -1431,7 +1431,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   Engineering Department Performance Matrix
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Live aggregate metrics across all academic divisions for FESTRONIX 2026. Create, edit, delete, or appoint HODs dynamically.
+                  Live aggregate metrics across all academic divisions for FESTRONIX 2026. Create, edit, delete, or appoint department coordinators dynamically.
                 </p>
               </div>
 
@@ -1487,7 +1487,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 const deptStats = StorageService.getDepartmentStats(dept.code);
                 const deptEvents = events.filter(e => e.departmentCode.toUpperCase() === dept.code.toUpperCase());
                 const deptCoords = coordinators.filter(c => c.departmentCode?.toUpperCase() === dept.code.toUpperCase());
-                const deptHod = deptCoords.find(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator');
+                const deptCoordinator = deptCoords.find(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator');
 
                 return (
                   <div
@@ -1580,19 +1580,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         {dept.description}
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#BACEBB', marginBottom: '12px' }}>
-                        <span>Chief: <strong>{dept.chiefCoordinator}</strong></span>
-                        {deptHod ? (
+                        <span>Coordinator: <strong>{dept.chiefCoordinator}</strong></span>
+                        {deptCoordinator ? (
                           <span style={{ color: '#C084FC', fontSize: '0.68rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(192, 132, 252, 0.15)' }}>
-                            HOD Portal Active
+                            Department Portal Active
                           </span>
                         ) : (
                           <button
                             onClick={() => {
-                              setCoordRole('dept_chief_coordinator');
+                              setCoordRole('dept_coordinator');
                               setCoordDeptCode(dept.code);
                               setCoordFullName(dept.chiefCoordinator);
-                              setCoordDesignation(`Department Chief Coordinator (${dept.code})`);
-                              setCoordUsername(`hod_${dept.code.toLowerCase()}`);
+                              setCoordDesignation(`Department Coordinator (${dept.code})`);
+                              setCoordUsername(`dept_${dept.code.toLowerCase()}`);
                               setCoordPassword(`${dept.code.toLowerCase()}2026`);
                               setIsAddCoordinatorOpen(true);
                             }}
@@ -1605,7 +1605,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               cursor: 'pointer'
                             }}
                           >
-                            + Appoint HOD
+                            + Appoint Department Coordinator
                           </button>
                         )}
                       </div>
@@ -2715,11 +2715,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   SAC Official Coordinator Registry & Appointments
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Assign faculty conveners, HODs, and student organizers to fest events with custom access credentials
+                  Assign faculty conveners, department coordinators, and student organizers to fest events with custom access credentials
                 </p>
               </div>
 
-              {/* Dedicated Action Buttons for Payment Users, HODs, and Event Coordinators */}
+              {/* Dedicated Action Buttons for Payment Users, Department Coordinators, and Event Coordinators */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
                   onClick={() => {
@@ -2752,13 +2752,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <button
                   onClick={() => {
                     const firstDept = departments[0]?.code || 'CSE';
-                    setCoordRole('dept_chief_coordinator');
+                    setCoordRole('dept_coordinator');
                     setCoordDeptCode(firstDept);
                     setCoordFullName('');
-                    setCoordDesignation(`Department Chief Coordinator (${firstDept})`);
+                    setCoordDesignation(`Department Coordinator (${firstDept})`);
                     setCoordEmail(`${departmentHandle(firstDept)}.festronix@vardhaman.org`);
                     setCoordPhone('+91 ');
-                    setCoordUsername(`hod_${departmentHandle(firstDept)}`);
+                    setCoordUsername(`dept_${departmentHandle(firstDept)}`);
                     setCoordPassword(`fest${departmentHandle(firstDept)}2026secure`);
                     setCoordAssignedEvents([]);
                     setCoordFormError('');
@@ -2779,7 +2779,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   }}
                 >
                   <Building2 size={14} />
-                  <span>+ Appoint Department HOD</span>
+                  <span>+ Appoint Department Coordinator</span>
                 </button>
 
                 <button
@@ -2909,7 +2909,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               {[
                 { id: 'all', label: '👥 All Staff', count: coordinators.length },
                 { id: 'finance_reviewer', label: '💳 Payment Users', count: coordinators.filter(c => c.role === 'finance_reviewer').length },
-                { id: 'dept_chief_coordinator', label: '🏛️ Department HODs', count: coordinators.filter(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator').length },
+                { id: 'dept_coordinator', label: '🏛️ Department Coordinators', count: coordinators.filter(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator').length },
                 { id: 'faculty_coord', label: '🎯 Event Coordinators', count: coordinators.filter(c => c.role === 'faculty_coord' || c.role === 'student_coord' || c.role === 'event_coordinator').length },
                 { id: 'volunteer_checkin', label: '🎟️ Gate Volunteers', count: coordinators.filter(c => c.role === 'volunteer_checkin' || c.role === 'checkin_staff').length }
               ].map(pill => {
@@ -3008,7 +3008,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 }}
               >
                 <option value="all">All Roles</option>
-                <option value="dept_chief_coordinator">Department HOD / Chief</option>
+                <option value="dept_coordinator">Department Coordinator</option>
                 <option value="finance_reviewer">Payment Reviewer (Finance Desk)</option>
                 <option value="faculty_coord">Faculty Event Convener</option>
                 <option value="student_coord">Student Lead Organizer</option>
@@ -3022,10 +3022,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             {/* Coordinators Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
               {filteredCoordinators.map(coord => {
-                const isCustom = coord.id.startsWith('coord_') || coord.id.startsWith('reviewer_') || coord.id.startsWith('hod_') || coord.id.startsWith('volunteer_');
+                const isCustom = coord.id.startsWith('coord_') || coord.id.startsWith('reviewer_') || coord.id.startsWith('dept_') || coord.id.startsWith('hod_') || coord.id.startsWith('volunteer_');
                 const isSelf = coord.id === adminUser.id;
                 const isFinance = coord.role === 'finance_reviewer';
-                const isHod = coord.role === 'dept_chief_coordinator' || coord.role === 'dept_coordinator';
+                const isDeptCoordinator = coord.role === 'dept_chief_coordinator' || coord.role === 'dept_coordinator';
 
                 return (
                   <div
@@ -3034,7 +3034,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       background: 'rgba(20, 31, 62, 0.85)',
                       border: isFinance 
                         ? '1px solid rgba(52, 211, 153, 0.35)' 
-                        : isHod 
+                        : isDeptCoordinator
                         ? '1px solid rgba(168, 85, 247, 0.35)' 
                         : '1px solid rgba(220, 227, 229, 0.16)',
                       borderRadius: '16px',
@@ -3070,32 +3070,32 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               borderRadius: '4px',
                               background: isFinance 
                                 ? 'rgba(52, 211, 153, 0.15)' 
-                                : isHod 
+                                : isDeptCoordinator
                                 ? 'rgba(168, 85, 247, 0.15)' 
                                 : isCustom 
                                 ? 'rgba(52, 211, 153, 0.15)' 
                                 : 'rgba(251, 191, 36, 0.15)',
                               border: isFinance 
                                 ? '1px solid rgba(52, 211, 153, 0.35)' 
-                                : isHod 
+                                : isDeptCoordinator
                                 ? '1px solid rgba(168, 85, 247, 0.35)' 
                                 : 'none',
                               color: isFinance 
                                 ? '#34D399' 
-                                : isHod 
+                                : isDeptCoordinator
                                 ? '#C084FC' 
                                 : isCustom 
                                 ? '#34D399' 
                                 : '#FBBF24'
                             }}
                           >
-                            {isFinance ? '💳 PAYMENT REVIEWER' : isHod ? '🏛️ DEPT HOD' : coord.role.toUpperCase().replace('_', ' ')}
+                            {isFinance ? '💳 PAYMENT REVIEWER' : isDeptCoordinator ? '🏛️ DEPARTMENT COORDINATOR' : coord.role.toUpperCase().replace('_', ' ')}
                           </span>
                         </div>
 
                         {!isSelf && (
                           <button
-                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isHod ? 'Department HOD' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
+                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isDeptCoordinator ? 'Department Coordinator' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
                             style={{
                               background: 'rgba(239, 68, 68, 0.15)',
                               border: '1px solid rgba(239, 68, 68, 0.35)',
@@ -3121,7 +3121,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 2px' }}>
                         {coord.fullName}
                       </h4>
-                      <p style={{ fontSize: '0.78rem', color: isHod ? '#C084FC' : isFinance ? '#34D399' : '#BACEBB', margin: '0 0 12px' }}>
+                      <p style={{ fontSize: '0.78rem', color: isDeptCoordinator ? '#C084FC' : isFinance ? '#34D399' : '#BACEBB', margin: '0 0 12px' }}>
                         {coord.designation}
                       </p>
 
@@ -3246,7 +3246,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                       {!isSelf && (
                         <button
-                          onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isHod ? 'Department HOD' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
+                          onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isDeptCoordinator ? 'Department Coordinator' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
                           style={{
                             background: 'rgba(239, 68, 68, 0.15)',
                             border: '1px solid rgba(239, 68, 68, 0.4)',
@@ -4907,10 +4907,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
                 <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>
-                  Appoint Coordinator, Department HOD, or Operational Staff
+                  Appoint Coordinator, Department Coordinator, or Operational Staff
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Create official credentials for Department HODs, Payment Reviewers, Faculty Conveners, or Event Organizers
+                  Create official credentials for Department Coordinators, Payment Reviewers, Faculty Conveners, or Event Organizers
                 </p>
               </div>
               <button
@@ -4990,8 +4990,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       setCoordDeptCode(newDept);
                       if (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator') {
                         const handle = departmentHandle(newDept);
-                        setCoordDesignation(`Department Chief Coordinator (${newDept})`);
-                        setCoordUsername(`hod_${handle}`);
+                        setCoordDesignation(`Department Coordinator (${newDept})`);
+                        setCoordUsername(`dept_${handle}`);
                         setCoordPassword(`fest${handle}2026secure`);
                         setCoordEmail(`${handle}.festronix@vardhaman.org`);
                       }
@@ -5043,8 +5043,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         setCoordPassword('finance2026!');
                       } else if (newRole === 'dept_chief_coordinator' || newRole === 'dept_coordinator') {
                         const handle = departmentHandle(nextDept);
-                        setCoordDesignation(`Department Chief Coordinator (${nextDept})`);
-                        setCoordUsername(`hod_${handle}`);
+                        setCoordDesignation(`Department Coordinator (${nextDept})`);
+                        setCoordUsername(`dept_${handle}`);
                         setCoordPassword(`fest${handle}2026secure`);
                         setCoordEmail(`${handle}.festronix@vardhaman.org`);
                       } else if (newRole === 'volunteer_checkin' || newRole === 'checkin_staff') {
@@ -5064,7 +5064,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       fontSize: '0.84rem'
                     }}
                   >
-                    <option value="dept_chief_coordinator">🏛️ Department Chief Coordinator (HOD)</option>
+                    <option value="dept_coordinator">🏛️ Department Coordinator</option>
                     <option value="finance_reviewer">💳 Central Payment Reviewer (Finance Desk)</option>
                     <option value="faculty_coord">⚡ Faculty Event Convener</option>
                     <option value="student_coord">🎓 Student Lead Organizer</option>
@@ -5164,7 +5164,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       type="text"
                       value={coordUsername}
                       onChange={e => setCoordUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                      placeholder="e.g. hod_cse or finance_reviewer"
+                      placeholder="e.g. dept_cse or finance_reviewer"
                       required
                       style={{
                         width: '100%',
@@ -5281,7 +5281,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: EDIT COORDINATOR / HOD / OPERATIONAL STAFF                          */}
+      {/* MODAL: EDIT COORDINATOR / DEPARTMENT COORDINATOR / OPERATIONAL STAFF       */}
       {/* ========================================================================= */}
       {isEditCoordinatorOpen && editingCoordinator && (
         <div
@@ -5439,7 +5439,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       fontSize: '0.84rem'
                     }}
                   >
-                    <option value="dept_chief_coordinator">🏛️ Department Chief Coordinator (HOD)</option>
+                    <option value="dept_coordinator">🏛️ Department Coordinator</option>
                     <option value="finance_reviewer">💳 Central Payment Reviewer (Finance Desk)</option>
                     <option value="faculty_coord">⚡ Faculty Event Convener</option>
                     <option value="student_coord">🎓 Student Lead Organizer</option>
@@ -5692,7 +5692,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   Create New Academic Department
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Register a new branch for FESTRONIX 2026. This creates catalog filters, matrix cards, and HOD portal access.
+                  Register a new branch for FESTRONIX 2026. This creates catalog filters, matrix cards, and department coordinator portal access.
                 </p>
               </div>
               <button
@@ -5711,7 +5711,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. AIML"
+                    placeholder="e.g. CSM"
                     value={deptCode}
                     onChange={e => setDeptCode(e.target.value.toUpperCase())}
                     required
@@ -5780,7 +5780,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Chief Coordinator / HOD Name
+                    Department Coordinator Name
                   </label>
                   <input
                     type="text"
@@ -5870,7 +5870,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               {deptChief.trim() && (
                 <div style={{ background: 'rgba(124, 58, 237, 0.12)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.76rem', color: '#C084FC' }}>
-                  💡 <strong>Auto-Credentialing</strong>: Creating this department will also automatically provision HOD portal credentials: Username: <code>hod_{(deptCode || 'dept').toLowerCase()}</code> | Passcode: <code>{(deptCode || 'dept').toLowerCase()}2026</code>.
+                  💡 <strong>Auto-Credentialing</strong>: Creating this department will also automatically provision department coordinator credentials: Username: <code>dept_{(deptCode || 'dept').toLowerCase()}</code> | Passcode: <code>{(deptCode || 'dept').toLowerCase()}2026</code>.
                 </div>
               )}
 
@@ -6032,7 +6032,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Chief Coordinator / HOD Name
+                    Department Coordinator Name
                   </label>
                   <input
                     type="text"

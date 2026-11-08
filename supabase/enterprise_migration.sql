@@ -409,50 +409,50 @@ BEGIN
     'event_coordinator', 'Lead Event Operations Coordinator', 'CSE', '+91 98480 33001'
   );
 
-  -- 8.3 Department Chief Coordinators (9 Departments)
+  -- 8.3 Department Coordinators (9 Departments)
   PERFORM public.provision_festronix_admin(
-    'cse.festronix@vardhaman.org', 'cse2026', 'Dr. K. S. Reddy', 'hod_cse',
-    'dept_chief_coordinator', 'Department Chief Coordinator (CSE)', 'CSE', '+91 98480 22001'
+    'cse.festronix@vardhaman.org', 'cse2026', 'Dr. K. S. Reddy', 'dept_cse',
+    'dept_coordinator', 'Department Coordinator (CSE)', 'CSE', '+91 98480 22001'
   );
 
   PERFORM public.provision_festronix_admin(
-    'csd.festronix@vardhaman.org', 'csd2026', 'Dr. S. Radhika', 'hod_csd',
-    'dept_chief_coordinator', 'Department Chief Coordinator (CSD)', 'CSD', '+91 98480 22009'
+    'csd.festronix@vardhaman.org', 'csd2026', 'Dr. S. Radhika', 'dept_csd',
+    'dept_coordinator', 'Department Coordinator (CSD)', 'CSD', '+91 98480 22009'
   );
 
   PERFORM public.provision_festronix_admin(
-    'csm.festronix@vardhaman.org', 'csm2026', 'Dr. V. Prasad', 'hod_csm',
-    'dept_chief_coordinator', 'Department Chief Coordinator (CSM)', 'CSM', '+91 98480 22007'
+    'csm.festronix@vardhaman.org', 'csm2026', 'Dr. V. Prasad', 'dept_csm',
+    'dept_coordinator', 'Department Coordinator (CSM)', 'CSM', '+91 98480 22007'
   );
 
   PERFORM public.provision_festronix_admin(
-    'it.festronix@vardhaman.org', 'it2026', 'Prof. Anitha Sharma', 'hod_it',
-    'dept_chief_coordinator', 'Department Chief Coordinator (IT)', 'IT', '+91 98480 22002'
+    'it.festronix@vardhaman.org', 'it2026', 'Prof. Anitha Sharma', 'dept_it',
+    'dept_coordinator', 'Department Coordinator (IT)', 'IT', '+91 98480 22002'
   );
 
   PERFORM public.provision_festronix_admin(
-    'mechanical.festronix@vardhaman.org', 'mechanical2026', 'Dr. C. H. Rao', 'hod_mechanical',
-    'dept_chief_coordinator', 'Department Chief Coordinator (MECHANICAL)', 'MECH', '+91 98480 22005'
+    'mechanical.festronix@vardhaman.org', 'mechanical2026', 'Dr. C. H. Rao', 'dept_mechanical',
+    'dept_coordinator', 'Department Coordinator (MECHANICAL)', 'MECH', '+91 98480 22005'
   );
 
   PERFORM public.provision_festronix_admin(
-    'civil.festronix@vardhaman.org', 'civil2026', 'Prof. P. Sunitha', 'hod_civil',
-    'dept_chief_coordinator', 'Department Chief Coordinator (CIVIL)', 'CIVIL', '+91 98480 22006'
+    'civil.festronix@vardhaman.org', 'civil2026', 'Prof. P. Sunitha', 'dept_civil',
+    'dept_coordinator', 'Department Coordinator (CIVIL)', 'CIVIL', '+91 98480 22006'
   );
 
   PERFORM public.provision_festronix_admin(
-    'eee.festronix@vardhaman.org', 'eee2026', 'Dr. B. Srinivas', 'hod_eee',
-    'dept_chief_coordinator', 'Department Chief Coordinator (EEE)', 'EEE', '+91 98480 22004'
+    'eee.festronix@vardhaman.org', 'eee2026', 'Dr. B. Srinivas', 'dept_eee',
+    'dept_coordinator', 'Department Coordinator (EEE)', 'EEE', '+91 98480 22004'
   );
 
   PERFORM public.provision_festronix_admin(
-    'ece.festronix@vardhaman.org', 'ece2026', 'Dr. M. V. Ramana', 'hod_ece',
-    'dept_chief_coordinator', 'Department Chief Coordinator (ECE)', 'ECE', '+91 98480 22003'
+    'ece.festronix@vardhaman.org', 'ece2026', 'Dr. M. V. Ramana', 'dept_ece',
+    'dept_coordinator', 'Department Coordinator (ECE)', 'ECE', '+91 98480 22003'
   );
 
   PERFORM public.provision_festronix_admin(
-    'mba.festronix@vardhaman.org', 'mba2026', 'Prof. R. L. Narayana', 'hod_mba',
-    'dept_chief_coordinator', 'Department Chief Coordinator (MBA)', 'MBA', '+91 98480 22008'
+    'mba.festronix@vardhaman.org', 'mba2026', 'Prof. R. L. Narayana', 'dept_mba',
+    'dept_coordinator', 'Department Coordinator (MBA)', 'MBA', '+91 98480 22008'
   );
 END $$;
 

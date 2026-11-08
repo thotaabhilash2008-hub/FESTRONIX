@@ -188,6 +188,6 @@ export interface OrganisationalRoleDefinition {
   role: string;
   responsibilities: string;
   accessBoundary: string;
-  scopeTag: 'public' | 'participant' | 'event_coordinator' | 'dept_chief_coordinator' | 'super_admin' | 'finance' | 'volunteer';
+  scopeTag: 'public' | 'participant' | 'event_coordinator' | 'dept_coordinator' | 'dept_chief_coordinator' | 'super_admin' | 'finance' | 'volunteer';
   accounts?: string[];
 }

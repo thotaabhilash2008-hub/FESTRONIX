@@ -135,7 +135,7 @@ export const DepartmentsSection: React.FC = () => {
 
                   <div style={{ paddingTop: '14px', borderTop: '1px solid rgba(148, 163, 184, 0.16)' }}>
                     <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
-                      Chief Coordinator
+                      Department Coordinator
                     </div>
                     <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>
                       {dept.chiefCoordinator}

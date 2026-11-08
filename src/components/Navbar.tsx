@@ -1450,7 +1450,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               </div>
 
-              {/* Option 10: Admin & Faculty Console (SAC / HOD) */}
+              {/* Option 10: Admin & Faculty Console (SAC / Department Coordinators) */}
               {onOpenAdmin && (
                 <button
                   onClick={() => {

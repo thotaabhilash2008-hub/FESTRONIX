@@ -873,7 +873,7 @@ INSERT INTO public.departments (id, code, name, description, chief_coordinator, 
   (uuid_generate_v4(), 'EEE', 'Electrical & Electronics', 'Electric mobility, green energy grids, power systems, and automation logic.', 'Dr. B. Srinivas', 'eee.festronix@vardhaman.org', 'Zap'),
   (uuid_generate_v4(), 'MECH', 'Mechanical Engineering', 'CAD/CAM design, drone dynamics, RC racing, and 3D additive manufacturing.', 'Dr. C. H. Rao', 'mech.festronix@vardhaman.org', 'Wrench'),
   (uuid_generate_v4(), 'CIVIL', 'Civil Engineering', 'Smart city modeling, seismic structural design, and bridge load-testing.', 'Prof. P. Sunitha', 'civil.festronix@vardhaman.org', 'Building'),
-  (uuid_generate_v4(), 'AI&ML', 'Artificial Intelligence & Machine Learning', 'Deep neural networks, computer vision, robotics RL, and LLM autonomous agents.', 'Dr. V. Prasad', 'aiml.festronix@vardhaman.org', 'Brain'),
+  (uuid_generate_v4(), 'CSM', 'Computer Science & Machine Learning (CSM)', 'Applied computing, machine learning, computer vision, robotics, and autonomous systems.', 'Dr. V. Prasad', 'csm.festronix@vardhaman.org', 'Brain'),
   (uuid_generate_v4(), 'MBA', 'Management & Humanities', 'Venture pitch deck, corporate crisis simulations, and fintech trading floors.', 'Prof. R. L. Narayana', 'mba.festronix@vardhaman.org', 'Briefcase')
 ON CONFLICT (code) DO NOTHING;
 
@@ -912,7 +912,7 @@ INSERT INTO public.events (slug, title, department_code, category, format, min_t
 (
   'ai-prompt-engineering-showdown',
   'PromptMatrix: Autonomous AI Agents & Vision',
-  'AI&ML', 'technical', 'duo', 1, 2, 150, 80, 0,
+  'CSM', 'technical', 'duo', 1, 2, 150, 80, 0,
   '2026-10-26 12:00:00+05:30',
   'Oct 29, 2026', '01:30 PM - 03:30 PM',
   'Aryabhata Computing Lab 4, Block 2',
@@ -920,7 +920,7 @@ INSERT INTO public.events (slug, title, department_code, category, format, min_t
   '["Solo or Duo participation permitted.", "Participants will be provided sandboxed API keys and compute environments.", "Scoring based on output benchmark accuracy, token efficiency, and prompt latency."]'::jsonb,
   '{"first": "₹20,000 + AI Cloud Credits", "second": "₹10,000", "third": "₹5,000"}'::jsonb,
   'Open to all registered tech students.',
-  'Divya Sri', '+91 94401 23456', 'divyasri.aiml@vardhaman.org',
+  'Divya Sri', '+91 94401 23456', 'divyasri.csm@vardhaman.org',
   'open', 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)'
 ),
 (
