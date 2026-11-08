@@ -712,8 +712,57 @@ export class AdminAuthService {
 
   static async deleteAdmin(id: string): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      await invokeAdminApi({ action: 'delete', id });
-      await this.fetchAdmins();
+      let edgeFunctionError: unknown = null;
+      try {
+        await invokeAdminApi({ action: 'delete', id });
+      } catch (error) {
+        edgeFunctionError = error;
+        const message = error instanceof Error ? error.message : String(error || '');
+        const isBusinessRuleError = /cannot disable your own|last active super admin|already exists|already been disabled|not authorized|only authorized|permission|invalid|sign in/i.test(message);
+        if (isBusinessRuleError) throw error;
+
+        // Keep deletion usable while a hosted Edge Function is being deployed
+        // or when an older deployment is still serving traffic. Global admins
+        // are allowed to deactivate roles through the RLS policy below.
+        const { data, error: roleError } = await supabase
+          .from('admin_roles')
+          .update({ active: false })
+          .eq('user_id', id)
+          .eq('active', true)
+          .select('user_id')
+          .maybeSingle();
+
+        if (roleError) {
+          throw new Error(`${(error as Error)?.message || 'Unable to delete the account.'} ${roleError.message}`);
+        }
+        if (!data) {
+          throw new Error((error as Error)?.message || 'The admin account no longer exists or has already been disabled.');
+        }
+
+        // Role deactivation is the authorization boundary. Remove event
+        // assignments as a best-effort cleanup even if the function was stale.
+        await supabase.from('admin_event_assignments').delete().eq('admin_user_id', id);
+      }
+
+      // Remove the account from the visible directory immediately. This avoids
+      // showing a stale cached card if the follow-up realtime/list request is
+      // delayed or temporarily unavailable.
+      const remaining = this.getAllAdmins().filter(admin => admin.id !== id);
+      localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(remaining));
+      window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: remaining }));
+
+      try {
+        const refreshed = await this.fetchAdmins();
+        const withoutDeleted = refreshed.filter(admin => admin.id !== id);
+        if (withoutDeleted.length !== refreshed.length) {
+          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(withoutDeleted));
+          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: withoutDeleted }));
+        }
+      } catch (refreshError) {
+        // The backend mutation already succeeded; retain the immediate local
+        // result and let the realtime listener reconcile the directory later.
+        console.warn('Admin directory refresh after deletion failed:', refreshError, edgeFunctionError);
+      }
       return true;
     }
     const all = this.getAllAdmins().filter(a => a.id !== id);
