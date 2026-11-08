@@ -393,7 +393,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'delete') {
       const id = requiredString(body.id, 'Admin id', 64);
-      if (id === caller.id) throw new Error('You cannot disable your own active account.');
+      if (id === caller.id) throw new Error('You cannot delete your own active account.');
       const { data: target, error } = await db.from('admin_roles').select('id,role').eq('user_id', id).eq('active', true).maybeSingle();
       if (error) throw error;
       if (!target) throw new Error('The admin account no longer exists or has already been disabled.');
@@ -401,19 +401,25 @@ Deno.serve(async (req: Request) => {
       if (GLOBAL_ADMIN_ROLES.has(target.role)) {
         const { count, error: countError } = await db.from('admin_roles').select('id', { count: 'exact', head: true }).eq('active', true).in('role', [...GLOBAL_ADMIN_ROLES]);
         if (countError) throw countError;
-        if ((count || 0) <= 1) throw new Error('The last active super admin cannot be disabled. Create another super admin first.');
+        if ((count || 0) <= 1) throw new Error('The last active super admin cannot be deleted. Create another super admin first.');
       }
 
-      const { error: authUpdateError } = await db.auth.admin.updateUserById(id, { ban_duration: '876000h' });
-      if (authUpdateError) throw authUpdateError;
-      const { error: roleError } = await db.from('admin_roles').update({ active: false }).eq('id', target.id);
-      if (roleError) {
-        await db.auth.admin.updateUserById(id, { ban_duration: 'none' });
-        throw roleError;
-      }
+      // This is a permanent account deletion, not a UI-only/soft delete.
+      // Remove dependent records first, then remove the Auth identity so the
+      // credentials cannot be reused or recovered through the portal.
       const { error: assignmentError } = await db.from('admin_event_assignments').delete().eq('admin_user_id', id);
       if (assignmentError) throw assignmentError;
-      return response({ success: true });
+
+      const { error: roleDeleteError } = await db.from('admin_roles').delete().eq('user_id', id);
+      if (roleDeleteError) throw roleDeleteError;
+
+      const { error: profileDeleteError } = await db.from('profiles').delete().eq('id', id);
+      if (profileDeleteError) throw profileDeleteError;
+
+      const { error: authDeleteError } = await db.auth.admin.deleteUser(id);
+      if (authDeleteError) throw authDeleteError;
+
+      return response({ success: true, deleted: true, id });
     }
 
     return response({ error: 'Unsupported admin action.' }, 400);

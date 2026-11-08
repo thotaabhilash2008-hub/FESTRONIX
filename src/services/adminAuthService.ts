@@ -723,25 +723,24 @@ export class AdminAuthService {
 
         // Keep deletion usable while a hosted Edge Function is being deployed
         // or when an older deployment is still serving traffic. Global admins
-        // are allowed to deactivate roles through the RLS policy below.
+        // are allowed to delete role records through the RLS policy below.
         const { data, error: roleError } = await supabase
           .from('admin_roles')
-          .update({ active: false })
+          .delete()
           .eq('user_id', id)
-          .eq('active', true)
-          .select('user_id')
-          .maybeSingle();
+          .select('user_id');
 
         if (roleError) {
           throw new Error(`${(error as Error)?.message || 'Unable to delete the account.'} ${roleError.message}`);
         }
-        if (!data) {
+        if (!data || data.length === 0) {
           throw new Error((error as Error)?.message || 'The admin account no longer exists or has already been disabled.');
         }
 
-        // Role deactivation is the authorization boundary. Remove event
-        // assignments as a best-effort cleanup even if the function was stale.
+        // Remove event assignments and the profile as best-effort cleanup even
+        // if the hosted function is still serving the old soft-delete code.
         await supabase.from('admin_event_assignments').delete().eq('admin_user_id', id);
+        await supabase.from('profiles').delete().eq('id', id);
       }
 
       // Remove the account from the visible directory immediately. This avoids
