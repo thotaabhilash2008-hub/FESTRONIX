@@ -15,6 +15,25 @@ export const isSupabaseConfigured = (): boolean => {
 
 const supabaseUrl = isSupabaseConfigured() ? rawUrl : 'https://placeholder.supabase.co';
 const supabaseAnonKey = isSupabaseConfigured() ? rawKey : 'placeholder-anon-key';
+const SUPABASE_REQUEST_TIMEOUT_MS = 15000;
+
+const fetchWithTimeout: typeof fetch = async (input, init) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
+  const relayAbort = () => controller.abort();
+
+  if (init?.signal) {
+    if (init.signal.aborted) controller.abort();
+    else init.signal.addEventListener('abort', relayAbort, { once: true });
+  }
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+    init?.signal?.removeEventListener('abort', relayAbort);
+  }
+};
 
 if (!isSupabaseConfigured()) {
   console.warn(
@@ -29,6 +48,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true
+  },
+  global: {
+    fetch: fetchWithTimeout
   }
 });
 

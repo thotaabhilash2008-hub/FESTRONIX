@@ -45,6 +45,25 @@ type ManagedAdmin = AdminUser;
 
 const STORAGE_KEY_ADMIN_SESSION = 'festronix_admin_session_v1';
 const STORAGE_KEY_ADMIN_DIRECTORY = 'festronix_all_admins_v2';
+const ADMIN_SESSION_TIMEOUT_MS = 5000;
+const ADMIN_ROLE_LOOKUP_TIMEOUT_MS = 7000;
+const ADMIN_API_TIMEOUT_MS = 7000;
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    Promise.resolve(promise).then(
+      value => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        window.clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
 
 export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   // 1. Primary System Administrator (NEW SUPER ADMIN)
@@ -361,7 +380,11 @@ async function invokeAdminApi<T>(body: Record<string, unknown>): Promise<T> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase backend is not configured.');
   }
-  const { data, error } = await supabase.functions.invoke<T>('admin-users', { body });
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke<T>('admin-users', { body }),
+    ADMIN_API_TIMEOUT_MS,
+    'The admin backend is taking too long to respond. Please try again shortly.'
+  );
   if (error) {
     const context = (error as any).context;
     let details: any = null;
@@ -427,12 +450,16 @@ export class AdminAuthService {
 
     // 1. Try querying Supabase admin_roles table directly
     try {
-      const { data: roleRow } = await supabase
-        .from('admin_roles')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('active', true)
-        .maybeSingle();
+      const { data: roleRow } = await withTimeout(
+        supabase
+          .from('admin_roles')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('active', true)
+          .maybeSingle(),
+        ADMIN_API_TIMEOUT_MS,
+        'The admin role database lookup timed out.'
+      );
 
       if (roleRow) {
         return {
@@ -472,10 +499,38 @@ export class AdminAuthService {
 
     if (isSupabaseConfigured()) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          ADMIN_SESSION_TIMEOUT_MS,
+          'Supabase session verification timed out.'
+        );
         if (session?.user) {
+          const sessionEmail = (session.user.email || '').trim().toLowerCase();
+          const cachedEmail = (cached?.email || '').trim().toLowerCase();
+
+          // A valid Auth session plus a matching cached admin identity is enough
+          // to render the portal immediately. Refresh the role in the background
+          // so a slow/unhealthy PostgREST database cannot trap the whole console
+          // on its loading screen.
+          if (cached && sessionEmail && sessionEmail === cachedEmail) {
+            void withTimeout(
+              this.resolveAdminFromAuth(session.user, session.user.email || ''),
+              ADMIN_ROLE_LOOKUP_TIMEOUT_MS,
+              'Background admin role refresh timed out.'
+            ).then(fresh => {
+              localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(fresh));
+            }).catch(error => {
+              console.warn('Keeping cached admin session while backend recovers:', error);
+            });
+            return cached;
+          }
+
           try {
-            const fresh = await this.resolveAdminFromAuth(session.user, session.user.email || '');
+            const fresh = await withTimeout(
+              this.resolveAdminFromAuth(session.user, session.user.email || ''),
+              ADMIN_ROLE_LOOKUP_TIMEOUT_MS,
+              'Admin role verification timed out.'
+            );
             localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(fresh));
             return fresh;
           } catch {
@@ -622,41 +677,53 @@ export class AdminAuthService {
 
   static async fetchAdmins(): Promise<ManagedAdmin[]> {
     if (isSupabaseConfigured()) {
+      // Listing is a read-only operation. Keep it on PostgREST instead of
+      // spending Edge Function compute for every realtime refresh.
       try {
-        const admins = await invokeAdminApi<ManagedAdmin[]>({ action: 'list' });
-        if (Array.isArray(admins)) {
-          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(admins));
-          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
-          return admins;
-        }
-      } catch (e) {
-        console.warn('Could not fetch admins via edge function:', e);
-      }
-
-      try {
-        const { data: dbRoles, error } = await supabase.from('admin_roles').select('*').eq('active', true);
+        const { data: dbRoles, error } = await withTimeout(
+          supabase.from('admin_roles').select('*').eq('active', true),
+          ADMIN_API_TIMEOUT_MS,
+          'The admin directory database lookup timed out.'
+        );
         if (error) throw error;
-        if (Array.isArray(dbRoles)) {
-          const list: ManagedAdmin[] = dbRoles.map((r: any) => ({
-            id: r.user_id,
-            username: r.username,
-            fullName: r.full_name,
-            designation: r.designation || 'Administrator',
-            role: canonicalAdminRole(r.role as AdminRole),
-            departmentCode: r.department_code || undefined,
-            email: r.email,
-            phone: r.phone || undefined,
-            accessBoundary: r.access_boundary || undefined
-          }));
-          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(list));
-          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: list }));
-          return list;
+
+        const rows = Array.isArray(dbRoles) ? dbRoles : [];
+        const userIds = rows.map((row: any) => row.user_id).filter(Boolean);
+        const assignments = new Map<string, string[]>();
+        if (userIds.length > 0) {
+          const { data: assignmentRows, error: assignmentError } = await withTimeout(
+            supabase.from('admin_event_assignments').select('admin_user_id,event_id').in('admin_user_id', userIds),
+            ADMIN_API_TIMEOUT_MS,
+            'The admin event assignments lookup timed out.'
+          );
+          if (assignmentError) throw assignmentError;
+          for (const row of assignmentRows || []) {
+            const list = assignments.get(row.admin_user_id) || [];
+            list.push(row.event_id);
+            assignments.set(row.admin_user_id, list);
+          }
         }
+
+        const list: ManagedAdmin[] = rows.map((r: any) => ({
+          id: r.user_id,
+          username: r.username,
+          fullName: r.full_name,
+          designation: r.designation || 'Administrator',
+          role: canonicalAdminRole(r.role as AdminRole),
+          departmentCode: r.department_code || undefined,
+          email: r.email,
+          phone: r.phone || undefined,
+          accessBoundary: r.access_boundary || undefined,
+          assignedEvents: assignments.get(r.user_id) || []
+        }));
+        localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: list }));
+        return list;
       } catch (e) {
-        console.warn('Could not fetch admin_roles table:', e);
+        console.warn('Could not fetch admin directory from Supabase:', e);
       }
 
-      // Graceful fallback when remote admin directory is not initialized
+      // Graceful fallback while the database or PostgREST recovers.
       const fallbackAdmins = this.getAllAdmins();
       return fallbackAdmins;
     }
