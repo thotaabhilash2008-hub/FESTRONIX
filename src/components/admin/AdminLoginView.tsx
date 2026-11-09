@@ -146,7 +146,11 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     if (staffInfo) {
       setDeptEmail(staffInfo.email);
       setCoordName(staffInfo.name);
-      setDeptPassword(`${deptCode.toLowerCase()}2026`);
+      if (deptCode === 'CSE') {
+        setDeptPassword('raghavendra2026');
+      } else {
+        setDeptPassword(`${deptCode.toLowerCase()}2026`);
+      }
     } else {
       setDeptEmail(`${deptCode.toLowerCase()}.festronix@vardhaman.org`);
       setCoordName('');
@@ -716,33 +720,55 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 </div>
 
                 {activeStaffInfo.coordinators ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                    {activeStaffInfo.coordinators.map(c => (
-                      <button
-                        key={c.email}
-                        type="button"
-                        onClick={() => {
-                          setDeptEmail(c.email);
-                          setCoordName(c.name);
-                        }}
-                        style={{
-                          background: deptEmail === c.email ? 'rgba(56, 189, 248, 0.22)' : 'rgba(15, 23, 42, 0.6)',
-                          border: `1px solid ${deptEmail === c.email ? '#38BDF8' : 'rgba(255, 255, 255, 0.1)'}`,
-                          borderRadius: '8px',
-                          padding: '6px 10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          color: '#FFFFFF',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          textAlign: 'left'
-                        }}
-                      >
-                        <span style={{ fontWeight: 700 }}>{c.name}</span>
-                        <span style={{ color: '#BAE6FD', fontSize: '0.72rem' }}>{c.email} • {c.phone}</span>
-                      </button>
-                    ))}
+                  <div>
+                    <div style={{ fontSize: '0.74rem', color: '#BAE6FD', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Users size={14} color="#38BDF8" />
+                      <span>3 Official CSE Staff Coordinators — Click to choose login account:</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                      {activeStaffInfo.coordinators.map((c, idx) => {
+                        const isChosen = deptEmail.toLowerCase() === c.email.toLowerCase();
+                        const defaultPass = c.email.startsWith('raghavendra') ? 'raghavendra2026' : c.email.startsWith('balu') ? 'balu2026' : 'varma2026';
+                        return (
+                          <button
+                            key={c.email}
+                            type="button"
+                            onClick={() => {
+                              setDeptEmail(c.email);
+                              setCoordName(c.name);
+                              setDeptPassword(defaultPass);
+                            }}
+                            style={{
+                              background: isChosen ? 'linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(56, 189, 248, 0.3) 100%)' : 'rgba(15, 23, 42, 0.7)',
+                              border: `1.5px solid ${isChosen ? '#38BDF8' : 'rgba(255, 255, 255, 0.12)'}`,
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              color: '#FFFFFF',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              transition: 'all 0.15s ease',
+                              boxShadow: isChosen ? '0 0 16px rgba(56, 189, 248, 0.25)' : 'none'
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: '0.84rem', color: isChosen ? '#38BDF8' : '#FFFFFF' }}>
+                                {idx + 1}. {c.name}
+                              </div>
+                              <div style={{ color: '#BAE6FD', fontSize: '0.72rem', marginTop: '2px' }}>
+                                {c.email}
+                              </div>
+                              <div style={{ color: '#94A3B8', fontSize: '0.68rem', marginTop: '3px' }}>
+                                📞 {c.phone}
+                              </div>
+                            </div>
+                            {isChosen && <CheckCircle2 size={18} color="#38BDF8" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
@@ -929,6 +955,51 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 })}
               </div>
             </div>
+
+            {/* CSE 3 Coordinators Quick Switch for Events */}
+            {eventDept === 'CSE' && (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)'
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', color: '#C4B5FD', fontWeight: 700, marginBottom: '6px' }}>
+                  Select CSE Event Coordinator Login:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '6px' }}>
+                  {OFFICIAL_STAFF_COORDINATORS.CSE.coordinators?.map(c => {
+                    const isPicked = eventEmail.toLowerCase() === c.email.toLowerCase();
+                    const defaultPass = c.email.startsWith('raghavendra') ? 'raghavendra2026' : c.email.startsWith('balu') ? 'balu2026' : 'varma2026';
+                    return (
+                      <button
+                        key={c.email}
+                        type="button"
+                        onClick={() => {
+                          setEventEmail(c.email);
+                          setEventPassword(defaultPass);
+                        }}
+                        style={{
+                          background: isPicked ? 'rgba(139, 92, 246, 0.35)' : 'rgba(15, 23, 42, 0.65)',
+                          border: `1px solid ${isPicked ? '#A78BFA' : 'rgba(255, 255, 255, 0.12)'}`,
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          color: '#FFFFFF',
+                          fontSize: '0.74rem',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <div style={{ fontWeight: isPicked ? 800 : 600, color: isPicked ? '#A78BFA' : '#FFFFFF' }}>{c.name}</div>
+                        <div style={{ fontSize: '0.68rem', color: '#C4B5FD' }}>{c.email}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Active Selected Event Staff Coordinator Details */}
             {activeSelectedEvent && (
