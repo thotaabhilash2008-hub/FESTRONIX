@@ -24,9 +24,6 @@ export const isDepartmentAdminRole = (role: AdminRole): boolean =>
   role === 'faculty_coord' ||
   role === 'student_coord';
 
-export const canonicalAdminRole = (role: AdminRole): AdminRole =>
-  role === 'dept_chief_coordinator' ? 'dept_coordinator' : role;
-
 export interface AdminUser {
   id: string;
   username: string;
@@ -44,45 +41,26 @@ export interface AdminUser {
 type ManagedAdmin = AdminUser;
 
 const STORAGE_KEY_ADMIN_SESSION = 'festronix_admin_session_v1';
-const STORAGE_KEY_ADMIN_DIRECTORY = 'festronix_all_admins_v2';
-const ADMIN_SESSION_TIMEOUT_MS = 5000;
-const ADMIN_ROLE_LOOKUP_TIMEOUT_MS = 7000;
-const ADMIN_API_TIMEOUT_MS = 7000;
-
-function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-    Promise.resolve(promise).then(
-      value => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      error => {
-        window.clearTimeout(timer);
-        reject(error);
-      }
-    );
-  });
-}
+const STORAGE_KEY_ADMIN_DIRECTORY = 'festronix_all_admins_v3';
 
 export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
-  // 1. Primary System Administrator (NEW SUPER ADMIN)
+  // 1. Primary System Administrator (SUPER ADMIN)
   {
     id: '3a615185-09df-47cd-92cd-36925f17fdba',
     username: 'admin',
-    fullName: 'Administrator',
-    designation: 'System Administrator (SAC)',
+    fullName: 'System Administrator',
+    designation: 'Central IT Administrator (SAC)',
     role: 'super_admin',
     email: 'admin@gmail.com',
     phone: '+91 98480 00000',
     accessBoundary: 'Fest-wide administration'
   },
 
-  // 2. SAC / Super Admins (Fest-wide administration)
+  // 2. SAC Central Leadership (ASIF SIR / CC / VENCORPIA)
   {
     id: 'admin_dean_sac',
     username: 'dean_sac',
-    fullName: 'Dr. J. V. R. Ravindra',
+    fullName: 'Md. Asif (Dean SAC)',
     designation: 'Dean, Student Activity Council (SAC)',
     role: 'dean_sac',
     email: 'dean.sac@vardhaman.org',
@@ -92,7 +70,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   {
     id: 'admin_connect_club',
     username: 'connect_club',
-    fullName: 'Aditya Varma & Core Team',
+    fullName: 'CONNECT Club (SAC Core Team)',
     designation: 'President & Lead Organizer, CONNECT Club (SAC)',
     role: 'connect_club',
     email: 'connect.club@vardhaman.org',
@@ -110,7 +88,7 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: 'Fest-wide administration'
   },
 
-  // 3. Operational Roles
+  // 3. Operational Roles (Finance Reviewer & Volunteer Gate Staff)
   {
     id: 'd16b71c5-b45b-47f4-a40b-e832b3cde5ab',
     username: 'finance_reviewer',
@@ -145,130 +123,162 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     assignedEvents: ['evt-1', 'evt-2']
   },
 
-  // 4. Department Coordinators (9 Departments)
+  // 4. Official Department Staff Coordinators (Festronix-2k26)
   {
-    id: '0a78361f-984b-45d7-b43d-613cb02bd7af',
-    username: 'dept_cse',
-    fullName: 'Dr. K. S. Reddy',
-    designation: 'Department Coordinator (CSE)',
-    role: 'dept_coordinator',
-    departmentCode: 'CSE',
-    departmentName: 'Computer Science & Engineering',
-    email: 'cse.festronix@vardhaman.org',
-    phone: '+91 98480 22001',
-    accessBoundary: "Their department's events"
-  },
-  {
-    id: 'admin_dept_csd',
-    username: 'dept_csd',
-    fullName: 'Dr. S. Radhika',
-    designation: 'Department Coordinator (CSD)',
-    role: 'dept_coordinator',
-    departmentCode: 'CSD',
-    departmentName: 'CSE (Data Science)',
-    email: 'csd.festronix@vardhaman.org',
-    phone: '+91 98480 22009',
-    accessBoundary: "Their department's events"
-  },
-  {
-    id: 'admin_dept_csm',
-    username: 'dept_csm',
-    fullName: 'Dr. V. Prasad',
-    designation: 'Department Coordinator (CSM)',
-    role: 'dept_coordinator',
-    departmentCode: 'CSM',
-    departmentName: 'Computer Science & Machine Learning (CSM)',
-    email: 'csm.festronix@vardhaman.org',
-    phone: '+91 98480 22007',
-    accessBoundary: "Their department's events"
-  },
-  {
-    id: 'admin_dept_it',
-    username: 'dept_it',
-    fullName: 'Prof. Anitha Sharma',
-    designation: 'Department Coordinator (IT)',
-    role: 'dept_coordinator',
-    departmentCode: 'IT',
-    departmentName: 'Information Technology',
-    email: 'it.festronix@vardhaman.org',
-    phone: '+91 98480 22002',
-    accessBoundary: "Their department's events"
-  },
-  {
-    id: 'admin_dept_mechanical',
-    username: 'dept_mechanical',
-    fullName: 'Dr. C. H. Rao',
-    designation: 'Department Coordinator (MECHANICAL)',
-    role: 'dept_coordinator',
+    id: 'admin_coord_mech',
+    username: 'dhanraj_mech',
+    fullName: 'B Dhanraj',
+    designation: 'Staff Coordinator (Mech)',
+    role: 'dept_chief_coordinator',
     departmentCode: 'MECHANICAL',
     departmentName: 'Mechanical Engineering',
-    email: 'mechanical.festronix@vardhaman.org',
-    phone: '+91 98480 22005',
-    accessBoundary: "Their department's events"
+    email: 'dhanraj2205@vardhaman.org',
+    phone: '9441381799',
+    accessBoundary: "Mechanical department's events"
   },
   {
-    id: 'admin_dept_civil',
-    username: 'dept_civil',
-    fullName: 'Prof. P. Sunitha',
-    designation: 'Department Coordinator (CIVIL)',
-    role: 'dept_coordinator',
-    departmentCode: 'CIVIL',
-    departmentName: 'Civil Engineering',
-    email: 'civil.festronix@vardhaman.org',
-    phone: '+91 98480 22006',
-    accessBoundary: "Their department's events"
-  },
-  {
-    id: 'admin_dept_eee',
-    username: 'dept_eee',
-    fullName: 'Dr. B. Srinivas',
-    designation: 'Department Coordinator (EEE)',
-    role: 'dept_coordinator',
-    departmentCode: 'EEE',
-    departmentName: 'Electrical & Electronics',
-    email: 'eee.festronix@vardhaman.org',
-    phone: '+91 98480 22004',
-    accessBoundary: "Their department's events"
-  },
-  {
-    id: 'admin_dept_ece',
-    username: 'dept_ece',
-    fullName: 'Dr. M. V. Ramana',
-    designation: 'Department Coordinator (ECE)',
-    role: 'dept_coordinator',
+    id: 'admin_coord_ece',
+    username: 'phaniv_ece',
+    fullName: 'R Phani Vidyadhar',
+    designation: 'Staff Coordinator (ECE)',
+    role: 'dept_chief_coordinator',
     departmentCode: 'ECE',
     departmentName: 'Electronics & Communication',
-    email: 'ece.festronix@vardhaman.org',
-    phone: '+91 98480 22003',
-    accessBoundary: "Their department's events"
+    email: 'rphaniv@vardhaman.org',
+    phone: '8801333811',
+    accessBoundary: "ECE department's events"
   },
   {
-    id: 'admin_dept_mba',
-    username: 'dept_mba',
+    id: 'admin_coord_eee',
+    username: 'vinodreddy_eee',
+    fullName: 'S Vinod Reddy',
+    designation: 'Staff Coordinator (EEE)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'EEE',
+    departmentName: 'Electrical & Electronics',
+    email: 's.vinodreddy@vardhaman.org',
+    phone: '8125421181',
+    accessBoundary: "EEE department's events"
+  },
+  {
+    id: 'admin_coord_csd',
+    username: 'vinodkumar_csd',
+    fullName: 'V Vinod Kumar',
+    designation: 'Staff Coordinator (CSD)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'CSD',
+    departmentName: 'CSE (Data Science)',
+    email: 'vinodkumar1807@vardhaman.org',
+    phone: '8897715060',
+    accessBoundary: "CSD department's events"
+  },
+  {
+    id: 'admin_coord_cse_1',
+    username: 'raghavendra_cse',
+    fullName: 'M Raghavendra',
+    designation: 'Staff Coordinator (CSE)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'CSE',
+    departmentName: 'Computer Science & Engineering',
+    email: 'raghavendra1797@vardhaman.org',
+    phone: '6303169820',
+    accessBoundary: "CSE department's events"
+  },
+  {
+    id: 'admin_coord_cse_2',
+    username: 'balu_cse',
+    fullName: 'Ch Bala Subramanyam',
+    designation: 'Staff Coordinator (CSE)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'CSE',
+    departmentName: 'Computer Science & Engineering',
+    email: 'balu1681@vardhaman.org',
+    phone: '8184864242',
+    accessBoundary: "CSE department's events"
+  },
+  {
+    id: 'admin_coord_cse_3',
+    username: 'varma_cse',
+    fullName: 'BJV Varma',
+    designation: 'Staff Coordinator (CSE)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'CSE',
+    departmentName: 'Computer Science & Engineering',
+    email: 'varma@vardhaman.org',
+    phone: '8143275536',
+    accessBoundary: "CSE department's events"
+  },
+  {
+    id: 'admin_coord_it',
+    username: 'dastagiri_it',
+    fullName: 'P Dastagiri Reddy',
+    designation: 'Staff Coordinator (IT)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'IT',
+    departmentName: 'Information Technology',
+    email: 'dastagiri1918@vardhaman.org',
+    phone: '9966676005',
+    accessBoundary: "IT department's events"
+  },
+  {
+    id: 'admin_coord_civil',
+    username: 'chaitanya_civil',
+    fullName: 'K Chaitanya',
+    designation: 'Staff Coordinator (Civil)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'CIVIL',
+    departmentName: 'Civil Engineering',
+    email: 'chaitanya_vce1658@vardhaman.org',
+    phone: '7416413410',
+    accessBoundary: "Civil department's events"
+  },
+  {
+    id: 'admin_coord_csm',
+    username: 'rajashekhar_csm',
+    fullName: 'P Rajashekar',
+    designation: 'Staff Coordinator (CSM)',
+    role: 'dept_chief_coordinator',
+    departmentCode: 'CSM',
+    departmentName: 'CSE (AI & Machine Learning)',
+    email: 'rajashekhar1833@vardhaman.org',
+    phone: '7386407609',
+    accessBoundary: "CSM department's events"
+  },
+  {
+    id: 'admin_coord_mba',
+    username: 'hod_mba',
     fullName: 'Prof. R. L. Narayana',
-    designation: 'Department Coordinator (MBA)',
-    role: 'dept_coordinator',
+    designation: 'Staff Coordinator (MBA)',
+    role: 'dept_chief_coordinator',
     departmentCode: 'MBA',
     departmentName: 'Master of Business Administration',
     email: 'mba.festronix@vardhaman.org',
     phone: '+91 98480 22008',
-    accessBoundary: "Their department's events"
+    accessBoundary: "MBA department's events"
   }
 ];
 
 export const PRESET_ADMIN_PASSWORDS: Record<string, string[]> = {
-  // Super Admins
-  'dean.sac@vardhaman.org': ['deansac2026', 'dean2026', 'sac2026', 'festronix2026', 'admin2026'],
-  'connect.club@vardhaman.org': ['connect2026', 'connectclub2026', 'festronix2026', 'admin2026'],
+  // 1. Asif Sir / CC / Vencorpia & Super Admins
+  'dean.sac@vardhaman.org': ['deansac2026', 'asif2026', 'dean2026', 'sac2026', 'festronix2026', 'admin2026'],
+  'connect.club@vardhaman.org': ['connect2026', 'cc2026', 'connectclub2026', 'festronix2026', 'admin2026'],
   'vencorpia@vardhaman.org': ['vencorpia2026', 'festronix2026', 'admin2026'],
   'admin@gmail.com': ['admin2026', '123456', 'admin123', 'festronix2026'],
 
-  // Operational Roles
-  'accounts.fest@vardhaman.org': ['finance2026', 'accounts2026', 'finance', 'festronix2026'],
-  'volunteers.fest@vardhaman.org': ['volunteer2026', 'volunteers2026', 'volunteer', 'festronix2026'],
-  'eventcoord.fest@vardhaman.org': ['eventcoord2026', 'events2026', 'festcoord2026', 'festronix2026'],
+  // 2. Official Staff Coordinators (by email)
+  'dhanraj2205@vardhaman.org': ['dhanraj2026', 'mech2026', 'mechanical2026', 'festcoord2026', 'festronix2026', '9441381799'],
+  'rphaniv@vardhaman.org': ['phaniv2026', 'ece2026', 'festcoord2026', 'festronix2026', '8801333811'],
+  's.vinodreddy@vardhaman.org': ['vinodreddy2026', 'eee2026', 'festcoord2026', 'festronix2026', '8125421181'],
+  'vinodkumar1807@vardhaman.org': ['vinodkumar2026', 'csd2026', 'festcoord2026', 'festronix2026', '8897715060'],
+  'raghavendra1797@vardhaman.org': ['raghavendra2026', 'cse2026', 'festcoord2026', 'festronix2026', '6303169820'],
+  'balu1681@vardhaman.org': ['balu2026', 'cse2026', 'festcoord2026', 'festronix2026', '8184864242'],
+  'varma@vardhaman.org': ['varma2026', 'cse2026', 'festcoord2026', 'festronix2026', '8143275536'],
+  'dastagiri1918@vardhaman.org': ['dastagiri2026', 'it2026', 'festcoord2026', 'festronix2026', '9966676005'],
+  'chaitanya_vce1658@vardhaman.org': ['chaitanya2026', 'civil2026', 'festcoord2026', 'festronix2026', '7416413410'],
+  'rajashekhar1833@vardhaman.org': ['rajashekhar2026', 'csm2026', 'festcoord2026', 'festronix2026', '7386407609'],
+  'mba.festronix@vardhaman.org': ['mba2026', 'festcoord2026', 'festronix2026', '9848022008'],
 
-  // Department Coordinators (legacy username aliases remain supported)
+  // 3. Department General Channels
   'cse.festronix@vardhaman.org': ['cse2026', 'festcoord2026', 'festronix2026'],
   'csd.festronix@vardhaman.org': ['csd2026', 'festcoord2026', 'festronix2026'],
   'csm.festronix@vardhaman.org': ['csm2026', 'festcoord2026', 'festronix2026'],
@@ -277,29 +287,69 @@ export const PRESET_ADMIN_PASSWORDS: Record<string, string[]> = {
   'civil.festronix@vardhaman.org': ['civil2026', 'festcoord2026', 'festronix2026'],
   'eee.festronix@vardhaman.org': ['eee2026', 'festcoord2026', 'festronix2026'],
   'ece.festronix@vardhaman.org': ['ece2026', 'festcoord2026', 'festronix2026'],
-  'mba.festronix@vardhaman.org': ['mba2026', 'festcoord2026', 'festronix2026']
+
+  // 4. Operations & Event Coordinators
+  'accounts.fest@vardhaman.org': ['finance2026', 'accounts2026', 'finance', 'festronix2026'],
+  'volunteers.fest@vardhaman.org': ['volunteer2026', 'volunteers2026', 'volunteer', 'festronix2026'],
+  'eventcoord.fest@vardhaman.org': ['eventcoord2026', 'events2026', 'festcoord2026', 'festronix2026']
 };
 
 const USER_ALIAS_MAP: Record<string, string> = {
-  'admin': 'admin@gmail.com',
-  'administrator': 'admin@gmail.com',
+  // Asif Sir (Dean SAC)
+  'asif': 'dean.sac@vardhaman.org',
+  'asifsir': 'dean.sac@vardhaman.org',
+  'asif_sir': 'dean.sac@vardhaman.org',
   'dean': 'dean.sac@vardhaman.org',
   'dean_sac': 'dean.sac@vardhaman.org',
   'deansac': 'dean.sac@vardhaman.org',
-  'asif': 'dean.sac@vardhaman.org',
+
+  // CC (CONNECT Club)
+  'cc': 'connect.club@vardhaman.org',
   'connect': 'connect.club@vardhaman.org',
   'connect_club': 'connect.club@vardhaman.org',
   'connectclub': 'connect.club@vardhaman.org',
+
+  // Vencorpia
   'vencorpia': 'vencorpia@vardhaman.org',
-  'finance': 'accounts.fest@vardhaman.org',
-  'finance_reviewer': 'accounts.fest@vardhaman.org',
-  'accounts': 'accounts.fest@vardhaman.org',
-  'volunteer': 'volunteers.fest@vardhaman.org',
-  'volunteer_staff': 'volunteers.fest@vardhaman.org',
-  'volunteers': 'volunteers.fest@vardhaman.org',
-  'event_coord': 'eventcoord.fest@vardhaman.org',
-  'eventcoord': 'eventcoord.fest@vardhaman.org',
-  // Department aliases
+
+  // System Administrator
+  'admin': 'admin@gmail.com',
+  'administrator': 'admin@gmail.com',
+
+  // Staff Coordinator Usernames & Aliases
+  'dhanraj': 'dhanraj2205@vardhaman.org',
+  'dhanraj_mech': 'dhanraj2205@vardhaman.org',
+  'b_dhanraj': 'dhanraj2205@vardhaman.org',
+  'phaniv': 'rphaniv@vardhaman.org',
+  'phaniv_ece': 'rphaniv@vardhaman.org',
+  'r_phaniv': 'rphaniv@vardhaman.org',
+  'vinodreddy': 's.vinodreddy@vardhaman.org',
+  'vinodreddy_eee': 's.vinodreddy@vardhaman.org',
+  's_vinodreddy': 's.vinodreddy@vardhaman.org',
+  'vinodkumar': 'vinodkumar1807@vardhaman.org',
+  'vinodkumar_csd': 'vinodkumar1807@vardhaman.org',
+  'v_vinodkumar': 'vinodkumar1807@vardhaman.org',
+  'raghavendra': 'raghavendra1797@vardhaman.org',
+  'raghavendra_cse': 'raghavendra1797@vardhaman.org',
+  'm_raghavendra': 'raghavendra1797@vardhaman.org',
+  'balu': 'balu1681@vardhaman.org',
+  'balu_cse': 'balu1681@vardhaman.org',
+  'ch_balu': 'balu1681@vardhaman.org',
+  'varma': 'varma@vardhaman.org',
+  'varma_cse': 'varma@vardhaman.org',
+  'bjv_varma': 'varma@vardhaman.org',
+  'dastagiri': 'dastagiri1918@vardhaman.org',
+  'dastagiri_it': 'dastagiri1918@vardhaman.org',
+  'p_dastagiri': 'dastagiri1918@vardhaman.org',
+  'chaitanya': 'chaitanya_vce1658@vardhaman.org',
+  'chaitanya_civil': 'chaitanya_vce1658@vardhaman.org',
+  'k_chaitanya': 'chaitanya_vce1658@vardhaman.org',
+  'rajashekhar': 'rajashekhar1833@vardhaman.org',
+  'rajashekar': 'rajashekhar1833@vardhaman.org',
+  'rajashekhar_csm': 'rajashekhar1833@vardhaman.org',
+  'p_rajashekhar': 'rajashekhar1833@vardhaman.org',
+
+  // Department Codes
   'cse': 'cse.festronix@vardhaman.org',
   'csd': 'csd.festronix@vardhaman.org',
   'csm': 'csm.festronix@vardhaman.org',
@@ -310,24 +360,16 @@ const USER_ALIAS_MAP: Record<string, string> = {
   'eee': 'eee.festronix@vardhaman.org',
   'ece': 'ece.festronix@vardhaman.org',
   'mba': 'mba.festronix@vardhaman.org',
-  'dept_cse': 'cse.festronix@vardhaman.org',
-  'dept_csd': 'csd.festronix@vardhaman.org',
-  'dept_csm': 'csm.festronix@vardhaman.org',
-  'dept_it': 'it.festronix@vardhaman.org',
-  'dept_mechanical': 'mechanical.festronix@vardhaman.org',
-  'dept_civil': 'civil.festronix@vardhaman.org',
-  'dept_eee': 'eee.festronix@vardhaman.org',
-  'dept_ece': 'ece.festronix@vardhaman.org',
-  'dept_mba': 'mba.festronix@vardhaman.org',
-  'hod_cse': 'cse.festronix@vardhaman.org',
-  'hod_csd': 'csd.festronix@vardhaman.org',
-  'hod_csm': 'csm.festronix@vardhaman.org',
-  'hod_it': 'it.festronix@vardhaman.org',
-  'hod_mechanical': 'mechanical.festronix@vardhaman.org',
-  'hod_civil': 'civil.festronix@vardhaman.org',
-  'hod_eee': 'eee.festronix@vardhaman.org',
-  'hod_ece': 'ece.festronix@vardhaman.org',
-  'hod_mba': 'mba.festronix@vardhaman.org'
+
+  // Operations
+  'finance': 'accounts.fest@vardhaman.org',
+  'finance_reviewer': 'accounts.fest@vardhaman.org',
+  'accounts': 'accounts.fest@vardhaman.org',
+  'volunteer': 'volunteers.fest@vardhaman.org',
+  'volunteer_staff': 'volunteers.fest@vardhaman.org',
+  'volunteers': 'volunteers.fest@vardhaman.org',
+  'event_coord': 'eventcoord.fest@vardhaman.org',
+  'eventcoord': 'eventcoord.fest@vardhaman.org'
 };
 
 function resolveTargetEmail(input: string): string {
@@ -344,12 +386,13 @@ function checkPresetPassword(targetEmail: string, pass: string): boolean {
     return true;
   }
   
-  if (cleanPass === 'festronix2026' || cleanPass === 'admin2026') {
+  if (cleanPass === 'festronix2026' || cleanPass === 'festcoord2026' || cleanPass === 'eventcoord2026' || cleanPass === 'admin2026') {
     return true;
   }
 
-  if (cleanEmail.includes('.festronix@vardhaman.org')) {
-    const deptPrefix = cleanEmail.split('.')[0];
+  // Department check (e.g. cse2026, mech2026, festcoord2026)
+  if (cleanEmail.includes('.festronix@vardhaman.org') || cleanEmail.includes('@vardhaman.org')) {
+    const deptPrefix = cleanEmail.split('.')[0].replace(/[^a-z]/g, '');
     if (cleanPass === `${deptPrefix}2026` || cleanPass === 'festcoord2026') {
       return true;
     }
@@ -380,23 +423,13 @@ async function invokeAdminApi<T>(body: Record<string, unknown>): Promise<T> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase backend is not configured.');
   }
-  const { data, error } = await withTimeout(
-    supabase.functions.invoke<T>('admin-users', { body }),
-    ADMIN_API_TIMEOUT_MS,
-    'The admin backend is taking too long to respond. Please try again shortly.'
-  );
+  const { data, error } = await supabase.functions.invoke<T>('admin-users', { body });
   if (error) {
     const context = (error as any).context;
-    let details: any = null;
-    if (context && typeof context.clone === 'function') {
-      const responseBody = await context.clone().text().catch(() => '');
-      if (responseBody) {
-        try { details = JSON.parse(responseBody); } catch { details = { error: responseBody }; }
-      }
-    } else if (context && typeof context.json === 'function') {
-      details = await context.json().catch(() => null);
-    }
-    throw new Error(details?.error || details?.message || error.message || 'The admin request failed.');
+    const details = context && typeof context.json === 'function'
+      ? await context.json().catch(() => null)
+      : null;
+    throw new Error(details?.error || error.message || 'The admin request failed.');
   }
   if (!data) throw new Error('The admin service returned an empty response.');
   return data;
@@ -429,9 +462,7 @@ export class AdminAuthService {
 
   static getAllAdmins(): ManagedAdmin[] {
     const cached = readCached<ManagedAdmin[]>(STORAGE_KEY_ADMIN_DIRECTORY, []);
-    if (cached.length > 0) {
-      return cached.map(admin => ({ ...admin, role: canonicalAdminRole(admin.role) }));
-    }
+    if (cached.length > 0) return cached;
     const initial = PRESET_ADMINS.map(({ password: _, ...admin }) => admin);
     localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(initial));
     return initial;
@@ -450,16 +481,12 @@ export class AdminAuthService {
 
     // 1. Try querying Supabase admin_roles table directly
     try {
-      const { data: roleRow } = await withTimeout(
-        supabase
-          .from('admin_roles')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('active', true)
-          .maybeSingle(),
-        ADMIN_API_TIMEOUT_MS,
-        'The admin role database lookup timed out.'
-      );
+      const { data: roleRow } = await supabase
+        .from('admin_roles')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .maybeSingle();
 
       if (roleRow) {
         return {
@@ -467,7 +494,7 @@ export class AdminAuthService {
           username: roleRow.username || userMeta.username || emailLower.split('@')[0],
           fullName: roleRow.full_name || userMeta.full_name || emailLower,
           designation: roleRow.designation || userMeta.designation || 'Administrator',
-          role: canonicalAdminRole(roleRow.role as AdminRole),
+          role: roleRow.role as AdminRole,
           departmentCode: roleRow.department_code || userMeta.department_code || undefined,
           email: user.email || fallbackEmail,
           phone: roleRow.phone || userMeta.phone || undefined,
@@ -499,38 +526,10 @@ export class AdminAuthService {
 
     if (isSupabaseConfigured()) {
       try {
-        const { data: { session } } = await withTimeout(
-          supabase.auth.getSession(),
-          ADMIN_SESSION_TIMEOUT_MS,
-          'Supabase session verification timed out.'
-        );
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const sessionEmail = (session.user.email || '').trim().toLowerCase();
-          const cachedEmail = (cached?.email || '').trim().toLowerCase();
-
-          // A valid Auth session plus a matching cached admin identity is enough
-          // to render the portal immediately. Refresh the role in the background
-          // so a slow/unhealthy PostgREST database cannot trap the whole console
-          // on its loading screen.
-          if (cached && sessionEmail && sessionEmail === cachedEmail) {
-            void withTimeout(
-              this.resolveAdminFromAuth(session.user, session.user.email || ''),
-              ADMIN_ROLE_LOOKUP_TIMEOUT_MS,
-              'Background admin role refresh timed out.'
-            ).then(fresh => {
-              localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(fresh));
-            }).catch(error => {
-              console.warn('Keeping cached admin session while backend recovers:', error);
-            });
-            return cached;
-          }
-
           try {
-            const fresh = await withTimeout(
-              this.resolveAdminFromAuth(session.user, session.user.email || ''),
-              ADMIN_ROLE_LOOKUP_TIMEOUT_MS,
-              'Admin role verification timed out.'
-            );
+            const fresh = await this.resolveAdminFromAuth(session.user, session.user.email || '');
             localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(fresh));
             return fresh;
           } catch {
@@ -633,7 +632,7 @@ export class AdminAuthService {
   }
 
   /**
-   * Department Coordinator & Event Coordinator login (verifies against Supabase backend)
+   * Department Staff Coordinator login
    */
   static async loginDepartment(
     deptCode: string,
@@ -642,88 +641,182 @@ export class AdminAuthService {
     coordinatorName?: string
   ): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
     const cleanDept = deptCode.trim().toUpperCase();
-    const cleanEmail = email.trim().toLowerCase();
     const cleanPass = password.trim();
+    const rawEmail = email.trim().toLowerCase();
+    const resolvedEmail = resolveTargetEmail(rawEmail);
+    const defaultDeptEmail = `${cleanDept.toLowerCase()}.festronix@vardhaman.org`;
+    const targetEmail = resolvedEmail || defaultDeptEmail;
 
     if (!cleanPass) {
-      return { success: false, error: `Enter password for ${cleanDept} department coordinator.` };
+      return { success: false, error: `Enter passcode for ${cleanDept} department coordinator.` };
     }
 
-    if (!isSupabaseConfigured()) {
-      return { success: false, error: 'Supabase backend is not configured in .env.' };
-    }
+    // 1. Check department and coordinator preset passwords
+    const isDeptPresetMatch =
+      cleanPass === `${cleanDept.toLowerCase()}2026` ||
+      (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026') ||
+      cleanPass === 'festcoord2026' ||
+      cleanPass === 'festronix2026' ||
+      checkPresetPassword(targetEmail, cleanPass);
 
-    const defaultDeptEmail = `${cleanDept.toLowerCase()}.festronix@vardhaman.org`;
-    const targetEmail = cleanEmail || defaultDeptEmail;
+    if (isDeptPresetMatch) {
+      const preset = findPresetAdmin(targetEmail) || PRESET_ADMINS.find(a => a.departmentCode === cleanDept);
+      const user: AdminUser = {
+        ...(preset || {
+          id: `admin_coord_${cleanDept.toLowerCase()}`,
+          username: `coord_${cleanDept.toLowerCase()}`,
+          fullName: coordinatorName || `Staff Coordinator (${cleanDept})`,
+          designation: coordinatorName ? `Staff Coordinator (${cleanDept})` : `Department Coordinator (${cleanDept})`,
+          role: 'dept_chief_coordinator',
+          departmentCode: cleanDept,
+          departmentName: cleanDept,
+          email: targetEmail
+        })
+      };
 
-    try {
-      const user = await this.authenticate(targetEmail, cleanPass);
       if (coordinatorName) {
         user.fullName = coordinatorName;
-        user.designation = `Faculty Coordinator (${cleanDept})`;
+        user.designation = `Staff Coordinator (${cleanDept})`;
       }
       user.departmentCode = cleanDept;
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+
+      if (isSupabaseConfigured()) {
+        supabase.auth.signInWithPassword({
+          email: targetEmail,
+          password: cleanPass
+        }).catch(() => {});
+      }
+
       return { success: true, user };
-    } catch (err: any) {
-      return {
-        success: false,
-        error: err?.message?.includes('Invalid login credentials')
-          ? `Incorrect password for ${cleanDept} coordinator account (${targetEmail}).`
-          : (err?.message || `Authentication failed for ${cleanDept}.`)
-      };
     }
+
+    // 2. If not preset match and Supabase is configured, authenticate with Supabase Auth
+    if (isSupabaseConfigured()) {
+      try {
+        const user = await this.authenticate(targetEmail, cleanPass);
+        if (coordinatorName) {
+          user.fullName = coordinatorName;
+          user.designation = `Staff Coordinator (${cleanDept})`;
+        }
+        user.departmentCode = cleanDept;
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+        return { success: true, user };
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err?.message?.includes('Invalid login credentials')
+            ? `Incorrect passcode for ${cleanDept} coordinator account (${targetEmail}).`
+            : (err?.message || `Authentication failed for ${cleanDept}.`)
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error: `Incorrect passcode for ${cleanDept} coordinator. Try '${cleanDept.toLowerCase()}2026' or 'festcoord2026'.`
+    };
+  }
+
+  /**
+   * Event Coordinator login (department & event scoped)
+   */
+  static async loginEventCoordinator(
+    deptCode: string,
+    eventId: string,
+    email: string,
+    password: string,
+    coordinatorName?: string
+  ): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
+    const cleanDept = deptCode.trim().toUpperCase();
+    const cleanPass = password.trim();
+    const rawEmail = email.trim().toLowerCase();
+    const resolvedEmail = resolveTargetEmail(rawEmail);
+    const targetEmail = resolvedEmail || (rawEmail ? rawEmail : `event.${cleanDept.toLowerCase()}@vardhaman.org`);
+
+    if (!cleanPass) {
+      return { success: false, error: `Enter passcode for event coordinator.` };
+    }
+
+    const isMatch =
+      cleanPass === 'eventcoord2026' ||
+      cleanPass === 'festcoord2026' ||
+      cleanPass === 'festronix2026' ||
+      cleanPass === `${cleanDept.toLowerCase()}2026` ||
+      (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026') ||
+      checkPresetPassword(targetEmail, cleanPass);
+
+    if (isMatch) {
+      const preset = findPresetAdmin(targetEmail) || PRESET_ADMINS.find(a => a.departmentCode === cleanDept);
+      const user: AdminUser = {
+        id: `event_coord_${eventId || cleanDept.toLowerCase()}_${Date.now()}`,
+        username: `eventcoord_${cleanDept.toLowerCase()}`,
+        fullName: coordinatorName || preset?.fullName || `Event Coordinator (${cleanDept})`,
+        designation: `Event Operations Coordinator (${cleanDept})`,
+        role: 'event_coordinator',
+        departmentCode: cleanDept,
+        departmentName: cleanDept,
+        email: targetEmail,
+        phone: preset?.phone || '+91 98480 33001',
+        accessBoundary: 'Assigned event operations and participant management',
+        assignedEvents: eventId ? [eventId] : []
+      };
+
+      localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+
+      if (isSupabaseConfigured()) {
+        supabase.auth.signInWithPassword({
+          email: targetEmail,
+          password: cleanPass
+        }).catch(() => {});
+      }
+
+      return { success: true, user };
+    }
+
+    return {
+      success: false,
+      error: `Incorrect passcode. Try 'eventcoord2026', '${cleanDept.toLowerCase()}2026', or 'festcoord2026'.`
+    };
   }
 
   static async fetchAdmins(): Promise<ManagedAdmin[]> {
     if (isSupabaseConfigured()) {
-      // Listing is a read-only operation. Keep it on PostgREST instead of
-      // spending Edge Function compute for every realtime refresh.
       try {
-        const { data: dbRoles, error } = await withTimeout(
-          supabase.from('admin_roles').select('*').eq('active', true),
-          ADMIN_API_TIMEOUT_MS,
-          'The admin directory database lookup timed out.'
-        );
-        if (error) throw error;
-
-        const rows = Array.isArray(dbRoles) ? dbRoles : [];
-        const userIds = rows.map((row: any) => row.user_id).filter(Boolean);
-        const assignments = new Map<string, string[]>();
-        if (userIds.length > 0) {
-          const { data: assignmentRows, error: assignmentError } = await withTimeout(
-            supabase.from('admin_event_assignments').select('admin_user_id,event_id').in('admin_user_id', userIds),
-            ADMIN_API_TIMEOUT_MS,
-            'The admin event assignments lookup timed out.'
-          );
-          if (assignmentError) throw assignmentError;
-          for (const row of assignmentRows || []) {
-            const list = assignments.get(row.admin_user_id) || [];
-            list.push(row.event_id);
-            assignments.set(row.admin_user_id, list);
-          }
+        const admins = await invokeAdminApi<ManagedAdmin[]>({ action: 'list' });
+        if (Array.isArray(admins)) {
+          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(admins));
+          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
+          return admins;
         }
-
-        const list: ManagedAdmin[] = rows.map((r: any) => ({
-          id: r.user_id,
-          username: r.username,
-          fullName: r.full_name,
-          designation: r.designation || 'Administrator',
-          role: canonicalAdminRole(r.role as AdminRole),
-          departmentCode: r.department_code || undefined,
-          email: r.email,
-          phone: r.phone || undefined,
-          accessBoundary: r.access_boundary || undefined,
-          assignedEvents: assignments.get(r.user_id) || []
-        }));
-        localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(list));
-        window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: list }));
-        return list;
       } catch (e) {
-        console.warn('Could not fetch admin directory from Supabase:', e);
+        console.warn('Could not fetch admins via edge function:', e);
       }
 
-      // Graceful fallback while the database or PostgREST recovers.
+      try {
+        const { data: dbRoles, error } = await supabase.from('admin_roles').select('*').eq('active', true);
+        if (error) throw error;
+        if (Array.isArray(dbRoles)) {
+          const list: ManagedAdmin[] = dbRoles.map((r: any) => ({
+            id: r.user_id,
+            username: r.username,
+            fullName: r.full_name,
+            designation: r.designation || 'Administrator',
+            role: r.role as AdminRole,
+            departmentCode: r.department_code || undefined,
+            email: r.email,
+            phone: r.phone || undefined,
+            accessBoundary: r.access_boundary || undefined
+          }));
+          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(list));
+          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: list }));
+          return list;
+        }
+      } catch (e) {
+        console.warn('Could not fetch admin_roles table:', e);
+      }
+
+      // Graceful fallback when remote admin directory is not initialized
       const fallbackAdmins = this.getAllAdmins();
       return fallbackAdmins;
     }
@@ -793,56 +886,8 @@ export class AdminAuthService {
 
   static async deleteAdmin(id: string): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      let edgeFunctionError: unknown = null;
-      try {
-        await invokeAdminApi({ action: 'delete', id });
-      } catch (error) {
-        edgeFunctionError = error;
-        const message = error instanceof Error ? error.message : String(error || '');
-        const isBusinessRuleError = /cannot disable your own|last active super admin|already exists|already been disabled|not authorized|only authorized|permission|invalid|sign in/i.test(message);
-        if (isBusinessRuleError) throw error;
-
-        // Keep deletion usable while a hosted Edge Function is being deployed
-        // or when an older deployment is still serving traffic. Global admins
-        // are allowed to delete role records through the RLS policy below.
-        const { data, error: roleError } = await supabase
-          .from('admin_roles')
-          .delete()
-          .eq('user_id', id)
-          .select('user_id');
-
-        if (roleError) {
-          throw new Error(`${(error as Error)?.message || 'Unable to delete the account.'} ${roleError.message}`);
-        }
-        if (!data || data.length === 0) {
-          throw new Error((error as Error)?.message || 'The admin account no longer exists or has already been disabled.');
-        }
-
-        // Remove event assignments and the profile as best-effort cleanup even
-        // if the hosted function is still serving the old soft-delete code.
-        await supabase.from('admin_event_assignments').delete().eq('admin_user_id', id);
-        await supabase.from('profiles').delete().eq('id', id);
-      }
-
-      // Remove the account from the visible directory immediately. This avoids
-      // showing a stale cached card if the follow-up realtime/list request is
-      // delayed or temporarily unavailable.
-      const remaining = this.getAllAdmins().filter(admin => admin.id !== id);
-      localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(remaining));
-      window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: remaining }));
-
-      try {
-        const refreshed = await this.fetchAdmins();
-        const withoutDeleted = refreshed.filter(admin => admin.id !== id);
-        if (withoutDeleted.length !== refreshed.length) {
-          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(withoutDeleted));
-          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: withoutDeleted }));
-        }
-      } catch (refreshError) {
-        // The backend mutation already succeeded; retain the immediate local
-        // result and let the realtime listener reconcile the directory later.
-        console.warn('Admin directory refresh after deletion failed:', refreshError, edgeFunctionError);
-      }
+      await invokeAdminApi({ action: 'delete', id });
+      await this.fetchAdmins();
       return true;
     }
     const all = this.getAllAdmins().filter(a => a.id !== id);

@@ -6,8 +6,8 @@ export const DEPARTMENTS: Department[] = [
     code: 'CSE',
     name: 'Computer Science & Engineering',
     description: 'Flagship AI, algorithmic coding, cybersecurity, and full-stack software innovation.',
-    chiefCoordinator: 'Dr. K. S. Reddy',
-    contact: 'cse.festronix@vardhaman.org',
+    chiefCoordinator: 'M Raghavendra / Ch Bala Subramanyam / BJV Varma',
+    contact: 'raghavendra1797@vardhaman.org',
     iconName: 'Cpu'
   },
   {
@@ -15,17 +15,17 @@ export const DEPARTMENTS: Department[] = [
     code: 'CSD',
     name: 'CSE (Data Science)',
     description: 'Big data pipelines, statistical predictive modeling, data visualization, and intelligence systems.',
-    chiefCoordinator: 'Dr. S. Radhika',
-    contact: 'csd.festronix@vardhaman.org',
+    chiefCoordinator: 'V Vinod Kumar',
+    contact: 'vinodkumar1807@vardhaman.org',
     iconName: 'Database'
   },
   {
     id: 'dept-csm',
     code: 'CSM',
-    name: 'Computer Science & Machine Learning (CSM)',
-    description: 'Applied computing, machine learning, computer vision, robotics, and autonomous systems.',
-    chiefCoordinator: 'Dr. V. Prasad',
-    contact: 'csm.festronix@vardhaman.org',
+    name: 'CSE (AI & Machine Learning)',
+    description: 'Deep neural networks, computer vision, robotics reinforcement learning, and autonomous LLM agents.',
+    chiefCoordinator: 'P Rajashekar',
+    contact: 'rajashekhar1833@vardhaman.org',
     iconName: 'Brain'
   },
   {
@@ -33,8 +33,8 @@ export const DEPARTMENTS: Department[] = [
     code: 'IT',
     name: 'Information Technology',
     description: 'Cloud systems, web3 networks, distributed computing, and generative tech infrastructure.',
-    chiefCoordinator: 'Prof. Anitha Sharma',
-    contact: 'it.festronix@vardhaman.org',
+    chiefCoordinator: 'P Dastagiri Reddy',
+    contact: 'dastagiri1918@vardhaman.org',
     iconName: 'Globe'
   },
   {
@@ -42,8 +42,8 @@ export const DEPARTMENTS: Department[] = [
     code: 'MECHANICAL',
     name: 'Mechanical Engineering',
     description: 'CAD/CAM design, autonomous drone dynamics, RC racing, and 3D additive manufacturing.',
-    chiefCoordinator: 'Dr. C. H. Rao',
-    contact: 'mechanical.festronix@vardhaman.org',
+    chiefCoordinator: 'B Dhanraj',
+    contact: 'dhanraj2205@vardhaman.org',
     iconName: 'Wrench'
   },
   {
@@ -51,8 +51,8 @@ export const DEPARTMENTS: Department[] = [
     code: 'CIVIL',
     name: 'Civil Engineering',
     description: 'Smart city modeling, seismic structural design, sustainable surveying, and bridge load-testing.',
-    chiefCoordinator: 'Prof. P. Sunitha',
-    contact: 'civil.festronix@vardhaman.org',
+    chiefCoordinator: 'K Chaitanya',
+    contact: 'chaitanya_vce1658@vardhaman.org',
     iconName: 'Building'
   },
   {
@@ -60,8 +60,8 @@ export const DEPARTMENTS: Department[] = [
     code: 'EEE',
     name: 'Electrical & Electronics',
     description: 'Electric mobility, green energy microgrids, power systems, and automation logic.',
-    chiefCoordinator: 'Dr. B. Srinivas',
-    contact: 'eee.festronix@vardhaman.org',
+    chiefCoordinator: 'S Vinod Reddy',
+    contact: 's.vinodreddy@vardhaman.org',
     iconName: 'Zap'
   },
   {
@@ -69,8 +69,8 @@ export const DEPARTMENTS: Department[] = [
     code: 'ECE',
     name: 'Electronics & Communication',
     description: 'Robotics, IoT circuits, signal processing, embedded architectures, and antenna design.',
-    chiefCoordinator: 'Dr. M. V. Ramana',
-    contact: 'ece.festronix@vardhaman.org',
+    chiefCoordinator: 'R Phani Vidyadhar',
+    contact: 'rphaniv@vardhaman.org',
     iconName: 'Radio'
   },
   {
@@ -115,9 +115,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       third: '₹10,000'
     },
     eligibility: 'Open to all B.Tech / M.Tech / MCA / Degree students with valid college ID.',
-    coordinatorName: 'Rohit Kulkarni',
-    coordinatorPhone: '+91 98480 11223',
-    coordinatorEmail: 'rohit.k@vardhaman.org',
+    coordinatorName: 'M Raghavendra / Ch Bala Subramanyam / BJV Varma',
+    coordinatorPhone: '+91 63031 69820',
+    coordinatorEmail: 'raghavendra1797@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #00f0ff 0%, #7928ca 100%)'
   },
@@ -151,9 +151,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       third: '₹8,000'
     },
     eligibility: 'Engineering undergraduates and polytechnic innovators.',
-    coordinatorName: 'Sanjay Varma',
-    coordinatorPhone: '+91 98765 43210',
-    coordinatorEmail: 'sanjay.v@vardhaman.org',
+    coordinatorName: 'R Phani Vidyadhar',
+    coordinatorPhone: '+91 88013 33811',
+    coordinatorEmail: 'rphaniv@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #f43f5e 0%, #8b5cf6 100%)'
   },
@@ -186,9 +186,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       third: '₹5,000'
     },
     eligibility: 'Open to all registered tech students.',
-    coordinatorName: 'Divya Sri',
-    coordinatorPhone: '+91 94401 23456',
-    coordinatorEmail: 'divyasri.csm@vardhaman.org',
+    coordinatorName: 'P Rajashekar',
+    coordinatorPhone: '+91 73864 07609',
+    coordinatorEmail: 'rajashekhar1833@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)'
   },
@@ -220,9 +220,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       second: '₹15,000'
     },
     eligibility: 'All students with valid college ID.',
-    coordinatorName: 'Karthik Teja',
-    coordinatorPhone: '+91 90001 98877',
-    coordinatorEmail: 'karthik.t@vardhaman.org',
+    coordinatorName: 'P Dastagiri Reddy',
+    coordinatorPhone: '+91 99666 76005',
+    coordinatorEmail: 'dastagiri1918@vardhaman.org',
     status: 'full',
     bannerGradient: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)'
   },
@@ -252,9 +252,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       first: 'Certificate of Excellence + Hardware Dev Board'
     },
     eligibility: 'All engineering disciplines.',
-    coordinatorName: 'Ramesh Chander',
-    coordinatorPhone: '+91 91234 56789',
-    coordinatorEmail: 'ramesh.eee@vardhaman.org',
+    coordinatorName: 'S Vinod Reddy',
+    coordinatorPhone: '+91 81254 21181',
+    coordinatorEmail: 's.vinodreddy@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #eab308 0%, #f97316 100%)'
   },
@@ -285,9 +285,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       second: '₹8,000'
     },
     eligibility: 'All students interested in structural mechanics.',
-    coordinatorName: 'Pooja Reddy',
-    coordinatorPhone: '+91 99887 76655',
-    coordinatorEmail: 'pooja.civil@vardhaman.org',
+    coordinatorName: 'K Chaitanya',
+    coordinatorPhone: '+91 74164 13410',
+    coordinatorEmail: 'chaitanya_vce1658@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)'
   },
@@ -318,9 +318,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       second: '₹12,000'
     },
     eligibility: 'Open to drone hobbyists and students.',
-    coordinatorName: 'Naveen Kumar',
-    coordinatorPhone: '+91 97001 22334',
-    coordinatorEmail: 'naveen.mech@vardhaman.org',
+    coordinatorName: 'B Dhanraj',
+    coordinatorPhone: '+91 94413 81799',
+    coordinatorEmail: 'dhanraj2205@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)'
   },
@@ -385,9 +385,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       third: '₹6,000'
     },
     eligibility: 'All students interested in machine learning and big data science.',
-    coordinatorName: 'Dr. S. Radhika',
-    coordinatorPhone: '+91 98480 33991',
-    coordinatorEmail: 'csd.festronix@vardhaman.org',
+    coordinatorName: 'V Vinod Kumar',
+    coordinatorPhone: '+91 88977 15060',
+    coordinatorEmail: 'vinodkumar1807@vardhaman.org',
     status: 'open',
     bannerGradient: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)'
   }
@@ -530,7 +530,7 @@ export const INITIAL_REGISTRATIONS: Registration[] = [
     checkedInBy: 'Gate 1 Lead',
     departmentCode: 'ECE'
   },
-  // 3. CSM
+  // 3. AI&ML
   {
     id: 'FEST-2026-3401',
     eventId: 'evt-3',
@@ -553,14 +553,14 @@ export const INITIAL_REGISTRATIONS: Registration[] = [
     checkedIn: true,
     checkedInAt: '11:35 AM',
     checkedInBy: 'Gate 2 Desk',
-    departmentCode: 'CSM'
+    departmentCode: 'AI&ML'
   },
   {
     id: 'FEST-2026-3410',
     eventId: 'evt-3',
     eventTitle: 'PromptMatrix: Autonomous AI Agents & Vision',
     leaderName: 'Aditya Reddy',
-    leaderEmail: 'aditya.csm@vardhaman.org',
+    leaderEmail: 'aditya.aiml@vardhaman.org',
     leaderPhone: '+91 99112 23344',
     leaderCollege: 'Vardhaman College of Engineering',
     leaderRoll: '23VCEAI044',
@@ -574,7 +574,7 @@ export const INITIAL_REGISTRATIONS: Registration[] = [
     paymentScreenshotUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
     qrToken: 'FEST26-TOKEN-ADI3410',
     checkedIn: false,
-    departmentCode: 'CSM'
+    departmentCode: 'AI&ML'
   },
   // 4. IT
   {
@@ -914,39 +914,47 @@ export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
     scopeTag: 'participant',
     responsibilities: 'Profile, registrations, teammates, payment proof, passes and certificates.',
     accessBoundary: 'Own profile and registrations; permitted team details.',
-    accounts: ['Student Roll No / Username & Password (Self Signup/Signin)']
+    accounts: ['Direct registration without sign-in barrier; pass sent to email & visible on site.']
   },
   {
-    role: 'Event Coordinator',
-    scopeTag: 'event_coordinator',
-    responsibilities: 'Manage assigned event details, registrations, spot registrations, payment evidence, check-in and reports.',
-    accessBoundary: 'Assigned event(s) only unless separately authorised.',
-    accounts: ['event_coord (eventcoord2026)', 'Universal Coordinator Passcode (festcoord2026)']
-  },
-  {
-    role: 'Department Coordinator',
-    scopeTag: 'dept_coordinator',
-    responsibilities: 'Monitor department events, capacity, registrations and readiness.',
-    accessBoundary: "Their department's events.",
+    role: 'Asif Sir / CC / Vencorpia (SAC Super Admin)',
+    scopeTag: 'super_admin',
+    responsibilities: 'Central executive authority overseeing fest, departments, assignments, accounts, roles, content and reports.',
+    accessBoundary: 'Fest-wide administration.',
     accounts: [
-      'Department Coordinator CSE',
-      'Department Coordinator CSD',
-      'Department Coordinator CSM',
-      'Department Coordinator IT',
-      'Department Coordinator MECHANICAL',
-      'Department Coordinator CIVIL',
-      'Department Coordinator EEE',
-      'Department Coordinator ECE',
-      'Department Coordinator MBA'
+      'Md. Asif (Dean SAC) - dean.sac@vardhaman.org (deansac2026)',
+      'CONNECT Club (CC) - connect.club@vardhaman.org (connect2026)',
+      'VENCORPIA - vencorpia@vardhaman.org (vencorpia2026)',
+      'System Admin - admin@gmail.com (admin2026)'
     ]
   },
   {
-    role: 'SAC / super-admin',
-    scopeTag: 'super_admin',
-    responsibilities: 'Oversee fest, departments, assignments, accounts, roles, content and reports.',
-    accessBoundary: 'Fest-wide administration.',
+    role: 'Department Staff Coordinator',
+    scopeTag: 'dept_chief_coordinator',
+    responsibilities: 'Departmental authority monitoring department events, capacity, registrations and spot passes.',
+    accessBoundary: "Their department's events.",
     accounts: [
-      'Confidential Central Authority Credentials'
+      'MECH: B Dhanraj - dhanraj2205@vardhaman.org (dhanraj2026 / mech2026)',
+      'ECE: R Phani Vidyadhar - rphaniv@vardhaman.org (phaniv2026 / ece2026)',
+      'EEE: S Vinod Reddy - s.vinodreddy@vardhaman.org (vinodreddy2026 / eee2026)',
+      'CSD: V Vinod Kumar - vinodkumar1807@vardhaman.org (vinodkumar2026 / csd2026)',
+      'CSE: M Raghavendra - raghavendra1797@vardhaman.org (raghavendra2026 / cse2026)',
+      'CSE: Ch Bala Subramanyam - balu1681@vardhaman.org (balu2026 / cse2026)',
+      'CSE: BJV Varma - varma@vardhaman.org (varma2026 / cse2026)',
+      'IT: P Dastagiri Reddy - dastagiri1918@vardhaman.org (dastagiri2026 / it2026)',
+      'CIVIL: K Chaitanya - chaitanya_vce1658@vardhaman.org (chaitanya2026 / civil2026)',
+      'CSM: P Rajashekar - rajashekhar1833@vardhaman.org (rajashekhar2026 / csm2026)',
+      'MBA: Prof. R. L. Narayana - mba.festronix@vardhaman.org (mba2026)'
+    ]
+  },
+  {
+    role: 'Event Coordinators',
+    scopeTag: 'event_coordinator',
+    responsibilities: 'Manage assigned event details, team check-in, scoring, and spot registrations.',
+    accessBoundary: 'Assigned event(s) only unless separately authorised.',
+    accounts: [
+      'Event Operations Desk - eventcoord.fest@vardhaman.org (eventcoord2026)',
+      'Department Passcodes: <dept>2026 or Universal: festcoord2026'
     ]
   },
   {
@@ -954,13 +962,13 @@ export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
     scopeTag: 'finance',
     responsibilities: 'Review payment evidence and collection reports.',
     accessBoundary: 'Payment data needed for assigned duties.',
-    accounts: ['finance_reviewer (finance2026 / finance)']
+    accounts: ['finance_reviewer - accounts.fest@vardhaman.org (finance2026)']
   },
   {
     role: 'Volunteer / check-in staff',
     scopeTag: 'volunteer',
-    responsibilities: 'Scan tickets and support entry operations.',
+    responsibilities: 'Scan tickets, validate QR passes, and support gate operations.',
     accessBoundary: 'Limited check-in access.',
-    accounts: ['volunteer_staff (volunteer2026 / volunteer)']
+    accounts: ['volunteer_staff - volunteers.fest@vardhaman.org (volunteer2026)']
   }
 ];

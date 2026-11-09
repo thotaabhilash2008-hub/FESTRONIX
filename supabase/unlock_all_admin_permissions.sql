@@ -3,15 +3,50 @@
 -- Run this in Supabase SQL Editor: Dashboard -> SQL Editor -> New Query -> Run
 -- ==============================================================================
 
--- 1. Grant table-level access to both anon and authenticated roles
-GRANT USAGE ON SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+-- 1. Grant table-level access to both anon, authenticated and service_role
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
+-- Explicit grants on each table
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'events') THEN
+    GRANT ALL ON TABLE public.events TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'registrations') THEN
+    GRANT ALL ON TABLE public.registrations TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'teams') THEN
+    GRANT ALL ON TABLE public.teams TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'departments') THEN
+    GRANT ALL ON TABLE public.departments TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'announcements') THEN
+    GRANT ALL ON TABLE public.announcements TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'audit_logs') THEN
+    GRANT ALL ON TABLE public.audit_logs TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'tickets') THEN
+    GRANT ALL ON TABLE public.tickets TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'registration_members') THEN
+    GRANT ALL ON TABLE public.registration_members TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'admin_roles') THEN
+    GRANT ALL ON TABLE public.admin_roles TO anon, authenticated, service_role;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'admin_event_assignments') THEN
+    GRANT ALL ON TABLE public.admin_event_assignments TO anon, authenticated, service_role;
+  END IF;
+END $$;
 
 -- 2. EVENTS TABLE: Open RLS Policies
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
@@ -61,7 +96,7 @@ CREATE POLICY "Allow insert on departments" ON public.departments FOR INSERT WIT
 CREATE POLICY "Allow update on departments" ON public.departments FOR UPDATE USING (true);
 CREATE POLICY "Allow delete on departments" ON public.departments FOR DELETE USING (true);
 
--- 5. REGISTRATIONS & TEAMS TABLE: Open RLS Policies for Admin & Portal operations
+-- 5. REGISTRATIONS TABLE
 ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow read on registrations" ON public.registrations;
 DROP POLICY IF EXISTS "Allow update on registrations" ON public.registrations;

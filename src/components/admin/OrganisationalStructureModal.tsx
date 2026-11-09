@@ -14,7 +14,6 @@ export const OrganisationalStructureModal: React.FC<OrganisationalStructureModal
     switch (scope) {
       case 'super_admin':
         return <Award size={18} color="#f59e0b" />;
-      case 'dept_coordinator':
       case 'dept_chief_coordinator':
         return <Shield size={18} color="#38bdf8" />;
       case 'event_coordinator':
@@ -133,7 +132,7 @@ export const OrganisationalStructureModal: React.FC<OrganisationalStructureModal
                       </div>
                       {isSuper && (
                         <div style={{ marginTop: '6px', fontSize: '0.72rem', color: '#fbbf24', fontWeight: 600 }}>
-                          (3 Super Admins: SAC DEAN, CONNECT CLUB, VENCORPIA)
+                          (3 Super Admins: ASIF SIR, CONNECT CLUB, VENCORPIA)
                         </div>
                       )}
                     </td>
