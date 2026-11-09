@@ -183,6 +183,18 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   useEffect(() => {
     if (!pageMode || !activePassId) return;
     setSearchQuery(activePassId);
+
+    // Render the pass cached by the registration flow immediately. The live
+    // lookup below is still authoritative, but it should refresh the card in
+    // the background instead of leaving a just-paid guest on an empty page.
+    const cachedMatches = readGuestPassCache().filter(registration => registration.id === activePassId);
+    if (cachedMatches.length > 0) {
+      setLiveRegistrations(previous => mergePasses(cachedMatches, previous));
+      setActiveList(cachedMatches);
+      setSelectedIndex(0);
+      setSearchFeedback('Saved on this device • verifying payment status…');
+    }
+
     void lookupLivePasses(activePassId);
   }, [pageMode, activePassId]);
 
@@ -242,9 +254,13 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const teamCodesKey = Array.from(
     new Set(allRegs.map(registration => normalizeTeamCode(registration.teamCode)).filter(Boolean))
   ).sort().join('|');
+  const canRefreshTeamDashboards = !pageMode || Boolean(currentUser);
 
   useEffect(() => {
-    if (!teamCodesKey) return;
+    if (!teamCodesKey || !canRefreshTeamDashboards) {
+      setIsRefreshingTeams(false);
+      return;
+    }
     const teamCodes = teamCodesKey.split('|').filter(Boolean);
     let cancelled = false;
 
@@ -287,7 +303,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       window.removeEventListener('festronix:teams-updated', handleLiveUpdate);
       window.removeEventListener('festronix:regs-updated', handleLiveUpdate);
     };
-  }, [teamCodesKey]);
+  }, [teamCodesKey, canRefreshTeamDashboards]);
 
   const handleSearchPass = (e: React.FormEvent) => {
     e.preventDefault();

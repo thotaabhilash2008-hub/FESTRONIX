@@ -150,6 +150,8 @@ export interface Registration {
   paymentMethod?: string;
   transactionId?: string;
   paymentScreenshotUrl?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
   emailDeliveryToken?: string;
   rejectionReason?: string;
   verifiedBy?: string;

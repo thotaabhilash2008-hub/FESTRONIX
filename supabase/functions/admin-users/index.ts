@@ -7,6 +7,8 @@ const corsHeaders = {
 };
 
 const GLOBAL_ADMIN_ROLES = new Set(['super_admin', 'dean_sac', 'connect_club', 'vencorpia']);
+const DEPARTMENT_COORDINATOR_ROLES = new Set(['dept_chief_coordinator', 'dept_coordinator']);
+const DEPARTMENT_MANAGED_ROLES = new Set(['event_coordinator', 'finance_reviewer', 'volunteer_checkin', 'checkin_staff']);
 const VALID_ADMIN_ROLES = new Set([
   ...GLOBAL_ADMIN_ROLES,
   'dept_chief_coordinator',
@@ -66,6 +68,10 @@ function normalizeRolePayload(raw: Record<string, unknown>) {
   const fullName = requiredString(raw.fullName, 'Full name');
   const designation = requiredString(raw.designation, 'Designation');
   const departmentCode = typeof raw.departmentCode === 'string' ? raw.departmentCode.trim().toUpperCase() : '';
+  // Event and department-coordinator accounts always require a department.
+  // Other operational accounts may be central (for example the existing
+  // FINANCE reviewer) or department-scoped. The authorization checks below
+  // decide when a department is mandatory for the caller's operation.
   const departmentScoped = ['dept_chief_coordinator', 'dept_coordinator', 'event_coordinator', 'faculty_coord', 'student_coord'].includes(role);
   if (departmentScoped && !departmentCode) throw new Error('A department is required for this role.');
 
@@ -85,7 +91,7 @@ function normalizeRolePayload(raw: Record<string, unknown>) {
     role,
     fullName,
     designation,
-    departmentCode: departmentScoped ? departmentCode : null,
+    departmentCode: departmentCode || null,
     phone: typeof raw.phone === 'string' ? raw.phone.trim().slice(0, 40) : '',
     accessBoundary: typeof raw.accessBoundary === 'string' ? raw.accessBoundary.trim().slice(0, 240) : '',
     assignedEvents,
@@ -155,15 +161,18 @@ Deno.serve(async (req: Request) => {
   const action = typeof body.action === 'string' ? body.action : '';
   const { data: callerRoles, error: roleError } = await db
     .from('admin_roles')
-    .select('role,active')
+    .select('role,active,department_code')
     .eq('user_id', caller.id);
   if (roleError) return response({ error: 'Unable to verify your admin role.' }, 500);
 
   const activeRoleRows = (callerRoles || []).filter(row => row.active) as Array<{ role: string; active: boolean; department_code?: string | null }>;
   const activeRoles = activeRoleRows.map(row => row.role);
   const isGlobalAdmin = activeRoles.some(role => GLOBAL_ADMIN_ROLES.has(role));
+  const isDepartmentCoordinator = activeRoles.some(role => DEPARTMENT_COORDINATOR_ROLES.has(role));
   const isEventCoordinator = activeRoles.some(role => ['event_coordinator', 'faculty_coord', 'student_coord'].includes(role));
-  const callerDepartmentCode = activeRoleRows.find(row => ['event_coordinator', 'faculty_coord', 'student_coord'].includes(row.role))?.department_code?.toUpperCase() || '';
+  const callerDepartmentCode = activeRoleRows.find(row => DEPARTMENT_COORDINATOR_ROLES.has(row.role) && row.department_code)?.department_code?.toUpperCase()
+    || activeRoleRows.find(row => ['event_coordinator', 'faculty_coord', 'student_coord'].includes(row.role) && row.department_code)?.department_code?.toUpperCase()
+    || '';
 
   if (action === 'me') {
     const { data, error } = await db.from('admin_roles').select('*').eq('user_id', caller.id).eq('active', true).limit(1).maybeSingle();
@@ -173,13 +182,17 @@ Deno.serve(async (req: Request) => {
     return response(toAdminUser(data as AdminRow, assignments.get(caller.id) || []));
   }
 
-  if (!isGlobalAdmin && !isEventCoordinator) return response({ error: 'Only authorized coordinators can manage these admin accounts.' }, 403);
+  if (!isGlobalAdmin && !isDepartmentCoordinator && !isEventCoordinator) return response({ error: 'Only authorized coordinators can manage these admin accounts.' }, 403);
 
   try {
     if (action === 'list') {
       const { data, error } = await db.from('admin_roles').select('*').eq('active', true).order('created_at', { ascending: true });
       if (error) throw error;
-      const rows = (data || []) as AdminRow[];
+      const rows = ((data || []) as AdminRow[]).filter(row => {
+        if (isGlobalAdmin) return true;
+        if (!callerDepartmentCode) return false;
+        return row.department_code?.toUpperCase() === callerDepartmentCode;
+      });
       const assignments = await getAssignments(db, rows.map(row => row.user_id));
       return response(rows.map(row => toAdminUser(row, assignments.get(row.user_id) || [])));
     }
@@ -187,23 +200,39 @@ Deno.serve(async (req: Request) => {
     if (action === 'create') {
       const admin = normalizeRolePayload((body.admin || {}) as Record<string, unknown>);
       if (!isGlobalAdmin) {
-        if (!['volunteer_checkin', 'checkin_staff'].includes(admin.role)) {
-          throw new Error('Event coordinators may only create gate volunteer accounts.');
-        }
-        if (admin.assignedEvents.length !== 1) {
-          throw new Error('A gate volunteer must be assigned to exactly one event.');
-        }
         if (!callerDepartmentCode || admin.departmentCode !== callerDepartmentCode) {
-          throw new Error('Gate volunteers must belong to the coordinator\'s department.');
+          throw new Error('Staff accounts must belong to the coordinator\'s department.');
         }
-        const { data: callerAssignments, error: callerAssignmentError } = await db
-          .from('admin_event_assignments')
-          .select('event_id')
-          .eq('admin_user_id', caller.id)
-          .eq('event_id', admin.assignedEvents[0]);
-        if (callerAssignmentError) throw callerAssignmentError;
-        if (!callerAssignments || callerAssignments.length !== 1) {
-          throw new Error('You can only assign volunteers to events assigned to you.');
+
+        if (isDepartmentCoordinator) {
+          if (!DEPARTMENT_MANAGED_ROLES.has(admin.role)) {
+            throw new Error('Department coordinators may only create event coordinator, payment reviewer, or gate check-in accounts.');
+          }
+          if (['event_coordinator', 'volunteer_checkin', 'checkin_staff'].includes(admin.role) && admin.assignedEvents.length === 0) {
+            throw new Error('Select at least one event for event and gate staff accounts.');
+          }
+          if (admin.role === 'finance_reviewer' && admin.assignedEvents.length > 0) {
+            throw new Error('Payment reviewers are department-wide and cannot be limited to event assignments.');
+          }
+        } else {
+          if (!['volunteer_checkin', 'checkin_staff'].includes(admin.role)) {
+            throw new Error('Event coordinators may only create gate volunteer accounts.');
+          }
+          if (admin.assignedEvents.length !== 1) {
+            throw new Error('A gate volunteer must be assigned to exactly one event.');
+          }
+        }
+
+        if (admin.assignedEvents.length > 0 && !isDepartmentCoordinator) {
+          const { data: callerAssignments, error: callerAssignmentError } = await db
+            .from('admin_event_assignments')
+            .select('event_id')
+            .eq('admin_user_id', caller.id)
+            .eq('event_id', admin.assignedEvents[0]);
+          if (callerAssignmentError) throw callerAssignmentError;
+          if (!callerAssignments || callerAssignments.length !== 1) {
+            throw new Error('You can only assign volunteers to events assigned to you.');
+          }
         }
       }
       const { data: duplicateName, error: duplicateNameError } = await db.from('admin_roles').select('user_id').eq('username', admin.username).eq('active', true).maybeSingle();
@@ -326,6 +355,40 @@ Deno.serve(async (req: Request) => {
         password: incoming.password
       });
 
+      const existingDepartment = typeof existing.department_code === 'string' ? existing.department_code.toUpperCase() : '';
+      if (!isGlobalAdmin) {
+        if (!callerDepartmentCode || existingDepartment !== callerDepartmentCode || !DEPARTMENT_MANAGED_ROLES.has(canonicalAdminRole(existing.role))) {
+          if (isDepartmentCoordinator) {
+            throw new Error('You can only edit managed staff accounts in your own department.');
+          }
+          if (!['volunteer_checkin', 'checkin_staff'].includes(canonicalAdminRole(existing.role))) {
+            throw new Error('Event coordinators may only edit gate volunteer accounts assigned to them.');
+          }
+        }
+        if (isDepartmentCoordinator) {
+          if (!DEPARTMENT_MANAGED_ROLES.has(updates.role) || updates.departmentCode !== callerDepartmentCode) {
+            throw new Error('Department coordinators may only manage staff in their own department.');
+          }
+          if (['event_coordinator', 'volunteer_checkin', 'checkin_staff'].includes(updates.role) && updates.assignedEvents.length === 0) {
+            throw new Error('Select at least one event for event and gate staff accounts.');
+          }
+          if (updates.role === 'finance_reviewer' && updates.assignedEvents.length > 0) {
+            throw new Error('Payment reviewers are department-wide and cannot be limited to event assignments.');
+          }
+        } else {
+          if (!['volunteer_checkin', 'checkin_staff'].includes(updates.role) || updates.departmentCode !== callerDepartmentCode || updates.assignedEvents.length !== 1) {
+            throw new Error('Event coordinators may only manage one-event gate volunteer accounts in their department.');
+          }
+          const { data: callerAssignments, error: callerAssignmentError } = await db
+            .from('admin_event_assignments')
+            .select('event_id')
+            .eq('admin_user_id', caller.id)
+            .eq('event_id', updates.assignedEvents[0]);
+          if (callerAssignmentError) throw callerAssignmentError;
+          if (!callerAssignments || callerAssignments.length !== 1) throw new Error('You can only assign volunteers to events assigned to you.');
+        }
+      }
+
       const existingIsGlobal = GLOBAL_ADMIN_ROLES.has(existing.role);
       const updateIsGlobal = GLOBAL_ADMIN_ROLES.has(updates.role);
       if (existingIsGlobal && !updateIsGlobal) {
@@ -403,6 +466,41 @@ Deno.serve(async (req: Request) => {
       const { data: target, error } = await db.from('admin_roles').select('id,role').eq('user_id', id).eq('active', true).maybeSingle();
       if (error) throw error;
       if (!target) throw new Error('The admin account no longer exists or has already been disabled.');
+
+      const targetRole = canonicalAdminRole(target.role);
+      if (!isGlobalAdmin) {
+        const { data: scopedTarget, error: scopedTargetError } = await db
+          .from('admin_roles')
+          .select('department_code')
+          .eq('user_id', id)
+          .eq('active', true)
+          .maybeSingle();
+        if (scopedTargetError) throw scopedTargetError;
+        const targetDepartment = scopedTarget?.department_code?.toUpperCase() || '';
+        if (isDepartmentCoordinator) {
+          if (targetDepartment !== callerDepartmentCode || !DEPARTMENT_MANAGED_ROLES.has(targetRole)) {
+            throw new Error('You can only delete managed staff accounts in your own department.');
+          }
+        } else {
+          if (!['volunteer_checkin', 'checkin_staff'].includes(targetRole) || targetDepartment !== callerDepartmentCode) {
+            throw new Error('Event coordinators may only delete gate volunteer accounts in their department.');
+          }
+          const { data: assigned, error: assignedError } = await db
+            .from('admin_event_assignments')
+            .select('event_id')
+            .eq('admin_user_id', id);
+          if (assignedError) throw assignedError;
+          const { data: callerAssignments, error: callerAssignmentError } = await db
+            .from('admin_event_assignments')
+            .select('event_id')
+            .eq('admin_user_id', caller.id);
+          if (callerAssignmentError) throw callerAssignmentError;
+          const allowedEvents = new Set((callerAssignments || []).map(item => item.event_id));
+          if (!assigned?.some(item => allowedEvents.has(item.event_id))) {
+            throw new Error('You can only delete volunteers assigned to your events.');
+          }
+        }
+      }
 
       if (GLOBAL_ADMIN_ROLES.has(target.role)) {
         const { count, error: countError } = await db.from('admin_roles').select('id', { count: 'exact', head: true }).eq('active', true).in('role', [...GLOBAL_ADMIN_ROLES]);

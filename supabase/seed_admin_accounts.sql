@@ -304,17 +304,6 @@ BEGIN
   );
 
   PERFORM public.provision_festronix_admin(
-    'csd.festronix@vardhaman.org',
-    'csd2026',
-    'Dr. S. Radhika',
-    'dept_csd',
-    'dept_coordinator',
-    'Department Coordinator (CSD)',
-    'CSD',
-    '+91 98480 22009'
-  );
-
-  PERFORM public.provision_festronix_admin(
     'csm.festronix@vardhaman.org',
     'csm2026',
     'Dr. V. Prasad',
@@ -323,6 +312,17 @@ BEGIN
     'Department Coordinator (CSM)',
     'CSM',
     '+91 98480 22007'
+  );
+
+  PERFORM public.provision_festronix_admin(
+    'csd.festronix@vardhaman.org',
+    'csd2026',
+    'Dr. S. Radhika',
+    'dept_csd',
+    'dept_coordinator',
+    'Department Coordinator (CSD)',
+    'CSD',
+    '+91 98480 22009'
   );
 
   PERFORM public.provision_festronix_admin(

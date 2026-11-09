@@ -7,7 +7,7 @@ import {
 import confetti from 'canvas-confetti';
 import { AdminUser } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
-import { Registration, PaymentStatus, FestStats } from '../../types/festronix';
+import { Registration, PaymentStatus, FestEvent, FestStats } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
 
@@ -24,24 +24,33 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
 }) => {
   const [stats, setStats] = useState<FestStats>(() => StorageService.getStats());
   const [registrations, setRegistrations] = useState<Registration[]>(() => StorageService.getRegistrations());
+  const departmentScope = adminUser.departmentCode?.trim().toUpperCase() || '';
   
   // Filter and search
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | PaymentStatus>('all');
-  const [deptFilter, setDeptFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState(() => departmentScope || 'all');
   
   // Proof Viewer Modal
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
   const [rejectingRegId, setRejectingRegId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  const filterRegistrationsToScope = (items: Registration[], eventItems: FestEvent[]) => {
+    if (!departmentScope) return items;
+    return items.filter(registration => {
+      const event = eventItems.find(item => item.id === registration.eventId || item.title === registration.eventTitle);
+      return event?.departmentCode?.toUpperCase() === departmentScope;
+    });
+  };
+
   const refreshData = async () => {
     setStats(StorageService.getStats());
-    setRegistrations(StorageService.getRegistrations());
+    setRegistrations(filterRegistrationsToScope(StorageService.getRegistrations(), StorageService.getEvents()));
     try {
-      await Promise.all([StorageService.fetchRegistrations(), StorageService.fetchEvents()]);
+      const [liveRegistrations, liveEvents] = await Promise.all([StorageService.fetchRegistrations(), StorageService.fetchEvents()]);
       setStats(StorageService.getStats());
-      setRegistrations(StorageService.getRegistrations());
+      setRegistrations(filterRegistrationsToScope(liveRegistrations, liveEvents));
     } catch (error) {
       console.warn('Finance dashboard sync warning:', error);
     }
@@ -97,6 +106,10 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   };
 
   const filtered = registrations.filter(r => {
+    if (departmentScope) {
+      const ev = StorageService.getEvents().find(e => e.id === r.eventId || e.title === r.eventTitle);
+      if (!ev || ev.departmentCode?.toUpperCase() !== departmentScope) return false;
+    }
     if (statusFilter !== 'all' && r.paymentStatus !== statusFilter) return false;
     if (deptFilter !== 'all') {
       const allEvents = StorageService.getEvents();
@@ -297,17 +310,23 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
               <option value="rejected">Rejected Only</option>
             </select>
 
-            <select
-              value={deptFilter}
-              onChange={e => setDeptFilter(e.target.value)}
-              className="admin-form-input"
-              style={{ width: 'auto', flex: '0 1 240px', paddingLeft: '14px' }}
-            >
-              <option value="all">All 9 Academic Departments</option>
-              {DEPARTMENTS.map(d => (
-                <option key={d.code} value={d.code}>{d.code} - {d.name}</option>
-              ))}
-            </select>
+            {departmentScope ? (
+              <div className="admin-form-input" style={{ width: 'auto', flex: '0 1 240px', display: 'flex', alignItems: 'center', color: '#67E8F9', fontWeight: 700 }}>
+                Department scope: {departmentScope}
+              </div>
+            ) : (
+              <select
+                value={deptFilter}
+                onChange={e => setDeptFilter(e.target.value)}
+                className="admin-form-input"
+                style={{ width: 'auto', flex: '0 1 240px', paddingLeft: '14px' }}
+              >
+                <option value="all">All 9 Academic Departments</option>
+                {DEPARTMENTS.map(d => (
+                  <option key={d.code} value={d.code}>{d.code} - {d.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Ledger Table */}

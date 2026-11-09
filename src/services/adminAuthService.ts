@@ -42,6 +42,24 @@ type ManagedAdmin = AdminUser;
 
 const STORAGE_KEY_ADMIN_SESSION = 'festronix_admin_session_v1';
 const STORAGE_KEY_ADMIN_DIRECTORY = 'festronix_all_admins_v3';
+const ADMIN_SESSION_TIMEOUT_MS = 5000;
+const ADMIN_API_TIMEOUT_MS = 7000;
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    Promise.resolve(promise).then(
+      value => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        window.clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
 
 export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
   // 1. Primary System Administrator (SUPER ADMIN)
@@ -575,6 +593,45 @@ export class AdminAuthService {
     const admin = await this.resolveAdminFromAuth(data.user, cleanEmail);
     localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(admin));
     return admin;
+  }
+
+  /**
+   * Re-authenticates the current portal user and updates their Supabase Auth
+   * password. The current password is verified server-side; no password is
+   * stored in the browser or in the admin_roles table.
+   */
+  static async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const current = currentPassword.trim();
+    if (!current) throw new Error('Enter your current password.');
+    if (newPassword.length < 12) throw new Error('New password must be at least 12 characters.');
+    if (!isSupabaseConfigured()) throw new Error('Supabase backend is not configured.');
+
+    const { data: sessionData } = await withTimeout(
+      supabase.auth.getSession(),
+      ADMIN_SESSION_TIMEOUT_MS,
+      'Supabase session verification timed out. Please try again.'
+    );
+    const email = sessionData.session?.user?.email?.trim().toLowerCase();
+    if (!email) throw new Error('Your admin session has expired. Sign in again.');
+
+    const { error: verifyError } = await withTimeout(
+      supabase.auth.signInWithPassword({ email, password: current }),
+      ADMIN_API_TIMEOUT_MS,
+      'Password verification timed out. Please try again.'
+    );
+    if (verifyError) {
+      if (/invalid login credentials|invalid_credentials/i.test(verifyError.message || '')) {
+        throw new Error('Current password is incorrect.');
+      }
+      throw new Error(verifyError.message || 'Unable to verify your current password.');
+    }
+
+    const { error: updateError } = await withTimeout(
+      supabase.auth.updateUser({ password: newPassword }),
+      ADMIN_API_TIMEOUT_MS,
+      'Password update timed out. Please try again.'
+    );
+    if (updateError) throw new Error(updateError.message || 'Unable to change your password.');
   }
 
   /**

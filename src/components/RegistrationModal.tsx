@@ -11,6 +11,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { EmailService } from '../services/emailService';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 import { sendRegistrationPassEmail } from '../services/registrationEmailService';
+import { completeRazorpayCheckout } from '../services/razorpayService';
 
 interface RegistrationModalProps {
   event: FestEvent | null;
@@ -102,6 +103,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [transactionId, setTransactionId] = useState('');
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  // Keep the legacy manual-proof state for recovery compatibility, but do not
+  // expose it as a public payment choice. Paid registrations always open Razorpay.
+  const [paymentMethod] = useState<'razorpay' | 'manual_proof'>('razorpay');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -511,13 +515,132 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
+  const buildRegistrationBatch = async (
+    status: Registration['paymentStatus'],
+    transactionReference?: string,
+    paymentProof?: string
+  ): Promise<Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>>> => {
+    const signedInUser = currentUser;
+    let finalTeammates = teammates;
+
+    if (isTeamEvent && generatedTeamCode) {
+      const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const liveTeam = await StorageService.fetchTeamDashboard(generatedTeamCode, event.id).catch(() =>
+        StorageService.getTeams().find(
+          t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
+        ) || null
+      );
+      const alreadyJoinedRolls = new Set(
+        (liveTeam?.members || [])
+          .map(member => member.rollNumber.trim().toUpperCase())
+          .filter(Boolean)
+      );
+      StorageService.getRegistrations()
+        .filter(registration => registration.teamCode && registration.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode)
+        .forEach(registration => {
+          const registeredRoll = (registration.leaderRoll || registration.buyerRoll || '').trim().toUpperCase();
+          if (registeredRoll && registeredRoll !== leader.rollNumber.trim().toUpperCase()) alreadyJoinedRolls.add(registeredRoll);
+        });
+      finalTeammates = finalTeammates.filter(
+        teammate => !alreadyJoinedRolls.has(teammate.rollNumber.trim().toUpperCase())
+      );
+    }
+
+    if (isTeamEvent) {
+      if (!teamName.trim() || !generatedTeamCode.trim()) {
+        throw new Error('Create a valid team name and team code before submitting the registration.');
+      }
+      await StorageService.reserveOrRegisterTeam({
+        teamCode: generatedTeamCode.trim(),
+        teamName: teamName.trim(),
+        eventId: event.id,
+        eventTitle: event.title,
+        registrationId: '',
+        leaderId: signedInUser?.id || guestLeaderId,
+        leaderName: leader.name.trim(),
+        leaderRoll: leader.rollNumber.trim().toUpperCase(),
+        leaderEmail: leader.email.trim(),
+        leaderPhone: leader.phone.trim(),
+        leaderCollege: leader.college.trim(),
+        members: finalTeammates,
+        maxTeamSize: event.maxTeamSize,
+        minTeamSize: event.minTeamSize
+      });
+    }
+
+    const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    return Array.from({ length: passQuantity }, (_, index) => {
+      const isLeaderPass = index === 0;
+      const memberInfo = isLeaderPass ? null : additionalMembers[index - 1];
+      return {
+        userId: currentUser?.id,
+        buyerRoll: leader.rollNumber.trim(),
+        eventId: event.id,
+        eventTitle: `${event.title}${passQuantity > 1 ? ` (Pass #${index + 1}${memberInfo ? `: ${memberInfo.name.trim()}` : ''})` : ''}`,
+        departmentCode: event.departmentCode,
+        leaderName: isLeaderPass ? leader.name.trim() : memberInfo!.name.trim(),
+        leaderEmail: leader.email.trim(),
+        leaderPhone: leader.phone.trim(),
+        leaderCollege: leader.college.trim(),
+        leaderRoll: isLeaderPass ? leader.rollNumber.trim() : memberInfo!.rollNumber.trim().toUpperCase(),
+        deptSection: memberInfo ? memberInfo.deptSection.trim().toUpperCase() : undefined,
+        teammates: isTeamEvent ? finalTeammates : [],
+        format: event.format,
+        teamName: isTeamEvent ? teamName.trim() : undefined,
+        teamCode: isTeamEvent ? generatedTeamCode.trim() : undefined,
+        fee: event.fee,
+        source: 'online' as const,
+        registrationDate: dateNow,
+        paymentStatus: status,
+        transactionId: event.fee > 0 ? transactionReference : undefined,
+        paymentScreenshotUrl: paymentProof
+      };
+    });
+  };
+
+  const finishSuccessfulRegistration = (created: Registration[]) => {
+    const finalReg = created[created.length - 1];
+    confetti({ particleCount: 110, spread: 75, origin: { y: 0.6 } });
+    if (!finalReg) return;
+
+    // The pass is already stored and can be opened immediately. Email delivery
+    // remains independent so a provider outage cannot cause duplicate retries.
+    onSuccess(finalReg);
+    void Promise.all(created.map(registration => sendRegistrationPassEmail(registration)))
+      .then(emailResults => {
+        const emailFailure = emailResults.find(result => !result.sent);
+        if (emailFailure) console.warn('Registration completed, but pass email delivery is pending:', emailFailure.message);
+      })
+      .catch(error => console.warn('Registration completed, but pass email delivery failed:', error));
+  };
+
+  const handleRazorpayPayment = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setErrorMessage('');
+    try {
+      const batch = await buildRegistrationBatch(event.fee > 0 ? 'verification_pending' : 'not_applicable');
+      const created = await completeRazorpayCheckout(event, batch);
+      finishSuccessfulRegistration(created);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Razorpay payment could not be completed. No registration was created.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Handle Team Leader or Solo Registration Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (isSubmitting) return;
 
-    const signedInUser = currentUser;
+    // Razorpay is the only public payment path. The manual-proof branch below
+    // remains in the component for administrative recovery/history, but it is
+    // intentionally not selectable by registrants.
+    if (event.fee > 0) {
+      await handleRazorpayPayment();
+      return;
+    }
 
     if (event.fee > 0) {
       if (!transactionId.trim()) {
@@ -536,134 +659,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     setIsSubmitting(true);
     setErrorMessage('');
-
     try {
       let finalScreenshotUrl = screenshotPreview || undefined;
-
       if (screenshotFile) {
         const uploadRes = await StorageService.uploadPaymentScreenshot(screenshotFile, leader.rollNumber, leader.email);
         if (!uploadRes.success || !uploadRes.url) throw new Error(uploadRes.error || 'Unable to upload payment proof.');
         finalScreenshotUrl = uploadRes.url;
       }
-
-      let finalTeammates = teammates;
-      if (isTeamEvent && generatedTeamCode) {
-        const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-        const liveTeam = await StorageService.fetchTeamDashboard(generatedTeamCode, event.id).catch(() =>
-          StorageService.getTeams().find(
-            t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
-          ) || null
-        );
-        const alreadyJoinedRolls = new Set(
-          (liveTeam?.members || [])
-            .map(member => member.rollNumber.trim().toUpperCase())
-            .filter(Boolean)
-        );
-        StorageService.getRegistrations()
-          .filter(registration => registration.teamCode && registration.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode)
-          .forEach(registration => {
-            const registeredRoll = (registration.leaderRoll || registration.buyerRoll || '').trim().toUpperCase();
-            if (registeredRoll && registeredRoll !== leader.rollNumber.trim().toUpperCase()) {
-              alreadyJoinedRolls.add(registeredRoll);
-            }
-          });
-
-        // Members who joined with the invite code already have their own
-        // participant registration. Do not submit them again as new
-        // teammates; the database attaches the live team roster to the
-        // leader registration in the same transaction.
-        finalTeammates = finalTeammates.filter(
-          teammate => !alreadyJoinedRolls.has(teammate.rollNumber.trim().toUpperCase())
-        );
-      }
-
-      if (isTeamEvent) {
-        if (!teamName.trim() || !generatedTeamCode.trim()) {
-          throw new Error('Create a valid team name and team code before submitting the registration.');
-        }
-        // The reservation is intentionally awaited here. The initial modal
-        // effect reserves optimistically, but a fast submit must not race the
-        // database registration RPC.
-        await StorageService.reserveOrRegisterTeam({
-          teamCode: generatedTeamCode.trim(),
-          teamName: teamName.trim(),
-          eventId: event.id,
-          eventTitle: event.title,
-          registrationId: '',
-          leaderId: signedInUser?.id || guestLeaderId,
-          leaderName: leader.name.trim(),
-          leaderRoll: leader.rollNumber.trim().toUpperCase(),
-          leaderEmail: leader.email.trim(),
-          leaderPhone: leader.phone.trim(),
-          leaderCollege: leader.college.trim(),
-          members: finalTeammates,
-          maxTeamSize: event.maxTeamSize,
-          minTeamSize: event.minTeamSize
-        });
-      }
-
-      const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
-      const batch: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>> = [];
-
-      for (let i = 0; i < passQuantity; i++) {
-        const isLeaderPass = i === 0;
-        const memberInfo = isLeaderPass ? null : additionalMembers[i - 1];
-
-        batch.push({
-          userId: currentUser?.id,
-          buyerRoll: leader.rollNumber.trim(),
-          eventId: event.id,
-          eventTitle: `${event.title}${passQuantity > 1 ? ` (Pass #${i + 1}${memberInfo ? `: ${memberInfo.name.trim()}` : ''})` : ''}`,
-          departmentCode: event.departmentCode,
-          leaderName: isLeaderPass ? leader.name.trim() : memberInfo!.name.trim(),
-          leaderEmail: leader.email.trim(),
-          leaderPhone: leader.phone.trim(),
-          leaderCollege: leader.college.trim(),
-          leaderRoll: isLeaderPass ? leader.rollNumber.trim() : memberInfo!.rollNumber.trim().toUpperCase(),
-          deptSection: memberInfo ? memberInfo.deptSection.trim().toUpperCase() : undefined,
-          teammates: isTeamEvent ? finalTeammates : [],
-          format: event.format,
-          teamName: isTeamEvent ? teamName.trim() : undefined,
-          teamCode: isTeamEvent ? generatedTeamCode.trim() : undefined,
-          fee: event.fee,
-          source: 'online',
-          registrationDate: dateNow,
-          paymentStatus: event.fee === 0 ? 'not_applicable' : 'verification_pending',
-          transactionId: event.fee > 0 ? transactionId : undefined,
-          paymentScreenshotUrl: finalScreenshotUrl
-        });
-      }
-
+      const status = event.fee === 0 ? 'not_applicable' : 'verification_pending';
+      const batch = await buildRegistrationBatch(status, event.fee > 0 ? transactionId.trim() : undefined, finalScreenshotUrl);
       const created = await StorageService.addMultipleRegistrations(batch);
-      const finalReg = created[created.length - 1];
-
-      // Fire festive celebration
-      confetti({
-        particleCount: 110,
-        spread: 75,
-        origin: { y: 0.6 }
-      });
-
-      if (finalReg) {
-        // The database response is the source of truth. Do not hold the
-        // registration screen open while an external email provider responds.
-        // The pass is already created and can be opened immediately.
-        onSuccess(finalReg);
-
-        // Deliver confirmation emails independently after the successful
-        // registration. A temporary email outage must never make a student
-        // retry a completed registration and risk a duplicate attempt.
-        void Promise.all(created.map(registration => sendRegistrationPassEmail(registration)))
-          .then(emailResults => {
-            const emailFailure = emailResults.find(result => !result.sent);
-            if (emailFailure) {
-              console.warn('Registration completed, but pass email delivery is pending:', emailFailure.message);
-            }
-          })
-          .catch(error => {
-            console.warn('Registration completed, but pass email delivery failed:', error);
-          });
-      }
+      finishSuccessfulRegistration(created);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Registration failed. Please try again.');
     } finally {
@@ -964,7 +970,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   {isTeamEvent ? 3 : 2}
                 </span>
                 <span style={{ fontSize: '0.82rem', color: (isTeamEvent ? step === 3 : step === 2) ? '#BACEBB' : '#64748b', fontWeight: 600 }}>
-                  UPI Payment
+                  Razorpay Payment
                 </span>
               </div>
             )}
@@ -2114,7 +2120,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         )}
 
         {/* ============================================================== */}
-        {/* STEP 3 (or Step 2 for Solo): UPI Payment & Verification Proof */}
+        {/* STEP 3 (or Step 2 for Solo): Razorpay Payment */}
         {/* ============================================================== */}
         {((step === 3 && isTeamEvent) || (step === 2 && !isTeamEvent)) && event.fee > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -2147,7 +2153,49 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 </div>
               </div>
             )}
-            {/* Payment Box */}
+            {paymentMethod === 'razorpay' ? (
+              <div
+                style={{
+                  padding: '22px',
+                  background: 'linear-gradient(135deg, rgba(16, 42, 72, 0.96), rgba(16, 26, 53, 0.96))',
+                  border: '1px solid rgba(56, 189, 248, 0.45)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 800, letterSpacing: '0.08em' }}>SECURE PAYMENT • RAZORPAY TEST MODE</div>
+                    <div style={{ color: '#FFFFFF', fontSize: '1.18rem', fontWeight: 800, marginTop: '5px' }}>
+                      ₹{event.fee * passQuantity} <span style={{ color: '#BACEBB', fontSize: '0.78rem', fontWeight: 600 }}>INR</span>
+                    </div>
+                    <div style={{ color: '#DCE3E5', fontSize: '0.76rem', lineHeight: 1.45, marginTop: '5px' }}>
+                      Your registration stays in this flow while Razorpay securely collects the test payment. The pass is created only after our backend verifies it.
+                    </div>
+                  </div>
+                  <ShieldCheck size={28} color="#34D399" />
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 11px',
+                  borderRadius: '8px',
+                  background: 'rgba(52, 211, 153, 0.08)',
+                  border: '1px solid rgba(52, 211, 153, 0.2)',
+                  color: '#BACEBB',
+                  fontSize: '0.7rem',
+                  lineHeight: 1.4
+                }}>
+                  <CheckCircle2 size={14} color="#34D399" />
+                  <span>No screenshot or UTR is required. Your pass is issued after Razorpay verification.</span>
+                </div>
+              </div>
+            ) : (
+              <>
+            {/* Manual Payment Proof Box (preserved fallback) */}
             <div
               style={{
                 padding: '18px',
@@ -2257,6 +2305,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               </div>
             </div>
 
+              </>
+            )}
+
             {/* Submit / Back */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
               <button
@@ -2274,7 +2325,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 disabled={isSubmitting}
                 className="btn-cyber-primary"
               >
-                <span>{isSubmitting ? 'Registering...' : (isTeamEvent ? 'Submit Proof & Register Team' : 'Submit Proof & Register')}</span>
+                <span>{isSubmitting ? (paymentMethod === 'razorpay' ? 'Opening Razorpay...' : 'Registering...') : (paymentMethod === 'razorpay' ? (isTeamEvent ? 'Pay & Register Team' : 'Pay & Register') : (isTeamEvent ? 'Submit Proof & Register Team' : 'Submit Proof & Register'))}</span>
                 <CheckCircle2 size={16} />
               </button>
             </div>

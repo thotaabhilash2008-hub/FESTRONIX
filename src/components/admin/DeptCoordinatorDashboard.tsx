@@ -4,10 +4,10 @@ import {
   Download, Plus, Edit3, Trash2, ArrowRight, LogOut, Globe, QrCode,
   Sparkles, Check, AlertCircle, RefreshCw, XCircle, Eye, Phone, Mail,
   Copy, Megaphone, UserPlus, FileSpreadsheet, ShieldCheck, Award, Camera, StopCircle,
-  Percent, ChevronRight, Share2, Printer, MapPin, Calendar, Bell, Filter, HelpCircle
+  Percent, ChevronRight, Share2, Printer, MapPin, Calendar, Bell, Filter, HelpCircle, KeyRound
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { AdminUser, AdminAuthService } from '../../services/adminAuthService';
+import { AdminRole, AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
 import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
 import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
@@ -49,6 +49,46 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     )
   );
 
+  type ManagedStaffRole = 'event_coordinator' | 'finance_reviewer' | 'volunteer_checkin' | 'checkin_staff';
+  type ManagedStaffForm = {
+    fullName: string;
+    username: string;
+    designation: string;
+    role: ManagedStaffRole;
+    email: string;
+    phone: string;
+    password: string;
+    assignedEvents: string[];
+  };
+  const managedStaffRoles = new Set<ManagedStaffRole>([
+    'event_coordinator',
+    'finance_reviewer',
+    'volunteer_checkin',
+    'checkin_staff'
+  ]);
+  const generateStaffPassword = () => `${deptCode.toLowerCase()}_${Math.random().toString(36).slice(2, 9)}!Fst`;
+  const createEmptyStaffForm = (): ManagedStaffForm => ({
+    fullName: '',
+    username: `${deptCode.toLowerCase()}_staff_${Math.floor(100 + Math.random() * 900)}`,
+    designation: 'Department Operations Staff',
+    role: 'event_coordinator',
+    email: '',
+    phone: '',
+    password: generateStaffPassword(),
+    assignedEvents: []
+  });
+  const [departmentStaff, setDepartmentStaff] = useState<AdminUser[]>(() =>
+    AdminAuthService.getAllAdmins().filter(admin =>
+      admin.departmentCode?.toUpperCase() === deptCode.toUpperCase() && managedStaffRoles.has(admin.role as ManagedStaffRole)
+    )
+  );
+  const [staffFormOpen, setStaffFormOpen] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [staffForm, setStaffForm] = useState<ManagedStaffForm>(() => createEmptyStaffForm());
+  const [staffSaving, setStaffSaving] = useState(false);
+  const [staffError, setStaffError] = useState('');
+  const [staffMessage, setStaffMessage] = useState('');
+
   // Helper to check if an event is assigned to the current user
   const isEventAssigned = (e: FestEvent): boolean => {
     if (adminUser.assignedEvents && (adminUser.assignedEvents.includes(e.id) || adminUser.assignedEvents.includes(e.slug))) {
@@ -79,8 +119,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   });
 
   // Active Tab: Event Coordinator vs Department Coordinator defaults
-  type DashboardTab = 'events' | 'readiness' | 'roster' | 'checkin' | 'payments' | 'announcements' | 'reports' | 'coordinators';
+  type DashboardTab = 'events' | 'readiness' | 'roster' | 'checkin' | 'payments' | 'announcements' | 'reports' | 'coordinators' | 'security';
   const [activeTab, setActiveTab] = useState<DashboardTab>('events');
+
+  // Password change is handled by Supabase Auth; values never enter localStorage.
+  const [passwordCurrent, setPasswordCurrent] = useState('');
+  const [passwordNext, setPasswordNext] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Gate Check-in State
   const [checkInInput, setCheckInInput] = useState('');
@@ -156,35 +203,65 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [newEventCoordinatorEmail, setNewEventCoordinatorEmail] = useState(adminUser.email);
   const [newEventPublishPolicy, setNewEventPublishPolicy] = useState<'open' | 'pending_approval'>('open');
 
-  const refreshDeptData = async () => {
-    setDeptStats(StorageService.getDepartmentStats(deptCode));
-    const all = StorageService.getEvents();
-    const deptEvts = all.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
-    setEvents(deptEvts);
-    setRegistrations(StorageService.getDepartmentRegistrations(deptCode));
-    setAnnouncements(
-      StorageService.getAnnouncements().filter(a =>
-        a.scope === 'fest-wide' ||
-        (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-      )
-    );
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const refreshQueuedRef = useRef(false);
 
-    try {
-      const [liveEvts, liveRegs, liveAnnouncements] = await Promise.all([
-        StorageService.fetchEvents(),
-        StorageService.fetchRegistrations(),
-        StorageService.fetchAnnouncements()
-      ]);
-      const updatedDeptEvts = liveEvts.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
-      setEvents(updatedDeptEvts);
-      setRegistrations(liveRegs.filter(r => StorageService.resolveDepartmentForRegistration(r, liveEvts) === deptCode.toUpperCase()));
-      setAnnouncements(liveAnnouncements.filter(a =>
-        a.scope === 'fest-wide' ||
-        (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-      ));
+  const refreshDeptData = async (): Promise<void> => {
+    // Realtime can report registrations, members, tickets, and payment proof
+    // changes separately. Coalesce those notifications instead of starting
+    // several identical Supabase reads that abort one another.
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true;
+      return refreshInFlightRef.current;
+    }
+
+    const refresh = (async () => {
       setDeptStats(StorageService.getDepartmentStats(deptCode));
-    } catch (err) {
-      console.warn('Dept dashboard sync warning:', err);
+      const all = StorageService.getEvents();
+      const deptEvts = all.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
+      setEvents(deptEvts);
+      setRegistrations(StorageService.getDepartmentRegistrations(deptCode));
+      setAnnouncements(
+        StorageService.getAnnouncements().filter(a =>
+          a.scope === 'fest-wide' ||
+          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+        )
+      );
+
+      try {
+        const [liveEvts, liveRegs, liveAnnouncements, liveAdmins] = await Promise.all([
+          StorageService.fetchEvents(),
+          StorageService.fetchRegistrations(),
+          StorageService.fetchAnnouncements(),
+          isDeptChief ? AdminAuthService.fetchAdmins() : Promise.resolve([] as AdminUser[])
+        ]);
+        const updatedDeptEvts = liveEvts.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
+        setEvents(updatedDeptEvts);
+        setRegistrations(liveRegs.filter(r => StorageService.resolveDepartmentForRegistration(r, liveEvts) === deptCode.toUpperCase()));
+        setAnnouncements(liveAnnouncements.filter(a =>
+          a.scope === 'fest-wide' ||
+          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+        ));
+        if (isDeptChief) {
+          setDepartmentStaff(liveAdmins.filter(admin =>
+            admin.departmentCode?.toUpperCase() === deptCode.toUpperCase() && managedStaffRoles.has(admin.role as ManagedStaffRole)
+          ));
+        }
+        setDeptStats(StorageService.getDepartmentStats(deptCode));
+      } catch (err) {
+        console.warn('Dept dashboard sync warning:', err);
+      }
+    })();
+
+    refreshInFlightRef.current = refresh;
+    try {
+      await refresh;
+    } finally {
+      refreshInFlightRef.current = null;
+      if (refreshQueuedRef.current) {
+        refreshQueuedRef.current = false;
+        void refreshDeptData();
+      }
     }
   };
 
@@ -226,7 +303,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       window.removeEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [deptCode]);
+  }, [deptCode, isDeptChief]);
 
   // Determine which events are actively filtered into view
   const visibleEvents = useMemo(() => {
@@ -719,56 +796,146 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Department Coordinators Directory (8.2 • Coordinate with Event Coordinators)
   const departmentCoordinatorsList = useMemo(() => {
-    const coords: Array<{
-      id: string;
-      fullName: string;
-      designation: string;
-      role: string;
-      email: string;
-      phone: string;
-      assignedEvents: string[];
-    }> = [];
+    return departmentStaff.map(admin => ({
+      ...admin,
+      phone: admin.phone || '+91 98480 12345',
+      assignedEvents: (admin.assignedEvents || []).map(eventId =>
+        events.find(event => event.id === eventId || event.slug === eventId)?.title || eventId
+      )
+    }));
+  }, [departmentStaff, events]);
 
-    // 1. From AdminAuthService registered staff
-    const adminStaff = AdminAuthService.getAllAdmins().filter(
-      a => a.departmentCode?.toUpperCase() === deptCode.toUpperCase()
-    );
+  const openCreateStaffForm = () => {
+    setEditingStaffId(null);
+    setStaffForm(createEmptyStaffForm());
+    setStaffError('');
+    setStaffMessage('');
+    setStaffFormOpen(true);
+  };
 
-    adminStaff.forEach(a => {
-      coords.push({
-        id: a.id,
-        fullName: a.fullName,
-        designation: a.designation,
-        role: a.role,
-        email: a.email,
-        phone: a.phone || '+91 98480 12345',
-        assignedEvents: a.assignedEvents || []
-      });
+  const openEditStaffForm = (staff: AdminUser) => {
+    if (!managedStaffRoles.has(staff.role as ManagedStaffRole)) return;
+    setEditingStaffId(staff.id);
+    setStaffForm({
+      fullName: staff.fullName,
+      username: staff.username,
+      designation: staff.designation,
+      role: staff.role as ManagedStaffRole,
+      email: staff.email,
+      phone: staff.phone || '',
+      password: '',
+      assignedEvents: staff.assignedEvents || []
     });
+    setStaffError('');
+    setStaffMessage('');
+    setStaffFormOpen(true);
+  };
 
-    // 2. Cross-reference with event coordinators assigned in events
-    events.forEach(e => {
-      if (e.coordinatorName && !coords.some(c => c.fullName.toLowerCase() === e.coordinatorName.toLowerCase())) {
-        coords.push({
-          id: `coord-${e.id}`,
-          fullName: e.coordinatorName,
-          designation: 'Assigned Event Coordinator',
-          role: 'event_coordinator',
-          email: e.coordinatorEmail || 'coordinator@vardhaman.org',
-          phone: e.coordinatorPhone || '+91 98480 12345',
-          assignedEvents: [e.title]
-        });
+  const handleStaffSave = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setStaffError('');
+    setStaffMessage('');
+    const assignedEvents = staffForm.role === 'finance_reviewer' ? [] : staffForm.assignedEvents;
+    if (!staffForm.fullName.trim() || !staffForm.username.trim() || !staffForm.email.trim() || !staffForm.designation.trim()) {
+      setStaffError('Name, username, designation, and email are required.');
+      return;
+    }
+    if (!editingStaffId && staffForm.password.trim().length < 12) {
+      setStaffError('The initial password must be at least 12 characters.');
+      return;
+    }
+    if ((staffForm.role === 'event_coordinator' || staffForm.role === 'volunteer_checkin' || staffForm.role === 'checkin_staff') && assignedEvents.length === 0) {
+      setStaffError('Select at least one department event for this staff account.');
+      return;
+    }
+
+    setStaffSaving(true);
+    try {
+      const payload = {
+        fullName: staffForm.fullName.trim(),
+        username: staffForm.username.trim().toLowerCase(),
+        designation: staffForm.designation.trim(),
+        role: staffForm.role as AdminRole,
+        departmentCode: deptCode,
+        email: staffForm.email.trim().toLowerCase(),
+        phone: staffForm.phone.trim(),
+        accessBoundary: `${deptCode} department operations`,
+        assignedEvents,
+        ...(staffForm.password.trim() ? { password: staffForm.password.trim() } : {})
+      };
+
+      if (editingStaffId) {
+        await AdminAuthService.updateAdmin(editingStaffId, payload);
+        setStaffMessage('Staff permissions and profile updated successfully.');
+      } else {
+        await AdminAuthService.addAdmin(payload);
+        setStaffMessage(`Account created. Share username “${payload.username}” and the password you entered with the staff member.`);
       }
-    });
+      const refreshed = await AdminAuthService.fetchAdmins();
+      setDepartmentStaff(refreshed.filter(admin =>
+        admin.departmentCode?.toUpperCase() === deptCode.toUpperCase() && managedStaffRoles.has(admin.role as ManagedStaffRole)
+      ));
+      setStaffFormOpen(false);
+    } catch (error) {
+      setStaffError(error instanceof Error ? error.message : 'Unable to save this staff account.');
+    } finally {
+      setStaffSaving(false);
+    }
+  };
 
-    return coords;
-  }, [events, deptCode]);
+  const handleStaffDelete = async (staff: AdminUser) => {
+    if (!managedStaffRoles.has(staff.role as ManagedStaffRole)) return;
+    if (!window.confirm(`Permanently delete ${staff.fullName}'s account? They will lose access immediately.`)) return;
+    setStaffError('');
+    setStaffMessage('');
+    try {
+      await AdminAuthService.deleteAdmin(staff.id);
+      setDepartmentStaff(current => current.filter(item => item.id !== staff.id));
+      setStaffMessage(`${staff.fullName}'s account was deleted from the backend.`);
+    } catch (error) {
+      setStaffError(error instanceof Error ? error.message : 'Unable to delete this staff account.');
+    }
+  };
 
   // Copy contact to clipboard
   const handleCopyContact = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopyFeedback(`${label} copied!`);
     setTimeout(() => setCopyFeedback(null), 2500);
+  };
+
+  const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPasswordMessage(null);
+
+    if (passwordNext.length < 12) {
+      setPasswordMessage({ type: 'error', text: 'New password must be at least 12 characters.' });
+      return;
+    }
+    if (passwordNext !== passwordConfirm) {
+      setPasswordMessage({ type: 'error', text: 'The new password and confirmation do not match.' });
+      return;
+    }
+    if (passwordNext === passwordCurrent) {
+      setPasswordMessage({ type: 'error', text: 'Choose a new password different from the current password.' });
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      await AdminAuthService.changePassword(passwordCurrent, passwordNext);
+      setPasswordCurrent('');
+      setPasswordNext('');
+      setPasswordConfirm('');
+      setPasswordMessage({ type: 'success', text: 'Password changed successfully. Use it the next time you sign in.' });
+    } catch (error) {
+      setPasswordMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Unable to change your password.'
+      });
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   // Readiness Metrics (8.2 • Readiness Monitor)
@@ -1059,6 +1226,83 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         </div>
 
         {/* Active Module Canvas */}
+
+        {activeTab === 'security' && (
+          <div style={{ maxWidth: '720px' }}>
+            <div style={{ marginBottom: '18px' }}>
+              <h3 className="font-title" style={{ fontSize: '1.2rem', color: '#FFFFFF', margin: 0 }}>
+                Security & Access
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: '5px 0 0' }}>
+                Change the password for {adminUser.email}. Your current password is verified securely by Supabase Auth.
+              </p>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="admin-card" style={{ padding: '22px', display: 'grid', gap: '16px' }}>
+              <label style={{ display: 'grid', gap: '7px', color: '#CBD5E1', fontSize: '0.8rem', fontWeight: 700 }}>
+                Current password
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={passwordCurrent}
+                  onChange={e => setPasswordCurrent(e.target.value)}
+                  className="admin-input"
+                  placeholder="Enter your current password"
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', color: '#CBD5E1', fontSize: '0.8rem', fontWeight: 700 }}>
+                New password
+                <input
+                  type="password"
+                  required
+                  minLength={12}
+                  autoComplete="new-password"
+                  value={passwordNext}
+                  onChange={e => setPasswordNext(e.target.value)}
+                  className="admin-input"
+                  placeholder="At least 12 characters"
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '7px', color: '#CBD5E1', fontSize: '0.8rem', fontWeight: 700 }}>
+                Confirm new password
+                <input
+                  type="password"
+                  required
+                  minLength={12}
+                  autoComplete="new-password"
+                  value={passwordConfirm}
+                  onChange={e => setPasswordConfirm(e.target.value)}
+                  className="admin-input"
+                  placeholder="Repeat the new password"
+                />
+              </label>
+
+              {passwordMessage && (
+                <div
+                  role="alert"
+                  style={{
+                    padding: '11px 13px',
+                    borderRadius: '9px',
+                    color: passwordMessage.type === 'success' ? '#6EE7B7' : '#FCA5A5',
+                    background: passwordMessage.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                    border: `1px solid ${passwordMessage.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {passwordMessage.text}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="submit" className="btn-cyber-primary" disabled={passwordSaving} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <KeyRound size={15} />
+                  {passwordSaving ? 'Updating…' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* TAB 1: EVENTS MANAGEMENT */}
         {activeTab === 'events' && (
@@ -2198,14 +2442,29 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         {/* TAB 7: COORDINATORS DIRECTORY & COMMS (8.2 Coordinate with Event Coordinators) */}
         {activeTab === 'coordinators' && isDeptChief && (
           <div>
-            <div style={{ marginBottom: '18px' }}>
-              <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
-                {deptCode} Event Coordinators Directory
-              </h3>
-              <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                Contact information, assigned events, and direct communication links for department faculty & student coordinators
-              </p>
+            <div style={{ marginBottom: '18px', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div>
+                <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
+                  {deptCode} Operations Staff
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0', maxWidth: '680px' }}>
+                  Create and manage event coordinators, payment reviewers, and gate check-in staff for {deptCode} only. Every change is validated by the backend.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openCreateStaffForm}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(52, 211, 153, 0.55)', borderRadius: '8px', padding: '9px 13px', background: 'linear-gradient(135deg, #059669, #10B981)', color: '#04120D', fontWeight: 800, cursor: 'pointer' }}
+              >
+                <UserPlus size={15} /> Add department staff
+              </button>
             </div>
+
+            {(staffError || staffMessage) && (
+              <div style={{ marginBottom: '14px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${staffError ? 'rgba(248,113,113,0.55)' : 'rgba(52,211,153,0.45)'}`, background: staffError ? 'rgba(127,29,29,0.25)' : 'rgba(6,78,59,0.28)', color: staffError ? '#FCA5A5' : '#A7F3D0', fontSize: '0.8rem' }}>
+                {staffError || staffMessage}
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
               {departmentCoordinatorsList.map(coord => (
@@ -2328,13 +2587,134 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     >
                       <Copy size={13} />
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openEditStaffForm(coord)}
+                      title="Edit staff account"
+                      style={{ background: 'rgba(59, 130, 246, 0.16)', border: '1px solid rgba(59, 130, 246, 0.45)', borderRadius: '6px', padding: '6px 10px', color: '#93C5FD', cursor: 'pointer' }}
+                    >
+                      <Edit3 size={13} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleStaffDelete(coord)}
+                      title="Delete staff account"
+                      style={{ background: 'rgba(239, 68, 68, 0.14)', border: '1px solid rgba(239, 68, 68, 0.42)', borderRadius: '6px', padding: '6px 10px', color: '#FCA5A5', cursor: 'pointer' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
+
+            {departmentCoordinatorsList.length === 0 && (
+              <div style={{ padding: '28px', borderRadius: '12px', border: '1px dashed rgba(148,163,184,0.3)', color: '#A8B3C2', textAlign: 'center', fontSize: '0.84rem' }}>
+                No event coordinators, payment reviewers, or gate check-in staff are assigned to {deptCode} yet.
+              </div>
+            )}
           </div>
         )}
       </main>
+
+      {/* Department-scoped operations staff management */}
+      {staffFormOpen && isDeptChief && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}
+          onClick={() => !staffSaving && setStaffFormOpen(false)}
+        >
+          <div
+            style={{ width: 'min(720px, 100%)', maxHeight: '92vh', overflowY: 'auto', background: '#101A35', border: '1px solid rgba(96,165,250,0.42)', borderRadius: '14px', padding: '24px', boxShadow: '0 24px 70px rgba(0,0,0,0.65)' }}
+            onClick={event => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }}>
+              <div>
+                <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.22rem', fontWeight: 800 }}>{editingStaffId ? 'Edit department staff' : 'Add department staff'}</h3>
+                <p style={{ margin: '4px 0 0', color: '#A8B3C2', fontSize: '0.78rem' }}>Department locked to {deptCode}. The server will reject cross-department assignments.</p>
+              </div>
+              <button type="button" onClick={() => !staffSaving && setStaffFormOpen(false)} style={{ border: '1px solid rgba(148,163,184,0.35)', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', color: '#CBD5E1', cursor: 'pointer', padding: '7px' }}>
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            {staffError && <div style={{ marginBottom: '14px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(127,29,29,0.3)', border: '1px solid rgba(248,113,113,0.5)', color: '#FCA5A5', fontSize: '0.8rem' }}>{staffError}</div>}
+
+            <form onSubmit={handleStaffSave} style={{ display: 'grid', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                  Full name *
+                  <input value={staffForm.fullName} onChange={event => setStaffForm({ ...staffForm, fullName: event.target.value })} required style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
+                </label>
+                <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                  Username *
+                  <input value={staffForm.username} onChange={event => setStaffForm({ ...staffForm, username: event.target.value })} required pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                  Login role *
+                  <select value={staffForm.role} onChange={event => setStaffForm({ ...staffForm, role: event.target.value as ManagedStaffRole, assignedEvents: event.target.value === 'finance_reviewer' ? [] : staffForm.assignedEvents })} style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }}>
+                    <option value="event_coordinator">Event Coordinator</option>
+                    <option value="finance_reviewer">Payment Reviewer</option>
+                    <option value="volunteer_checkin">Gate Check-in Volunteer</option>
+                    <option value="checkin_staff">Gate Check-in Staff</option>
+                  </select>
+                </label>
+                <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                  Designation *
+                  <input value={staffForm.designation} onChange={event => setStaffForm({ ...staffForm, designation: event.target.value })} required style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
+                </label>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                  Email *
+                  <input type="email" value={staffForm.email} onChange={event => setStaffForm({ ...staffForm, email: event.target.value })} required style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
+                </label>
+                <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                  Phone
+                  <input value={staffForm.phone} onChange={event => setStaffForm({ ...staffForm, phone: event.target.value })} style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
+                </label>
+              </div>
+
+              <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                {editingStaffId ? 'New password (optional)' : 'Initial password *'}
+                <input type="password" value={staffForm.password} onChange={event => setStaffForm({ ...staffForm, password: event.target.value })} required={!editingStaffId} minLength={12} placeholder={editingStaffId ? 'Leave blank to keep current password' : 'At least 12 characters'} style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
+              </label>
+
+              <div style={{ border: '1px solid rgba(148,163,184,0.22)', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
+                  <div>
+                    <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.84rem' }}>Event access</div>
+                    <div style={{ color: '#94A3B8', fontSize: '0.72rem' }}>{staffForm.role === 'finance_reviewer' ? 'Payment reviewers can review all payment records for this department.' : 'Only events belonging to this department are listed.'}</div>
+                  </div>
+                  {staffForm.role !== 'finance_reviewer' && <span style={{ color: '#38BDF8', fontSize: '0.72rem', fontWeight: 700 }}>{staffForm.assignedEvents.length} selected</span>}
+                </div>
+                {staffForm.role !== 'finance_reviewer' ? (
+                  events.length > 0 ? (
+                    <div style={{ display: 'grid', gap: '7px', maxHeight: '170px', overflowY: 'auto' }}>
+                      {events.map(eventItem => (
+                        <label key={eventItem.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#CBD5E1', fontSize: '0.78rem' }}>
+                          <input type="checkbox" checked={staffForm.assignedEvents.includes(eventItem.id)} onChange={change => setStaffForm({ ...staffForm, assignedEvents: change.target.checked ? [...staffForm.assignedEvents, eventItem.id] : staffForm.assignedEvents.filter(id => id !== eventItem.id) })} />
+                          <span>{eventItem.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : <div style={{ color: '#FBBF24', fontSize: '0.78rem' }}>Create a department event before assigning event staff.</div>
+                ) : <div style={{ color: '#A7F3D0', fontSize: '0.78rem' }}>Department-wide payment review scope. No event assignment is required.</div>}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '9px', marginTop: '4px' }}>
+                <button type="button" disabled={staffSaving} onClick={() => setStaffFormOpen(false)} style={{ border: '1px solid rgba(148,163,184,0.35)', borderRadius: '8px', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', color: '#CBD5E1', cursor: staffSaving ? 'not-allowed' : 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={staffSaving} style={{ border: '1px solid rgba(96,165,250,0.6)', borderRadius: '8px', padding: '10px 16px', background: '#2563EB', color: '#FFFFFF', fontWeight: 800, cursor: staffSaving ? 'wait' : 'pointer', opacity: staffSaving ? 0.7 : 1 }}>{staffSaving ? 'Saving…' : editingStaffId ? 'Save staff changes' : 'Create staff account'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Spot Registration Modal (8.1 Create spot registrations on fest day) */}
       {isSpotRegOpen && (

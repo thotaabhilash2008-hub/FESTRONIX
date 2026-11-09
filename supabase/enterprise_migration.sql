@@ -170,6 +170,13 @@ CREATE POLICY "Admins can delete announcements"
 -- 5.4 DEPARTMENTS
 ALTER TABLE public.departments ENABLE ROW LEVEL SECURITY;
 
+-- CSD is an independent department and must exist in existing projects too.
+INSERT INTO public.departments (code, name, description, chief_coordinator, contact, icon_name)
+SELECT 'CSD', 'Computer Science & Data Science (CSD)',
+       'Big data pipelines, statistical predictive modeling, data visualization, and intelligence systems.',
+       'Dr. S. Radhika', 'csd.festronix@vardhaman.org', 'Database'
+WHERE NOT EXISTS (SELECT 1 FROM public.departments WHERE upper(code) = 'CSD');
+
 DROP POLICY IF EXISTS "Departments are publicly readable" ON public.departments;
 CREATE POLICY "Departments are publicly readable" 
   ON public.departments FOR SELECT 
@@ -416,13 +423,13 @@ BEGIN
   );
 
   PERFORM public.provision_festronix_admin(
-    'csd.festronix@vardhaman.org', 'csd2026', 'Dr. S. Radhika', 'dept_csd',
-    'dept_coordinator', 'Department Coordinator (CSD)', 'CSD', '+91 98480 22009'
+    'csm.festronix@vardhaman.org', 'csm2026', 'Dr. V. Prasad', 'dept_csm',
+    'dept_coordinator', 'Department Coordinator (CSM)', 'CSM', '+91 98480 22007'
   );
 
   PERFORM public.provision_festronix_admin(
-    'csm.festronix@vardhaman.org', 'csm2026', 'Dr. V. Prasad', 'dept_csm',
-    'dept_coordinator', 'Department Coordinator (CSM)', 'CSM', '+91 98480 22007'
+    'csd.festronix@vardhaman.org', 'csd2026', 'Dr. S. Radhika', 'dept_csd',
+    'dept_coordinator', 'Department Coordinator (CSD)', 'CSD', '+91 98480 22009'
   );
 
   PERFORM public.provision_festronix_admin(

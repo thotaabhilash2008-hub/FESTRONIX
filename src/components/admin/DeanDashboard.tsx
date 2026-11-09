@@ -5711,7 +5711,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. CSM"
+                    placeholder="e.g. CSD"
                     value={deptCode}
                     onChange={e => setDeptCode(e.target.value.toUpperCase())}
                     required
@@ -5736,7 +5736,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. AI & Machine Learning"
+                    placeholder="e.g. Computer Science & Data Science"
                     value={deptName}
                     onChange={e => setDeptName(e.target.value)}
                     required

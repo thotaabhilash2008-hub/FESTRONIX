@@ -17,6 +17,45 @@ type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 const PAYMENT_PROOF_BUCKET = 'payment-screenshots';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Keep legacy labels readable without conflating the real CSD department. */
+function canonicalDepartmentCode(value: unknown): string | undefined {
+  const code = String(value ?? '').trim().toUpperCase();
+  if (!code) return undefined;
+  return code === 'AIML' || code === 'AI&ML' ? 'CSM' : code;
+}
+
+function canonicalDepartmentName(code: string, name?: string): string {
+  if (code === 'CSM') return 'Computer Science & Machine Learning (CSM)';
+  if (code === 'CSD') return 'Computer Science & Data Science (CSD)';
+  return name || code;
+}
+
+function normalizeDepartmentRows(rows: any[]): Department[] {
+  const byCode = new Map<string, { department: Department; priority: number }>();
+  for (const row of rows) {
+    const code = canonicalDepartmentCode(row?.code);
+    if (!code) continue;
+    const originalCode = String(row?.code || '').trim().toUpperCase();
+    const department: Department = {
+      id: row.id || `dept-${code.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      code,
+      name: canonicalDepartmentName(code, row.name),
+      description: code === 'CSM'
+        ? 'Applied computing, machine learning, computer vision, robotics, and autonomous systems.'
+        : code === 'CSD'
+          ? 'Big data pipelines, statistical predictive modeling, data visualization, and intelligence systems.'
+          : row.description || '',
+      chiefCoordinator: row.chiefCoordinator ?? row.chief_coordinator ?? '',
+      contact: row.contact || '',
+      iconName: row.iconName ?? row.icon_name ?? 'Cpu'
+    };
+    const priority = originalCode === code ? 2 : 1;
+    const existing = byCode.get(code);
+    if (!existing || priority > existing.priority) byCode.set(code, { department, priority });
+  }
+  return [...byCode.values()].map(item => item.department);
+}
+
 function isUuid(value: string | undefined | null): value is string {
   return Boolean(value && UUID_PATTERN.test(value));
 }
@@ -53,7 +92,7 @@ function eventFromDb(row: EventRow): FestEvent {
     title: row.title,
     tagline: row.tagline || undefined,
     departmentId: row.department_id || '',
-    departmentCode: row.department_code,
+    departmentCode: canonicalDepartmentCode(row.department_code) || row.department_code,
     category: row.category,
     format: row.format,
     minTeamSize: row.min_team_size,
@@ -90,7 +129,7 @@ function eventToDb(evt: FestEvent) {
     slug: evt.slug,
     title: evt.title,
     tagline: evt.tagline || null,
-    department_code: evt.departmentCode,
+    department_code: canonicalDepartmentCode(evt.departmentCode) || evt.departmentCode,
     category: evt.category,
     format: evt.format,
     min_team_size: evt.minTeamSize,
@@ -126,7 +165,7 @@ function announcementFromDb(row: AnnouncementRow): Announcement {
     message: row.message,
     type: row.type,
     scope: row.scope === 'event' ? 'department' : row.scope,
-    departmentCode: row.department_code || undefined,
+    departmentCode: canonicalDepartmentCode(row.department_code) || undefined,
     date: row.date_display || new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 }
@@ -152,7 +191,7 @@ function registrationFromDb(row: any): Registration {
     buyerRoll: row.buyer_roll || undefined,
     eventId: row.event_id,
     eventTitle: row.event_title,
-    departmentCode: row.department_code || row.events?.department_code || undefined,
+    departmentCode: canonicalDepartmentCode(row.department_code || row.events?.department_code),
     teamName: row.team_name || undefined,
     teamCode: row.team_code || undefined,
     leaderName: row.leader_name,
@@ -168,8 +207,11 @@ function registrationFromDb(row: any): Registration {
       ? new Date(row.created_at).toISOString().replace('T', ' ').slice(0, 16)
       : new Date().toISOString().replace('T', ' ').slice(0, 16),
     paymentStatus: row.payment_status,
+    paymentMethod: row.payment_method || undefined,
     transactionId: row.transaction_id || undefined,
     paymentScreenshotUrl: row.payment_screenshot_url || undefined,
+    razorpayOrderId: row.razorpay_order_id || undefined,
+    razorpayPaymentId: row.razorpay_payment_id || undefined,
     rejectionReason: row.rejection_reason || undefined,
     verifiedBy: row.verified_by || undefined,
     verifiedAt: row.verified_at || undefined,
@@ -211,6 +253,43 @@ function teamFromDb(row: any): Team {
 
 export class StorageService {
   private static isRealtimeInitialized = false;
+  private static realtimeRefreshes = new Map<string, { inFlight: boolean; pending: boolean }>();
+
+  private static publishRealtimeUpdate(eventName: string, detail: unknown): void {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
+  }
+
+  /**
+   * Realtime can emit several table events for one registration change. Keep
+   * one refresh per resource in flight and queue only the latest follow-up so
+   * a slow request cannot be duplicated until every request is aborted.
+   */
+  private static scheduleRealtimeRefresh<T>(
+    key: string,
+    loader: () => Promise<T>,
+    eventName: string
+  ): void {
+    const state = this.realtimeRefreshes.get(key) || { inFlight: false, pending: false };
+    this.realtimeRefreshes.set(key, state);
+
+    if (state.inFlight) {
+      state.pending = true;
+      return;
+    }
+
+    state.inFlight = true;
+    void loader()
+      .then(data => this.publishRealtimeUpdate(eventName, data))
+      .catch(error => console.warn(`Realtime ${key} refresh failed:`, error))
+      .finally(() => {
+        state.inFlight = false;
+        if (state.pending) {
+          state.pending = false;
+          window.setTimeout(() => this.scheduleRealtimeRefresh(key, loader, eventName), 120);
+        }
+      });
+  }
 
   private static canUseLocalDevelopmentMode(operation: string): boolean {
     if (isSupabaseConfigured()) return false;
@@ -243,28 +322,25 @@ export class StorageService {
       supabase
         .channel('festronix_live_sync')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, () => {
-          this.fetchRegistrations();
+          this.scheduleRealtimeRefresh('registrations', () => this.fetchRegistrations(), 'festronix:regs-updated');
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'registration_members' }, () => {
-          this.fetchRegistrations();
+          this.scheduleRealtimeRefresh('registrations', () => this.fetchRegistrations(), 'festronix:regs-updated');
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tickets' }, () => {
-          this.fetchRegistrations();
+          this.scheduleRealtimeRefresh('registrations', () => this.fetchRegistrations(), 'festronix:regs-updated');
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_proofs' }, () => {
-          this.fetchRegistrations();
+          this.scheduleRealtimeRefresh('registrations', () => this.fetchRegistrations(), 'festronix:regs-updated');
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
-          this.fetchEvents();
+          this.scheduleRealtimeRefresh('events', () => this.fetchEvents(), 'festronix:events-updated');
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, () => {
           this.fetchDepartments();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
-          this.fetchAnnouncements();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
-          this.fetchCloudTeams();
+          this.scheduleRealtimeRefresh('announcements', () => this.fetchAnnouncements(), 'festronix:announcements-updated');
         })
         .on('broadcast', { event: 'team_reserved' }, (payload: any) => {
           if (payload?.payload?.team) {
@@ -343,7 +419,6 @@ export class StorageService {
       if (error) throw new Error(`Unable to load events: ${error.message}`);
       const mapped = (data || []).map(eventFromDb);
       this.saveEvents(mapped);
-      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: mapped }));
       return mapped;
     }
     return this.getEvents();
@@ -484,7 +559,7 @@ export class StorageService {
   static resolveDepartmentForRegistration(r: Registration, cachedEvents?: FestEvent[]): string {
     // 1. Explicit department code on registration
     if (r.departmentCode) {
-      return r.departmentCode.toUpperCase();
+      return canonicalDepartmentCode(r.departmentCode) || r.departmentCode.toUpperCase();
     }
 
     // 2. Derive from teamCode prefix (e.g. FX-CS-..., FX-ECE-..., FX-IT-..., FX-CSM-...)
@@ -566,9 +641,9 @@ export class StorageService {
     return current;
   }
 
-  static saveRegistrations(regs: Registration[]): void {
+  static saveRegistrations(regs: Registration[], emitUpdate = true): void {
     localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs));
-    if (typeof window !== 'undefined') {
+    if (emitUpdate && typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('festronix:regs-updated', { detail: regs }));
     }
   }
@@ -594,7 +669,10 @@ export class StorageService {
         .order('created_at', { ascending: false });
       if (error) throw new Error(`Unable to load registrations: ${error.message}`);
       const mapped = await this.signPaymentProofUrls((data || []).map(registrationFromDb));
-      this.saveRegistrations(mapped);
+      // A read must not emit the same event that triggered it. Realtime
+      // callers publish after the fetch completes; mutation callers keep the
+      // default notification behavior.
+      this.saveRegistrations(mapped, false);
       return mapped;
     }
     return this.getRegistrations();
@@ -1294,7 +1372,6 @@ export class StorageService {
       if (error) throw new Error(`Unable to load announcements: ${error.message}`);
       const mapped = (data || []).map(announcementFromDb);
       this.saveAnnouncements(mapped);
-      window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: mapped }));
       return mapped;
     }
     return this.getAnnouncements();
@@ -1386,7 +1463,7 @@ export class StorageService {
   }
 
   static getDepartmentStats(deptCode: string): FestStats {
-    const cleanDept = deptCode.toUpperCase();
+    const cleanDept = canonicalDepartmentCode(deptCode) || deptCode.toUpperCase();
     const allEvents = this.getEvents().filter(
       e => e.departmentCode.toUpperCase() === cleanDept
     );
@@ -1422,7 +1499,7 @@ export class StorageService {
   }
 
   static getDepartmentRegistrations(deptCode: string): Registration[] {
-    const cleanDept = deptCode.toUpperCase();
+    const cleanDept = canonicalDepartmentCode(deptCode) || deptCode.toUpperCase();
     const allEvents = this.getEvents().filter(e => e.departmentCode.toUpperCase() === cleanDept);
     return this.getRegistrations().filter(r => this.resolveDepartmentForRegistration(r, allEvents) === cleanDept);
   }
@@ -1437,7 +1514,11 @@ export class StorageService {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const normalized = normalizeDepartmentRows(parsed);
+          if (normalized.length > 0) {
+            localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(normalized));
+            return normalized;
+          }
         }
       } catch (err) {
         console.warn('Failed to parse cached departments:', err);
@@ -1445,8 +1526,9 @@ export class StorageService {
     }
     if (isSupabaseConfigured()) return [];
     // Default to DEPARTMENTS mock data and persist for offline development.
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEPARTMENTS));
-    return [...DEPARTMENTS];
+    const normalized = normalizeDepartmentRows(DEPARTMENTS);
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(normalized));
+    return normalized;
   }
 
   static saveDepartments(departments: Department[]): void {
@@ -1458,15 +1540,7 @@ export class StorageService {
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.from('departments').select('*').order('name', { ascending: true });
       if (error) throw new Error(`Unable to load departments: ${error.message}`);
-      const mapped: Department[] = (data || []).map((d: any) => ({
-        id: d.id,
-        code: d.code,
-        name: d.name,
-        description: d.description || '',
-        chiefCoordinator: d.chief_coordinator || '',
-        contact: d.contact || '',
-        iconName: d.icon_name || 'Cpu'
-      }));
+      const mapped = normalizeDepartmentRows(data || []);
       this.saveDepartments(mapped);
       return mapped;
     }
@@ -1764,6 +1838,12 @@ export class StorageService {
 
   static async fetchCloudTeams(): Promise<Team[]> {
     if (!isSupabaseConfigured()) return this.getTeams();
+
+    // Team rows are private. A public pass lookup should continue using the
+    // privacy-safe registration payload instead of attempting a direct table read.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return this.getTeams();
+
     const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
     if (error) throw new Error(`Unable to load your teams: ${error.message}`);
     const teams = (data || []).map(teamFromDb);

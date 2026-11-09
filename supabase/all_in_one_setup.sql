@@ -874,6 +874,7 @@ INSERT INTO public.departments (id, code, name, description, chief_coordinator, 
   (uuid_generate_v4(), 'MECH', 'Mechanical Engineering', 'CAD/CAM design, drone dynamics, RC racing, and 3D additive manufacturing.', 'Dr. C. H. Rao', 'mech.festronix@vardhaman.org', 'Wrench'),
   (uuid_generate_v4(), 'CIVIL', 'Civil Engineering', 'Smart city modeling, seismic structural design, and bridge load-testing.', 'Prof. P. Sunitha', 'civil.festronix@vardhaman.org', 'Building'),
   (uuid_generate_v4(), 'CSM', 'Computer Science & Machine Learning (CSM)', 'Applied computing, machine learning, computer vision, robotics, and autonomous systems.', 'Dr. V. Prasad', 'csm.festronix@vardhaman.org', 'Brain'),
+  (uuid_generate_v4(), 'CSD', 'Computer Science & Data Science (CSD)', 'Big data pipelines, statistical predictive modeling, data visualization, and intelligence systems.', 'Dr. S. Radhika', 'csd.festronix@vardhaman.org', 'Database'),
   (uuid_generate_v4(), 'MBA', 'Management & Humanities', 'Venture pitch deck, corporate crisis simulations, and fintech trading floors.', 'Prof. R. L. Narayana', 'mba.festronix@vardhaman.org', 'Briefcase')
 ON CONFLICT (code) DO NOTHING;
 

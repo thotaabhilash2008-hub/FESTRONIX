@@ -1,19 +1,21 @@
-import React from 'react';
-import { 
-  Building2, Layers, ShieldCheck, Users, QrCode, Clock, Megaphone, 
-  FileSpreadsheet, Phone, Globe, LogOut, ChevronRight, Sparkles
+import React, { useState } from 'react';
+import {
+  Building2, Layers, ShieldCheck, Users, QrCode, Clock, Megaphone,
+  FileSpreadsheet, Phone, Globe, LogOut, ChevronRight, Sparkles, KeyRound,
+  Menu, X
 } from 'lucide-react';
 import { AdminUser } from '../../services/adminAuthService';
 
-export type DeptDashboardTab = 
-  | 'events' 
-  | 'readiness' 
-  | 'roster' 
-  | 'checkin' 
-  | 'payments' 
-  | 'announcements' 
-  | 'reports' 
-  | 'coordinators';
+export type DeptDashboardTab =
+  | 'events'
+  | 'readiness'
+  | 'roster'
+  | 'checkin'
+  | 'payments'
+  | 'announcements'
+  | 'reports'
+  | 'coordinators'
+  | 'security';
 
 interface DeptSidebarProps {
   adminUser: AdminUser;
@@ -48,66 +50,111 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
   announcementsCount,
   coordinatorsCount,
   onSwitchToFest,
-  onLogout
+  onLogout,
 }) => {
+  // Mobile drawer state
+  const [open, setOpen] = useState(false);
+
+  // Helper for footer button styling
+  function footerButtonStyle(color: string, hoverBg: string) {
+    return {
+      flex: 1,
+      background: 'rgba(255, 255, 255, 0.04)',
+      border: `1px solid rgba(148, 163, 184, 0.2)`,
+      borderRadius: '8px',
+      padding: '7px 8px',
+      color: '#94A3B8',
+      fontSize: '0.72rem',
+      fontWeight: 700 as const,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '6px',
+      transition: 'all 0.15s ease',
+      onMouseEnter: (e: any) => {
+        e.currentTarget.style.background = hoverBg;
+        e.currentTarget.style.color = color;
+        e.currentTarget.style.borderColor = `${color}55`;
+      },
+      onMouseLeave: (e: any) => {
+        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+        e.currentTarget.style.color = '#94A3B8';
+        e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+      },
+    } as any;
+  }
+
   const menuItems = [
-    { 
-      id: 'events' as DeptDashboardTab, 
-      label: isEventCoord ? 'Assigned Events' : `${deptCode} Events`, 
+    {
+      id: 'events' as DeptDashboardTab,
+      label: isEventCoord ? 'Assigned Events' : `${deptCode} Events`,
       icon: Layers,
-      badge: eventsCount > 0 ? String(eventsCount) : undefined
+      badge: eventsCount > 0 ? String(eventsCount) : undefined,
     },
-    ...(isDeptChief ? [{ 
-      id: 'readiness' as DeptDashboardTab, 
-      label: 'Readiness Audit', 
-      icon: ShieldCheck,
-      badge: `${readinessScore}%`,
-      badgeType: readinessScore >= 80 ? ('success' as const) : ('warning' as const)
-    }] : []),
-    { 
-      id: 'roster' as DeptDashboardTab, 
-      label: 'Attendee Roster', 
+    ...(isDeptChief
+      ? [
+          {
+            id: 'readiness' as DeptDashboardTab,
+            label: 'Readiness Audit',
+            icon: ShieldCheck,
+            badge: `${readinessScore}%`,
+            badgeType: readinessScore >= 80 ? ('success' as const) : ('warning' as const),
+          },
+        ]
+      : []),
+    {
+      id: 'roster' as DeptDashboardTab,
+      label: 'Attendee Roster',
       icon: Users,
-      badge: rosterCount > 0 ? String(rosterCount) : undefined
+      badge: rosterCount > 0 ? String(rosterCount) : undefined,
     },
-    { 
-      id: 'checkin' as DeptDashboardTab, 
-      label: 'Fast Gate Check-In', 
+    {
+      id: 'checkin' as DeptDashboardTab,
+      label: 'Fast Gate Check-In',
       icon: QrCode,
-      badge: 'QR'
+      badge: 'QR',
     },
-    { 
-      id: 'payments' as DeptDashboardTab, 
-      label: 'Payment Review', 
+    {
+      id: 'payments' as DeptDashboardTab,
+      label: 'Payment Review',
       icon: Clock,
       badge: pendingPaymentsCount > 0 ? String(pendingPaymentsCount) : undefined,
-      badgeType: 'danger' as const
+      badgeType: 'danger' as const,
     },
-    ...(isDeptChief ? [
-      { 
-        id: 'announcements' as DeptDashboardTab, 
-        label: 'Campus Bulletins', 
-        icon: Megaphone,
-        badge: announcementsCount > 0 ? String(announcementsCount) : undefined
-      },
-      { 
-        id: 'reports' as DeptDashboardTab, 
-        label: 'Consolidated Reports', 
-        icon: FileSpreadsheet 
-      },
-      { 
-        id: 'coordinators' as DeptDashboardTab, 
-        label: 'Coordinators Directory', 
-        icon: Phone,
-        badge: coordinatorsCount > 0 ? String(coordinatorsCount) : undefined
-      }
-    ] : [])
+    ...(isDeptChief
+      ? [
+          {
+            id: 'announcements' as DeptDashboardTab,
+            label: 'Campus Bulletins',
+            icon: Megaphone,
+            badge: announcementsCount > 0 ? String(announcementsCount) : undefined,
+          },
+          {
+            id: 'reports' as DeptDashboardTab,
+            label: 'Consolidated Reports',
+            icon: FileSpreadsheet,
+          },
+          {
+            id: 'coordinators' as DeptDashboardTab,
+            label: 'Coordinators Directory',
+            icon: Phone,
+            badge: coordinatorsCount > 0 ? String(coordinatorsCount) : undefined,
+          },
+        ]
+      : []),
+    {
+      id: 'security' as DeptDashboardTab,
+      label: 'Change Password',
+      icon: KeyRound,
+    },
   ];
 
-  return (
-    <aside className="admin-sidebar admin-scrollbar">
+  // Sidebar content used by both desktop and mobile drawer
+  const sidebarContent = () => (
+    <>
       {/* Top Branding Crest */}
-      <div className="admin-sidebar-brand">
+      <div className="admin-sidebar-brand p-4">
         <div>
           <div
             style={{
@@ -118,7 +165,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
               background: 'linear-gradient(90deg, #FFFFFF 0%, #38BDF8 60%, #C084FC 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              lineHeight: 1.1
+              lineHeight: 1.1,
             }}
           >
             FESTRONIX
@@ -129,7 +176,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
               fontWeight: 800,
               color: '#38BDF8',
               letterSpacing: '0.12em',
-              lineHeight: 1.2
+              lineHeight: 1.2,
             }}
           >
             2026
@@ -140,7 +187,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
               color: '#94A3B8',
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
-              marginTop: '1px'
+              marginTop: '1px',
             }}
           >
             Vardhaman College of Engineering
@@ -150,7 +197,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
 
       {/* Department Context Badge */}
       <div style={{ padding: '12px 14px 6px' }}>
-        <div 
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -159,7 +206,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
             borderRadius: '12px',
             background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(37, 99, 235, 0.08) 100%)',
             border: '1px solid rgba(56, 189, 248, 0.28)',
-            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)'
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
           }}
         >
           <div
@@ -172,35 +219,35 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 0 12px rgba(56, 189, 248, 0.35)',
-              flexShrink: 0
+              flexShrink: 0,
             }}
           >
             <Building2 size={16} color="#FFFFFF" />
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div 
-              style={{ 
-                fontSize: '0.78rem', 
-                fontWeight: 800, 
-                color: '#38BDF8', 
-                letterSpacing: '0.05em', 
+            <div
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                color: '#38BDF8',
+                letterSpacing: '0.05em',
                 lineHeight: 1.1,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                textOverflow: 'ellipsis',
               }}
               title={deptName ? `Department of ${deptName}` : `Dept of ${deptCode}`}
             >
               DEPT OF {deptCode}
             </div>
-            <div 
-              style={{ 
-                fontSize: '0.62rem', 
-                color: '#CBD5E1', 
-                fontWeight: 600, 
-                textTransform: 'uppercase', 
+            <div
+              style={{
+                fontSize: '0.62rem',
+                color: '#CBD5E1',
+                fontWeight: 600,
+                textTransform: 'uppercase',
                 marginTop: '2px',
-                letterSpacing: '0.03em'
+                letterSpacing: '0.03em',
               }}
             >
               {isDeptChief ? '🏛️ Department Coordinator Desk' : '🎯 Event Coordinator Desk'}
@@ -210,7 +257,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
       </div>
 
       {/* Navigation List */}
-      <nav className="admin-sidebar-menu admin-scrollbar">
+      <nav className="admin-sidebar-menu admin-scrollbar py-2">
         {menuItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -222,33 +269,19 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '11px', minWidth: 0 }}>
                 <Icon size={17} color={isActive ? '#FFFFFF' : '#94A3B8'} style={{ flexShrink: 0 }} />
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {item.label}
-                </span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
               </div>
               {item.badge !== undefined && (
-                <span 
+                <span
                   className="admin-sidebar-badge"
                   style={{
-                    ...(item.badgeType === 'danger' ? {
-                      background: '#EF4444',
-                      color: '#FFFFFF',
-                      boxShadow: '0 0 10px rgba(239, 68, 68, 0.55)'
-                    } : item.badgeType === 'success' ? {
-                      background: 'rgba(16, 185, 129, 0.25)',
-                      color: '#34D399',
-                      border: '1px solid rgba(16, 185, 129, 0.5)',
-                      boxShadow: '0 0 8px rgba(16, 185, 129, 0.3)'
-                    } : item.badgeType === 'warning' ? {
-                      background: 'rgba(245, 158, 11, 0.25)',
-                      color: '#FBBF24',
-                      border: '1px solid rgba(245, 158, 11, 0.5)',
-                      boxShadow: '0 0 8px rgba(245, 158, 11, 0.3)'
-                    } : {
-                      background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                      color: isActive ? '#FFFFFF' : '#94A3B8',
-                      boxShadow: 'none'
-                    })
+                    ...(item.badgeType === 'danger'
+                      ? { background: '#EF4444', color: '#FFFFFF', boxShadow: '0 0 10px rgba(239, 68, 68, 0.55)' }
+                      : item.badgeType === 'success'
+                      ? { background: 'rgba(16, 185, 129, 0.25)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.5)', boxShadow: '0 0 8px rgba(16, 185, 129, 0.3)' }
+                      : item.badgeType === 'warning'
+                      ? { background: 'rgba(245, 158, 11, 0.25)', color: '#FBBF24', border: '1px solid rgba(245, 158, 11, 0.5)', boxShadow: '0 0 8px rgba(245, 158, 11, 0.3)' }
+                      : { background: isActive ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.08)', color: isActive ? '#FFFFFF' : '#94A3B8', boxShadow: 'none' })
                   }}
                 >
                   {item.badge}
@@ -259,89 +292,37 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
         })}
       </nav>
 
-      {/* Sidebar Footer with Quick Actions & Campus Thumbnail */}
-      <div className="admin-sidebar-footer">
-        {/* Quick Portal Switch & Logout */}
+      {/* Footer */}
+      <div className="admin-sidebar-footer p-4 mt-auto">
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <button
             onClick={onSwitchToFest}
-            style={{
-              flex: 1,
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(148, 163, 184, 0.2)',
-              borderRadius: '8px',
-              padding: '7px 8px',
-              color: '#94A3B8',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
-              e.currentTarget.style.color = '#38BDF8';
-              e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-              e.currentTarget.style.color = '#94A3B8';
-              e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.2)';
-            }}
+            style={footerButtonStyle('#38BDF8', 'rgba(56, 189, 248, 0.12)')}
             title="Switch to Public Fest Portal"
           >
             <Globe size={13} />
             <span>Fest Portal</span>
           </button>
-
           <button
             onClick={onLogout}
-            style={{
-              flex: 1,
-              background: 'rgba(239, 68, 68, 0.06)',
-              border: '1px solid rgba(239, 68, 68, 0.25)',
-              borderRadius: '8px',
-              padding: '7px 8px',
-              color: '#F87171',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.06)';
-              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
-            }}
+            style={footerButtonStyle('#F87171', 'rgba(239, 68, 68, 0.15)')}
             title="Sign Out of Admin Console"
           >
             <LogOut size={13} />
             <span>Sign Out</span>
           </button>
         </div>
-
-        {/* Real Vardhaman College Campus Photo Thumbnail */}
-        <div className="admin-sidebar-campus-thumb">
-          <img 
-            src="/vce_campus_bg.jpg" 
-            alt="Vardhaman College of Engineering Campus" 
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 45%' }} 
+        <div className="admin-sidebar-campus-thumb" style={{ position: 'relative', height: '120px', overflow: 'hidden', borderRadius: '8px' }}>
+          <img
+            src="/vce_campus_bg.jpg"
+            alt="Vardhaman College of Engineering Campus"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 45%' }}
           />
-          <div 
+          <div
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'linear-gradient(180deg, transparent 20%, rgba(9, 14, 26, 0.9) 100%)'
+              background: 'linear-gradient(180deg, transparent 20%, rgba(9, 14, 26, 0.9) 100%)',
             }}
           />
         </div>
@@ -354,7 +335,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
             color: '#CBD5E1',
             textAlign: 'center',
             marginTop: '8px',
-            textTransform: 'uppercase'
+            textTransform: 'uppercase',
           }}
         >
           Vardhaman College of Engineering
@@ -365,13 +346,55 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
             color: '#64748B',
             textAlign: 'center',
             marginTop: '2px',
-            letterSpacing: '0.05em'
+            letterSpacing: '0.05em',
           }}
         >
           Bigger Ideas • Brighter Minds
         </div>
       </div>
+    </>
+  );
+
+  // Render mobile overlay + drawer (uses sidebarContent defined above)
+  const renderDrawer = (
+    <aside className="fixed inset-0 z-40 flex md:hidden" aria-label="Department sidebar">
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+        onClick={() => setOpen(false)}
+      />
+      {/* Drawer */}
+      <div className="relative flex w-64 flex-col bg-gray-900 text-white transition-transform transform translate-x-0" style={{ minHeight: '100vh' }}>
+        {/* Close button */}
+        <button
+          className="absolute top-4 right-4 text-gray-300 hover:text-white"
+          onClick={() => setOpen(false)}
+        >
+          <X size={20} />
+        </button>
+        {sidebarContent()}
+      </div>
     </aside>
   );
-};
 
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="admin-sidebar admin-scrollbar hidden md:block">
+        {sidebarContent()}
+      </aside>
+
+      {/* Mobile hamburger button */}
+      <button
+        className="fixed bottom-4 right-4 md:hidden z-30 flex items-center justify-center w-12 h-12 bg-gray-800 text-white rounded-full shadow-lg"
+        onClick={() => setOpen(true)}
+        aria-label="Open navigation menu"
+      >
+        <Menu size={24} />
+      </button>
+
+      {/* Mobile drawer */}
+      {open && renderDrawer}
+    </>
+  );
+};
