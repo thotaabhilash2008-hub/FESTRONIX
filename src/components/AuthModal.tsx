@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Lock, Mail, Phone, School, Eye, EyeOff, LogIn, UserPlus, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AuthService } from '../services/authService';
-import { isSupabaseConfigured } from '../lib/supabase';
 import { User as UserType } from '../types/festronix';
 
 interface AuthModalProps {
@@ -142,12 +141,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillDemoAccount = (roll = '25881A05FC') => {
-    setSignInIdentifier(roll);
-    setSignInPassword('password123');
-    setError(null);
   };
 
   return (
@@ -409,55 +402,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </div>
-
-            {/* Demo shortcuts are limited to local development. */}
-            {!isSupabaseConfigured() && <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px',
-                padding: '8px 12px',
-                background: 'rgba(16, 26, 53, 0.75)',
-                border: '1px dashed rgba(120, 149, 147, 0.35)',
-                borderRadius: '8px',
-                fontSize: '0.75rem'
-              }}
-            >
-              <span style={{ color: '#A8B3C2' }}>Quick fill demo:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('25881A05FC')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#BACEBB',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  25881A05FC (Dhanush)
-                </button>
-                <span style={{ color: 'rgba(255,255,255,0.25)' }}>•</span>
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('22VCECS104')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#789593',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  22VCECS104 (Rahul)
-                </button>
-              </div>
-            </div>}
 
             <button
               type="submit"

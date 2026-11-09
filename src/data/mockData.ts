@@ -921,54 +921,34 @@ export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
     scopeTag: 'super_admin',
     responsibilities: 'Central executive authority overseeing fest, departments, assignments, accounts, roles, content and reports.',
     accessBoundary: 'Fest-wide administration.',
-    accounts: [
-      'Md. Asif (Dean SAC) - dean.sac@vardhaman.org (deansac2026)',
-      'CONNECT Club (CC) - connect.club@vardhaman.org (connect2026)',
-      'VENCORPIA - vencorpia@vardhaman.org (vencorpia2026)',
-      'System Admin - admin@gmail.com (admin2026)'
-    ]
+    accounts: ['Managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Department Staff Coordinator',
     scopeTag: 'dept_chief_coordinator',
     responsibilities: 'Departmental authority monitoring department events, capacity, registrations and spot passes.',
     accessBoundary: "Their department's events.",
-    accounts: [
-      'MECH: B Dhanraj - dhanraj2205@vardhaman.org (dhanraj2026 / mech2026)',
-      'ECE: R Phani Vidyadhar - rphaniv@vardhaman.org (phaniv2026 / ece2026)',
-      'EEE: S Vinod Reddy - s.vinodreddy@vardhaman.org (vinodreddy2026 / eee2026)',
-      'CSD: V Vinod Kumar - vinodkumar1807@vardhaman.org (vinodkumar2026 / csd2026)',
-      'CSE: M Raghavendra - raghavendra1797@vardhaman.org (raghavendra2026 / cse2026)',
-      'CSE: Ch Bala Subramanyam - balu1681@vardhaman.org (balu2026 / cse2026)',
-      'CSE: BJV Varma - varma@vardhaman.org (varma2026 / cse2026)',
-      'IT: P Dastagiri Reddy - dastagiri1918@vardhaman.org (dastagiri2026 / it2026)',
-      'CIVIL: K Chaitanya - chaitanya_vce1658@vardhaman.org (chaitanya2026 / civil2026)',
-      'CSM: P Rajashekar - rajashekhar1833@vardhaman.org (rajashekhar2026 / csm2026)',
-      'MBA: Prof. R. L. Narayana - mba.festronix@vardhaman.org (mba2026)'
-    ]
+    accounts: ['Department-scoped accounts are managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Event Coordinators',
     scopeTag: 'event_coordinator',
     responsibilities: 'Manage assigned event details, team check-in, scoring, and spot registrations.',
     accessBoundary: 'Assigned event(s) only unless separately authorised.',
-    accounts: [
-      'Event Operations Desk - eventcoord.fest@vardhaman.org (eventcoord2026)',
-      'Department Passcodes: <dept>2026 or Universal: festcoord2026'
-    ]
+    accounts: ['Event-scoped accounts are managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Finance / payment reviewer',
     scopeTag: 'finance',
     responsibilities: 'Review payment evidence and collection reports.',
     accessBoundary: 'Payment data needed for assigned duties.',
-    accounts: ['finance_reviewer - accounts.fest@vardhaman.org (finance2026)']
+    accounts: ['Payment reviewer accounts are managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Volunteer / check-in staff',
     scopeTag: 'volunteer',
     responsibilities: 'Scan tickets, validate QR passes, and support gate operations.',
     accessBoundary: 'Limited check-in access.',
-    accounts: ['volunteer_staff - volunteers.fest@vardhaman.org (volunteer2026)']
+    accounts: ['Gate staff accounts are managed in Supabase Auth and the Admin Portal.']
   }
 ];

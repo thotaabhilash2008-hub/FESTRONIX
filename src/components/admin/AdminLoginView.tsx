@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Shield, Building2, User, Key, ArrowRight, ArrowLeft, Award, Lock,
-  AlertCircle, FileText, CreditCard, Eye, EyeOff, ShieldCheck, Users, Phone, Mail, CheckCircle2
+  AlertCircle, FileText, CreditCard, Eye, EyeOff, ShieldCheck, Users, CheckCircle2
 } from 'lucide-react';
 import { AdminAuthService, AdminUser } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
@@ -13,79 +13,11 @@ interface AdminLoginViewProps {
   onBackToFest: () => void;
 }
 
-export const OFFICIAL_STAFF_COORDINATORS: Record<string, {
-  name: string;
-  email: string;
-  phone: string;
-  deptName: string;
-  coordinators?: Array<{ name: string; email: string; phone: string }>;
-}> = {
-  MECH: {
-    name: 'B Dhanraj',
-    email: 'dhanraj2205@vardhaman.org',
-    phone: '9441381799',
-    deptName: 'Mechanical Engineering'
-  },
-  ECE: {
-    name: 'R Phani Vidyadhar',
-    email: 'rphaniv@vardhaman.org',
-    phone: '8801333811',
-    deptName: 'Electronics & Communication'
-  },
-  EEE: {
-    name: 'S Vinod Reddy',
-    email: 's.vinodreddy@vardhaman.org',
-    phone: '8125421181',
-    deptName: 'Electrical & Electronics'
-  },
-  CSD: {
-    name: 'V Vinod Kumar',
-    email: 'vinodkumar1807@vardhaman.org',
-    phone: '8897715060',
-    deptName: 'CSE (Data Science)'
-  },
-  CSE: {
-    name: 'M Raghavendra',
-    email: 'raghavendra1797@vardhaman.org',
-    phone: '6303169820',
-    deptName: 'Computer Science & Engineering',
-    coordinators: [
-      { name: 'M Raghavendra', email: 'raghavendra1797@vardhaman.org', phone: '6303169820' },
-      { name: 'Ch Bala Subramanyam', email: 'balu1681@vardhaman.org', phone: '8184864242' },
-      { name: 'BJV Varma', email: 'varma@vardhaman.org', phone: '8143275536' }
-    ]
-  },
-  IT: {
-    name: 'P Dastagiri Reddy',
-    email: 'dastagiri1918@vardhaman.org',
-    phone: '9966676005',
-    deptName: 'Information Technology'
-  },
-  CIVIL: {
-    name: 'K Chaitanya',
-    email: 'chaitanya_vce1658@vardhaman.org',
-    phone: '7416413410',
-    deptName: 'Civil Engineering'
-  },
-  CSM: {
-    name: 'P Rajashekar',
-    email: 'rajashekhar1833@vardhaman.org',
-    phone: '7386407609',
-    deptName: 'CSE (AI & Machine Learning)'
-  },
-  MBA: {
-    name: 'Prof. R. L. Narayana',
-    email: 'mba.festronix@vardhaman.org',
-    phone: '+91 98480 22008',
-    deptName: 'Master of Business Administration'
-  }
-};
-
 export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, onBackToFest }) => {
   // 3 Distinct Login Types requested by user:
   // 1. asif sir / cc / vencorpia (super_admin)
   // 2. dept co ordinator (dept)
-  // 3. event co ordinators (event_coord)
+  // 3. event coordinators
   // + ops (finance & volunteer)
   const [activeTab, setActiveTab] = useState<'super_admin' | 'dept' | 'event_coord' | 'ops'>('super_admin');
   const [isStructureOpen, setIsStructureOpen] = useState(false);
@@ -112,14 +44,13 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   }, []);
 
   // 1. ASIF SIR / CC / VENCORPIA Form
-  const [superEmail, setSuperEmail] = useState('dean.sac@vardhaman.org');
-  const [superPassword, setSuperPassword] = useState('deansac2026');
+  const [superEmail, setSuperEmail] = useState('');
+  const [superPassword, setSuperPassword] = useState('');
 
   // 2. DEPT COORDINATOR Form
   const [selectedDept, setSelectedDept] = useState('CSE');
-  const [deptEmail, setDeptEmail] = useState('raghavendra1797@vardhaman.org');
-  const [deptPassword, setDeptPassword] = useState('cse2026');
-  const [coordName, setCoordName] = useState('M Raghavendra');
+  const [deptEmail, setDeptEmail] = useState('');
+  const [deptPassword, setDeptPassword] = useState('');
 
   // 3. EVENT COORDINATORS Form
   const [eventDept, setEventDept] = useState('CSE');
@@ -127,13 +58,13 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     const cseEvt = StorageService.getEvents().find(e => e.departmentCode.toUpperCase() === 'CSE');
     return cseEvt?.id || 'evt-1';
   });
-  const [eventEmail, setEventEmail] = useState('raghavendra1797@vardhaman.org');
-  const [eventPassword, setEventPassword] = useState('eventcoord2026');
+  const [eventEmail, setEventEmail] = useState('');
+  const [eventPassword, setEventPassword] = useState('');
 
   // 4. Operational Staff Form (Finance & Volunteer Check-in)
   const [opsRole, setOpsRole] = useState<'finance' | 'volunteer'>('finance');
   const [opsEmail, setOpsEmail] = useState('');
-  const [opsPassword, setOpsPassword] = useState('finance2026');
+  const [opsPassword, setOpsPassword] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -142,20 +73,8 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const handleDeptSelect = (deptCode: string) => {
     setSelectedDept(deptCode);
     setErrorMessage('');
-    const staffInfo = OFFICIAL_STAFF_COORDINATORS[deptCode];
-    if (staffInfo) {
-      setDeptEmail(staffInfo.email);
-      setCoordName(staffInfo.name);
-      if (deptCode === 'CSE') {
-        setDeptPassword('raghavendra2026');
-      } else {
-        setDeptPassword(`${deptCode.toLowerCase()}2026`);
-      }
-    } else {
-      setDeptEmail(`${deptCode.toLowerCase()}.festronix@vardhaman.org`);
-      setCoordName('');
-      setDeptPassword(`${deptCode.toLowerCase()}2026`);
-    }
+    setDeptEmail('');
+    setDeptPassword('');
   };
 
   // When changing department in Event Coordinator tab
@@ -166,12 +85,12 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     const firstEvt = deptEvents[0];
     if (firstEvt) {
       setSelectedEventId(firstEvt.id);
-      setEventEmail(firstEvt.coordinatorEmail || OFFICIAL_STAFF_COORDINATORS[deptCode]?.email || '');
+      setEventEmail('');
     } else {
       setSelectedEventId('');
-      setEventEmail(OFFICIAL_STAFF_COORDINATORS[deptCode]?.email || '');
+      setEventEmail('');
     }
-    setEventPassword('eventcoord2026');
+    setEventPassword('');
   };
 
   // Submit Handler: 1. ASIF SIR / CC / VENCORPIA
@@ -201,7 +120,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setLoading(true);
 
     try {
-      const res = await AdminAuthService.loginDepartment(selectedDept, deptEmail, deptPassword, coordName);
+      const res = await AdminAuthService.loginDepartment(selectedDept, deptEmail, deptPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
@@ -248,8 +167,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     setLoading(true);
 
     try {
-      const targetEmail = opsEmail.trim() || (opsRole === 'finance' ? 'accounts.fest@vardhaman.org' : 'volunteers.fest@vardhaman.org');
-      const res = await AdminAuthService.loginCentral(targetEmail, opsPassword);
+      const res = await AdminAuthService.loginCentral(opsEmail, opsPassword);
       setLoading(false);
       if (res.success && res.user) {
         onLoginSuccess(res.user);
@@ -263,7 +181,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   };
 
   // Active department staff info
-  const activeStaffInfo = OFFICIAL_STAFF_COORDINATORS[selectedDept];
   const activeDeptEvents = allEvents.filter(e => e.departmentCode.toUpperCase() === eventDept.toUpperCase());
   const activeSelectedEvent = allEvents.find(e => e.id === selectedEventId) || activeDeptEvents[0];
 
@@ -492,101 +409,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         {/* ==================================================================== */}
         {activeTab === 'super_admin' && (
           <form onSubmit={handleSuperSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div
-              style={{
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-                borderRadius: '12px',
-                padding: '12px 14px'
-              }}
-            >
-              <div style={{ fontSize: '0.74rem', color: '#FCD34D', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Central Leadership • Quick Select Authority
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('dean.sac@vardhaman.org');
-                    setSuperPassword('deansac2026');
-                  }}
-                  style={{
-                    background: superEmail === 'dean.sac@vardhaman.org' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'dean.sac@vardhaman.org' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  👑 Asif Sir (Dean SAC)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('connect.club@vardhaman.org');
-                    setSuperPassword('connect2026');
-                  }}
-                  style={{
-                    background: superEmail === 'connect.club@vardhaman.org' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'connect.club@vardhaman.org' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  ⚡ CC (CONNECT Club)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('vencorpia@vardhaman.org');
-                    setSuperPassword('vencorpia2026');
-                  }}
-                  style={{
-                    background: superEmail === 'vencorpia@vardhaman.org' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'vencorpia@vardhaman.org' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  🚀 Vencorpia Leadership
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('admin@gmail.com');
-                    setSuperPassword('admin2026');
-                  }}
-                  style={{
-                    background: superEmail === 'admin@gmail.com' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'admin@gmail.com' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  🛡️ System Admin
-                </button>
-              </div>
-            </div>
-
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
                 Authority Email or Username
@@ -598,7 +420,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   autoComplete="username"
                   value={superEmail}
                   onChange={e => setSuperEmail(e.target.value)}
-                  placeholder="Enter email or username (e.g. dean.sac@vardhaman.org)"
+                  placeholder="Enter your email or username"
                   required
                   className="admin-form-input"
                 />
@@ -702,106 +524,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               </div>
             </div>
 
-            {/* Official Staff Coordinator Callout */}
-            {activeStaffInfo && (
-              <div
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  background: 'rgba(56, 189, 248, 0.08)',
-                  border: '1px solid rgba(56, 189, 248, 0.25)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Official Staff Coordinator • {activeStaffInfo.deptName}
-                  </span>
-                  <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{selectedDept} Desk</span>
-                </div>
-
-                {activeStaffInfo.coordinators ? (
-                  <div>
-                    <div style={{ fontSize: '0.74rem', color: '#BAE6FD', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Users size={14} color="#38BDF8" />
-                      <span>3 Official CSE Staff Coordinators — Click to choose login account:</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                      {activeStaffInfo.coordinators.map((c, idx) => {
-                        const isChosen = deptEmail.toLowerCase() === c.email.toLowerCase();
-                        const defaultPass = c.email.startsWith('raghavendra') ? 'raghavendra2026' : c.email.startsWith('balu') ? 'balu2026' : 'varma2026';
-                        return (
-                          <button
-                            key={c.email}
-                            type="button"
-                            onClick={() => {
-                              setDeptEmail(c.email);
-                              setCoordName(c.name);
-                              setDeptPassword(defaultPass);
-                            }}
-                            style={{
-                              background: isChosen ? 'linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(56, 189, 248, 0.3) 100%)' : 'rgba(15, 23, 42, 0.7)',
-                              border: `1.5px solid ${isChosen ? '#38BDF8' : 'rgba(255, 255, 255, 0.12)'}`,
-                              borderRadius: '10px',
-                              padding: '10px 12px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              color: '#FFFFFF',
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                              transition: 'all 0.15s ease',
-                              boxShadow: isChosen ? '0 0 16px rgba(56, 189, 248, 0.25)' : 'none'
-                            }}
-                          >
-                            <div>
-                              <div style={{ fontWeight: 800, fontSize: '0.84rem', color: isChosen ? '#38BDF8' : '#FFFFFF' }}>
-                                {idx + 1}. {c.name}
-                              </div>
-                              <div style={{ color: '#BAE6FD', fontSize: '0.72rem', marginTop: '2px' }}>
-                                {c.email}
-                              </div>
-                              <div style={{ color: '#94A3B8', fontSize: '0.68rem', marginTop: '3px' }}>
-                                📞 {c.phone}
-                              </div>
-                            </div>
-                            {isChosen && <CheckCircle2 size={18} color="#38BDF8" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <div style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.88rem' }}>{activeStaffInfo.name}</div>
-                      <div style={{ fontSize: '0.74rem', color: '#BAE6FD', display: 'flex', gap: '10px', marginTop: '2px' }}>
-                        <span><Mail size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeStaffInfo.email}</span>
-                        <span><Phone size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeStaffInfo.phone}</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeptEmail(activeStaffInfo.email);
-                        setCoordName(activeStaffInfo.name);
-                      }}
-                      style={{
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        border: '1px solid rgba(56, 189, 248, 0.4)',
-                        color: '#BAE6FD',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        fontSize: '0.7rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Fill Credentials
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
                 Coordinator Email
@@ -813,7 +535,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   autoComplete="username"
                   value={deptEmail}
                   onChange={e => setDeptEmail(e.target.value)}
-                  placeholder={`Enter email or leave blank for ${selectedDept.toLowerCase()}.festronix@vardhaman.org`}
+                  placeholder="Enter your email or username"
                   className="admin-form-input"
                 />
               </div>
@@ -829,7 +551,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type={showDeptPassword ? 'text' : 'password'}
                   value={deptPassword}
                   onChange={e => setDeptPassword(e.target.value)}
-                  placeholder={`Enter passcode (e.g. ${selectedDept.toLowerCase()}2026 or festcoord2026)`}
+                  placeholder="Enter your password"
                   required
                   className="admin-form-input"
                   style={{ paddingRight: '42px' }}
@@ -956,51 +678,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               </div>
             </div>
 
-            {/* CSE 3 Coordinators Quick Switch for Events */}
-            {eventDept === 'CSE' && (
-              <div
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  background: 'rgba(139, 92, 246, 0.1)',
-                  border: '1px solid rgba(139, 92, 246, 0.3)'
-                }}
-              >
-                <div style={{ fontSize: '0.72rem', color: '#C4B5FD', fontWeight: 700, marginBottom: '6px' }}>
-                  Select CSE Event Coordinator Login:
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '6px' }}>
-                  {OFFICIAL_STAFF_COORDINATORS.CSE.coordinators?.map(c => {
-                    const isPicked = eventEmail.toLowerCase() === c.email.toLowerCase();
-                    const defaultPass = c.email.startsWith('raghavendra') ? 'raghavendra2026' : c.email.startsWith('balu') ? 'balu2026' : 'varma2026';
-                    return (
-                      <button
-                        key={c.email}
-                        type="button"
-                        onClick={() => {
-                          setEventEmail(c.email);
-                          setEventPassword(defaultPass);
-                        }}
-                        style={{
-                          background: isPicked ? 'rgba(139, 92, 246, 0.35)' : 'rgba(15, 23, 42, 0.65)',
-                          border: `1px solid ${isPicked ? '#A78BFA' : 'rgba(255, 255, 255, 0.12)'}`,
-                          borderRadius: '8px',
-                          padding: '6px 10px',
-                          color: '#FFFFFF',
-                          fontSize: '0.74rem',
-                          cursor: 'pointer',
-                          textAlign: 'left'
-                        }}
-                      >
-                        <div style={{ fontWeight: isPicked ? 800 : 600, color: isPicked ? '#A78BFA' : '#FFFFFF' }}>{c.name}</div>
-                        <div style={{ fontSize: '0.68rem', color: '#C4B5FD' }}>{c.email}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Active Selected Event Staff Coordinator Details */}
             {activeSelectedEvent && (
               <div
@@ -1047,7 +724,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type={showEventPassword ? 'text' : 'password'}
                   value={eventPassword}
                   onChange={e => setEventPassword(e.target.value)}
-                  placeholder="Enter passcode (e.g. eventcoord2026 or festcoord2026)"
+                  placeholder="Enter your password"
                   required
                   className="admin-form-input"
                   style={{ paddingRight: '42px' }}
@@ -1145,7 +822,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   autoComplete="username"
                   value={opsEmail}
                   onChange={e => setOpsEmail(e.target.value)}
-                  placeholder={`Enter email or leave blank for ${opsRole === 'finance' ? 'accounts.fest@vardhaman.org' : 'volunteers.fest@vardhaman.org'}`}
+                  placeholder="Enter your email or username"
                   className="admin-form-input"
                 />
               </div>

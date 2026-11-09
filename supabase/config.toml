@@ -1,4 +1,9 @@
 
+[functions.admin-auth]
+enabled = true
+verify_jwt = false
+import_map = "./functions/admin-auth/deno.json"
+
 [functions.admin-users]
 enabled = true
 verify_jwt = true

@@ -152,7 +152,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'transparent', color: '#FFFFFF', paddingBottom: '60px' }}>
+    <div className="admin-standalone-portal" style={{ minHeight: '100vh', background: 'transparent', color: '#FFFFFF', paddingBottom: '60px' }}>
       {/* Shared Executive Header */}
       <AdminHeader
         adminUser={adminUser}
@@ -162,7 +162,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
         badgeOverride="💳 CENTRAL ACCOUNTS REVIEWER"
       />
 
-      <main style={{ maxWidth: '1360px', margin: '0 auto', padding: '28px 24px' }}>
+      <main className="admin-content-container admin-content-container-wide" style={{ maxWidth: '1360px', margin: '0 auto', padding: '28px 24px' }}>
         {/* KPI Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
           {/* Card 1: Total Collections */}

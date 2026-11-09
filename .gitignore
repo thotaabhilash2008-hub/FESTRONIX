@@ -29,6 +29,10 @@ dist-ssr
 .env.*.local
 check_db.mjs
 
+# Local credential notes — never commit
+ADMIN_CREDENTIALS.txt
+*.credentials.txt
+
 # Supabase CLI generated local metadata
 /supabase/.temp/
 

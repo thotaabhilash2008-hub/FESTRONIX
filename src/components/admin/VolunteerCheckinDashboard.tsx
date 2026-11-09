@@ -123,7 +123,7 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'transparent', color: '#FFFFFF', paddingBottom: '60px' }}>
+    <div className="admin-standalone-portal" style={{ minHeight: '100vh', background: 'transparent', color: '#FFFFFF', paddingBottom: '60px' }}>
       {/* Shared Executive Header */}
       <AdminHeader
         adminUser={adminUser}
@@ -133,7 +133,7 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
         badgeOverride="🎟️ GATE CHECK-IN DESK"
       />
 
-      <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 20px' }}>
+      <main className="admin-content-container admin-content-container-compact" style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 20px' }}>
         {/* KPI Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
           {/* Card 1: Admitted Footfall */}

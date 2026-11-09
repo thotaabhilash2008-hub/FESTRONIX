@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Home,
   Building2,
@@ -75,13 +75,33 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    const handleResize = () => {
+      if (window.innerWidth >= 768) setOpen(false);
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', handleResize);
+    document.body.style.overflow = open ? 'hidden' : '';
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', handleResize);
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
   return (
     <>
       {/* Hamburger button for mobile */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-gray-800 text-white rounded-md"
+        className="admin-sidebar-mobile-trigger"
         onClick={() => setOpen(true)}
         aria-label="Open admin sidebar"
+        aria-expanded={open}
       >
         <Menu size={24} />
       </button>
@@ -89,17 +109,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {/* Overlay backdrop */}
       {open && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          className="admin-sidebar-overlay is-open"
           onClick={() => setOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       <aside
-        className={`admin-sidebar admin-scrollbar bg-gray-900 text-gray-100 fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 md:static md:w-64`}
+        className={`admin-sidebar admin-sidebar-responsive admin-scrollbar ${open ? 'is-open' : ''}`}
+        aria-label="Admin navigation"
       >
         {/* Close button for mobile */}
         <button
-          className="md:hidden absolute top-4 right-4 text-gray-300"
+          className="admin-sidebar-mobile-close"
           onClick={() => setOpen(false)}
           aria-label="Close admin sidebar"
         >
@@ -107,7 +129,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </button>
 
         {/* Top Branding Crest */}
-        <div className="admin-sidebar-brand p-4">
+        <div className="admin-sidebar-brand">
           <div>
             <div
               style={{
@@ -149,7 +171,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
 
         {/* Navigation List */}
-        <nav className="admin-sidebar-menu admin-scrollbar flex-1 overflow-y-auto">
+        <nav className="admin-sidebar-menu admin-scrollbar">
           {menuItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -157,14 +179,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <button
                 key={item.id}
                 onClick={() => { onSelectTab(item.id); setOpen(false); }}
-                className={`admin-sidebar-item w-full text-left px-4 py-2 flex items-center justify-between ${isActive ? 'active' : ''}`}
+                className={`admin-sidebar-item ${isActive ? 'active' : ''}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="admin-sidebar-item-content">
                   <Icon size={17} color={isActive ? '#FFFFFF' : '#94A3B8'} />
                   <span>{item.label}</span>
                 </div>
                 {item.badge !== undefined && (
-                  <span className="admin-sidebar-badge ml-2">{item.badge}</span>
+                  <span className="admin-sidebar-badge">{item.badge}</span>
                 )}
               </button>
             );
@@ -172,7 +194,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="admin-sidebar-footer p-4">
+        <div className="admin-sidebar-footer">
           <div className="admin-sidebar-campus-thumb relative h-32 overflow-hidden rounded-md">
             <img
               src="/vce_campus_bg.jpg"

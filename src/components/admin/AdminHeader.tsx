@@ -134,6 +134,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   return (
     <header className="admin-exec-header">
       <div
+        className="admin-header-inner"
         style={{
           maxWidth: fluid ? '100%' : '1360px',
           margin: '0 auto',
@@ -146,7 +147,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         }}
       >
         {/* Left: Brand & User Context */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div className="admin-header-identity" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div
             style={{
               position: 'relative',
@@ -175,9 +176,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             <IconComponent size={22} color="#FFFFFF" />
           </div>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="admin-header-copy">
+            <div className="admin-header-title-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <h1
+                className="admin-header-title"
                 style={{
                   fontFamily: "var(--font-title, 'Space Grotesk', sans-serif)",
                   fontSize: '1.18rem',
@@ -194,6 +196,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               </h1>
 
               <span
+                className="admin-header-badge"
                 style={{
                   fontSize: '0.67rem',
                   padding: '3px 9px',
@@ -209,7 +212,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               </span>
             </div>
 
-            <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <p className="admin-header-subtitle" style={{ fontSize: '0.76rem', color: '#94A3B8', margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ color: '#E2E8F0', fontWeight: 600 }}>{adminUser.fullName}</span>
               <span>•</span>
               <span>{adminUser.designation}</span>
@@ -220,7 +223,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         </div>
 
         {/* Right: Live HUD Telemetry & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="admin-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           {/* Live System Beacon */}
           <div className="admin-live-beacon">
             <span className="admin-live-beacon-dot" />
@@ -229,6 +232,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
           {/* Live Digital Clock */}
           <div
+            className="admin-header-clock"
             style={{
               display: 'flex',
               alignItems: 'center',

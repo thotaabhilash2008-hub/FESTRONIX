@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Building2, Layers, ShieldCheck, Users, QrCode, Clock, Megaphone,
   FileSpreadsheet, Phone, Globe, LogOut, ChevronRight, Sparkles, KeyRound,
@@ -54,6 +54,25 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
 }) => {
   // Mobile drawer state
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    const handleResize = () => {
+      if (window.innerWidth >= 768) setOpen(false);
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    window.addEventListener('resize', handleResize);
+    document.body.style.overflow = open ? 'hidden' : '';
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('resize', handleResize);
+      document.body.style.overflow = '';
+    };
+  }, [open]);
 
   // Helper for footer button styling
   function footerButtonStyle(color: string, hoverBg: string) {
@@ -154,7 +173,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
   const sidebarContent = () => (
     <>
       {/* Top Branding Crest */}
-      <div className="admin-sidebar-brand p-4">
+      <div className="admin-sidebar-brand">
         <div>
           <div
             style={{
@@ -257,17 +276,20 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
       </div>
 
       {/* Navigation List */}
-      <nav className="admin-sidebar-menu admin-scrollbar py-2">
+      <nav className="admin-sidebar-menu admin-scrollbar">
         {menuItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
-              onClick={() => onSelectTab(item.id)}
+              onClick={() => {
+                onSelectTab(item.id);
+                setOpen(false);
+              }}
               className={`admin-sidebar-item ${isActive ? 'active' : ''}`}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '11px', minWidth: 0 }}>
+              <div className="admin-sidebar-item-content" style={{ gap: '11px' }}>
                 <Icon size={17} color={isActive ? '#FFFFFF' : '#94A3B8'} style={{ flexShrink: 0 }} />
                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
               </div>
@@ -293,7 +315,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
       </nav>
 
       {/* Footer */}
-      <div className="admin-sidebar-footer p-4 mt-auto">
+      <div className="admin-sidebar-footer">
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <button
             onClick={onSwitchToFest}
@@ -355,40 +377,44 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
     </>
   );
 
-  // Render mobile overlay + drawer (uses sidebarContent defined above)
+  // Render a proper mobile drawer instead of relying on utility classes that may
+  // not be present in the production bundle.
   const renderDrawer = (
-    <aside className="fixed inset-0 z-40 flex md:hidden" aria-label="Department sidebar">
+    <div className="admin-sidebar-mobile-shell" aria-label="Department sidebar">
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+        className="admin-sidebar-overlay is-open"
         onClick={() => setOpen(false)}
+        aria-hidden="true"
       />
       {/* Drawer */}
-      <div className="relative flex w-64 flex-col bg-gray-900 text-white transition-transform transform translate-x-0" style={{ minHeight: '100vh' }}>
+      <aside className="admin-sidebar admin-sidebar-mobile is-open admin-scrollbar">
         {/* Close button */}
         <button
-          className="absolute top-4 right-4 text-gray-300 hover:text-white"
+          className="admin-sidebar-mobile-close"
           onClick={() => setOpen(false)}
+          aria-label="Close department sidebar"
         >
           <X size={20} />
         </button>
         {sidebarContent()}
-      </div>
-    </aside>
+      </aside>
+    </div>
   );
 
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="admin-sidebar admin-scrollbar hidden md:block">
+      <aside className="admin-sidebar admin-sidebar-desktop admin-scrollbar" aria-label="Department navigation">
         {sidebarContent()}
       </aside>
 
       {/* Mobile hamburger button */}
       <button
-        className="fixed bottom-4 right-4 md:hidden z-30 flex items-center justify-center w-12 h-12 bg-gray-800 text-white rounded-full shadow-lg"
+        className="admin-sidebar-mobile-trigger"
         onClick={() => setOpen(true)}
         aria-label="Open navigation menu"
+        aria-expanded={open}
       >
         <Menu size={24} />
       </button>

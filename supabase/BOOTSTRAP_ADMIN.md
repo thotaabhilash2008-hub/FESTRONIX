@@ -24,9 +24,9 @@ The `admin-users` function uses Supabase's server-side `SUPABASE_SERVICE_ROLE_KE
 ```sql
 do $$
 declare
-  v_email text := lower('dean.sac@vardhaman.org');
-  v_username text := lower('dean_sac');
-  v_full_name text := 'asif';
+  v_email text := lower('<first-admin-email>');
+  v_username text := lower('<first-admin-username>');
+  v_full_name text := '<first-admin-name>';
   v_user_id uuid;
 begin
   select id into strict v_user_id

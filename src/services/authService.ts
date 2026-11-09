@@ -6,44 +6,9 @@ const STORAGE_KEYS = {
   SESSION: 'festronix_auth_session_v1'
 };
 
-// --------------------------------------------------------------------------
-// Offline / dev-mode seed users (only used when Supabase is NOT configured)
-// --------------------------------------------------------------------------
-const OFFLINE_SEED_USERS: User[] = [
-  {
-    id: 'd795cf91-7f50-497b-922f-d33c379c8085',
-    username: 'dhanush',
-    rollNumber: '25881A05FC',
-    fullName: 'Dhanush',
-    email: 'dhanushmathe@gmail.com',
-    phone: '6303894505',
-    college: 'Vardhaman College of Engineering',
-    password: 'password123',
-    createdAt: '2026-10-16 07:03'
-  },
-  {
-    id: 'a87b0964-05e3-4142-b95d-bd2daf810b88',
-    username: 'rahul104',
-    rollNumber: '22VCECS104',
-    fullName: 'Rahul Sharma',
-    email: 'rahul104@vardhaman.org',
-    phone: '+91 98765 43210',
-    college: 'Vardhaman College of Engineering',
-    password: 'password123',
-    createdAt: '2026-03-01 10:00'
-  },
-  {
-    id: 'user_vce_002',
-    username: 'sneha_it',
-    rollNumber: '22VCEIT045',
-    fullName: 'Sneha Reddy',
-    email: 'sneha.r@vardhaman.org',
-    phone: '+91 98480 12345',
-    college: 'Vardhaman College of Engineering',
-    password: 'password123',
-    createdAt: '2026-03-02 11:30'
-  }
-];
+// Offline mode intentionally has no seeded accounts. User credentials must
+// be created and verified by Supabase Auth, never shipped in the client.
+const OFFLINE_SEED_USERS: User[] = [];
 
 export class AuthService {
   private static isInitialized = false;

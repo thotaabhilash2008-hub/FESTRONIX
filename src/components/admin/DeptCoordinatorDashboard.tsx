@@ -66,15 +66,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     'volunteer_checkin',
     'checkin_staff'
   ]);
-  const generateStaffPassword = () => `${deptCode.toLowerCase()}_${Math.random().toString(36).slice(2, 9)}!Fst`;
   const createEmptyStaffForm = (): ManagedStaffForm => ({
     fullName: '',
-    username: `${deptCode.toLowerCase()}_staff_${Math.floor(100 + Math.random() * 900)}`,
+    username: '',
     designation: 'Department Operations Staff',
     role: 'event_coordinator',
     email: '',
     phone: '',
-    password: generateStaffPassword(),
+    password: '',
     assignedEvents: []
   });
   const [departmentStaff, setDepartmentStaff] = useState<AdminUser[]>(() =>
@@ -101,9 +100,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       return true;
     }
     if (adminUser.email && e.coordinatorEmail && e.coordinatorEmail.toLowerCase() === adminUser.email.toLowerCase()) {
-      return true;
-    }
-    if (adminUser.username === 'event_coord' && (e.id === 'evt-cse-01' || e.id === 'evt-cse-02')) {
       return true;
     }
     return false;
@@ -147,7 +143,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [volunteerName, setVolunteerName] = useState('');
   const [volunteerEmail, setVolunteerEmail] = useState('');
   const [volunteerUsername, setVolunteerUsername] = useState('');
-  const [volunteerPassword, setVolunteerPassword] = useState('GateVolunteer2026!');
+  const [volunteerPassword, setVolunteerPassword] = useState('');
   const [volunteerError, setVolunteerError] = useState('');
 
   // Search Filter in Roster
@@ -629,8 +625,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     setVolunteerEventId(eventId);
     setVolunteerName('');
     setVolunteerEmail('');
-    setVolunteerUsername(`gate_${event?.slug?.replace(/[^a-z0-9]+/gi, '_').slice(0, 22) || 'volunteer'}`.toLowerCase());
-    setVolunteerPassword('GateVolunteer2026!');
+    setVolunteerUsername('');
+    setVolunteerPassword('');
     setVolunteerError('');
     setVolunteerFormOpen(true);
   };
@@ -1000,7 +996,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         />
 
         {/* Main Content Area */}
-        <main style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
+        <main className="admin-content-container" style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
 
         {/* Copy Feedback Toast */}
         {copyFeedback && (
@@ -2951,7 +2947,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   </label>
                   <input
                     type="text"
-                    placeholder="Auto-generated if left blank"
+                    placeholder="Optional payment reference"
                     value={spotTxnId}
                     onChange={e => setSpotTxnId(e.target.value)}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}

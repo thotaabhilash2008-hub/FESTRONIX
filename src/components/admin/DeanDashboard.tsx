@@ -57,7 +57,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [registrations, setRegistrations] = useState<Registration[]>(StorageService.getRegistrations());
   const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
   const [departments, setDepartments] = useState<Department[]>(StorageService.getDepartments());
-  const [coordinators, setCoordinators] = useState<Array<AdminUser & { password?: string; assignedEvents?: string[] }>>(
+  const [coordinators, setCoordinators] = useState<Array<AdminUser & { assignedEvents?: string[] }>>(
     AdminAuthService.getCoordinators()
   );
 
@@ -143,16 +143,16 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [coordEmail, setCoordEmail] = useState('');
   const [coordPhone, setCoordPhone] = useState('+91 ');
   const [coordUsername, setCoordUsername] = useState('');
-  const [coordPassword, setCoordPassword] = useState('festcoord2026');
+  const [coordPassword, setCoordPassword] = useState('');
   const [coordShowPassword, setCoordShowPassword] = useState(false);
   const [coordAssignedEvents, setCoordAssignedEvents] = useState<string[]>([]);
   const [coordSubmitting, setCoordSubmitting] = useState(false);
   const [coordFormError, setCoordFormError] = useState('');
-  const [createdCredential, setCreatedCredential] = useState<{ username: string; password: string; role: string } | null>(null);
+  const [createdCredential, setCreatedCredential] = useState<{ username: string; role: string } | null>(null);
 
   // Form State: Edit Coordinator / Department Coordinator / Staff
   const [isEditCoordinatorOpen, setIsEditCoordinatorOpen] = useState(false);
-  const [editingCoordinator, setEditingCoordinator] = useState<(AdminUser & { password?: string; assignedEvents?: string[] }) | null>(null);
+  const [editingCoordinator, setEditingCoordinator] = useState<(AdminUser & { assignedEvents?: string[] }) | null>(null);
   const [editCoordFullName, setEditCoordFullName] = useState('');
   const [editCoordDeptCode, setEditCoordDeptCode] = useState('CSE');
   const [editCoordRole, setEditCoordRole] = useState<AdminRole>('faculty_coord');
@@ -232,7 +232,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     };
 
     const handleAdminsUpdate = (event: Event) => {
-      const detail = (event as CustomEvent<Array<AdminUser & { password?: string; assignedEvents?: string[] }>>).detail;
+      const detail = (event as CustomEvent<Array<AdminUser & { assignedEvents?: string[] }>>).detail;
       if (Array.isArray(detail)) setCoordinators(detail);
     };
 
@@ -283,26 +283,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         contact: deptContact.trim() || `${departmentHandle(cleanCode)}.festronix@vardhaman.org`,
         iconName: deptIcon || 'Cpu'
       });
-
-      // If a coordinator was provided, persist the department account after the department exists.
-      if (deptChief.trim()) {
-        const existingDeptCoordinator = AdminAuthService.getAllAdmins().find(
-          a => a.departmentCode?.toUpperCase() === cleanCode && (a.role === 'dept_chief_coordinator' || a.role === 'dept_coordinator')
-        );
-        if (!existingDeptCoordinator) {
-          await AdminAuthService.addAdmin({
-            username: `dept_${departmentHandle(cleanCode)}`,
-            password: `fest${departmentHandle(cleanCode)}2026secure`,
-            fullName: deptChief.trim(),
-            designation: `Department Coordinator (${cleanCode})`,
-            role: 'dept_coordinator',
-            departmentCode: cleanCode,
-            departmentName: deptName.trim(),
-            email: deptContact.trim() || `${departmentHandle(cleanCode)}.festronix@vardhaman.org`,
-            accessBoundary: "Their department's events"
-          });
-        }
-      }
 
       confetti({ particleCount: 90, spread: 70 });
       setIsAddDepartmentOpen(false);
@@ -710,8 +690,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setCoordDesignation(`Event Operations Coordinator — ${event.title}`);
     setCoordEmail('');
     setCoordPhone('+91 ');
-    setCoordUsername(`coord_${departmentHandle(event.departmentCode)}_${Math.floor(100 + Math.random() * 900)}`);
-    setCoordPassword(`fest_${departmentHandle(event.departmentCode)}_${Math.floor(1000 + Math.random() * 9000)}`);
+    setCoordUsername('');
+    setCoordPassword('');
     setCoordAssignedEvents([event.id]);
     setCoordFormError('');
     setIsAddCoordinatorOpen(true);
@@ -783,18 +763,14 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         } : previous);
       }
 
-      setCreatedCredential({
-        username: normalizedUsername,
-        password: coordPassword.trim(),
-        role: coordRole
-      });
+      setCreatedCredential({ username: normalizedUsername, role: coordRole });
       confetti({ particleCount: 80, spread: 60 });
       setIsAddCoordinatorOpen(false);
 
       // Reset form after the backend confirms the account and assignments were saved.
       setCoordFullName('');
       setCoordUsername('');
-      setCoordPassword('festcoord2026');
+      setCoordPassword('');
       setCoordEmail('');
       setCoordPhone('+91 ');
       setCoordAssignedEvents([]);
@@ -807,7 +783,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   };
 
   // Open Edit Modal for Coordinator / Department Coordinator / Payment Reviewer
-  const handleOpenEditCoordinator = (coord: AdminUser & { password?: string; assignedEvents?: string[] }) => {
+  const handleOpenEditCoordinator = (coord: AdminUser & { assignedEvents?: string[] }) => {
     setEditingCoordinator(coord);
     setEditCoordFullName(coord.fullName || '');
     setEditCoordDeptCode(coord.departmentCode || 'CSE');
@@ -816,7 +792,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setEditCoordEmail(coord.email || '');
     setEditCoordPhone(coord.phone || '');
     setEditCoordUsername(coord.username || '');
-    setEditCoordPassword(coord.password || '');
+    setEditCoordPassword('');
     setEditCoordAssignedEvents(coord.assignedEvents || []);
     setCoordFormError('');
     setEditCoordShowPassword(false);
@@ -966,7 +942,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const selectedRosterEvent = eventOverviewItems.find(item => item.key === selectedRosterEventId);
   const selectedPaymentEvent = eventOverviewItems.find(item => item.key === selectedPaymentEventId);
 
-  const eventCoordinatorOptions = useMemo<Array<AdminUser & { password?: string; assignedEvents?: string[] }>>(() => {
+  const eventCoordinatorOptions = useMemo<Array<AdminUser & { assignedEvents?: string[] }>>(() => {
     if (!editingEvent) return [];
 
     const matchingAccounts = coordinators.filter(coordinator =>
@@ -1155,7 +1131,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         />
 
         {/* Content Container */}
-        <main style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
+        <main className="admin-content-container" style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
           {/* Main Dashboard Overview Screen (Matching Reference Image) */}
           {activeTab === 'dashboard' && (
             <div className="admin-tab-pane">
@@ -1592,8 +1568,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               setCoordDeptCode(dept.code);
                               setCoordFullName(dept.chiefCoordinator);
                               setCoordDesignation(`Department Coordinator (${dept.code})`);
-                              setCoordUsername(`dept_${dept.code.toLowerCase()}`);
-                              setCoordPassword(`${dept.code.toLowerCase()}2026`);
+                              setCoordUsername('');
+                              setCoordPassword('');
                               setIsAddCoordinatorOpen(true);
                             }}
                             style={{
@@ -1764,10 +1740,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordDeptCode('SAC');
                     setCoordFullName('');
                     setCoordDesignation('Central Payment Review Officer');
-                    setCoordEmail('accounts.fest@vardhaman.org');
+                    setCoordEmail('');
                     setCoordPhone('+91 98480 55001');
-                    setCoordUsername('finance_desk_' + Math.floor(100 + Math.random() * 900));
-                    setCoordPassword('finance2026!');
+                    setCoordUsername('');
+                    setCoordPassword('');
                     setCoordAssignedEvents([]);
                     setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
@@ -1835,10 +1811,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordDeptCode('FINANCE');
                     setCoordFullName('');
                     setCoordDesignation('Central Payment Review Officer');
-                    setCoordEmail('accounts.fest@vardhaman.org');
+                    setCoordEmail('');
                     setCoordPhone('+91 98480 55001');
-                    setCoordUsername('finance_desk_' + Math.floor(100 + Math.random() * 900));
-                    setCoordPassword('finance2026');
+                    setCoordUsername('');
+                    setCoordPassword('');
                     setIsAddCoordinatorOpen(true);
                   }}
                   className="btn-cyber-primary"
@@ -1903,8 +1879,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             <code style={{ color: '#FFFFFF', fontWeight: 700 }}>{reviewer.username}</code>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#A8B3C2' }}>Password:</span>
-                            <code style={{ color: '#34D399', fontWeight: 700 }}>{reviewer.password || 'finance2026'}</code>
+                            <span style={{ color: '#A8B3C2' }}>Authentication:</span>
+                            <code style={{ color: '#34D399', fontWeight: 700 }}>Backend managed</code>
                           </div>
                           {reviewer.email && (
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -2727,10 +2703,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordDeptCode('FINANCE');
                     setCoordFullName('');
                     setCoordDesignation('Central Payment Review Officer');
-                    setCoordEmail('accounts.fest@vardhaman.org');
+                    setCoordEmail('');
                     setCoordPhone('+91 98480 55001');
-                    setCoordUsername('finance_desk_' + Math.floor(100 + Math.random() * 900));
-                    setCoordPassword('finance2026');
+                    setCoordUsername('');
+                    setCoordPassword('');
                     setIsAddCoordinatorOpen(true);
                   }}
                   className="btn-cyber-primary"
@@ -2756,10 +2732,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordDeptCode(firstDept);
                     setCoordFullName('');
                     setCoordDesignation(`Department Coordinator (${firstDept})`);
-                    setCoordEmail(`${departmentHandle(firstDept)}.festronix@vardhaman.org`);
+                    setCoordEmail('');
                     setCoordPhone('+91 ');
-                    setCoordUsername(`dept_${departmentHandle(firstDept)}`);
-                    setCoordPassword(`fest${departmentHandle(firstDept)}2026secure`);
+                    setCoordUsername('');
+                    setCoordPassword('');
                     setCoordAssignedEvents([]);
                     setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
@@ -2791,7 +2767,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordEmail('');
                     setCoordPhone('+91 ');
                     setCoordUsername('');
-                    setCoordPassword('eventcoord2026');
+                    setCoordPassword('');
                     setCoordAssignedEvents([]);
                     setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
@@ -2822,8 +2798,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordDesignation('Gate Entry & Ticketing Volunteer');
                     setCoordEmail('');
                     setCoordPhone('+91 ');
-                    setCoordUsername('volunteer_' + Math.floor(100 + Math.random() * 900));
-                    setCoordPassword('volunteer2026');
+                    setCoordUsername('');
+                    setCoordPassword('');
                     setCoordAssignedEvents([]);
                     setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
@@ -2855,7 +2831,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordEmail('');
                     setCoordPhone('+91 ');
                     setCoordUsername('');
-                    setCoordPassword('festcoord2026');
+                    setCoordPassword('');
                     setCoordAssignedEvents([]);
                     setCoordFormError('');
                     setIsAddCoordinatorOpen(true);
@@ -2880,15 +2856,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             {createdCredential && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '14px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(52, 211, 153, 0.35)', color: '#D1FAE5' }}>
                 <div style={{ fontSize: '0.78rem' }}>
-                  <strong>Account created and saved.</strong> Give the staff member these credentials now — the passcode is not stored in the browser.
+                  <strong>Account created and saved.</strong> The account identifier is shown once; passwords are never displayed or stored in the browser.
                   <span style={{ display: 'block', marginTop: '4px', fontFamily: 'monospace', color: '#FFFFFF' }}>
-                    {createdCredential.username} / {createdCredential.password}
+                    Username: {createdCredential.username}
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     type="button"
-                    onClick={() => handleCopyText(`${createdCredential.username}\n${createdCredential.password}`, 'new-admin-credential')}
+                    onClick={() => handleCopyText(createdCredential.username, 'new-admin-credential')}
                     style={{ background: 'rgba(52, 211, 153, 0.18)', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: '6px', padding: '6px 10px', color: '#D1FAE5', cursor: 'pointer', fontSize: '0.72rem' }}
                   >
                     {copiedId === 'new-admin-credential' ? 'Copied' : 'Copy'}
@@ -3166,9 +3142,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           <span style={{ color: '#FFFFFF', fontFamily: 'monospace', fontWeight: 700 }}>{coord.username}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#A8B3C2' }}>Access Key:</span>
+                          <span style={{ color: '#A8B3C2' }}>Authentication:</span>
                           <span style={{ color: '#34D399', fontFamily: 'monospace', fontWeight: 700 }}>
-                            {coord.password || `${(coord.departmentCode || 'sac').toLowerCase()}2026`}
+                            Backend managed
                           </span>
                         </div>
                       </div>
@@ -3224,7 +3200,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                       <button
                         onClick={() => {
-                          const creds = `FESTRONIX 2026 Credentials:\nRole: ${coord.role}\nName: ${coord.fullName}\nPortal: http://localhost:5173/#admin\nDepartment: ${coord.departmentCode || 'CENTRAL'}\nUsername: ${coord.username}\nPasscode: ${coord.password || `${(coord.departmentCode || 'sac').toLowerCase()}2026`}`;
+                          const creds = `FESTRONIX 2026 Portal Account:\nRole: ${coord.role}\nName: ${coord.fullName}\nPortal: Admin Portal\nDepartment: ${coord.departmentCode || 'CENTRAL'}\nUsername: ${coord.username}\nPassword: Use the secure invitation or the password set by the administrator.`;
                           handleCopyText(creds, coord.id);
                         }}
                         style={{
@@ -4791,11 +4767,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(52, 211, 153, 0.35)', color: '#D1FAE5', fontSize: '0.74rem' }}>
                     <span>
                       <strong>Coordinator account created and assigned.</strong><br />
-                      Username: <code>{createdCredential.username}</code> · Passcode: <code>{createdCredential.password}</code>
+                      Username: <code>{createdCredential.username}</code> · Password: <code>managed securely</code>
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleCopyText(`${createdCredential.username}\n${createdCredential.password}`, 'event-coordinator-credential')}
+                      onClick={() => handleCopyText(createdCredential.username, 'event-coordinator-credential')}
                       style={{ flexShrink: 0, background: 'rgba(52, 211, 153, 0.18)', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: '6px', padding: '5px 8px', color: '#D1FAE5', cursor: 'pointer', fontSize: '0.7rem' }}
                     >
                       {copiedId === 'event-coordinator-credential' ? 'Copied' : 'Copy'}
@@ -4931,13 +4907,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   <input
                     type="text"
                     value={coordFullName}
-                    onChange={e => {
-                      setCoordFullName(e.target.value);
-                      if (!coordUsername) {
-                        const sug = 'coord_' + e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-                        setCoordUsername(sug);
-                      }
-                    }}
+                    onChange={e => setCoordFullName(e.target.value)}
                     placeholder="e.g. Dr. K. Radhika"
                     required
                     style={{
@@ -4991,9 +4961,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       if (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator') {
                         const handle = departmentHandle(newDept);
                         setCoordDesignation(`Department Coordinator (${newDept})`);
-                        setCoordUsername(`dept_${handle}`);
-                        setCoordPassword(`fest${handle}2026secure`);
-                        setCoordEmail(`${handle}.festronix@vardhaman.org`);
+                        setCoordUsername('');
+                        setCoordPassword('');
+                        setCoordEmail('');
                       }
                       setCoordAssignedEvents(prev => prev.filter(eventId =>
                         events.some(event => event.id === eventId && event.departmentCode.toUpperCase() === newDept.toUpperCase())
@@ -5037,20 +5007,20 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       if (newRole === 'finance_reviewer') {
                         setCoordDeptCode('SAC');
                         setCoordDesignation('Central Payment Review Officer');
-                        setCoordEmail('accounts.fest@vardhaman.org');
+                        setCoordEmail('');
                         setCoordPhone('+91 98480 55001');
-                        setCoordUsername('finance_reviewer');
-                        setCoordPassword('finance2026!');
+                        setCoordUsername('');
+                        setCoordPassword('');
                       } else if (newRole === 'dept_chief_coordinator' || newRole === 'dept_coordinator') {
                         const handle = departmentHandle(nextDept);
                         setCoordDesignation(`Department Coordinator (${nextDept})`);
-                        setCoordUsername(`dept_${handle}`);
-                        setCoordPassword(`fest${handle}2026secure`);
-                        setCoordEmail(`${handle}.festronix@vardhaman.org`);
+                        setCoordUsername('');
+                        setCoordPassword('');
+                        setCoordEmail('');
                       } else if (newRole === 'volunteer_checkin' || newRole === 'checkin_staff') {
                         setCoordDesignation('Gate Entry & Ticketing Volunteer');
-                        setCoordUsername('volunteer_' + Math.floor(100 + Math.random() * 900));
-                        setCoordPassword('volunteer2026');
+                        setCoordUsername('');
+                        setCoordPassword('');
                       }
                       if (!supportsEventAssignments(newRole)) setCoordAssignedEvents([]);
                     }}
@@ -5110,7 +5080,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     type="email"
                     value={coordEmail}
                     onChange={e => setCoordEmail(e.target.value)}
-                    placeholder="coordinator@vardhaman.org"
+                    placeholder="Enter staff email"
                     required
                     style={{
                       width: '100%',
@@ -5185,16 +5155,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <label style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
                         Portal Passcode *
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const rand = `fest_${departmentHandle(coordDeptCode || 'pass')}_${Math.floor(1000 + Math.random() * 9000)}`;
-                          setCoordPassword(rand);
-                        }}
-                        style={{ background: 'none', border: 'none', color: '#BACEBB', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
-                      >
-                        Auto-Gen
-                      </button>
                     </div>
                     <div style={{ position: 'relative' }}>
                       <input
@@ -5557,16 +5517,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <label style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
                         New Portal Passcode (optional)
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const rand = `fest_${departmentHandle(editCoordDeptCode || 'pass')}_${Math.floor(1000 + Math.random() * 9000)}`;
-                          setEditCoordPassword(rand);
-                        }}
-                        style={{ background: 'none', border: 'none', color: '#BACEBB', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
-                      >
-                        Auto-Gen
-                      </button>
                     </div>
                     <div style={{ position: 'relative' }}>
                       <input
@@ -5806,7 +5756,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <input
                     type="email"
-                    placeholder="dept.festronix@vardhaman.org"
+                    placeholder="Enter department contact email"
                     value={deptContact}
                     onChange={e => setDeptContact(e.target.value)}
                     style={{
@@ -5870,7 +5820,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               {deptChief.trim() && (
                 <div style={{ background: 'rgba(124, 58, 237, 0.12)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.76rem', color: '#C084FC' }}>
-                  💡 <strong>Auto-Credentialing</strong>: Creating this department will also automatically provision department coordinator credentials: Username: <code>dept_{(deptCode || 'dept').toLowerCase()}</code> | Passcode: <code>{(deptCode || 'dept').toLowerCase()}2026</code>.
+                  💡 The department is created first. Assign its coordinator from the staff registry, where the account is provisioned through Supabase Auth.
                 </div>
               )}
 
