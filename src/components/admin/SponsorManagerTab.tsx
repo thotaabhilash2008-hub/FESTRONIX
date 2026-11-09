@@ -58,7 +58,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
   const [pocRole, setPocRole] = useState('Partnerships Lead');
   const [pocContact, setPocContact] = useState('+91 ');
   const [pocEmail, setPocEmail] = useState('');
-  const [sacLeadName, setSacLeadName] = useState('Prof. R. Srinivas (Dean SAC)');
+  const [sacLeadName, setSacLeadName] = useState('Md. Asif (Dean SAC)');
   const [sacLeadContact, setSacLeadContact] = useState('+91 98480 99112');
   const [stallLocation, setStallLocation] = useState('Central Block Atrium • Ground Level');
   const [stallNumber, setStallNumber] = useState('Stall #A-01');
@@ -108,7 +108,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
     setPocRole('Lead Organizer');
     setPocContact('+91 ');
     setPocEmail('');
-    setSacLeadName('Prof. R. Srinivas (Dean SAC)');
+    setSacLeadName('Md. Asif (Dean SAC)');
     setSacLeadContact('+91 98480 99112');
     setStallLocation('Central Block Atrium • Ground Level');
     setStallNumber('Stall #A-01');
@@ -1494,7 +1494,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
                     type="text"
                     value={sacLeadName}
                     onChange={e => setSacLeadName(e.target.value)}
-                    placeholder="e.g. Prof. R. Srinivas (Dean SAC)"
+                    placeholder="e.g. Md. Asif (Dean SAC)"
                     style={{
                       width: '100%',
                       background: 'rgba(15, 23, 42, 0.85)',

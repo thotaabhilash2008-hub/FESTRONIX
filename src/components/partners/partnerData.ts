@@ -92,7 +92,7 @@ export const SPONSOR_PROFILES: SponsorProfile[] = [
     pocRole: 'Community & Partnerships Lead',
     pocContact: '+91 98480 12345',
     pocEmail: 'partnerships@connectclub.in',
-    sacLeadName: 'Prof. R. Srinivas (Dean SAC)',
+    sacLeadName: 'Md. Asif (Dean SAC)',
     sacLeadContact: '+91 98480 99112',
     stallLocation: 'Central Block Atrium • Ground Level Innovation Hub',
     stallNumber: 'Stall #A-01',

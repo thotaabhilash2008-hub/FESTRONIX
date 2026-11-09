@@ -64,7 +64,7 @@ export const AboutSection: React.FC = () => {
               
             }}
           >
-            Organized by the Student Affairs Council (SAC) at Vardhaman College of Engineering, FESTRONIX 2026 brings together 9 engineering departments for competitive challenges, technical workshops, and real-world project exhibitions.
+            Organized by the Student Activity Council (SAC) under the leadership of Dean SAC Md. Asif at Vardhaman College of Engineering, FESTRONIX 2026 brings together 9 engineering departments for competitive challenges, technical workshops, and real-world project exhibitions.
           </p>
         </div>
       </ScrollReveal>

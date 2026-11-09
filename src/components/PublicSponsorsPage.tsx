@@ -187,7 +187,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
         pocRole: 'Partnership Lead',
         pocContact: '+91 98480 99112',
         pocEmail: 'sponsorship.festronix@vardhaman.org',
-        sacLeadName: 'Prof. R. Srinivas (Dean SAC)',
+        sacLeadName: 'Md. Asif (Dean SAC)',
         sacLeadContact: '+91 98480 99112',
         stallLocation: stallLocation.trim() || 'Central Block Innovation Zone',
         stallNumber: stallNumber.trim() || 'Stall #S-01',

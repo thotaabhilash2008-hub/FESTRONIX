@@ -49,7 +49,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) =
           </div>
           <p style={{ color: '#A8B3C2', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '16px' }}>
             The official national-level technology festival of Vardhaman College of Engineering, Hyderabad.
-            Orchestrated by the Student Affairs Council (SAC).
+            Orchestrated by the Student Activity Council (SAC) under the leadership of Dean SAC Md. Asif.
           </p>
           <div style={{ fontSize: '0.78rem', color: '#A8B3C2', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <ShieldCheck size={13} color="#BACEBB" />
@@ -100,8 +100,12 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) =
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.83rem', color: '#A8B3C2' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={14} color="#BACEBB" />
+              <span>Dean, SAC: <strong style={{ color: '#FFFFFF' }}>Md. Asif</strong></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Phone size={14} color="#BACEBB" />
-              <span>SAC Helpline: +91 98480 99112</span>
+              <span>SAC Helpline: +91 98480 11001</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={14} color="#789593" />

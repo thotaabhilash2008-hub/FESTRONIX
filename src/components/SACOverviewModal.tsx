@@ -37,7 +37,7 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
                 SAC EXECUTIVE DASHBOARD
               </h3>
               <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>
-                Vardhaman College of Engineering • Student Affairs Council Central Operations
+                Vardhaman College of Engineering • Student Activity Council (SAC) • Dean SAC: Md. Asif
               </div>
             </div>
           </div>
