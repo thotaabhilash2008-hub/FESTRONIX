@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
-import { HypedEventsSection } from './components/HypedEventsSection';
-import { EventCatalog } from './components/EventCatalog';
+import { EventsGlimpseSection } from './components/EventsGlimpseSection';
 import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
 import { Footer } from './components/Footer';
@@ -448,27 +447,11 @@ export const App: React.FC = () => {
         {/* ABOUT FESTRONIX: Scroll-Driven Transformation */}
         <AboutSection />
 
-        {/* TOP HYPED EVENTS (Ranked by Total Registrations) */}
-        <HypedEventsSection
+        {/* UNIFIED EVENTS GLIMPSE: Popular, Day 1, Day 2 Infinite Marquees */}
+        <EventsGlimpseSection
           events={events}
           onSelectEvent={evt => setDetailEvent(evt)}
           onRegisterEvent={handleStartEventRegistration}
-          onExploreAll={handleNavigateExplore}
-        />
-
-        {/* EVENT CATALOG with Select by Department & Select by Event Category */}
-        <EventCatalog
-          events={events}
-          onSelectEvent={evt => setDetailEvent(evt)}
-          onRegisterEvent={handleStartEventRegistration}
-          selectedDept={selectedDept}
-          onSelectDept={setSelectedDept}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
-          activeViewMode={catalogViewMode}
-          onSetActiveViewMode={setCatalogViewMode}
         />
 
         {/* Engineering Departments Overview */}
