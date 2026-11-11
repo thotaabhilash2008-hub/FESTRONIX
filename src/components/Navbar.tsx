@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck, CalendarDays } from 'lucide-react';
+import { Ticket, Menu, X, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, CalendarDays } from 'lucide-react';
 import { Announcement } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
@@ -691,39 +691,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Admin Console Quick Link */}
-          {onOpenAdmin && (
-            <button
-              onClick={onOpenAdmin}
-              className="desktop-only"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: '#94A3B8',
-                fontSize: '0.84rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 8px',
-                transition: 'color 0.15s ease',
-                fontFamily: "'Space Grotesk', sans-serif",
-                whiteSpace: 'nowrap'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = '#FFFFFF';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = '#94A3B8';
-              }}
-              title="SAC Executive Portal"
-            >
-              <span>Admin Console</span>
-            </button>
-          )}
-
           {/* View Our Registration Passes */}
           <button
             onClick={onOpenPasses}
@@ -1265,35 +1232,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ))}
                 </div>
               </div>
-
-              {/* Option 10: Admin & Faculty Console (SAC / Department Coordinators) */}
-              {onOpenAdmin && (
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenAdmin();
-                  }}
-                  style={{
-                    background: 'rgba(56, 189, 248, 0.08)',
-                    border: '1px solid rgba(56, 189, 248, 0.28)',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    color: '#38BDF8',
-                    fontSize: '0.88rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <ShieldCheck size={18} color="#38BDF8" />
-                    <span>Admin Console (SAC & Faculty)</span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: '#38BDF8' }}>Login →</span>
-                </button>
-              )}
             </div>
 
             {/* Sidebar Bottom Footer Info */}

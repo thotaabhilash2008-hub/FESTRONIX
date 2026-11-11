@@ -63,7 +63,7 @@ export const AmbassadorDashboard: React.FC<AmbassadorDashboardProps> = ({ onBack
 
   const handleWhatsAppShare = () => {
     const text = encodeURIComponent(
-      `⚡ *FESTRONIX 2026 @ Vardhaman College of Engineering!*\n🏆 ₹5,00,000+ Prize Pool across 30+ Flagship Arenas.\n\n🎟️ Register with my exclusive Campus Ambassador link for verified cryptographic pass & fast-track check-in:\n👉 ${referralUrl}\n\nUse Referral Code: *${currentAmbassador.referralCode}*`
+      `⚡ *FESTRONIX 2026 @ Vardhaman College of Engineering!*\n🏆 ₹1,00,000+ Prize Pool across 30+ Flagship Arenas.\n\n🎟️ Register with my exclusive Campus Ambassador link for verified cryptographic pass & fast-track check-in:\n👉 ${referralUrl}\n\nUse Referral Code: *${currentAmbassador.referralCode}*`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };

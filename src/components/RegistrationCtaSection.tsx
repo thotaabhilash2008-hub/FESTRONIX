@@ -89,7 +89,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 
               }}
             >
-              Register now to participate. Get your festival pass or reserve team slots in individual technical competitions.
+              Register now to participate. Get your festival pass and register your team for flagship technical competitions.
             </p>
 
             {/* Perks Strip */}
@@ -105,7 +105,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               {[
                 { icon: <QrCode size={16} color="#38BDF8" />, text: 'Instant Digital Pass & QR Entry' },
                 { icon: <Shield size={16} color="#34D399" />, text: 'Official College Certificate' },
-                { icon: <Trophy size={16} color="#FBBF24" />, text: '₹5,00,000+ Prize Pool Access' }
+                { icon: <Trophy size={16} color="#FBBF24" />, text: '₹1,00,000+ Prize Pool Access' }
               ].map((perk, i) => (
                 <div
                   key={i}

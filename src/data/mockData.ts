@@ -107,12 +107,12 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Team size: 2 to 4 members from any AICTE-recognized institution.',
       'All code must be written within the hackathon window; existing projects are disqualified.',
       'APIs, open-source libraries, and AI co-pilots are allowed with transparent declaration.',
-      'Evaluation criteria: Innovation (30%), Technical Execution (30%), UI/UX (20%), Pitch (20%).'
+      'Evaluation criteria: Technical Execution (40%), Benchmark Accuracy (30%), UI/UX (30%).'
     ],
     prizes: {
-      first: '₹50,000 + Tech Incubation Grant',
-      second: '₹25,000 + Vouchers',
-      third: '₹10,000'
+      first: '₹15,000 Cash Prize',
+      second: '₹8,000',
+      third: '₹3,000'
     },
     eligibility: 'Open to all B.Tech / M.Tech / MCA / Degree students with valid college ID.',
     coordinatorName: 'M Raghavendra / Ch Bala Subramanyam / BJV Varma',
@@ -146,11 +146,11 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'All bots must have remote radio fail-safe switches.'
     ],
     prizes: {
-      first: '₹40,000 + Trophy',
-      second: '₹20,000',
-      third: '₹8,000'
+      first: '₹15,000 + Trophy',
+      second: '₹7,000',
+      third: '₹3,000'
     },
-    eligibility: 'Engineering undergraduates and polytechnic innovators.',
+    eligibility: 'Engineering undergraduates and polytechnic students.',
     coordinatorName: 'R Phani Vidyadhar',
     coordinatorPhone: '+91 88013 33811',
     coordinatorEmail: 'rphaniv@vardhaman.org',
@@ -181,9 +181,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Scoring based on output benchmark accuracy, token efficiency, and prompt latency.'
     ],
     prizes: {
-      first: '₹20,000 + AI Cloud Credits',
-      second: '₹10,000',
-      third: '₹5,000'
+      first: '₹8,000 Cash Prize',
+      second: '₹4,000',
+      third: '₹2,000'
     },
     eligibility: 'Open to all registered tech students.',
     coordinatorName: 'P Rajashekar',
@@ -216,8 +216,8 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Anti-cheat and toxic conduct enforcement strictly active.'
     ],
     prizes: {
-      first: '₹30,000 + Pro Gaming Peripherals',
-      second: '₹15,000'
+      first: '₹10,000 Cash Prize',
+      second: '₹5,000'
     },
     eligibility: 'All students with valid college ID.',
     coordinatorName: 'P Dastagiri Reddy',
@@ -281,8 +281,8 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Evaluation based on Load-to-Self-Weight ratio.'
     ],
     prizes: {
-      first: '₹15,000 + Memento',
-      second: '₹8,000'
+      first: '₹6,000 + Memento',
+      second: '₹3,000'
     },
     eligibility: 'All students interested in structural mechanics.',
     coordinatorName: 'K Chaitanya',
@@ -314,8 +314,8 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Lap timer transponders will be assigned during safety inspection.'
     ],
     prizes: {
-      first: '₹25,000 + Carbon Fiber Drone Frame Kit',
-      second: '₹12,000'
+      first: '₹8,000 + Trophy',
+      second: '₹4,000'
     },
     eligibility: 'Open to drone hobbyists and students.',
     coordinatorName: 'B Dhanraj',
@@ -340,15 +340,15 @@ export const INITIAL_EVENTS: FestEvent[] = [
     deadline: '2026-10-27 18:00',
     date: 'Oct 29, 2026',
     time: '10:00 AM - 01:30 PM',
-    venue: 'VCE Innovation Cell Boardroom',
-    description: 'Pitch disruptive technological startups to real angel investors and venture capitalists. Free registration with seed incubation opportunities.',
+    venue: 'VCE Conference Boardroom',
+    description: 'Pitch disruptive technological startups to real angel investors and venture capitalists. Free registration with cash prize rewards.',
     rules: [
       '5-minute pitch deck followed by 3-minute jury cross-examination.',
       'Financial projections and MVP prototype demo carry bonus points.'
     ],
     prizes: {
-      first: '₹35,000 Seed Grant + Incubation',
-      second: '₹15,000'
+      first: '₹8,000 Cash Prize',
+      second: '₹4,000'
     },
     eligibility: 'Open to all aspiring student founders.',
     coordinatorName: 'Aishwarya Rao',
@@ -380,9 +380,8 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Jupyter notebooks and presentation decks submitted before buzzer.'
     ],
     prizes: {
-      first: '₹25,000 + Data Cloud Credits',
-      second: '₹12,000',
-      third: '₹6,000'
+      first: '₹6,000 Cash Prize',
+      second: '₹3,000'
     },
     eligibility: 'All students interested in machine learning and big data science.',
     coordinatorName: 'V Vinod Kumar',
@@ -404,8 +403,8 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
   },
   {
     id: 'ann-2',
-    title: '🏆 Cash Prize Pool Enhanced to ₹5,00,000!',
-    message: 'SAC Vardhaman has officially increased prize distributions across all 9 academic departments.',
+    title: '🏆 Cash Prize Pool of ₹1,00,000 Announced!',
+    message: 'SAC Vardhaman has officially confirmed prize distributions across all competitive tracks.',
     type: 'prize',
     scope: 'fest-wide',
     date: '2026-10-13 16:45'

@@ -5,7 +5,7 @@ import { getEventRegistrationBlockReason, registrationDeadlineToIso } from '../l
 import type { Database } from '../lib/database.types';
 
 const STORAGE_KEYS = {
-  EVENTS: 'festronix_events_v2',
+  EVENTS: 'festronix_events_v3',
   REGISTRATIONS: 'festronix_registrations_v2',
   ANNOUNCEMENTS: 'festronix_announcements_v2',
   TEAMS: 'festronix_teams_v2',

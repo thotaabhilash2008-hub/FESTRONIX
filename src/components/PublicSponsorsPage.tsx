@@ -246,7 +246,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
 
   const handleDownloadBrochure = () => {
     const blob = new Blob([
-      `FESTRONIX 2026 • OFFICIAL CORPORATE SPONSORSHIP BROCHURE\nVardhaman College of Engineering, Hyderabad\nNational Level Technical Fest (Oct 28-29, 2026)\n\nKey Arenas: Autonomous Robotics, AI Hackathon, Drone Racing, 30+ Flagship Tracks.\nExpected Footfall: 35,000+ Students across 45+ Engineering Colleges.\nPrize Pool: ₹5,00,000+\n\nContact Central Desk:\nPhone: +91 98480 99112\nEmail: sponsorship.festronix@vardhaman.org\nWebsite: https://festronix-fawn.vercel.app/`
+      `FESTRONIX 2026 • OFFICIAL CORPORATE SPONSORSHIP BROCHURE\nVardhaman College of Engineering, Hyderabad\nNational Level Technical Fest (Oct 28-29, 2026)\n\nKey Arenas: Autonomous Robotics, AI Hackathon, Drone Racing, 30+ Flagship Tracks.\nExpected Footfall: 35,000+ Students across 45+ Engineering Colleges.\nPrize Pool: ₹1,00,000+\n\nContact Central Desk:\nPhone: +91 98480 99112\nEmail: sponsorship.festronix@vardhaman.org\nWebsite: https://festronix-fawn.vercel.app/`
     ], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

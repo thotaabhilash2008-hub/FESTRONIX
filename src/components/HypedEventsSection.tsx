@@ -139,8 +139,6 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
           >
             {hypedEvents.map((evt, idx) => {
               const badge = getRankBadge(idx);
-              const fillPct = Math.min(100, Math.round((evt.registeredCount / evt.capacity) * 100));
-              const spotsLeft = Math.max(0, evt.capacity - evt.registeredCount);
               const isFull = evt.registeredCount >= evt.capacity || evt.status === 'full';
               const registrationBlockReason = getEventRegistrationBlockReason(evt);
 
@@ -272,46 +270,22 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
 
                     {/* Progress & Actions */}
                     <div>
-                      <div style={{ marginBottom: '18px' }}>
+                      <div style={{ marginBottom: '16px' }}>
                         <div
                           style={{
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            fontSize: '0.78rem',
-                            marginBottom: '6px'
+                            fontSize: '0.78rem'
                           }}
                         >
                           <span style={{ color: '#E2E8F0', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                             <Users size={13} color="#38BDF8" />
                             {evt.registeredCount} Enrolled
                           </span>
-                          <span style={{ color: isFull ? '#FB7185' : '#CBD5E1', fontWeight: 600 }}>
-                            {isFull ? 'CAPACITY REACHED' : `${spotsLeft} slots left (${fillPct}%)`}
+                          <span style={{ color: isFull ? '#FB7185' : '#34D399', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {isFull ? 'Full' : 'Open'}
                           </span>
-                        </div>
-
-                        <div
-                          style={{
-                            width: '100%',
-                            height: '6px',
-                            borderRadius: '9999px',
-                            background: 'rgba(8, 12, 22, 0.9)',
-                            overflow: 'hidden'
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${fillPct}%`,
-                              height: '100%',
-                              background: isFull
-                                ? '#FB7185'
-                                : 'linear-gradient(90deg, #1E3A8A 0%, #2563EB 50%, #38BDF8 100%)',
-                              boxShadow: '0 0 10px rgba(56, 189, 248, 0.5)',
-                              borderRadius: '9999px',
-                              transition: 'width 0.4s ease'
-                            }}
-                          />
                         </div>
                       </div>
 

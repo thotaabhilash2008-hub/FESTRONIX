@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown, TrendingUp, Award } from 'lucide-react';
+import { Crown, Award } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -39,11 +39,11 @@ export const PrizesSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            ₹5,00,000+ IN <span style={{ color: '#F59E0B' }}>PRIZES & AWARDS</span>
+            ₹1,00,000+ WORTH <span style={{ color: '#F59E0B' }}>PRIZE POOL</span>
           </h2>
 
-          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7,  }}>
-            Cash rewards, trophies, merit certificates, and incubation support across all flagship events.
+          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7 }}>
+            Cash rewards, official trophies, and merit certificates across all flagship events.
           </p>
         </div>
       </ScrollReveal>
@@ -53,7 +53,9 @@ export const PrizesSection: React.FC = () => {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '24px'
+            gap: '24px',
+            maxWidth: '900px',
+            margin: '0 auto'
           }}
         >
           {/* Card 1: Direct Cash Rewards */}
@@ -62,7 +64,7 @@ export const PrizesSection: React.FC = () => {
               className="cyber-card"
               style={{
                 padding: '28px',
-                                background: '#0F172A',
+                background: '#0F172A',
                 border: '1px solid #1E293B',
                 boxShadow: 'none',
                 backdropFilter: 'none',
@@ -107,82 +109,22 @@ export const PrizesSection: React.FC = () => {
                   textShadow: 'none'
                 }}
               >
-                ₹3,50,000+
+                ₹1,00,000+
               </div>
 
               <p style={{ color: '#CBD5E1', fontSize: '0.92rem', lineHeight: 1.65 }}>
-                Direct bank disbursement to winners across 30+ competitive categories including Hackathons, RoboWars, and E-Sports championships.
+                Direct disbursement to podium winners across competitive categories including Coding, Hackathons, RoboWars, and Technical championships.
               </p>
             </div>
           </Tilt3DCard>
 
-          {/* Card 2: CIE Startup Incubation */}
+          {/* Card 2: SAC Certified Trophies */}
           <Tilt3DCard maxTilt={5} scale={1.02}>
             <div
               className="cyber-card"
               style={{
                 padding: '28px',
-                                background: '#0F172A',
-                border: '1px solid #1E293B',
-                boxShadow: 'none',
-                backdropFilter: 'none',
-                height: '100%',
-                boxSizing: 'border-box'
-              }}
-            >
-              <div
-                style={{
-                  padding: '12px',
-                  background: 'rgba(251, 191, 36, 0.14)',
-                  borderRadius: '12px',
-                  display: 'inline-flex',
-                  marginBottom: '20px',
-                  border: '1px solid rgba(251, 191, 36, 0.35)'
-                }}
-              >
-                <TrendingUp size={26} color="#FBBF24" />
-              </div>
-
-              <h3
-                style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: '1.3rem',
-                  fontWeight: 800,
-                  color: '#FFFFFF',
-                  marginBottom: '8px',
-                  letterSpacing: '-0.02em'
-                }}
-              >
-                Startup Incubation
-              </h3>
-
-              <div
-                style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontSize: '2.1rem',
-                  fontWeight: 800,
-                  color: '#FBBF24',
-                  marginBottom: '14px',
-                  lineHeight: 1,
-                  textShadow: 'none'
-                }}
-              >
-                ₹1,50,000+
-              </div>
-
-              <p style={{ color: '#CBD5E1', fontSize: '0.92rem', lineHeight: 1.65 }}>
-                Seed incubation grant from Vardhaman Centre for Innovation and Entrepreneurship (CIE), plus cloud computing credits and legal mentoring.
-              </p>
-            </div>
-          </Tilt3DCard>
-
-          {/* Card 3: SAC Certified Trophies */}
-          <Tilt3DCard maxTilt={5} scale={1.02}>
-            <div
-              className="cyber-card"
-              style={{
-                padding: '28px',
-                                background: '#0F172A',
+                background: '#0F172A',
                 border: '1px solid #1E293B',
                 boxShadow: 'none',
                 backdropFilter: 'none',
@@ -231,7 +173,7 @@ export const PrizesSection: React.FC = () => {
               </div>
 
               <p style={{ color: '#CBD5E1', fontSize: '0.92rem', lineHeight: 1.65 }}>
-                Machined liquid silver trophies for podium finishers, merit certificates, and cryptographic verification on digital passes.
+                Machined trophies for podium finishers, official merit certificates, and cryptographic verification on digital passes.
               </p>
             </div>
           </Tilt3DCard>

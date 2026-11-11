@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Layers, Briefcase, Terminal, Info } from 'lucide-react';
+import { ShieldCheck, Layers, Award, Terminal, Info } from 'lucide-react';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
@@ -261,7 +261,7 @@ export const AboutSection: React.FC = () => {
                       justifyContent: 'center'
                     }}
                   >
-                    <Briefcase size={22} color="#38BDF8" />
+                    <Award size={22} color="#38BDF8" />
                   </div>
                   <span style={{ color: "#64748B", fontSize: "0.8rem", fontWeight: 700 }}>03</span>
                 </div>
@@ -276,11 +276,11 @@ export const AboutSection: React.FC = () => {
                     letterSpacing: '-0.02em'
                   }}
                 >
-                  Innovation & Incubation
+                  Prizes & Recognition
                 </h3>
 
                 <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
-                  Outstanding projects and teams receive mentoring from the Center for Innovation and Entrepreneurship (CIE), patent guidance, and participation certificates.
+                  Podium finishers and standout competitors take home cash rewards from the ₹1,00,000+ prize pool, official trophies, and merit certificates verified by SAC Vardhaman.
                 </p>
               </div>
 
@@ -298,8 +298,8 @@ export const AboutSection: React.FC = () => {
                   fontFamily: "'Space Grotesk', sans-serif"
                 }}
               >
-                <Briefcase size={14} color="#38BDF8" />
-                <span>₹5,00,000+ AWARDS & CIE GRANTS</span>
+                <Award size={14} color="#38BDF8" />
+                <span>₹1,00,000+ PRIZE POOL</span>
               </div>
             </div>
           </Tilt3DCard>

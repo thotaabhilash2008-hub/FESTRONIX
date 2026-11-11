@@ -376,7 +376,7 @@ export const MARKETING_TEMPLATES = [
     id: 'wa-1',
     channel: 'WhatsApp Groups & Broadcasts',
     title: 'Flagship Announcement & Registration Link',
-    text: `⚡ *FESTRONIX 2026 IS HERE!* ⚡\nNational Level Technical Fest @ Vardhaman College of Engineering, Hyderabad.\n\n🏆 *₹5,00,000+ Prize Pool* across 30+ Flagship Arenas:\n• Autonomous Robotics & RoboWars\n• 36-Hr National AI Hackathon\n• Drone Racing & Circuitrix\n• VIP Concert & Tech Night\n\n🎟️ Register now through my official ambassador link for instant cryptographic pass & priority seating:\n👉 https://festronix-fawn.vercel.app/?ref={CODE}\n\nUse Referral Code: *{CODE}*`
+    text: `⚡ *FESTRONIX 2026 IS HERE!* ⚡\nNational Level Technical Fest @ Vardhaman College of Engineering, Hyderabad.\n\n🏆 *₹1,00,000+ Prize Pool* across 30+ Flagship Arenas:\n• Autonomous Robotics & RoboWars\n• 36-Hr National AI Hackathon\n• Drone Racing & Circuitrix\n• VIP Concert & Tech Night\n\n🎟️ Register now through my official ambassador link for instant cryptographic pass & priority seating:\n👉 https://festronix-fawn.vercel.app/?ref={CODE}\n\nUse Referral Code: *{CODE}*`
   },
   {
     id: 'ig-1',
