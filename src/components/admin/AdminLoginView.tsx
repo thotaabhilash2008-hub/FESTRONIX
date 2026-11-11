@@ -19,9 +19,65 @@ export const OFFICIAL_STAFF_COORDINATORS: Record<string, {
   email: string;
   phone: string;
   deptName: string;
+  cluster?: string;
   coordinators?: Array<{ name: string; email: string; phone: string }>;
 }> = {
+  'CSE 1': {
+    name: 'BJV Varma',
+    email: 'varma@vardhaman.org',
+    phone: '8143275536',
+    deptName: 'Computer Science & Engineering',
+    cluster: '1st cluster (Verma)'
+  },
+  'CSE-1': {
+    name: 'BJV Varma',
+    email: 'varma@vardhaman.org',
+    phone: '8143275536',
+    deptName: 'Computer Science & Engineering',
+    cluster: '1st cluster (Verma)'
+  },
+  'CSE 2': {
+    name: 'Ch Bala Subramanyam',
+    email: 'balu1681@vardhaman.org',
+    phone: '8184864242',
+    deptName: 'Computer Science & Engineering',
+    cluster: '2nd cluster (Balu)'
+  },
+  'CSE-2': {
+    name: 'Ch Bala Subramanyam',
+    email: 'balu1681@vardhaman.org',
+    phone: '8184864242',
+    deptName: 'Computer Science & Engineering',
+    cluster: '2nd cluster (Balu)'
+  },
+  'CSE 3': {
+    name: 'M Raghavendra',
+    email: 'raghavendra1797@vardhaman.org',
+    phone: '6303169820',
+    deptName: 'Computer Science & Engineering',
+    cluster: '3rd cluster (Raghavendra)'
+  },
+  'CSE-3': {
+    name: 'M Raghavendra',
+    email: 'raghavendra1797@vardhaman.org',
+    phone: '6303169820',
+    deptName: 'Computer Science & Engineering',
+    cluster: '3rd cluster (Raghavendra)'
+  },
+  CSE: {
+    name: 'BJV Varma',
+    email: 'varma@vardhaman.org',
+    phone: '8143275536',
+    deptName: 'Computer Science & Engineering',
+    cluster: '1st cluster (Verma)'
+  },
   MECH: {
+    name: 'B Dhanraj',
+    email: 'dhanraj2205@vardhaman.org',
+    phone: '9441381799',
+    deptName: 'Mechanical Engineering'
+  },
+  MECHANICAL: {
     name: 'B Dhanraj',
     email: 'dhanraj2205@vardhaman.org',
     phone: '9441381799',
@@ -44,17 +100,6 @@ export const OFFICIAL_STAFF_COORDINATORS: Record<string, {
     email: 'vinodkumar1807@vardhaman.org',
     phone: '8897715060',
     deptName: 'CSE (Data Science)'
-  },
-  CSE: {
-    name: 'M Raghavendra',
-    email: 'raghavendra1797@vardhaman.org',
-    phone: '6303169820',
-    deptName: 'Computer Science & Engineering',
-    coordinators: [
-      { name: 'M Raghavendra', email: 'raghavendra1797@vardhaman.org', phone: '6303169820' },
-      { name: 'Ch Bala Subramanyam', email: 'balu1681@vardhaman.org', phone: '8184864242' },
-      { name: 'BJV Varma', email: 'varma@vardhaman.org', phone: '8143275536' }
-    ]
   },
   IT: {
     name: 'P Dastagiri Reddy',
@@ -102,6 +147,25 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const effectiveDepartments: Department[] = (departments && departments.length > 0) ? departments : DEPARTMENTS;
   const effectiveEvents: FestEvent[] = (allEvents && allEvents.length > 0) ? allEvents : INITIAL_EVENTS;
 
+  // 3 distinct CSE departments: CSE 1 (Verma), CSE 2 (Balu), CSE 3 (Raghavendra)
+  const loginDepartments = React.useMemo(() => {
+    const list: Array<{ id: string; code: string; name: string; cluster?: string }> = [
+      { id: 'dept-cse-1', code: 'CSE 1', name: 'Computer Science (Cluster 1 - Verma)', cluster: '1st cluster' },
+      { id: 'dept-cse-2', code: 'CSE 2', name: 'Computer Science (Cluster 2 - Balu)', cluster: '2nd cluster' },
+      { id: 'dept-cse-3', code: 'CSE 3', name: 'Computer Science (Cluster 3 - Raghavendra)', cluster: '3rd cluster' }
+    ];
+
+    effectiveDepartments.forEach(dept => {
+      const codeUpper = dept.code.toUpperCase();
+      if (codeUpper !== 'CSE') {
+        const displayCode = codeUpper === 'MECHANICAL' ? 'MECH' : dept.code;
+        list.push({ id: dept.id, code: displayCode, name: dept.name });
+      }
+    });
+
+    return list;
+  }, [effectiveDepartments]);
+
   // Password visibility toggles
   const [showSuperPassword, setShowSuperPassword] = useState(false);
   const [showDeptPassword, setShowDeptPassword] = useState(false);
@@ -132,14 +196,14 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const [superEmail, setSuperEmail] = useState('');
   const [superPassword, setSuperPassword] = useState('');
 
-  // 2. DEPT COORDINATOR Form
-  const [selectedDept, setSelectedDept] = useState('CSE');
+  // 2. DEPT COORDINATOR Form (defaults to CSE 1 - Verma)
+  const [selectedDept, setSelectedDept] = useState('CSE 1');
   const [deptEmail, setDeptEmail] = useState('');
   const [deptPassword, setDeptPassword] = useState('');
   const [coordName, setCoordName] = useState('');
 
   // 3. EVENT COORDINATORS Form
-  const [eventDept, setEventDept] = useState('CSE');
+  const [eventDept, setEventDept] = useState('CSE 1');
   const [selectedEventId, setSelectedEventId] = useState(() => {
     const cseEvt = StorageService.getEvents().find(e => e.departmentCode.toUpperCase() === 'CSE');
     return cseEvt?.id || 'evt-1';
@@ -168,7 +232,11 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const handleEventDeptSelect = (deptCode: string) => {
     setEventDept(deptCode);
     setErrorMessage('');
-    const deptEvents = effectiveEvents.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
+    const effectiveDept = deptCode.startsWith('CSE') ? 'CSE' : (deptCode === 'MECH' ? 'MECHANICAL' : deptCode);
+    const deptEvents = effectiveEvents.filter(e => {
+      const code = e.departmentCode.toUpperCase();
+      return code === effectiveDept || (effectiveDept === 'MECHANICAL' && code === 'MECH');
+    });
     const firstEvt = deptEvents[0];
     if (firstEvt) {
       setSelectedEventId(firstEvt.id);
@@ -268,9 +336,14 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   };
 
   // Active department staff info
-  const activeStaffInfo = OFFICIAL_STAFF_COORDINATORS[selectedDept];
-  const activeDeptEvents = effectiveEvents.filter(e => e.departmentCode.toUpperCase() === eventDept.toUpperCase());
+  const activeStaffInfo = OFFICIAL_STAFF_COORDINATORS[selectedDept] || OFFICIAL_STAFF_COORDINATORS[selectedDept.toUpperCase()];
+  const activeEventDept = eventDept.startsWith('CSE') ? 'CSE' : (eventDept === 'MECH' ? 'MECHANICAL' : eventDept);
+  const activeDeptEvents = effectiveEvents.filter(e => {
+    const code = e.departmentCode.toUpperCase();
+    return code === activeEventDept || (activeEventDept === 'MECHANICAL' && code === 'MECH');
+  });
   const activeSelectedEvent = effectiveEvents.find(e => e.id === selectedEventId) || activeDeptEvents[0];
+  const activeEventStaffInfo = OFFICIAL_STAFF_COORDINATORS[eventDept] || OFFICIAL_STAFF_COORDINATORS[activeEventDept];
 
   return (
     <div
@@ -567,10 +640,10 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           <form onSubmit={handleDeptSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '8px' }}>
-                Select Department ({effectiveDepartments.length} Academic Branches)
+                Select Department ({loginDepartments.length} Academic Branches)
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gap: '6px', marginBottom: '8px' }}>
-                {effectiveDepartments.map(dept => {
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(75px, 1fr))', gap: '6px', marginBottom: '8px' }}>
+                {loginDepartments.map(dept => {
                   const isSelected = selectedDept === dept.code;
                   return (
                     <button
@@ -614,67 +687,41 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{selectedDept} Desk</span>
                 </div>
 
-                {activeStaffInfo.coordinators ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
-                    <div style={{ fontSize: '0.74rem', color: '#BAE6FD', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Users size={14} color="#38BDF8" />
-                      <span>3 Official CSE Staff Coordinators — Click to choose login account:</span>
+                    <div style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span>{activeStaffInfo.name}</span>
+                      {activeStaffInfo.cluster && (
+                        <span style={{ fontSize: '0.72rem', color: '#38BDF8', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                          {activeStaffInfo.cluster}
+                        </span>
+                      )}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                      {activeStaffInfo.coordinators.map((c, idx) => {
-                        const isChosen = deptEmail.toLowerCase() === c.email.toLowerCase();
-                        return (
-                          <button
-                            key={c.email}
-                            type="button"
-                            onClick={() => {
-                              setDeptEmail(c.email);
-                              setCoordName(c.name);
-                              setDeptPassword('');
-                            }}
-                            style={{
-                              background: isChosen ? 'linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(56, 189, 248, 0.3) 100%)' : 'rgba(15, 23, 42, 0.7)',
-                              border: `1.5px solid ${isChosen ? '#38BDF8' : 'rgba(255, 255, 255, 0.12)'}`,
-                              borderRadius: '10px',
-                              padding: '10px 12px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              color: '#FFFFFF',
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                              transition: 'all 0.15s ease',
-                              boxShadow: isChosen ? '0 0 16px rgba(56, 189, 248, 0.25)' : 'none'
-                            }}
-                          >
-                            <div>
-                              <div style={{ fontWeight: 800, fontSize: '0.84rem', color: isChosen ? '#38BDF8' : '#FFFFFF' }}>
-                                {idx + 1}. {c.name}
-                              </div>
-                              <div style={{ color: '#BAE6FD', fontSize: '0.72rem', marginTop: '2px' }}>
-                                {c.email}
-                              </div>
-                              <div style={{ color: '#94A3B8', fontSize: '0.68rem', marginTop: '3px' }}>
-                                📞 {c.phone}
-                              </div>
-                            </div>
-                            {isChosen && <CheckCircle2 size={18} color="#38BDF8" />}
-                          </button>
-                        );
-                      })}
+                    <div style={{ fontSize: '0.74rem', color: '#BAE6FD', display: 'flex', gap: '10px', marginTop: '4px' }}>
+                      <span><Mail size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeStaffInfo.email}</span>
+                      <span><Phone size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeStaffInfo.phone}</span>
                     </div>
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <div style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.88rem' }}>{activeStaffInfo.name}</div>
-                      <div style={{ fontSize: '0.74rem', color: '#BAE6FD', display: 'flex', gap: '10px', marginTop: '2px' }}>
-                        <span><Mail size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeStaffInfo.email}</span>
-                        <span><Phone size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeStaffInfo.phone}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeptEmail(activeStaffInfo.email);
+                      setCoordName(activeStaffInfo.name);
+                    }}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      color: '#BAE6FD',
+                      borderRadius: '8px',
+                      padding: '5px 10px',
+                      fontSize: '0.72rem',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    Select {activeStaffInfo.name.split(' ').pop()} Email
+                  </button>
+                </div>
               </div>
             )}
 
@@ -761,10 +808,10 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           <form onSubmit={handleEventSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '8px' }}>
-                1. Select Event Department
+                1. Select Event Department ({loginDepartments.length} Academic Branches)
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gap: '6px', marginBottom: '8px' }}>
-                {effectiveDepartments.map(dept => {
+                {loginDepartments.map(dept => {
                   const isSelected = eventDept === dept.code;
                   return (
                     <button
@@ -790,6 +837,58 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 })}
               </div>
             </div>
+
+            {/* Active Coordinator Callout Card for Event Dept */}
+            {activeEventStaffInfo && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.86rem' }}>
+                      {activeEventStaffInfo.name}
+                    </span>
+                    {activeEventStaffInfo.cluster && (
+                      <span style={{ fontSize: '0.68rem', color: '#C4B5FD', background: 'rgba(139, 92, 246, 0.18)', border: '1px solid rgba(139, 92, 246, 0.35)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                        {activeEventStaffInfo.cluster}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#DDD6FE', display: 'flex', gap: '10px', marginTop: '3px' }}>
+                    <span><Mail size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeEventStaffInfo.email}</span>
+                    <span><Phone size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeEventStaffInfo.phone}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEventEmail(activeEventStaffInfo.email);
+                  }}
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.18)',
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    color: '#DDD6FE',
+                    borderRadius: '8px',
+                    padding: '5px 10px',
+                    fontSize: '0.72rem',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Select {activeEventStaffInfo.name.split(' ').pop()} Email
+                </button>
+              </div>
+            )}
 
             {/* Department Events Selector */}
             <div>
@@ -831,50 +930,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 })}
               </div>
             </div>
-
-            {/* CSE 3 Coordinators Quick Switch for Events */}
-            {eventDept === 'CSE' && (
-              <div
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  background: 'rgba(139, 92, 246, 0.1)',
-                  border: '1px solid rgba(139, 92, 246, 0.3)'
-                }}
-              >
-                <div style={{ fontSize: '0.72rem', color: '#C4B5FD', fontWeight: 700, marginBottom: '6px' }}>
-                  Select CSE Event Coordinator Login:
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '6px' }}>
-                  {OFFICIAL_STAFF_COORDINATORS.CSE.coordinators?.map(c => {
-                    const isPicked = eventEmail.toLowerCase() === c.email.toLowerCase();
-                    return (
-                      <button
-                        key={c.email}
-                        type="button"
-                        onClick={() => {
-                          setEventEmail(c.email);
-                          setEventPassword('');
-                        }}
-                        style={{
-                          background: isPicked ? 'rgba(139, 92, 246, 0.35)' : 'rgba(15, 23, 42, 0.65)',
-                          border: `1px solid ${isPicked ? '#A78BFA' : 'rgba(255, 255, 255, 0.12)'}`,
-                          borderRadius: '8px',
-                          padding: '6px 10px',
-                          color: '#FFFFFF',
-                          fontSize: '0.74rem',
-                          cursor: 'pointer',
-                          textAlign: 'left'
-                        }}
-                      >
-                        <div style={{ fontWeight: isPicked ? 800 : 600, color: isPicked ? '#A78BFA' : '#FFFFFF' }}>{c.name}</div>
-                        <div style={{ fontSize: '0.68rem', color: '#C4B5FD' }}>{c.email}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Active Selected Event Staff Coordinator Details */}
             {activeSelectedEvent && (

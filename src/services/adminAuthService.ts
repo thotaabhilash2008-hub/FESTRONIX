@@ -173,39 +173,39 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "CSD department's events"
   },
   {
-    id: 'admin_coord_cse_1',
-    username: 'raghavendra_cse',
-    fullName: 'M Raghavendra',
-    designation: 'Staff Coordinator (CSE)',
+    id: 'admin_coord_cse_3',
+    username: 'varma_cse',
+    fullName: 'BJV Varma',
+    designation: 'Staff Coordinator (CSE - 1st Cluster: Verma)',
     role: 'dept_chief_coordinator',
     departmentCode: 'CSE',
-    departmentName: 'Computer Science & Engineering',
-    email: 'raghavendra1797@vardhaman.org',
-    phone: '6303169820',
+    departmentName: 'Computer Science & Engineering (1st Cluster)',
+    email: 'varma@vardhaman.org',
+    phone: '8143275536',
     accessBoundary: "CSE department's events"
   },
   {
     id: 'admin_coord_cse_2',
     username: 'balu_cse',
     fullName: 'Ch Bala Subramanyam',
-    designation: 'Staff Coordinator (CSE)',
+    designation: 'Staff Coordinator (CSE - 2nd Cluster: Balu)',
     role: 'dept_chief_coordinator',
     departmentCode: 'CSE',
-    departmentName: 'Computer Science & Engineering',
+    departmentName: 'Computer Science & Engineering (2nd Cluster)',
     email: 'balu1681@vardhaman.org',
     phone: '8184864242',
     accessBoundary: "CSE department's events"
   },
   {
-    id: 'admin_coord_cse_3',
-    username: 'varma_cse',
-    fullName: 'BJV Varma',
-    designation: 'Staff Coordinator (CSE)',
+    id: 'admin_coord_cse_1',
+    username: 'raghavendra_cse',
+    fullName: 'M Raghavendra',
+    designation: 'Staff Coordinator (CSE - 3rd Cluster: Raghavendra)',
     role: 'dept_chief_coordinator',
     departmentCode: 'CSE',
-    departmentName: 'Computer Science & Engineering',
-    email: 'varma@vardhaman.org',
-    phone: '8143275536',
+    departmentName: 'Computer Science & Engineering (3rd Cluster)',
+    email: 'raghavendra1797@vardhaman.org',
+    phone: '6303169820',
     accessBoundary: "CSE department's events"
   },
   {
@@ -351,6 +351,19 @@ const USER_ALIAS_MAP: Record<string, string> = {
 
   // Department Codes
   'cse': 'cse.festronix@vardhaman.org',
+  'cse 1': 'varma@vardhaman.org',
+  'cse-1': 'varma@vardhaman.org',
+  'cse1': 'varma@vardhaman.org',
+  'cluster1': 'varma@vardhaman.org',
+  'verma': 'varma@vardhaman.org',
+  'cse 2': 'balu1681@vardhaman.org',
+  'cse-2': 'balu1681@vardhaman.org',
+  'cse2': 'balu1681@vardhaman.org',
+  'cluster2': 'balu1681@vardhaman.org',
+  'cse 3': 'raghavendra1797@vardhaman.org',
+  'cse-3': 'raghavendra1797@vardhaman.org',
+  'cse3': 'raghavendra1797@vardhaman.org',
+  'cluster3': 'raghavendra1797@vardhaman.org',
   'csd': 'csd.festronix@vardhaman.org',
   'csm': 'csm.festronix@vardhaman.org',
   'it': 'it.festronix@vardhaman.org',
@@ -643,8 +656,18 @@ export class AdminAuthService {
     const cleanDept = deptCode.trim().toUpperCase();
     const cleanPass = password.trim();
     const rawEmail = email.trim().toLowerCase();
+
+    // Map CSE clusters (CSE 1: Verma, CSE 2: Balu, CSE 3: Raghavendra)
+    const isCse1 = cleanDept === 'CSE 1' || cleanDept === 'CSE-1' || cleanDept === 'CSE1';
+    const isCse2 = cleanDept === 'CSE 2' || cleanDept === 'CSE-2' || cleanDept === 'CSE2';
+    const isCse3 = cleanDept === 'CSE 3' || cleanDept === 'CSE-3' || cleanDept === 'CSE3';
+
+    let defaultDeptEmail = `${cleanDept.toLowerCase().replace(/\s+/g, '')}.festronix@vardhaman.org`;
+    if (isCse1) defaultDeptEmail = 'varma@vardhaman.org';
+    else if (isCse2) defaultDeptEmail = 'balu1681@vardhaman.org';
+    else if (isCse3) defaultDeptEmail = 'raghavendra1797@vardhaman.org';
+
     const resolvedEmail = resolveTargetEmail(rawEmail);
-    const defaultDeptEmail = `${cleanDept.toLowerCase()}.festronix@vardhaman.org`;
     const targetEmail = resolvedEmail || defaultDeptEmail;
 
     if (!cleanPass) {
@@ -653,32 +676,52 @@ export class AdminAuthService {
 
     // 1. Check department and coordinator preset passwords
     const isDeptPresetMatch =
-      cleanPass === `${cleanDept.toLowerCase()}2026` ||
+      cleanPass === `${cleanDept.toLowerCase().replace(/\s+/g, '')}2026` ||
       (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026') ||
+      (isCse1 && (cleanPass === 'varma2026' || cleanPass === '8143275536' || cleanPass === 'cse2026')) ||
+      (isCse2 && (cleanPass === 'balu2026' || cleanPass === '8184864242' || cleanPass === 'cse2026')) ||
+      (isCse3 && (cleanPass === 'raghavendra2026' || cleanPass === '6303169820' || cleanPass === 'cse2026')) ||
       cleanPass === 'festcoord2026' ||
       cleanPass === 'festronix2026' ||
       checkPresetPassword(targetEmail, cleanPass);
 
     if (isDeptPresetMatch) {
-      const preset = findPresetAdmin(targetEmail) || PRESET_ADMINS.find(a => a.departmentCode === cleanDept);
+      let preset = findPresetAdmin(targetEmail);
+      if (!preset) {
+        if (isCse1) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_3');
+        else if (isCse2) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_2');
+        else if (isCse3) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_1');
+        else preset = PRESET_ADMINS.find(a => a.departmentCode === cleanDept);
+      }
+
       const user: AdminUser = {
         ...(preset || {
-          id: `admin_coord_${cleanDept.toLowerCase()}`,
-          username: `coord_${cleanDept.toLowerCase()}`,
-          fullName: coordinatorName || `Staff Coordinator (${cleanDept})`,
-          designation: coordinatorName ? `Staff Coordinator (${cleanDept})` : `Department Coordinator (${cleanDept})`,
+          id: `admin_coord_${cleanDept.toLowerCase().replace(/\s+/g, '_')}`,
+          username: `coord_${cleanDept.toLowerCase().replace(/\s+/g, '_')}`,
+          fullName: coordinatorName || (isCse1 ? 'BJV Varma' : isCse2 ? 'Ch Bala Subramanyam' : isCse3 ? 'M Raghavendra' : `Staff Coordinator (${cleanDept})`),
+          designation: isCse1 ? 'Staff Coordinator (CSE - 1st Cluster: Verma)' : isCse2 ? 'Staff Coordinator (CSE - 2nd Cluster: Balu)' : isCse3 ? 'Staff Coordinator (CSE - 3rd Cluster: Raghavendra)' : `Staff Coordinator (${cleanDept})`,
           role: 'dept_chief_coordinator',
-          departmentCode: cleanDept,
-          departmentName: cleanDept,
+          departmentCode: (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept,
+          departmentName: isCse1 ? 'Computer Science & Engineering (1st Cluster)' : isCse2 ? 'Computer Science & Engineering (2nd Cluster)' : isCse3 ? 'Computer Science & Engineering (3rd Cluster)' : cleanDept,
           email: targetEmail
         })
       };
 
       if (coordinatorName) {
         user.fullName = coordinatorName;
-        user.designation = `Staff Coordinator (${cleanDept})`;
       }
-      user.departmentCode = cleanDept;
+      user.departmentCode = (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept;
+      if (isCse1) {
+        user.designation = 'Staff Coordinator (CSE - 1st Cluster: Verma)';
+        user.departmentName = 'Computer Science & Engineering (1st Cluster)';
+      } else if (isCse2) {
+        user.designation = 'Staff Coordinator (CSE - 2nd Cluster: Balu)';
+        user.departmentName = 'Computer Science & Engineering (2nd Cluster)';
+      } else if (isCse3) {
+        user.designation = 'Staff Coordinator (CSE - 3rd Cluster: Raghavendra)';
+        user.departmentName = 'Computer Science & Engineering (3rd Cluster)';
+      }
+
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
 
       if (isSupabaseConfigured()) {
@@ -697,9 +740,8 @@ export class AdminAuthService {
         const user = await this.authenticate(targetEmail, cleanPass);
         if (coordinatorName) {
           user.fullName = coordinatorName;
-          user.designation = `Staff Coordinator (${cleanDept})`;
         }
-        user.departmentCode = cleanDept;
+        user.departmentCode = (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept;
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
         return { success: true, user };
       } catch (err: any) {
@@ -714,7 +756,7 @@ export class AdminAuthService {
 
     return {
       success: false,
-      error: `Incorrect passcode for ${cleanDept} coordinator. Try '${cleanDept.toLowerCase()}2026' or 'festcoord2026'.`
+      error: `Incorrect passcode for ${cleanDept} coordinator. Try your assigned cluster passcode.`
     };
   }
 
@@ -729,10 +771,12 @@ export class AdminAuthService {
     coordinatorName?: string
   ): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
     const cleanDept = deptCode.trim().toUpperCase();
+    const isCse = cleanDept.startsWith('CSE');
+    const effectiveDeptCode = isCse ? 'CSE' : cleanDept;
     const cleanPass = password.trim();
     const rawEmail = email.trim().toLowerCase();
     const resolvedEmail = resolveTargetEmail(rawEmail);
-    const targetEmail = resolvedEmail || (rawEmail ? rawEmail : `event.${cleanDept.toLowerCase()}@vardhaman.org`);
+    const targetEmail = resolvedEmail || (rawEmail ? rawEmail : `event.${effectiveDeptCode.toLowerCase()}@vardhaman.org`);
 
     if (!cleanPass) {
       return { success: false, error: `Enter passcode for event coordinator.` };
@@ -742,24 +786,25 @@ export class AdminAuthService {
       cleanPass === 'eventcoord2026' ||
       cleanPass === 'festcoord2026' ||
       cleanPass === 'festronix2026' ||
-      cleanPass === `${cleanDept.toLowerCase()}2026` ||
+      cleanPass === `${cleanDept.toLowerCase().replace(/\s+/g, '')}2026` ||
+      cleanPass === `${effectiveDeptCode.toLowerCase()}2026` ||
       (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026') ||
       checkPresetPassword(targetEmail, cleanPass);
 
     if (isMatch) {
-      const preset = findPresetAdmin(targetEmail) || PRESET_ADMINS.find(a => a.departmentCode === cleanDept);
+      const preset = findPresetAdmin(targetEmail) || PRESET_ADMINS.find(a => a.departmentCode === effectiveDeptCode);
       const user: AdminUser = {
-        id: `event_coord_${eventId || cleanDept.toLowerCase()}_${Date.now()}`,
-        username: `eventcoord_${cleanDept.toLowerCase()}`,
+        id: `event_coord_${eventId || effectiveDeptCode.toLowerCase()}_${Date.now()}`,
+        username: `eventcoord_${effectiveDeptCode.toLowerCase()}`,
         fullName: coordinatorName || preset?.fullName || `Event Coordinator (${cleanDept})`,
         designation: `Event Operations Coordinator (${cleanDept})`,
         role: 'event_coordinator',
-        departmentCode: cleanDept,
-        departmentName: cleanDept,
+        departmentCode: effectiveDeptCode,
+        departmentName: effectiveDeptCode,
         email: targetEmail,
         phone: preset?.phone || '+91 98480 33001',
         accessBoundary: 'Assigned event operations and participant management',
-        assignedEvents: eventId ? [eventId] : []
+        assignedEvents: eventId ? [eventId] : ['evt-1', 'evt-2']
       };
 
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
