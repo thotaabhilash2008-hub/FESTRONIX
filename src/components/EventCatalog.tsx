@@ -8,10 +8,10 @@ export function isEventOnDay(dateStr: string | undefined, day: 'all' | '1' | '2'
   if (day === 'all' || !dateStr) return true;
   const d = dateStr.toLowerCase();
   if (day === '1') {
-    return d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1') || d.includes('both');
+    return d.includes('dec 1') || d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1') || d.includes('both');
   }
   if (day === '2') {
-    return d.includes('29') || d.includes('day 2') || d.includes('day-2') || d.includes('day2') || d.includes('both');
+    return d.includes('dec 2') || d.includes('29') || d.includes('day 2') || d.includes('day-2') || d.includes('day2') || d.includes('both');
   }
   return true;
 }
@@ -19,14 +19,14 @@ export function isEventOnDay(dateStr: string | undefined, day: 'all' | '1' | '2'
 export function getEventDayBadge(dateStr: string | undefined): { label: string; color: string; bg: string; border: string } {
   if (!dateStr) return { label: 'Day 1 & 2', color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)', border: 'rgba(148, 163, 184, 0.25)' };
   const d = dateStr.toLowerCase();
-  if (d.includes('28-29') || d.includes('both')) {
+  if (d.includes('1-2') || d.includes('28-29') || d.includes('both')) {
     return { label: 'Day 1 & 2 (24H)', color: '#C084FC', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.35)' };
   }
-  if (d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1')) {
-    return { label: 'Day 1 • Oct 28', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.35)' };
+  if (d.includes('dec 1') || d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1')) {
+    return { label: 'Day 1 • Dec 1', color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.35)' };
   }
-  if (d.includes('29') || d.includes('day 2') || d.includes('day-2') || d.includes('day2')) {
-    return { label: 'Day 2 • Oct 29', color: '#FBBF24', bg: 'rgba(251, 191, 36, 0.12)', border: 'rgba(251, 191, 36, 0.35)' };
+  if (d.includes('dec 2') || d.includes('29') || d.includes('day 2') || d.includes('day-2') || d.includes('day2')) {
+    return { label: 'Day 2 • Dec 2', color: '#FBBF24', bg: 'rgba(251, 191, 36, 0.12)', border: 'rgba(251, 191, 36, 0.35)' };
   }
   return { label: dateStr.split(',')[0], color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)', border: 'rgba(148, 163, 184, 0.25)' };
 }
@@ -527,7 +527,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   </span>
                 </div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Oct 28, 2026
+                  Dec 1, 2026
                 </div>
                 <div style={{ fontSize: '0.78rem', color: '#CBD5E1', lineHeight: 1.45 }}>
                   Inaugural Ceremonies, RoboWars Combat, 24H Hackathon Kickoff, Drone Racing & Technical Battles.
@@ -559,7 +559,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   </span>
                 </div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Oct 29, 2026
+                  Dec 2, 2026
                 </div>
                 <div style={{ fontSize: '0.78rem', color: '#CBD5E1', lineHeight: 1.45 }}>
                   Venture Tank Startup Pitches, BGMI & Valorant Arena, 24H Hackathon Demo Day & Grand Valedictory.
@@ -591,7 +591,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   </span>
                 </div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Both Days (Oct 28–29)
+                  Both Days (Dec 1–2)
                 </div>
                 <div style={{ fontSize: '0.78rem', color: '#CBD5E1', lineHeight: 1.45 }}>
                   Browse the comprehensive schedule across all 9 academic branches and flagship arenas.
@@ -747,7 +747,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
           <span>Showing <strong style={{ color: '#FFFFFF' }}>{filteredEvents.length}</strong> of {events.length} events</span>
           {selectedDay !== 'all' && (
             <span style={{ background: selectedDay === '1' ? 'rgba(56, 189, 248, 0.14)' : 'rgba(251, 191, 36, 0.14)', color: selectedDay === '1' ? '#38BDF8' : '#FBBF24', border: `1px solid ${selectedDay === '1' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(251, 191, 36, 0.4)'}`, padding: '2px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>
-              Day {selectedDay} ({selectedDay === '1' ? 'Oct 28' : 'Oct 29'})
+              Day {selectedDay} ({selectedDay === '1' ? 'Dec 1' : 'Dec 2'})
             </span>
           )}
           {selectedDept !== 'all' && (

@@ -74,7 +74,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
   const [newDeliverableTitle, setNewDeliverableTitle] = useState('');
   const [newDeliverableCat, setNewDeliverableCat] = useState<SponsorDeliverable['category']>('branding');
   const [newDeliverableDesc, setNewDeliverableDesc] = useState('');
-  const [newDeliverableDate, setNewDeliverableDate] = useState('Oct 28, 2026');
+  const [newDeliverableDate, setNewDeliverableDate] = useState('Dec 1, 2026');
 
   // Sync sponsors on external updates
   useEffect(() => {
@@ -227,7 +227,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
             category: 'stage',
             status: 'in_progress',
             description: '4K Ultra-HD loop displayed across all keynote sessions.',
-            dueDate: 'Oct 28, 2026'
+            dueDate: 'Dec 1, 2026'
           }
         ]
       };
@@ -282,7 +282,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
       category: newDeliverableCat,
       status: 'scheduled',
       description: newDeliverableDesc.trim() || 'Deliverable agreed upon as per official festival sponsorship memorandum.',
-      dueDate: newDeliverableDate.trim() || 'Oct 28, 2026'
+      dueDate: newDeliverableDate.trim() || 'Dec 1, 2026'
     };
 
     const updated = [...sponsor.deliverables, newDel];

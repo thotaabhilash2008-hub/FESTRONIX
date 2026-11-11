@@ -817,7 +817,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Vardhaman College of Engineering
               </div>
               <div style={{ fontSize: '0.68rem', color: '#94A3B8', marginTop: '2px' }}>
-                Shamshabad, Hyderabad • Oct 28–29, 2026
+                Shamshabad, Hyderabad • Dec 1–2, 2026
               </div>
             </div>
           </div>

@@ -95,7 +95,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
   const day1Events = useMemo(() => {
     return events.filter(e => {
       const dateStr = (e.date || '').toLowerCase();
-      return dateStr.includes('28') || dateStr.includes('day 1');
+      return dateStr.includes('dec 1') || dateStr.includes('1-2') || dateStr.includes('day 1');
     });
   }, [events]);
 
@@ -103,7 +103,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
   const day2Events = useMemo(() => {
     return events.filter(e => {
       const dateStr = (e.date || '').toLowerCase();
-      return dateStr.includes('29') || dateStr.includes('day 2');
+      return dateStr.includes('dec 2') || dateStr.includes('1-2') || dateStr.includes('day 2');
     });
   }, [events]);
 
@@ -215,7 +215,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
                 <Zap size={15} color="#38BDF8" />
               </div>
               <h3 className="events-glimpse-sub-title">Day 1 Arenas</h3>
-              <span className="events-glimpse-sub-badge">Oct 28</span>
+              <span className="events-glimpse-sub-badge">Dec 1</span>
             </div>
             <span className="events-glimpse-hint">Hover to pause</span>
           </div>
@@ -242,7 +242,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
                 <Rocket size={15} color="#A855F7" />
               </div>
               <h3 className="events-glimpse-sub-title">Day 2 Arenas</h3>
-              <span className="events-glimpse-sub-badge">Oct 29</span>
+              <span className="events-glimpse-sub-badge">Dec 2</span>
             </div>
             <span className="events-glimpse-hint">Hover to pause</span>
           </div>

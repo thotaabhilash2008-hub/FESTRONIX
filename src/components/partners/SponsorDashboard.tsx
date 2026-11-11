@@ -463,7 +463,7 @@ export const SponsorDashboard: React.FC<SponsorDashboardProps> = ({ onBackToFest
             </div>
 
             <div style={{ fontSize: '0.78rem', color: '#A8B3C2', lineHeight: 1.5 }}>
-              Setup Time Window: <strong>Oct 27, 2:00 PM – 9:00 PM</strong>. Student volunteers will be stationed at Gate 1 for freight escort.
+              Setup Time Window: <strong>Nov 30, 2:00 PM – 9:00 PM</strong>. Student volunteers will be stationed at Gate 1 for freight escort.
             </div>
           </div>
 

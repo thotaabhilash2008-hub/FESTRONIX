@@ -172,7 +172,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               whiteSpace: 'nowrap'
             }}
           >
-            OCT 28–29, 2026
+            DEC 1–2, 2026
           </span>
         </div>
 
