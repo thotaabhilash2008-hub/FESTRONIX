@@ -14,27 +14,31 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onOpenIntro,
   onRegisterNow
 }) => {
-  const [timeLeft, setTimeLeft] = useState({
-    days: 14,
-    hours: 8,
-    minutes: 42,
-    seconds: 18
-  });
+  // Dynamic Real-Time Countdown to Dec 1, 2026 09:00:00 AM IST
+  const calculateTimeLeft = () => {
+    // Festival Opening: Dec 1, 2026 09:00:00 AM IST
+    const targetDate = new Date('2026-12-01T09:00:00+05:30').getTime();
+    const now = Date.now();
+    const diff = targetDate - now;
+
+    if (diff <= 0) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, isLive: true };
+    }
+
+    return {
+      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+      minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+      seconds: Math.floor((diff % (1000 * 60)) / 1000),
+      isLive: false
+    };
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-        } else if (prev.hours > 0) {
-          return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        } else if (prev.days > 0) {
-          return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
-        }
-        return prev;
-      });
+      setTimeLeft(calculateTimeLeft());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -344,7 +348,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               fontFamily: "'Space Grotesk', sans-serif"
             }}
           >
-            EVENT STARTS IN
+            {timeLeft.isLive ? 'FESTRONIX IS LIVE' : 'EVENT STARTS IN'}
           </span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
