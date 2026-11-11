@@ -176,61 +176,43 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </span>
         </div>
 
-        {/* Title Presenter: Sanvi Homes Presents */}
+        {/* Title Presenter: Authentic Sanvi Homes Logo & Presents */}
         <div
           style={{
-            display: 'inline-flex',
+            display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '12px',
-            marginTop: '6px',
-            marginBottom: '-4px',
-            padding: '6px 18px',
-            borderRadius: '9999px',
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(8, 12, 22, 0.96) 100%)',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.15)',
-            backdropFilter: 'blur(16px)',
-            zIndex: 2,
-            position: 'relative'
+            marginTop: '10px',
+            marginBottom: '-2px',
+            position: 'relative',
+            zIndex: 2
           }}
         >
           <img
             src="/sanvi_homes_logo.png"
             alt="Sanvi Homes"
             style={{
-              height: '32px',
+              height: 'clamp(66px, 9vw, 92px)',
               width: 'auto',
+              maxWidth: '90vw',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.35))'
+              filter: 'drop-shadow(0 4px 18px rgba(56, 189, 248, 0.28))'
             }}
           />
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span
-              style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 'clamp(0.82rem, 1.8vw, 0.98rem)',
-                fontWeight: 800,
-                letterSpacing: '0.14em',
-                color: '#FFFFFF',
-                textTransform: 'uppercase'
-              }}
-            >
-              SANVI HOMES
-            </span>
-            <span
-              style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 'clamp(0.64rem, 1.4vw, 0.74rem)',
-                fontWeight: 700,
-                letterSpacing: '0.22em',
-                color: '#38BDF8',
-                textTransform: 'uppercase'
-              }}
-            >
-              PRESENTS
-            </span>
-          </div>
+          <span
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: 'clamp(0.64rem, 1.3vw, 0.74rem)',
+              fontWeight: 800,
+              letterSpacing: '0.34em',
+              color: '#38BDF8',
+              textTransform: 'uppercase',
+              marginTop: '5px'
+            }}
+          >
+            PRESENTS
+          </span>
         </div>
 
         {/* 3D Chrome Festronix Identity */}
