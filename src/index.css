@@ -800,7 +800,7 @@ body {
 }
 .mobile-sidebar-drawer::-webkit-scrollbar-thumb:hover {
   background: rgba(136, 178, 174, 0.6);
-}
+}
 /* ======================================================
    PUBLIC EXPERIENCE SYSTEM
    Six-column editorial grid + responsive type scale
@@ -1298,4 +1298,58 @@ body {
     width: 40px !important;
     height: 40px !important;
   }
+}
+
+/* Horizontal Infinite Scrolling for Department Cards */
+@keyframes deptMarqueeScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.dept-marquee-container {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  padding: 12px 0 20px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+}
+
+.dept-marquee-track {
+  display: flex;
+  gap: 16px;
+  width: max-content;
+  animation: deptMarqueeScroll 32s linear infinite;
+  will-change: transform;
+}
+
+.dept-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.dept-mini-card {
+  width: 270px;
+  min-width: 270px;
+  max-width: 270px;
+  flex-shrink: 0;
+  padding: 18px 20px;
+  background: #0F172A;
+  border: 1px solid #1E293B;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  justifyContent: space-between;
+  box-sizing: border-box;
+  text-align: left;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dept-mini-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.15);
 }

@@ -1,26 +1,28 @@
 import React from 'react';
 import { Cpu, Globe, Radio, Zap, Wrench, Building2, BrainCircuit, Briefcase, Mail, Database } from 'lucide-react';
 import { DEPARTMENTS } from '../data/mockData';
-import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
 
 const iconMap: Record<string, React.ReactNode> = {
-  Cpu: <Cpu size={24} color="#38BDF8" />,
-  Database: <Database size={24} color="#38BDF8" />,
-  Globe: <Globe size={24} color="#38BDF8" />,
-  Radio: <Radio size={24} color="#38BDF8" />,
-  Zap: <Zap size={24} color="#38BDF8" />,
-  Wrench: <Wrench size={24} color="#38BDF8" />,
-  Building: <Building2 size={24} color="#38BDF8" />,
-  Brain: <BrainCircuit size={24} color="#38BDF8" />,
-  Briefcase: <Briefcase size={24} color="#38BDF8" />
+  Cpu: <Cpu size={18} color="#38BDF8" />,
+  Database: <Database size={18} color="#38BDF8" />,
+  Globe: <Globe size={18} color="#38BDF8" />,
+  Radio: <Radio size={18} color="#38BDF8" />,
+  Zap: <Zap size={18} color="#38BDF8" />,
+  Wrench: <Wrench size={18} color="#38BDF8" />,
+  Building: <Building2 size={18} color="#38BDF8" />,
+  Brain: <BrainCircuit size={18} color="#38BDF8" />,
+  Briefcase: <Briefcase size={18} color="#38BDF8" />
 };
 
 export const DepartmentsSection: React.FC = () => {
+  // Duplicate array for seamless infinite looping
+  const duplicatedDepartments = [...DEPARTMENTS, ...DEPARTMENTS];
+
   return (
-    <section id="departments" className="public-section departments-section" style={{ padding: '100px 20px 80px', maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
+    <section id="departments" className="public-section departments-section" style={{ padding: '80px 0 70px', maxWidth: '100%', margin: '0 auto', position: 'relative', zIndex: 10, overflow: 'hidden' }}>
       <ScrollReveal threshold="top 90%" duration={0.8}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '36px', padding: '0 20px' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -55,111 +57,117 @@ export const DepartmentsSection: React.FC = () => {
             9 PARTICIPATING <span style={{ color: '#38BDF8' }}>DEPARTMENTS</span>
           </h2>
 
-          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7,  }}>
-            Academic departments hosting specialized technical competitions, workshops, and project showcases.
+          <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7 }}>
+            Academic departments hosting specialized technical competitions, workshops, and flagship tracks.
           </p>
         </div>
       </ScrollReveal>
 
-      <ScrollReveal threshold="top 85%" stagger={0.08} duration={0.8}>
-        <div className="public-six-grid departments-grid"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-            gap: '22px'
-          }}
-        >
-          {DEPARTMENTS.map(dept => {
-            return (
-              <Tilt3DCard key={dept.id} maxTilt={5} scale={1.02}>
-                <div
-                  className="cyber-card"
+      {/* Infinite Horizontal Scrolling Track */}
+      <div className="dept-marquee-container">
+        <div className="dept-marquee-track">
+          {duplicatedDepartments.map((dept, index) => (
+            <div key={`${dept.id}-${index}`} className="dept-mini-card">
+              <div>
+                {/* Header: Icon & Dept Code */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div
+                    style={{
+                      padding: '7px',
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {iconMap[dept.iconName] || <Cpu size={18} color="#38BDF8" />}
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      color: '#38BDF8',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      letterSpacing: '0.04em'
+                    }}
+                  >
+                    {dept.code}
+                  </span>
+                </div>
+
+                {/* Department Name */}
+                <h3
                   style={{
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    
-                    background: '#0F172A',
-                    border: '1px solid #1E293B',
-                    boxShadow: 'none',
-                    backdropFilter: 'none',
-                    height: '100%',
-                    boxSizing: 'border-box'
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    marginBottom: '6px',
+                    lineHeight: 1.3,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }}
+                  title={dept.name}
+                >
+                  {dept.name}
+                </h3>
+
+                {/* Department Description */}
+                <p
+                  style={{
+                    fontSize: '0.76rem',
+                    color: '#94A3B8',
+                    lineHeight: 1.45,
+                    marginBottom: '12px',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    height: '34px'
                   }}
                 >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <div
-                        style={{
-                          padding: '10px',
-                          background: 'rgba(59, 130, 246, 0.1)',
-                          borderRadius: '10px',
-                          border: '1px solid rgba(59, 130, 246, 0.2)'
-                        }}
-                      >
-                        {iconMap[dept.iconName] || <Cpu size={24} color="#38BDF8" />}
-                      </div>
-                      <span
-                        style={{
-                          fontFamily: "'Space Grotesk', sans-serif",
-                          fontSize: '0.85rem',
-                          fontWeight: 800,
-                          color: '#38BDF8',
-                          padding: '4px 12px',
-                          borderRadius: '6px',
-                          background: 'rgba(56, 189, 248, 0.14)',
-                          border: '1px solid rgba(56, 189, 248, 0.4)'
-                        }}
-                      >
-                        {dept.code}
-                      </span>
-                    </div>
+                  {dept.description}
+                </p>
+              </div>
 
-                    <h3
-                      style={{
-                        fontFamily: "'Space Grotesk', sans-serif",
-                        fontSize: '1.25rem',
-                        fontWeight: 800,
-                        color: '#FFFFFF',
-                        marginBottom: '8px',
-                        letterSpacing: '-0.02em'
-                      }}
-                    >
-                      {dept.name}
-                    </h3>
-                    <p style={{ fontSize: '0.88rem', color: '#CBD5E1', lineHeight: 1.65, marginBottom: '18px' }}>
-                      {dept.description}
-                    </p>
-                  </div>
-
-                  <div style={{ paddingTop: '14px', borderTop: '1px solid rgba(148, 163, 184, 0.16)' }}>
-                    <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
-                      Department Coordinator
-                    </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>
-                      {dept.chiefCoordinator}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.76rem',
-                        color: '#38BDF8',
-                        marginTop: '5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontWeight: 600
-                      }}
-                    >
-                      <Mail size={12} color="#38BDF8" /> {dept.contact}
-                    </div>
-                  </div>
+              {/* Coordinator Contact */}
+              <div style={{ paddingTop: '10px', borderTop: '1px solid rgba(148, 163, 184, 0.14)' }}>
+                <div style={{ fontSize: '0.62rem', color: '#64748B', fontFamily: "'Space Grotesk', sans-serif", textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+                  Lead Coordinator
                 </div>
-              </Tilt3DCard>
-            );
-          })}
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#F1F5F9', marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {dept.chiefCoordinator}
+                </div>
+                <div
+                  style={{
+                    fontSize: '0.7rem',
+                    color: '#38BDF8',
+                    marginTop: '3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  <Mail size={11} color="#38BDF8" style={{ flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{dept.contact}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </ScrollReveal>
+      </div>
     </section>
   );
 };
