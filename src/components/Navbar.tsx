@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Bell, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck, CalendarDays } from 'lucide-react';
+import { Ticket, Menu, X, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, ShieldCheck, CalendarDays } from 'lucide-react';
 import { Announcement } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 
@@ -33,7 +33,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSponsors
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showMobileAnnouncements, setShowMobileAnnouncements] = useState(false);
 
   // Lock body scroll when mobile sidebar drawer is open
   useEffect(() => {
@@ -46,7 +45,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       document.body.style.overflow = '';
     };
   }, [mobileMenuOpen]);
-  const [showAnnouncementsDropdown, setShowAnnouncementsDropdown] = useState(false);
   const [isBrowseDropdownOpen, setIsBrowseDropdownOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -78,8 +76,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setMobileMenuOpen(false);
-        setShowMobileAnnouncements(false);
-        setShowAnnouncementsDropdown(false);
         setIsBrowseDropdownOpen(false);
         setIsUserMenuOpen(false);
       }
@@ -284,42 +280,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-expanded={isBrowseDropdownOpen}
               aria-haspopup="menu"
               style={{
-                background: isBrowseDropdownOpen ? 'rgba(111, 150, 147, 0.14)' : 'rgba(21, 24, 32, 0.8)',
-                border: isBrowseDropdownOpen ? '1px solid #88B2AE' : '1px solid rgba(199, 203, 212, 0.18)',
-                borderRadius: '9999px',
-                color: isBrowseDropdownOpen ? '#FFFFFF' : '#DCE3E8',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: isBrowseDropdownOpen ? '#FFFFFF' : '#94A3B8',
                 fontSize: '0.84rem',
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '7px',
-                padding: '7px 15px',
-                transition: 'all 0.2s ease',
+                gap: '5px',
+                padding: '6px 8px',
+                transition: 'color 0.15s ease',
                 fontFamily: "'Space Grotesk', sans-serif"
               }}
               onMouseEnter={e => {
-                if (!isBrowseDropdownOpen) {
-                  e.currentTarget.style.color = '#FFFFFF';
-                  e.currentTarget.style.borderColor = '#88B2AE';
-                  e.currentTarget.style.background = 'rgba(111, 150, 147, 0.1)';
-                }
+                e.currentTarget.style.color = '#FFFFFF';
               }}
               onMouseLeave={e => {
                 if (!isBrowseDropdownOpen) {
-                  e.currentTarget.style.color = '#DCE3E8';
-                  e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.18)';
-                  e.currentTarget.style.background = 'rgba(21, 24, 32, 0.8)';
+                  e.currentTarget.style.color = '#94A3B8';
                 }
               }}
             >
-              <Layers size={14} color="#88B2AE" />
               <span>Browse Events</span>
               <ChevronDown
                 size={13}
                 style={{
                   transform: isBrowseDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s'
+                  transition: 'transform 0.2s ease',
+                  opacity: 0.75
                 }}
               />
             </button>
@@ -610,198 +600,94 @@ export const Navbar: React.FC<NavbarProps> = ({
               setIsBrowseDropdownOpen(false);
               onNavigateHyped();
             }}
-            className="nav-action nav-hyped"
             style={{
-              background: 'rgba(255, 107, 53, 0.08)',
-              border: '1px solid rgba(255, 107, 53, 0.3)',
-              borderRadius: '9999px',
-              color: '#F3F0EA',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#94A3B8',
               fontSize: '0.84rem',
-              fontWeight: 700,
+              fontWeight: 500,
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-              fontFamily: "'Space Grotesk', sans-serif",
-              padding: '7px 15px'
+              gap: '4px',
+              padding: '6px 8px',
+              transition: 'color 0.15s ease',
+              fontFamily: "'Space Grotesk', sans-serif"
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(46, 78, 140, 0.22)';
-              e.currentTarget.style.borderColor = '#3D68B2';
-              e.currentTarget.style.boxShadow = '0 0 16px rgba(61, 104, 178, 0.4)';
               e.currentTarget.style.color = '#FFFFFF';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(46, 78, 140, 0.12)';
-              e.currentTarget.style.borderColor = 'rgba(61, 104, 178, 0.35)';
-              e.currentTarget.style.boxShadow = 'none';
-              e.currentTarget.style.color = '#F0F4F8';
+              e.currentTarget.style.color = '#94A3B8';
             }}
           >
-            <Flame size={14} color="#3D68B2" />
             <span>Hyped Events</span>
           </button>
         </div>
 
         {/* Right Action Icons & Passes */}
-        <div className="navbar-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Announcements Popover (Desktop) */}
-          <div style={{ position: 'relative' }} className="desktop-only">
-            <button
-              onClick={() => setShowAnnouncementsDropdown(!showAnnouncementsDropdown)}
-              aria-expanded={showAnnouncementsDropdown}
-              aria-haspopup="menu"
-              className="nav-action nav-announcements"
-              style={{
-                background: 'rgba(40, 59, 120, 0.25)',
-                border: '1px solid rgba(220, 227, 229, 0.25)',
-                borderRadius: '9999px',
-                padding: '6px 12px',
-                color: '#DCE3E5',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s'
-              }}
-              title="Fest Updates"
-            >
-              <Bell size={13} color="#DCE3E5" />
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
-                {announcements.length}
-              </span>
-            </button>
-
-            {showAnnouncementsDropdown && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '46px',
-                  right: 0,
-                  width: '320px',
-                  background: 'rgba(15, 17, 23, 0.98)',
-                  border: '1px solid rgba(199, 203, 212, 0.22)',
-                  borderRadius: '14px',
-                  padding: '16px',
-                  boxShadow: '0 20px 50px rgba(0,0,0,0.9), 0 0 20px rgba(61, 104, 178, 0.2)',
-                  zIndex: 100
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span
-                    style={{
-                      fontSize: '0.78rem',
-                      color: '#88B2AE',
-                      fontWeight: 700,
-                      fontFamily: "'Space Grotesk', sans-serif",
-                      letterSpacing: '0.04em'
-                    }}
-                  >
-                    LIVE BULLETINS
-                  </span>
-                  <button
-                    onClick={() => setShowAnnouncementsDropdown(false)}
-                    style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {announcements.map(ann => (
-                    <div
-                      key={ann.id}
-                      style={{
-                        padding: '10px 12px',
-                        background: 'rgba(21, 24, 32, 0.75)',
-                        borderLeft: `3px solid ${ann.type === 'urgent' ? '#88B2AE' : 'rgba(199, 203, 212, 0.4)'}`,
-                        borderRadius: '6px'
-                      }}
-                    >
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#F3F0EA', marginBottom: '2px' }}>
-                        {ann.title}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#CBD5E1' }}>
-                        {ann.message}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Buy Multiple Passes Button */}
+        <div className="navbar-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* Buy Multiple Passes Link */}
           <button
             onClick={onOpenMultiPass}
-            className="desktop-only nav-action nav-multipass"
+            className="desktop-only"
             style={{
-              background: 'rgba(21, 24, 32, 0.85)',
-              border: '1px solid rgba(199, 203, 212, 0.2)',
-              borderRadius: '9999px',
-              padding: '7px 14px',
-              color: '#C7CBD4',
-              fontSize: '0.8rem',
-              fontWeight: 700,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#94A3B8',
+              fontSize: '0.84rem',
+              fontWeight: 500,
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
+              gap: '4px',
+              padding: '6px 8px',
+              transition: 'color 0.15s ease',
               fontFamily: "'Space Grotesk', sans-serif",
               whiteSpace: 'nowrap'
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = '#88B2AE';
               e.currentTarget.style.color = '#FFFFFF';
-              e.currentTarget.style.background = 'rgba(111, 150, 147, 0.14)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.2)';
-              e.currentTarget.style.color = '#C7CBD4';
-              e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
+              e.currentTarget.style.color = '#94A3B8';
             }}
           >
-            <ShoppingBag size={14} color="#88B2AE" />
-            <span>Buy Multiple Passes</span>
+            <span>Multiple Passes</span>
           </button>
 
-          
           {/* Public Sponsors & Partners Nav Link */}
           {onOpenSponsors && (
             <button
               onClick={onOpenSponsors}
-              className="desktop-only nav-action nav-sponsors"
+              className="desktop-only"
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '9999px',
-                padding: '7px 14px',
-                color: '#C7CBD4',
-                fontSize: '0.8rem',
-                fontWeight: 700,
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: '#94A3B8',
+                fontSize: '0.84rem',
+                fontWeight: 500,
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease',
+                gap: '4px',
+                padding: '6px 8px',
+                transition: 'color 0.15s ease',
                 fontFamily: "'Space Grotesk', sans-serif",
                 whiteSpace: 'nowrap'
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.5)';
                 e.currentTarget.style.color = '#FFFFFF';
-                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.color = '#C7CBD4';
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                e.currentTarget.style.color = '#94A3B8';
               }}
               title="View Official Sponsors and Strategic Partners"
             >
-              <Building2 size={14} color="#38BDF8" />
-              <span>Sponsors & Partners</span>
+              <span>Sponsors</span>
             </button>
           )}
 
@@ -809,31 +695,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenAdmin && (
             <button
               onClick={onOpenAdmin}
-              className="desktop-only nav-action nav-admin"
+              className="desktop-only"
               style={{
-                background: 'rgba(56, 189, 248, 0.08)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
-                borderRadius: '9999px',
-                padding: '7px 13px',
-                color: '#38BDF8',
-                fontSize: '0.8rem',
-                fontWeight: 700,
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: '#94A3B8',
+                fontSize: '0.84rem',
+                fontWeight: 500,
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease',
+                gap: '4px',
+                padding: '6px 8px',
+                transition: 'color 0.15s ease',
                 fontFamily: "'Space Grotesk', sans-serif",
                 whiteSpace: 'nowrap'
               }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = '#FFFFFF';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = '#94A3B8';
+              }}
               title="SAC Executive Portal"
             >
-              <ShieldCheck size={14} color="#38BDF8" />
               <span>Admin Console</span>
             </button>
           )}
-
-          {/* Direct Pass Access - No sign-in required */}
 
           {/* View Our Registration Passes */}
           <button
@@ -1125,80 +1014,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Buy Multiple Passes</span>
               </button>
 
-              {/* Option 4: Campus Announcements & Bulletins */}
-              <div
-                className="mobile-menu-action mobile-announcements"
-                style={{
-                  background: 'rgba(21, 24, 32, 0.85)',
-                  border: '1px solid rgba(199, 203, 212, 0.2)',
-                  borderRadius: '12px',
-                  overflow: 'hidden'
-                }}
-              >
-                <button
-                  onClick={() => setShowMobileAnnouncements(!showMobileAnnouncements)}
-                  style={{
-                    width: '100%',
-                    background: 'none',
-                    border: 'none',
-                    padding: '12px 16px',
-                    color: '#F3F0EA',
-                    fontSize: '0.88rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Bell size={18} color="#38BDF8" />
-                    <span>Campus Announcements</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span
-                      style={{
-                        background: 'rgba(56, 189, 248, 0.2)',
-                        color: '#38BDF8',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        padding: '2px 7px',
-                        borderRadius: '9999px'
-                      }}
-                    >
-                      {announcements.length}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      color="#94A3B8"
-                      style={{
-                        transform: showMobileAnnouncements ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s'
-                      }}
-                    />
-                  </div>
-                </button>
-                {showMobileAnnouncements && (
-                  <div style={{ padding: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {announcements.map(ann => (
-                      <div
-                        key={ann.id}
-                        style={{
-                          padding: '10px',
-                          background: 'rgba(10, 13, 20, 0.8)',
-                          borderLeft: `3px solid ${ann.type === 'urgent' ? '#EF4444' : '#38BDF8'}`,
-                          borderRadius: '6px'
-                        }}
-                      >
-                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F3F0EA' }}>{ann.title}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>{ann.message}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Option 5: Sponsors & Strategic Partners Page Button */}
+              {/* Option 4: Sponsors & Strategic Partners Page Button */}
               {onOpenSponsors && (
                 <button
                   onClick={() => {
