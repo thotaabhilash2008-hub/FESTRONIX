@@ -176,36 +176,56 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </span>
         </div>
 
-        {/* Title Presenter: Authentic Sanvi Homes Logo & Presents */}
+        {/* Title Presenter: Authentic Sanvi Homes Horizontal Logo & Presents */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            marginTop: '10px',
-            marginBottom: '-2px',
+            marginTop: '8px',
+            marginBottom: '0px',
             position: 'relative',
             zIndex: 2
           }}
         >
-          <img
-            src="/sanvi_homes_logo.png"
-            alt="Sanvi Homes"
+          <div
             style={{
-              height: 'clamp(66px, 9vw, 92px)',
-              width: 'auto',
-              maxWidth: '90vw',
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 4px 18px rgba(56, 189, 248, 0.28))'
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'clamp(8px, 1.8vw, 14px)',
+              maxWidth: '92vw'
             }}
-          />
+          >
+            <img
+              src="/sanvi_homes_emblem.png"
+              alt="Sanvi Homes Emblem"
+              style={{
+                height: 'clamp(36px, 5.2vw, 50px)',
+                width: 'auto',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.35))'
+              }}
+            />
+            <img
+              src="/sanvi_homes_text.png"
+              alt="SANVI HOMES"
+              style={{
+                height: 'clamp(14px, 2.2vw, 22px)',
+                width: 'auto',
+                maxWidth: '75vw',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8))'
+              }}
+            />
+          </div>
           <span
             style={{
               fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: 'clamp(0.64rem, 1.3vw, 0.74rem)',
+              fontSize: 'clamp(0.62rem, 1.2vw, 0.72rem)',
               fontWeight: 800,
-              letterSpacing: '0.34em',
+              letterSpacing: '0.36em',
               color: '#38BDF8',
               textTransform: 'uppercase',
               marginTop: '5px'
