@@ -128,15 +128,15 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     };
   }, []);
 
-  // 1. ASIF SIR / CC / VENCORPIA Form
-  const [superEmail, setSuperEmail] = useState('dean.sac@vardhaman.org');
-  const [superPassword, setSuperPassword] = useState('deansac2026');
+  // 1. Central Administration Form
+  const [superEmail, setSuperEmail] = useState('');
+  const [superPassword, setSuperPassword] = useState('');
 
   // 2. DEPT COORDINATOR Form
   const [selectedDept, setSelectedDept] = useState('CSE');
-  const [deptEmail, setDeptEmail] = useState('raghavendra1797@vardhaman.org');
-  const [deptPassword, setDeptPassword] = useState('cse2026');
-  const [coordName, setCoordName] = useState('M Raghavendra');
+  const [deptEmail, setDeptEmail] = useState('');
+  const [deptPassword, setDeptPassword] = useState('');
+  const [coordName, setCoordName] = useState('');
 
   // 3. EVENT COORDINATORS Form
   const [eventDept, setEventDept] = useState('CSE');
@@ -144,13 +144,13 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     const cseEvt = StorageService.getEvents().find(e => e.departmentCode.toUpperCase() === 'CSE');
     return cseEvt?.id || 'evt-1';
   });
-  const [eventEmail, setEventEmail] = useState('raghavendra1797@vardhaman.org');
-  const [eventPassword, setEventPassword] = useState('eventcoord2026');
+  const [eventEmail, setEventEmail] = useState('');
+  const [eventPassword, setEventPassword] = useState('');
 
   // 4. Operational Staff Form (Finance & Volunteer Check-in)
   const [opsRole, setOpsRole] = useState<'finance' | 'volunteer'>('finance');
   const [opsEmail, setOpsEmail] = useState('');
-  const [opsPassword, setOpsPassword] = useState('finance2026');
+  const [opsPassword, setOpsPassword] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -159,36 +159,24 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const handleDeptSelect = (deptCode: string) => {
     setSelectedDept(deptCode);
     setErrorMessage('');
-    const staffInfo = OFFICIAL_STAFF_COORDINATORS[deptCode];
-    if (staffInfo) {
-      setDeptEmail(staffInfo.email);
-      setCoordName(staffInfo.name);
-      if (deptCode === 'CSE') {
-        setDeptPassword('raghavendra2026');
-      } else {
-        setDeptPassword(`${deptCode.toLowerCase()}2026`);
-      }
-    } else {
-      setDeptEmail(`${deptCode.toLowerCase()}.festronix@vardhaman.org`);
-      setCoordName('');
-      setDeptPassword(`${deptCode.toLowerCase()}2026`);
-    }
+    setDeptEmail('');
+    setDeptPassword('');
+    setCoordName('');
   };
 
   // When changing department in Event Coordinator tab
   const handleEventDeptSelect = (deptCode: string) => {
     setEventDept(deptCode);
     setErrorMessage('');
-    const deptEvents = allEvents.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
+    const deptEvents = effectiveEvents.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
     const firstEvt = deptEvents[0];
     if (firstEvt) {
       setSelectedEventId(firstEvt.id);
-      setEventEmail(firstEvt.coordinatorEmail || OFFICIAL_STAFF_COORDINATORS[deptCode]?.email || '');
     } else {
       setSelectedEventId('');
-      setEventEmail(OFFICIAL_STAFF_COORDINATORS[deptCode]?.email || '');
     }
-    setEventPassword('eventcoord2026');
+    setEventEmail('');
+    setEventPassword('');
   };
 
   // Submit Handler: 1. ASIF SIR / CC / VENCORPIA
@@ -323,21 +311,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           <ArrowLeft size={14} />
           <span>Return to Festronix Public Portal</span>
         </button>
-
-        <button
-          onClick={() => setIsStructureOpen(true)}
-          className="admin-btn admin-btn-primary"
-          style={{
-            padding: '8px 16px',
-            borderRadius: '9999px',
-            fontSize: '0.8rem',
-            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.4) 0%, rgba(56, 189, 248, 0.25) 100%)',
-            borderColor: 'rgba(56, 189, 248, 0.4)'
-          }}
-        >
-          <FileText size={14} />
-          <span>Staff Coordinators & Org Guide</span>
-        </button>
       </div>
 
       {/* Main Terminal Card */}
@@ -425,7 +398,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             style={{ justifyContent: 'center', padding: '10px 6px', textAlign: 'center' }}
           >
             <Award size={15} color={activeTab === 'super_admin' ? '#FBBF24' : '#94A3B8'} />
-            <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>1. ASIF SIR / CC / VENCORPIA</span>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>1. CENTRAL ADMINISTRATION</span>
           </button>
 
           {/* Tab 2: Dept Coordinator */}
@@ -509,101 +482,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         {/* ==================================================================== */}
         {activeTab === 'super_admin' && (
           <form onSubmit={handleSuperSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div
-              style={{
-                background: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-                borderRadius: '12px',
-                padding: '12px 14px'
-              }}
-            >
-              <div style={{ fontSize: '0.74rem', color: '#FCD34D', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Central Leadership • Quick Select Authority
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('dean.sac@vardhaman.org');
-                    setSuperPassword('deansac2026');
-                  }}
-                  style={{
-                    background: superEmail === 'dean.sac@vardhaman.org' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'dean.sac@vardhaman.org' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  👑 Asif Sir (Dean SAC)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('connect.club@vardhaman.org');
-                    setSuperPassword('connect2026');
-                  }}
-                  style={{
-                    background: superEmail === 'connect.club@vardhaman.org' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'connect.club@vardhaman.org' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  ⚡ CC (CONNECT Club)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('vencorpia@vardhaman.org');
-                    setSuperPassword('vencorpia2026');
-                  }}
-                  style={{
-                    background: superEmail === 'vencorpia@vardhaman.org' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'vencorpia@vardhaman.org' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  🚀 Vencorpia Leadership
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuperEmail('admin@gmail.com');
-                    setSuperPassword('admin2026');
-                  }}
-                  style={{
-                    background: superEmail === 'admin@gmail.com' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${superEmail === 'admin@gmail.com' ? '#F59E0B' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    padding: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  🛡️ System Admin
-                </button>
-              </div>
-            </div>
-
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
                 Authority Email or Username
@@ -615,7 +493,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   autoComplete="username"
                   value={superEmail}
                   onChange={e => setSuperEmail(e.target.value)}
-                  placeholder="Enter email or username (e.g. dean.sac@vardhaman.org)"
+                  placeholder="Enter administrator email or username"
                   required
                   className="admin-form-input"
                 />
@@ -632,7 +510,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type={showSuperPassword ? 'text' : 'password'}
                   value={superPassword}
                   onChange={e => setSuperPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Enter security passcode"
                   required
                   className="admin-form-input"
                   style={{ paddingRight: '42px' }}
@@ -674,7 +552,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               ) : (
                 <>
                   <Lock size={16} />
-                  <span>Sign In as Central Authority (Dean SAC / CC / Vencorpia)</span>
+                  <span>Sign In as Central Authority</span>
                   <ArrowRight size={16} />
                 </>
               )}
@@ -745,7 +623,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
                       {activeStaffInfo.coordinators.map((c, idx) => {
                         const isChosen = deptEmail.toLowerCase() === c.email.toLowerCase();
-                        const defaultPass = c.email.startsWith('raghavendra') ? 'raghavendra2026' : c.email.startsWith('balu') ? 'balu2026' : 'varma2026';
                         return (
                           <button
                             key={c.email}
@@ -753,7 +630,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                             onClick={() => {
                               setDeptEmail(c.email);
                               setCoordName(c.name);
-                              setDeptPassword(defaultPass);
+                              setDeptPassword('');
                             }}
                             style={{
                               background: isChosen ? 'linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(56, 189, 248, 0.3) 100%)' : 'rgba(15, 23, 42, 0.7)',
@@ -796,24 +673,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                         <span><Phone size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{activeStaffInfo.phone}</span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeptEmail(activeStaffInfo.email);
-                        setCoordName(activeStaffInfo.name);
-                      }}
-                      style={{
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        border: '1px solid rgba(56, 189, 248, 0.4)',
-                        color: '#BAE6FD',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        fontSize: '0.7rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Fill Credentials
-                    </button>
                   </div>
                 )}
               </div>
@@ -830,7 +689,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   autoComplete="username"
                   value={deptEmail}
                   onChange={e => setDeptEmail(e.target.value)}
-                  placeholder={`Enter email or leave blank for ${selectedDept.toLowerCase()}.festronix@vardhaman.org`}
+                  placeholder="Enter coordinator email or username"
                   className="admin-form-input"
                 />
               </div>
@@ -846,7 +705,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type={showDeptPassword ? 'text' : 'password'}
                   value={deptPassword}
                   onChange={e => setDeptPassword(e.target.value)}
-                  placeholder={`Enter passcode (e.g. ${selectedDept.toLowerCase()}2026 or festcoord2026)`}
+                  placeholder="Enter department passcode"
                   required
                   className="admin-form-input"
                   style={{ paddingRight: '42px' }}
@@ -989,14 +848,13 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '6px' }}>
                   {OFFICIAL_STAFF_COORDINATORS.CSE.coordinators?.map(c => {
                     const isPicked = eventEmail.toLowerCase() === c.email.toLowerCase();
-                    const defaultPass = c.email.startsWith('raghavendra') ? 'raghavendra2026' : c.email.startsWith('balu') ? 'balu2026' : 'varma2026';
                     return (
                       <button
                         key={c.email}
                         type="button"
                         onClick={() => {
                           setEventEmail(c.email);
-                          setEventPassword(defaultPass);
+                          setEventPassword('');
                         }}
                         style={{
                           background: isPicked ? 'rgba(139, 92, 246, 0.35)' : 'rgba(15, 23, 42, 0.65)',
@@ -1064,7 +922,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   type={showEventPassword ? 'text' : 'password'}
                   value={eventPassword}
                   onChange={e => setEventPassword(e.target.value)}
-                  placeholder="Enter passcode (e.g. eventcoord2026 or festcoord2026)"
+                  placeholder="Enter event passcode"
                   required
                   className="admin-form-input"
                   style={{ paddingRight: '42px' }}
@@ -1162,7 +1020,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                   autoComplete="username"
                   value={opsEmail}
                   onChange={e => setOpsEmail(e.target.value)}
-                  placeholder={`Enter email or leave blank for ${opsRole === 'finance' ? 'accounts.fest@vardhaman.org' : 'volunteers.fest@vardhaman.org'}`}
+                  placeholder="Enter staff email or username"
                   className="admin-form-input"
                 />
               </div>
