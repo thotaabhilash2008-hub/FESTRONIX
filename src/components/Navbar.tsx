@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Flame, ChevronDown, Building2, LayoutGrid, Layers, ShoppingBag, LogIn, LogOut, CalendarDays } from 'lucide-react';
+import { Ticket, Menu, X, Flame, Building2, Layers, ShoppingBag, LogIn, LogOut } from 'lucide-react';
 import { Announcement } from '../types/festronix';
-import { DEPARTMENTS } from '../data/mockData';
 
 interface NavbarProps {
   onOpenIntro?: () => void;
@@ -11,8 +10,8 @@ interface NavbarProps {
   passesCount: number;
   onNavigateExplore?: () => void;
   onNavigateHyped: () => void;
-  onSelectDepartment: (deptCode: string) => void;
-  onSelectCategory: (categoryKey: string) => void;
+  onSelectDepartment?: (deptCode: string) => void;
+  onSelectCategory?: (categoryKey: string) => void;
   onSelectDay?: (day: 'all' | '1' | '2') => void;
   onOpenAdmin?: () => void;
   onOpenSponsors?: () => void;
@@ -45,23 +44,17 @@ export const Navbar: React.FC<NavbarProps> = ({
       document.body.style.overflow = '';
     };
   }, [mobileMenuOpen]);
-  const [isBrowseDropdownOpen, setIsBrowseDropdownOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside or scrolling
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsBrowseDropdownOpen(false);
-      }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
       }
     };
     const handleScroll = () => {
-      setIsBrowseDropdownOpen(false);
       setIsUserMenuOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -76,7 +69,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setMobileMenuOpen(false);
-        setIsBrowseDropdownOpen(false);
         setIsUserMenuOpen(false);
       }
     };
@@ -84,15 +76,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  const categories = [
-    { key: 'all', label: 'All Categories' },
-    { key: 'hackathon', label: 'Hackathons' },
-    { key: 'technical', label: 'Technical' },
-    { key: 'workshop', label: 'Workshops' },
-    { key: 'gaming', label: 'E-Sports & Gaming' },
-    { key: 'non-technical', label: 'Non-Tech & Pitch' }
-  ];
 
   return (
     <nav
@@ -273,331 +256,36 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
           className="desktop-nav"
         >
-          {/* 1. Browse Dropdown: Select by Department & Select by Event Category */}
-          <div ref={dropdownRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setIsBrowseDropdownOpen(!isBrowseDropdownOpen)}
-              aria-expanded={isBrowseDropdownOpen}
-              aria-haspopup="menu"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: isBrowseDropdownOpen ? '#FFFFFF' : '#94A3B8',
-                fontSize: '0.84rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '6px 8px',
-                transition: 'color 0.15s ease',
-                fontFamily: "'Space Grotesk', sans-serif"
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = '#FFFFFF';
-              }}
-              onMouseLeave={e => {
-                if (!isBrowseDropdownOpen) {
-                  e.currentTarget.style.color = '#94A3B8';
-                }
-              }}
-            >
-              <span>Browse Events</span>
-              <ChevronDown
-                size={13}
-                style={{
-                  transform: isBrowseDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.2s ease',
-                  opacity: 0.75
-                }}
-              />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isBrowseDropdownOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '42px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: '380px',
-                  background: 'rgba(15, 17, 23, 0.98)',
-                  border: '1px solid rgba(199, 203, 212, 0.22)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  boxShadow: '0 24px 60px rgba(0, 0, 0, 0.95), 0 0 30px rgba(255, 107, 53, 0.1)',
-                  backdropFilter: 'blur(20px)',
-                  zIndex: 100
-                }}
-              >
-                {/* Option A: Select by Department */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div
-                    onClick={() => {
-                      onSelectDepartment('all');
-                      setIsBrowseDropdownOpen(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: 'rgba(255, 107, 53, 0.08)',
-                      border: '1px solid rgba(255, 107, 53, 0.25)',
-                      cursor: 'pointer',
-                      marginBottom: '8px',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(255, 107, 53, 0.16)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(111, 150, 147, 0.12)';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Building2 size={16} color="#3D68B2" />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F0F4F8' }}>
-                        Select by Department
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.7rem', color: '#88B2AE', fontWeight: 600 }}>
-                      View All →
-                    </span>
-                  </div>
-
-                  {/* Department Quick Chips (3x3 grid for 9 departments) */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                    {DEPARTMENTS.map(dept => (
-                      <button
-                        key={dept.id}
-                        onClick={() => {
-                          onSelectDepartment(dept.code);
-                          setIsBrowseDropdownOpen(false);
-                        }}
-                        style={{
-                          background: 'rgba(21, 24, 32, 0.85)',
-                          border: '1px solid rgba(199, 203, 212, 0.14)',
-                          borderRadius: '6px',
-                          padding: '6px 4px',
-                          color: '#C7CBD4',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                          textAlign: 'center',
-                          fontFamily: "'Space Grotesk', sans-serif"
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = '#88B2AE';
-                          e.currentTarget.style.color = '#FFFFFF';
-                          e.currentTarget.style.background = 'rgba(111, 150, 147, 0.16)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
-                          e.currentTarget.style.color = '#C7CBD4';
-                          e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
-                        }}
-                      >
-                        {dept.code}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Option B: Select by Event Category */}
-                <div>
-                  <div
-                    onClick={() => {
-                      onSelectCategory('all');
-                      setIsBrowseDropdownOpen(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: 'rgba(111, 150, 147, 0.1)',
-                      border: '1px solid rgba(111, 150, 147, 0.3)',
-                      cursor: 'pointer',
-                      marginBottom: '8px',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(111, 150, 147, 0.18)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(111, 150, 147, 0.1)';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <LayoutGrid size={16} color="#88B2AE" />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F0F4F8' }}>
-                        Select by Event Category
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.7rem', color: '#88B2AE', fontWeight: 600 }}>
-                      View All →
-                    </span>
-                  </div>
-
-                  {/* Category Quick Chips */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {categories.slice(1).map(cat => (
-                      <button
-                        key={cat.key}
-                        onClick={() => {
-                          onSelectCategory(cat.key);
-                          setIsBrowseDropdownOpen(false);
-                        }}
-                        style={{
-                          background: 'rgba(21, 24, 32, 0.85)',
-                          border: '1px solid rgba(199, 203, 212, 0.14)',
-                          borderRadius: '6px',
-                          padding: '5px 9px',
-                          color: '#C7CBD4',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.15s',
-                          fontFamily: "'Space Grotesk', sans-serif"
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = '#88B2AE';
-                          e.currentTarget.style.color = '#FFFFFF';
-                          e.currentTarget.style.background = 'rgba(111, 150, 147, 0.16)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
-                          e.currentTarget.style.color = '#C7CBD4';
-                          e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
-                        }}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {/* Option C: Select by Festival Day (Day 1 & Day 2) */}
-                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(199, 203, 212, 0.12)' }}>
-                  <div
-                    onClick={() => {
-                      if (onSelectDay) onSelectDay('all');
-                      setIsBrowseDropdownOpen(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: 'rgba(56, 189, 248, 0.08)',
-                      border: '1px solid rgba(56, 189, 248, 0.25)',
-                      cursor: 'pointer',
-                      marginBottom: '8px',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.16)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CalendarDays size={16} color="#38BDF8" />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#F0F4F8' }}>
-                        Select by Festival Day
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.7rem', color: '#38BDF8', fontWeight: 600 }}>
-                      Both Days →
-                    </span>
-                  </div>
-
-                  {/* Day Quick Chips */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-                    <button
-                      onClick={() => {
-                        if (onSelectDay) onSelectDay('1');
-                        setIsBrowseDropdownOpen(false);
-                      }}
-                      style={{
-                        background: 'rgba(21, 24, 32, 0.85)',
-                        border: '1px solid rgba(199, 203, 212, 0.14)',
-                        borderRadius: '6px',
-                        padding: '6px 8px',
-                        color: '#C7CBD4',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '2px',
-                        transition: 'all 0.15s',
-                        fontFamily: "'Space Grotesk', sans-serif"
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = '#38BDF8';
-                        e.currentTarget.style.color = '#FFFFFF';
-                        e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
-                        e.currentTarget.style.color = '#C7CBD4';
-                        e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
-                      }}
-                    >
-                      <span style={{ color: '#38BDF8', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase' }}>Day 1 • Oct 28</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F0F4F8' }}>Inaugural Battles</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (onSelectDay) onSelectDay('2');
-                        setIsBrowseDropdownOpen(false);
-                      }}
-                      style={{
-                        background: 'rgba(21, 24, 32, 0.85)',
-                        border: '1px solid rgba(199, 203, 212, 0.14)',
-                        borderRadius: '6px',
-                        padding: '6px 8px',
-                        color: '#C7CBD4',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '2px',
-                        transition: 'all 0.15s',
-                        fontFamily: "'Space Grotesk', sans-serif"
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = '#FBBF24';
-                        e.currentTarget.style.color = '#FFFFFF';
-                        e.currentTarget.style.background = 'rgba(251, 191, 36, 0.15)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'rgba(199, 203, 212, 0.14)';
-                        e.currentTarget.style.color = '#C7CBD4';
-                        e.currentTarget.style.background = 'rgba(21, 24, 32, 0.85)';
-                      }}
-                    >
-                      <span style={{ color: '#FBBF24', fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase' }}>Day 2 • Oct 29</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F0F4F8' }}>Finale & Pitches</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* 1. Browse Events Simple Hyperlink */}
+          <button
+            onClick={() => onNavigateExplore?.()}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#94A3B8',
+              fontSize: '0.84rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '6px 8px',
+              transition: 'color 0.15s ease',
+              fontFamily: "'Space Grotesk', sans-serif"
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = '#FFFFFF';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = '#94A3B8';
+            }}
+          >
+            <span>Browse Events</span>
+          </button>
 
           {/* 2. Hyped Events */}
           <button
             onClick={() => {
-              setIsBrowseDropdownOpen(false);
               onNavigateHyped();
             }}
             style={{
@@ -1113,125 +801,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Flame size={18} color="#FF6B35" />
                 <span>🔥 Hyped Competitions</span>
               </button>
-
-              {/* Option 8: Select by Department (9 Branches) */}
-              <div
-                className="mobile-menu-action mobile-departments"
-                style={{
-                  background: 'rgba(21, 24, 32, 0.6)',
-                  border: '1px solid rgba(199, 203, 212, 0.14)',
-                  borderRadius: '12px',
-                  padding: '12px'
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '8px'
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      color: '#88B2AE',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em'
-                    }}
-                  >
-                    Select by Department
-                  </span>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onSelectDepartment('all');
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#88B2AE',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    All Branches →
-                  </button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                  {DEPARTMENTS.map(dept => (
-                    <button
-                      key={dept.id}
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onSelectDepartment(dept.code);
-                      }}
-                      style={{
-                        background: 'rgba(10, 13, 20, 0.85)',
-                        border: '1px solid rgba(199, 203, 212, 0.14)',
-                        borderRadius: '6px',
-                        padding: '8px 4px',
-                        color: '#C7CBD4',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        textAlign: 'center'
-                      }}
-                    >
-                      {dept.code}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Option 9: Select by Event Category */}
-              <div
-                className="mobile-menu-action mobile-categories"
-                style={{
-                  background: 'rgba(21, 24, 32, 0.6)',
-                  border: '1px solid rgba(199, 203, 212, 0.14)',
-                  borderRadius: '12px',
-                  padding: '12px'
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.68rem',
-                    color: '#88B2AE',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    marginBottom: '8px'
-                  }}
-                >
-                  Select by Event Category
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {categories.map(cat => (
-                    <button
-                      key={cat.key}
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onSelectCategory(cat.key);
-                      }}
-                      style={{
-                        background: 'rgba(10, 13, 20, 0.85)',
-                        border: '1px solid rgba(199, 203, 212, 0.14)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        color: '#C7CBD4',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
             {/* Sidebar Bottom Footer Info */}

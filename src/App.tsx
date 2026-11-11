@@ -113,12 +113,6 @@ export const App: React.FC = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
-  // Navigation & Filtering State
-  const [selectedDept, setSelectedDept] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedDay, setSelectedDay] = useState<'all' | '1' | '2'>('all');
-  const [catalogViewMode, setCatalogViewMode] = useState<'all' | 'department' | 'category' | 'day'>('all');
-
   // Intro video & modals
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
@@ -271,37 +265,12 @@ export const App: React.FC = () => {
 
   // Navigation handlers
   const handleNavigateExplore = () => {
-    setSelectedDept('all');
-    setSelectedCategory('all');
-    setSelectedDay('all');
-    setCatalogViewMode('all');
     const el = document.getElementById('events');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleNavigateHyped = () => {
     const el = document.getElementById('hyped-events');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleSelectDepartment = (deptCode: string) => {
-    setSelectedDept(deptCode);
-    setCatalogViewMode('department');
-    const el = document.getElementById('events');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleSelectCategory = (categoryKey: string) => {
-    setSelectedCategory(categoryKey);
-    setCatalogViewMode('category');
-    const el = document.getElementById('events');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleSelectDay = (day: 'all' | '1' | '2') => {
-    setSelectedDay(day);
-    setCatalogViewMode('day');
-    const el = document.getElementById('events');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -428,9 +397,6 @@ export const App: React.FC = () => {
         passesCount={registrations.length}
         onNavigateExplore={handleNavigateExplore}
         onNavigateHyped={handleNavigateHyped}
-        onSelectDepartment={handleSelectDepartment}
-        onSelectCategory={handleSelectCategory}
-        onSelectDay={handleSelectDay}
         onOpenAdmin={handleOpenAdmin}
         onOpenSponsors={handleOpenSponsorsPage}
       />
