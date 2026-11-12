@@ -49,6 +49,48 @@ type RazorpayConstructor = new (options: RazorpayCheckoutOptions) => RazorpayIns
 
 let razorpayScriptPromise: Promise<void> | null = null;
 
+/**
+ * Supabase wraps a non-2xx Edge Function response in a FunctionsHttpError and
+ * keeps the useful JSON error in `context`. Preserve that message so a guest
+ * sees the actionable backend result instead of the generic SDK text.
+ */
+async function getEdgeFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+  if (error && typeof error === 'object') {
+    const context = (error as { context?: unknown }).context;
+    if (context && typeof context === 'object') {
+      const response = context as {
+        clone?: () => { json?: () => Promise<unknown>; text?: () => Promise<string> };
+        json?: () => Promise<unknown>;
+        text?: () => Promise<string>;
+      };
+      const bodySource = typeof response.clone === 'function' ? response.clone() : response;
+      if (typeof bodySource.json === 'function') {
+        try {
+          const body = await bodySource.json();
+          if (body && typeof body === 'object' && 'error' in body) {
+            const message = String((body as { error?: unknown }).error || '').trim();
+            if (message) return message;
+          }
+        } catch {
+          // Some proxies return plain text. Try the response text below.
+        }
+      }
+      if (typeof response.text === 'function') {
+        try {
+          const text = (await response.text()).trim();
+          if (text) return text;
+        } catch {
+          // Fall through to the typed Error message/fallback.
+        }
+      }
+    }
+  }
+
+  const message = error instanceof Error ? error.message.trim() : '';
+  if (message && !/^edge function returned a non-2xx status code$/i.test(message)) return message;
+  return fallback;
+}
+
 function loadRazorpayScript(): Promise<void> {
   if (typeof window === 'undefined') return Promise.reject(new Error('Razorpay checkout is only available in a browser.'));
   const browserWindow = window as Window & { Razorpay?: RazorpayConstructor };
@@ -130,7 +172,7 @@ export async function completeRazorpayCheckout(
   const { data: orderData, error: orderError } = await supabase.functions.invoke<RazorpayOrderResponse>('razorpay-create-order', {
     body: { eventId: event.id, items }
   });
-  if (orderError) throw new Error(orderError.message || 'Unable to start Razorpay checkout.');
+  if (orderError) throw new Error(await getEdgeFunctionErrorMessage(orderError, 'Unable to start Razorpay checkout.'));
   if (!orderData?.success || !orderData.keyId || !orderData.orderId || !orderData.amount) {
     throw new Error(orderData?.error || 'Razorpay did not return a valid test order.');
   }
@@ -183,7 +225,7 @@ export async function completeRazorpayCheckout(
           const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string; registrations?: any[] }>('razorpay-verify-payment', {
             body: response
           });
-          if (error) throw new Error(error.message || 'Unable to verify the Razorpay payment.');
+          if (error) throw new Error(await getEdgeFunctionErrorMessage(error, 'Unable to verify the Razorpay payment.'));
           if (!data?.success) throw new Error(data?.error || 'Razorpay payment verification failed.');
           const registrations = Array.isArray(data.registrations)
             ? data.registrations.map(payload => registrationFromRazorpayPayload(payload, event))

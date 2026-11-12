@@ -17,6 +17,10 @@ function cleanText(value: unknown, maxLength: number): string {
   return String(value ?? '').trim().slice(0, maxLength);
 }
 
+function normalizeRoll(value: unknown): string {
+  return cleanText(value, 50).toUpperCase();
+}
+
 function cleanItem(item: Record<string, unknown>, eventId: string, format: string, fee: number) {
   const teammates = Array.isArray(item.teammates) ? item.teammates.slice(0, 10).map(member => {
     const value = (member && typeof member === 'object') ? member as Record<string, unknown> : {};
@@ -107,6 +111,70 @@ Deno.serve(async request => {
       event.format,
       fee
     ));
+
+    // Fail before creating a Razorpay order when any participant already has
+    // an active registration. This avoids taking a second payment for a pass
+    // that the finalization transaction would correctly reject later.
+    const requestedRolls = new Set<string>();
+    const duplicateRolls = new Set<string>();
+    for (const item of normalizedItems) {
+      const rolls = [item.leaderRoll, ...item.teammates.map(member => member.rollNumber)];
+      for (const roll of rolls) {
+        const normalizedRoll = normalizeRoll(roll);
+        if (!normalizedRoll) continue;
+        if (requestedRolls.has(normalizedRoll)) duplicateRolls.add(normalizedRoll);
+        requestedRolls.add(normalizedRoll);
+      }
+    }
+    if (duplicateRolls.size > 0) {
+      return respond({
+        error: `The order contains duplicate participant roll number(s): ${Array.from(duplicateRolls).join(', ')}.`,
+        code: 'DUPLICATE_ORDER_PARTICIPANT'
+      }, 400);
+    }
+
+    const { data: existingRegistrations, error: existingRegistrationError } = await db.from('registrations')
+      .select('id, display_id, leader_roll')
+      .eq('event_id', event.id)
+      .neq('payment_status', 'rejected');
+    if (existingRegistrationError) {
+      console.error('Razorpay duplicate preflight failed:', existingRegistrationError.message);
+      return respond({ error: 'Unable to validate participant eligibility before payment. Please try again.' }, 503);
+    }
+
+    const existingRolls = new Map<string, string>();
+    const registrationIds = (existingRegistrations || []).map(registration => {
+      const id = cleanText(registration.id, 80);
+      const roll = normalizeRoll(registration.leader_roll);
+      if (roll) existingRolls.set(roll, cleanText(registration.display_id, 80));
+      return id;
+    }).filter(Boolean);
+
+    if (registrationIds.length > 0) {
+      const { data: existingMembers, error: existingMemberError } = await db.from('registration_members')
+        .select('registration_id, roll_number')
+        .in('registration_id', registrationIds);
+      if (existingMemberError) {
+        console.error('Razorpay member duplicate preflight failed:', existingMemberError.message);
+        return respond({ error: 'Unable to validate participant eligibility before payment. Please try again.' }, 503);
+      }
+      for (const member of existingMembers || []) {
+        const roll = normalizeRoll(member.roll_number);
+        if (roll && !existingRolls.has(roll)) existingRolls.set(roll, 'an existing registration');
+      }
+    }
+
+    for (const roll of requestedRolls) {
+      if (existingRolls.has(roll)) {
+        const existingPass = existingRolls.get(roll);
+        return respond({
+          error: `Participant ${roll} is already registered for ${event.title}. Use the existing pass${existingPass && existingPass !== 'an existing registration' ? ` (${existingPass})` : ''} instead of starting another payment.`,
+          code: 'DUPLICATE_REGISTRATION',
+          rollNumber: roll
+        }, 409);
+      }
+    }
+
     const amountPaise = fee * 100 * normalizedItems.length;
     if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) return respond({ error: 'The payment amount is invalid.' }, 400);
 
