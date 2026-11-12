@@ -1,5 +1,17 @@
-import React, { useMemo } from 'react';
-import { Flame, Calendar, MapPin, Trophy, Users, Zap, Rocket } from 'lucide-react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Flame,
+  Calendar,
+  MapPin,
+  Trophy,
+  Users,
+  Zap,
+  Rocket,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play
+} from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { ScrollReveal } from './animations';
 
@@ -62,7 +74,10 @@ const CompactEventCard: React.FC<{
       <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
         <button
           type="button"
-          onClick={onSelect}
+          onClick={e => {
+            e.stopPropagation();
+            onSelect();
+          }}
           className="event-glimpse-btn-secondary"
           title="View Rules & Full Details"
         >
@@ -70,12 +85,319 @@ const CompactEventCard: React.FC<{
         </button>
         <button
           type="button"
-          onClick={onRegister}
+          onClick={e => {
+            e.stopPropagation();
+            onRegister();
+          }}
           className="event-glimpse-btn-primary"
           title="Register for Event"
         >
           Register
         </button>
+      </div>
+    </div>
+  );
+};
+
+// Interactive Sliding Row with Full User Scroll, Drag, Arrow Buttons, and Auto-Slide
+interface InteractiveRowProps {
+  icon: React.ReactNode;
+  iconBg: string;
+  iconBorder: string;
+  title: string;
+  badge: string;
+  events: FestEvent[];
+  direction?: 'rtl' | 'ltr';
+  speed?: number;
+  onSelectEvent: (event: FestEvent) => void;
+  onRegisterEvent: (event: FestEvent) => void;
+}
+
+const InteractiveGlimpseRow: React.FC<InteractiveRowProps> = ({
+  icon,
+  iconBg,
+  iconBorder,
+  title,
+  badge,
+  events,
+  direction = 'rtl',
+  speed = 0.75,
+  onSelectEvent,
+  onRegisterEvent
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Drag tracking refs
+  const isMouseDownRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const dragDistRef = useRef(0);
+  const wasDraggingRef = useRef(false);
+
+  // User manual interaction timeout (pauses auto-scroll while user is actively scrolling)
+  const userInteractingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUserScrollingRef = useRef(false);
+
+  // Duplicated list to enable infinite seamless loop
+  const displayEvents = useMemo(() => {
+    if (!events || events.length === 0) return [];
+    let base = [...events];
+    while (base.length < 8) {
+      base = [...base, ...events];
+    }
+    return [...base, ...base];
+  }, [events]);
+
+  // Initial scroll position setup for LTR so it has room to scroll backwards
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el && direction === 'ltr') {
+      const half = el.scrollWidth / 2;
+      if (half > 0) {
+        el.scrollLeft = half;
+      }
+    }
+  }, [direction, displayEvents]);
+
+  // Helper to mark user as active and pause auto-slide
+  const registerUserActivity = useCallback(() => {
+    isUserScrollingRef.current = true;
+    if (userInteractingTimeoutRef.current) {
+      clearTimeout(userInteractingTimeoutRef.current);
+    }
+    // Resume auto-slide after 3.5s of no user input
+    userInteractingTimeoutRef.current = setTimeout(() => {
+      isUserScrollingRef.current = false;
+    }, 3500);
+  }, []);
+
+  // Smooth Auto-Slide Loop with Wrap-around
+  useEffect(() => {
+    let animId: number;
+
+    const tick = () => {
+      const el = containerRef.current;
+      if (el && isAutoPlaying && !isHovered && !isMouseDownRef.current && !isUserScrollingRef.current) {
+        const half = el.scrollWidth / 2;
+        if (half > 0) {
+          if (direction === 'rtl') {
+            el.scrollLeft += speed;
+            if (el.scrollLeft >= half) {
+              el.scrollLeft -= half;
+            }
+          } else {
+            el.scrollLeft -= speed;
+            if (el.scrollLeft <= 0) {
+              el.scrollLeft += half;
+            }
+          }
+        }
+      }
+      animId = requestAnimationFrame(tick);
+    };
+
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [isAutoPlaying, isHovered, direction, speed]);
+
+  // Mouse drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const el = containerRef.current;
+    if (!el) return;
+    isMouseDownRef.current = true;
+    setIsDragging(true);
+    startXRef.current = e.pageX - el.offsetLeft;
+    scrollLeftRef.current = el.scrollLeft;
+    dragDistRef.current = 0;
+    registerUserActivity();
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDownRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - startXRef.current) * 1.4;
+    dragDistRef.current += Math.abs(walk);
+    el.scrollLeft = scrollLeftRef.current - walk;
+
+    // Infinite wrap check during drag
+    const half = el.scrollWidth / 2;
+    if (half > 0) {
+      if (el.scrollLeft >= half) {
+        el.scrollLeft -= half;
+        scrollLeftRef.current -= half;
+      } else if (el.scrollLeft <= 0) {
+        el.scrollLeft += half;
+        scrollLeftRef.current += half;
+      }
+    }
+    registerUserActivity();
+  };
+
+  const handleMouseUp = () => {
+    isMouseDownRef.current = false;
+    setIsDragging(false);
+    if (dragDistRef.current > 6) {
+      wasDraggingRef.current = true;
+      setTimeout(() => {
+        wasDraggingRef.current = false;
+      }, 180);
+    }
+    registerUserActivity();
+  };
+
+  // Touch handlers
+  const handleTouchStart = () => {
+    registerUserActivity();
+  };
+
+  const handleTouchMove = () => {
+    const el = containerRef.current;
+    if (el) {
+      const half = el.scrollWidth / 2;
+      if (half > 0) {
+        if (el.scrollLeft >= half) {
+          el.scrollLeft -= half;
+        } else if (el.scrollLeft <= 0) {
+          el.scrollLeft += half;
+        }
+      }
+    }
+    registerUserActivity();
+  };
+
+  // Wheel scroll handler
+  const handleWheel = (e: React.WheelEvent) => {
+    registerUserActivity();
+    const el = containerRef.current;
+    if (!el) return;
+    // If user is scrolling horizontally, or shift-scrolling
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      const half = el.scrollWidth / 2;
+      if (half > 0) {
+        if (el.scrollLeft >= half) el.scrollLeft -= half;
+        else if (el.scrollLeft <= 0) el.scrollLeft += half;
+      }
+    }
+  };
+
+  // Arrow button navigation (slides by ~280px, one card width)
+  const slideBy = (amount: number) => {
+    registerUserActivity();
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: amount, behavior: 'smooth' });
+
+    // Handle wrap after smooth scroll finishes
+    setTimeout(() => {
+      if (!el) return;
+      const half = el.scrollWidth / 2;
+      if (half > 0) {
+        if (el.scrollLeft >= half) el.scrollLeft -= half;
+        else if (el.scrollLeft <= 0) el.scrollLeft += half;
+      }
+    }, 350);
+  };
+
+  if (!events || events.length === 0) return null;
+
+  return (
+    <div className="events-glimpse-row-wrap">
+      {/* Sub Header: Title, Badge, Controls */}
+      <div className="events-glimpse-sub-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="events-glimpse-sub-icon" style={{ background: iconBg, borderColor: iconBorder }}>
+            {icon}
+          </div>
+          <h3 className="events-glimpse-sub-title">{title}</h3>
+          <span className="events-glimpse-sub-badge">{badge}</span>
+        </div>
+
+        {/* User Interactive Navigation Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="events-glimpse-hint" style={{ marginRight: '4px' }}>
+            {isAutoPlaying ? 'Swipe or drag to scroll' : 'Manual mode'}
+          </span>
+
+          {/* Auto-Slide Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsAutoPlaying(prev => !prev)}
+            className={`events-glimpse-toggle-btn ${isAutoPlaying ? 'active' : ''}`}
+            title={isAutoPlaying ? 'Pause automatic slide' : 'Resume automatic slide'}
+          >
+            {isAutoPlaying ? <Pause size={12} /> : <Play size={12} />}
+            <span>{isAutoPlaying ? 'Auto' : 'Paused'}</span>
+          </button>
+
+          {/* Slide Left Button */}
+          <button
+            type="button"
+            onClick={() => slideBy(-280)}
+            className="events-glimpse-nav-btn"
+            title="Slide Left"
+            aria-label="Slide Left"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          {/* Slide Right Button */}
+          <button
+            type="button"
+            onClick={() => slideBy(280)}
+            className="events-glimpse-nav-btn"
+            title="Slide Right"
+            aria-label="Slide Right"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Interactive Horizontal Scroll & Drag Track */}
+      <div className="events-glimpse-interactive-wrapper">
+        <div
+          ref={containerRef}
+          className="events-glimpse-scroll-container"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => {
+            setIsHovered(false);
+            if (isMouseDownRef.current) handleMouseUp();
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onWheel={handleWheel}
+          style={{
+            cursor: isDragging ? 'grabbing' : 'grab'
+          }}
+        >
+          <div className="events-glimpse-scroll-track">
+            {displayEvents.map((event, idx) => (
+              <CompactEventCard
+                key={`${title}-${event.id}-${idx}`}
+                event={event}
+                onSelect={() => {
+                  if (!wasDraggingRef.current) {
+                    onSelectEvent(event);
+                  }
+                }}
+                onRegister={() => {
+                  if (!wasDraggingRef.current) {
+                    onRegisterEvent(event);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -91,7 +413,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
     return [...events].sort((a, b) => b.registeredCount - a.registeredCount);
   }, [events]);
 
-  // 2. Day 1 Events (contains '28' or 'day 1')
+  // 2. Day 1 Events
   const day1Events = useMemo(() => {
     return events.filter(e => {
       const dateStr = (e.date || '').toLowerCase();
@@ -99,27 +421,13 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
     });
   }, [events]);
 
-  // 3. Day 2 Events (contains '29' or 'day 2')
+  // 3. Day 2 Events
   const day2Events = useMemo(() => {
     return events.filter(e => {
       const dateStr = (e.date || '').toLowerCase();
       return dateStr.includes('dec 2') || dateStr.includes('1-2') || dateStr.includes('day 2');
     });
   }, [events]);
-
-  // Ensure seamless marquee duplication (minimum 12 items, duplicated for seamless 50% loop)
-  const buildMarqueeTrack = (list: FestEvent[]) => {
-    if (!list || list.length === 0) return [];
-    let base = [...list];
-    while (base.length < 8) {
-      base = [...base, ...list];
-    }
-    return [...base, ...base];
-  };
-
-  const marqueePopular = useMemo(() => buildMarqueeTrack(popularEvents), [popularEvents]);
-  const marqueeDay1 = useMemo(() => buildMarqueeTrack(day1Events), [day1Events]);
-  const marqueeDay2 = useMemo(() => buildMarqueeTrack(day2Events), [day2Events]);
 
   return (
     <section
@@ -179,88 +487,51 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
         </div>
       </ScrollReveal>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-        {/* SUB SECTION 1: Popular Events (Scrolling Right to Left) */}
-        <div className="events-glimpse-row-wrap">
-          <div className="events-glimpse-sub-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="events-glimpse-sub-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.35)' }}>
-                <Flame size={15} color="#EF4444" />
-              </div>
-              <h3 className="events-glimpse-sub-title">Popular Events</h3>
-              <span className="events-glimpse-sub-badge">High Demand</span>
-            </div>
-            <span className="events-glimpse-hint">Hover to pause</span>
-          </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '34px' }}>
+        {/* SUB SECTION 1: Popular Events (Right to Left slide, with full user manual scroll/drag) */}
+        <InteractiveGlimpseRow
+          icon={<Flame size={15} color="#EF4444" />}
+          iconBg="rgba(239, 68, 68, 0.15)"
+          iconBorder="rgba(239, 68, 68, 0.35)"
+          title="Popular Events"
+          badge="High Demand"
+          events={popularEvents}
+          direction="rtl"
+          speed={0.8}
+          onSelectEvent={onSelectEvent}
+          onRegisterEvent={onRegisterEvent}
+        />
 
-          <div className="events-glimpse-marquee-container">
-            <div className="events-glimpse-marquee-track-rtl">
-              {marqueePopular.map((event, idx) => (
-                <CompactEventCard
-                  key={`pop-${event.id}-${idx}`}
-                  event={event}
-                  onSelect={() => onSelectEvent(event)}
-                  onRegister={() => onRegisterEvent(event)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* SUB SECTION 2: Day 1 Arenas (Left to Right slide, with full user manual scroll/drag) */}
+        <InteractiveGlimpseRow
+          icon={<Zap size={15} color="#38BDF8" />}
+          iconBg="rgba(56, 189, 248, 0.15)"
+          iconBorder="rgba(56, 189, 248, 0.35)"
+          title="Day 1 Arenas"
+          badge="Dec 1"
+          events={day1Events}
+          direction="ltr"
+          speed={0.8}
+          onSelectEvent={onSelectEvent}
+          onRegisterEvent={onRegisterEvent}
+        />
 
-        {/* SUB SECTION 2: Day 1 (Scrolling Left to Right) */}
-        <div className="events-glimpse-row-wrap">
-          <div className="events-glimpse-sub-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="events-glimpse-sub-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.35)' }}>
-                <Zap size={15} color="#38BDF8" />
-              </div>
-              <h3 className="events-glimpse-sub-title">Day 1 Arenas</h3>
-              <span className="events-glimpse-sub-badge">Dec 1</span>
-            </div>
-            <span className="events-glimpse-hint">Hover to pause</span>
-          </div>
-
-          <div className="events-glimpse-marquee-container">
-            <div className="events-glimpse-marquee-track-ltr">
-              {marqueeDay1.map((event, idx) => (
-                <CompactEventCard
-                  key={`day1-${event.id}-${idx}`}
-                  event={event}
-                  onSelect={() => onSelectEvent(event)}
-                  onRegister={() => onRegisterEvent(event)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* SUB SECTION 3: Day 2 (Scrolling Right to Left) */}
-        <div className="events-glimpse-row-wrap">
-          <div className="events-glimpse-sub-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="events-glimpse-sub-icon" style={{ background: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.35)' }}>
-                <Rocket size={15} color="#A855F7" />
-              </div>
-              <h3 className="events-glimpse-sub-title">Day 2 Arenas</h3>
-              <span className="events-glimpse-sub-badge">Dec 2</span>
-            </div>
-            <span className="events-glimpse-hint">Hover to pause</span>
-          </div>
-
-          <div className="events-glimpse-marquee-container">
-            <div className="events-glimpse-marquee-track-rtl">
-              {marqueeDay2.map((event, idx) => (
-                <CompactEventCard
-                  key={`day2-${event.id}-${idx}`}
-                  event={event}
-                  onSelect={() => onSelectEvent(event)}
-                  onRegister={() => onRegisterEvent(event)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* SUB SECTION 3: Day 2 Arenas (Right to Left slide, with full user manual scroll/drag) */}
+        <InteractiveGlimpseRow
+          icon={<Rocket size={15} color="#A855F7" />}
+          iconBg="rgba(168, 85, 247, 0.15)"
+          iconBorder="rgba(168, 85, 247, 0.35)"
+          title="Day 2 Arenas"
+          badge="Dec 2"
+          events={day2Events}
+          direction="rtl"
+          speed={0.8}
+          onSelectEvent={onSelectEvent}
+          onRegisterEvent={onRegisterEvent}
+        />
       </div>
     </section>
   );
 };
+
+export default EventsGlimpseSection;
