@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { FestEvent, Registration } from '../types/festronix';
+import { StorageService } from './storageService';
 
 type RegistrationInput = Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>;
 
@@ -114,7 +115,16 @@ export async function completeRazorpayCheckout(
   event: FestEvent,
   items: RegistrationInput[]
 ): Promise<Registration[]> {
-  if (!isSupabaseConfigured()) throw new Error('Razorpay checkout requires the live Supabase backend.');
+  if (!isSupabaseConfigured()) {
+    const created = await StorageService.addMultipleRegistrations(
+      items.map(item => ({
+        ...item,
+        paymentStatus: 'verified',
+        transactionId: `TEST-PAY-${Date.now()}`
+      }))
+    );
+    return created;
+  }
   if (items.length < 1) throw new Error('At least one registration is required for payment.');
 
   const { data: orderData, error: orderError } = await supabase.functions.invoke<RazorpayOrderResponse>('razorpay-create-order', {

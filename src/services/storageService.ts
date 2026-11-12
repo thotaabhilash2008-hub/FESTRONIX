@@ -622,9 +622,14 @@ export class StorageService {
     if (!cleanQuery) return [];
 
     if (!isSupabaseConfigured()) {
-      // Development fallback is intentionally empty rather than returning
-      // seeded/mock passes that could be mistaken for real registrations.
-      return [];
+      const all = this.getRegistrations();
+      const q = cleanQuery.toLowerCase();
+      return all.filter(r =>
+        (r.id && r.id.toLowerCase() === q) ||
+        (r.leaderEmail && r.leaderEmail.toLowerCase() === q) ||
+        (r.leaderRoll && r.leaderRoll.toLowerCase() === q) ||
+        (r.teamCode && r.teamCode.toLowerCase() === q)
+      );
     }
 
     const { data, error } = await supabase.rpc('lookup_public_passes_unlocked', { p_query: cleanQuery });

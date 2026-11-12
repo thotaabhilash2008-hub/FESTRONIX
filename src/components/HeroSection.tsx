@@ -193,37 +193,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             zIndex: 2
           }}
         >
-          <div
+          <img
+            src="/sanvi_homes_horizontal.png"
+            alt="Sanvi Homes"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'clamp(8px, 1.8vw, 14px)',
-              maxWidth: '92vw'
+              height: 'clamp(32px, 4.4vw, 44px)',
+              width: 'auto',
+              maxWidth: '90vw',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 2px 14px rgba(56, 189, 248, 0.32))'
             }}
-          >
-            <img
-              src="/sanvi_homes_emblem.png"
-              alt="Sanvi Homes Emblem"
-              style={{
-                height: 'clamp(36px, 5.2vw, 50px)',
-                width: 'auto',
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.35))'
-              }}
-            />
-            <img
-              src="/sanvi_homes_text.png"
-              alt="SANVI HOMES"
-              style={{
-                height: 'clamp(14px, 2.2vw, 22px)',
-                width: 'auto',
-                maxWidth: '75vw',
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8))'
-              }}
-            />
-          </div>
+          />
           <span
             style={{
               fontFamily: "'Space Grotesk', sans-serif",

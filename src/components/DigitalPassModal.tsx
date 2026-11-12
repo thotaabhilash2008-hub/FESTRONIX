@@ -175,10 +175,20 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   useEffect(() => {
     const nextRegistrations = mergePasses(initialRegistrations, readGuestPassCache());
     setLiveRegistrations(nextRegistrations);
-    if (!pageMode && nextRegistrations.length > 0) {
-      setActiveList(visibleRegistrations(nextRegistrations));
+    if (nextRegistrations.length > 0) {
+      if (activePassId) {
+        const matches = nextRegistrations.filter(r => r.id === activePassId);
+        if (matches.length > 0) {
+          setActiveList(matches);
+          setSelectedIndex(0);
+        } else {
+          setActiveList(visibleRegistrations(nextRegistrations));
+        }
+      } else {
+        setActiveList(visibleRegistrations(nextRegistrations));
+      }
     }
-  }, [initialRegistrations, pageMode]);
+  }, [initialRegistrations, pageMode, activePassId]);
 
   useEffect(() => {
     if (!pageMode || !activePassId) return;
@@ -782,7 +792,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
                 {/* Verification/Entry Status */}
                 <div style={{ marginTop: '14px' }}>
-                  {!reg.qrToken ? (
+                  {!(reg.qrToken || reg.id) ? (
                     <div
                       style={{
                         display: 'inline-flex',
@@ -839,9 +849,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </div>
               </div>
 
-              {/* QR Code token or not-yet-generated placeholder. Payment status
-                  is informational and never gates QR visibility. */}
-              {!reg.qrToken ? (
+              {/* QR Code token or entry ticket */}
+              {!(reg.qrToken || reg.id) ? (
                 <div
                   style={{
                     textAlign: 'center',

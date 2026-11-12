@@ -307,7 +307,7 @@ export const App: React.FC = () => {
   if (isPassesPageOpen) {
     return (
       <DigitalPassModal
-        registrations={[]}
+        registrations={registrations}
         currentUser={currentUser}
         activePassId={activePassLookup}
         pageMode
