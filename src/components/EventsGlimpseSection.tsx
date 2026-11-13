@@ -555,6 +555,27 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
           onRegisterEvent={onRegisterEvent}
         />
       </div>
+
+      {onViewAllEvents && (
+        <div style={{ marginTop: '36px', display: 'flex', justifyContent: 'center', padding: '0 20px' }}>
+          <button
+            type="button"
+            onClick={onViewAllEvents}
+            className="btn-cyber-primary"
+            style={{
+              padding: '12px 26px',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              borderRadius: '10px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <LayoutGrid size={16} color="#38BDF8" />
+            <span>View All Events{events.length > 0 ? ` (${events.length})` : ''}</span>
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      )}
     </section>
   );
 };

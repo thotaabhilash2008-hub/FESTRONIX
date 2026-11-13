@@ -475,6 +475,7 @@ export const App: React.FC = () => {
         {/* HERO SECTION: Cinematic Introduction */}
         <HeroSection
           onExploreEvents={handleNavigateExplore}
+          onViewAllEvents={handleOpenAllEventsPage}
           onOpenIntro={() => setIsIntroOpen(true)}
           onRegisterNow={handleStartMultiPass}
         />
