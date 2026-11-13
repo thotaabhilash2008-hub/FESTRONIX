@@ -1128,6 +1128,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           onSwitchToFest={onSwitchToFest}
           searchQuery={globalSearch}
           onSearchChange={setGlobalSearch}
+          notificationCount={stats.pendingCount}
+          onNotificationClick={() => setActiveTab('payments')}
         />
 
         {/* Content Container */}
@@ -1346,7 +1348,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           </div>
                           <div className="admin-dept-stat-row" style={{ borderBottom: 'none' }}>
                             <span style={{ color: '#94A3B8' }}>Active Coordinators</span>
-                            <strong style={{ color: '#38BDF8' }}>{Math.max(1, deptCoords.length)} appointed</strong>
+                            <strong style={{ color: '#38BDF8' }}>{deptCoords.length} appointed</strong>
                           </div>
                         </div>
 

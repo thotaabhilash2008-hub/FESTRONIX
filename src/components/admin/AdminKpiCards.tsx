@@ -9,12 +9,16 @@ interface AdminKpiCardsProps {
 export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
   const turnoutPercent = stats.totalRegistrations > 0
     ? Math.round((stats.checkedInCount / stats.totalRegistrations) * 100)
-    : 44;
+    : 0;
 
   // SVG Circular Gauge calculations
   const radius = 24;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (turnoutPercent / 100) * circumference;
+
+  const hasRegistrations = stats.totalRegistrations > 0;
+  const hasRevenue = stats.totalCollected > 0;
+  const hasPending = stats.pendingCount > 0;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '22px' }}>
@@ -33,21 +37,6 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
               <div style={{ fontSize: '1.9rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1 }}>
                 {stats.totalRegistrations}
               </div>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  color: '#34D399',
-                  background: 'rgba(16, 185, 129, 0.14)',
-                  padding: '2px 6px',
-                  borderRadius: '6px'
-                }}
-              >
-                <span>↑ +12%</span>
-              </span>
             </div>
           </div>
         </div>
@@ -62,9 +51,15 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
               </linearGradient>
             </defs>
             <path d="M0,10 H200 M0,20 H200 M0,30 H200" stroke="rgba(148,163,184,0.12)" strokeWidth="0.6" strokeDasharray="2 4" />
-            <path d="M0,31 L38,30 L76,26 L114,25 L152,19 L176,16 L200,12 L200,40 L0,40 Z" fill="url(#blueSparkGrad)" />
-            <path d="M0,31 L38,30 L76,26 L114,25 L152,19 L176,16 L200,12" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="200" cy="12" r="2.8" fill="#38BDF8" stroke="#07111f" strokeWidth="1.5" />
+            {hasRegistrations ? (
+              <>
+                <path d="M0,31 L38,30 L76,26 L114,25 L152,19 L176,16 L200,12 L200,40 L0,40 Z" fill="url(#blueSparkGrad)" />
+                <path d="M0,31 L38,30 L76,26 L114,25 L152,19 L176,16 L200,12" fill="none" stroke="#38BDF8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="200" cy="12" r="2.8" fill="#38BDF8" stroke="#07111f" strokeWidth="1.5" />
+              </>
+            ) : (
+              <path d="M0,36 L200,36" fill="none" stroke="rgba(56, 189, 248, 0.35)" strokeWidth="2" strokeLinecap="round" />
+            )}
           </svg>
         </div>
 
@@ -100,14 +95,20 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
               </linearGradient>
             </defs>
             <path d="M0,10 H200 M0,20 H200 M0,30 H200" stroke="rgba(148,163,184,0.12)" strokeWidth="0.6" strokeDasharray="2 4" />
-            <path d="M0,33 L40,31 L80,27 L120,22 L154,24 L178,15 L200,9 L200,40 L0,40 Z" fill="url(#greenSparkGrad)" />
-            <path d="M0,33 L40,31 L80,27 L120,22 L154,24 L178,15 L200,9" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="200" cy="9" r="2.8" fill="#10B981" stroke="#071f18" strokeWidth="1.5" />
+            {hasRevenue ? (
+              <>
+                <path d="M0,33 L40,31 L80,27 L120,22 L154,24 L178,15 L200,9 L200,40 L0,40 Z" fill="url(#greenSparkGrad)" />
+                <path d="M0,33 L40,31 L80,27 L120,22 L154,24 L178,15 L200,9" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="200" cy="9" r="2.8" fill="#10B981" stroke="#071f18" strokeWidth="1.5" />
+              </>
+            ) : (
+              <path d="M0,36 L200,36" fill="none" stroke="rgba(16, 185, 129, 0.35)" strokeWidth="2" strokeLinecap="round" />
+            )}
           </svg>
         </div>
 
         <div style={{ fontSize: '0.73rem', color: '#94A3B8' }}>
-          Reconciled across all 9 departments & spot counters
+          Reconciled across all departments & spot counters
         </div>
       </div>
 
@@ -138,9 +139,15 @@ export const AdminKpiCards: React.FC<AdminKpiCardsProps> = ({ stats }) => {
               </linearGradient>
             </defs>
             <path d="M0,10 H200 M0,20 H200 M0,30 H200" stroke="rgba(148,163,184,0.12)" strokeWidth="0.6" strokeDasharray="2 4" />
-            <path d="M0,34 L42,34 L82,29 L120,27 L145,30 L170,20 L200,13 L200,40 L0,40 Z" fill="url(#amberSparkGrad)" />
-            <path d="M0,34 L42,34 L82,29 L120,27 L145,30 L170,20 L200,13" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="200" cy="13" r="2.8" fill="#F59E0B" stroke="#241805" strokeWidth="1.5" />
+            {hasPending ? (
+              <>
+                <path d="M0,34 L42,34 L82,29 L120,27 L145,30 L170,20 L200,13 L200,40 L0,40 Z" fill="url(#amberSparkGrad)" />
+                <path d="M0,34 L42,34 L82,29 L120,27 L145,30 L170,20 L200,13" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="200" cy="13" r="2.8" fill="#F59E0B" stroke="#241805" strokeWidth="1.5" />
+              </>
+            ) : (
+              <path d="M0,36 L200,36" fill="none" stroke="rgba(245, 158, 11, 0.35)" strokeWidth="2" strokeLinecap="round" />
+            )}
           </svg>
         </div>
 

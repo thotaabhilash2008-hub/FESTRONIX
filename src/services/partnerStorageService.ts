@@ -110,17 +110,27 @@ export class PartnerStorageService {
   }
   static getSponsors(): SponsorProfile[] {
     if (typeof window === 'undefined') return SPONSOR_PROFILES;
+    const PURGE_FLAG = 'festronix_sponsors_demo_purged_v1';
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          if (localStorage.getItem(PURGE_FLAG) !== '1') {
+            const cleaned = parsed.filter((s: any) => s && s.id !== 'cybercore');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+            localStorage.setItem(PURGE_FLAG, '1');
+            return cleaned;
+          }
           return parsed;
         }
       }
     } catch (e) {
       console.warn('Failed to parse stored sponsors:', e);
     }
+    try {
+      localStorage.setItem(PURGE_FLAG, '1');
+    } catch {}
     // Initialize with defaults if empty
     PartnerStorageService.saveSponsors(SPONSOR_PROFILES);
     return SPONSOR_PROFILES;

@@ -209,110 +209,11 @@ export const SPONSOR_PROFILES: SponsorProfile[] = [
         dueDate: 'Oct 29, 2026'
       }
     ]
-  },
-  {
-    id: 'cybercore',
-    companyName: 'CyberCore Systems',
-    tagline: 'Next-Gen Autonomous AI & Robotics Solutions',
-    tier: 'Gold Sponsor',
-    tierBadgeColor: '#F59E0B',
-    logo: '/vce_logo.png',
-    website: 'https://cybercore-systems.io',
-    pocName: 'Vikram Malhotra',
-    pocRole: 'Director of University Relations',
-    pocContact: '+91 91234 56789',
-    pocEmail: 'campus@cybercore-systems.io',
-    sacLeadName: 'Prof. K. Ramesh (Sponsorship Head)',
-    sacLeadContact: '+91 98480 99115',
-    stallLocation: 'CSE / IT Cyber Corridor Ground Floor',
-    stallNumber: 'Stall #G-08',
-    mouStatus: 'Signed & Executed',
-    invoiceStatus: 'Paid & Cleared',
-    metrics: {
-      stageKeynoteTime: 'Day 1 • 2:00 PM (RoboWars Arena)',
-      brandedBannersAllocated: 8,
-      vipLoungePasses: 10,
-      estimatedReach: '20,000+ Engineers',
-      impressionsCount: '500K Digital Impressions'
-    },
-    deliverables: [
-      {
-        id: 'cc-g1',
-        title: 'National RoboWars Flagship Title Sponsor',
-        category: 'stage',
-        status: 'completed',
-        description: 'Exclusive ring banner, safety cage co-branding, and first-place trophy presentation.',
-        dueDate: 'Oct 28, 2026'
-      },
-      {
-        id: 'cc-g2',
-        title: 'Recruitment & Pre-Placement Interview Kiosk',
-        category: 'on_ground',
-        status: 'in_progress',
-        description: 'Dedicated interview room inside SAC Executive Block for top hackathon winners.',
-        dueDate: 'Oct 29, 2026'
-      }
-    ]
   }
 ];
 
 // ---------------- Pre-loaded Campus Ambassador Profiles ----------------
-export const AMBASSADOR_PROFILES: AmbassadorProfile[] = [
-  {
-    id: 'amb_aditya',
-    name: 'Aditya Verma',
-    college: 'Vardhaman College of Engineering',
-    avatar: 'AV',
-    referralCode: 'FEST26-AMB-ADITYA',
-    totalReferrals: 68,
-    totalRevenue: 27200,
-    rank: 1,
-    points: 6800,
-    stipendEarned: 5440,
-    badge: 'Grand Diamond',
-    recentReferrals: [
-      { id: 'r1', studentName: 'Sai Tarun', college: 'VCE - CSE', eventsRegistered: ['CodeSprint 2026', 'RoboWars'], date: 'Today, 2:15 PM', amount: 500 },
-      { id: 'r2', studentName: 'Priya Nambiar', college: 'VCE - ECE', eventsRegistered: ['Circuitrix Hack'], date: 'Today, 11:30 AM', amount: 300 },
-      { id: 'r3', studentName: 'Farhan Ali', college: 'VCE - IT', eventsRegistered: ['All-Access VIP Fest Pass'], date: 'Yesterday', amount: 800 },
-      { id: 'r4', studentName: 'Meghana Rao', college: 'VCE - CSM', eventsRegistered: ['NeuroHacks Hackathon'], date: 'Yesterday', amount: 450 }
-    ]
-  },
-  {
-    id: 'amb_sneha',
-    name: 'Sneha Kulkarni',
-    college: 'Chaitanya Bharathi Institute of Technology (CBIT)',
-    avatar: 'SK',
-    referralCode: 'FEST26-AMB-SNEHA',
-    totalReferrals: 52,
-    totalRevenue: 20800,
-    rank: 2,
-    points: 5200,
-    stipendEarned: 4160,
-    badge: 'Platinum Leader',
-    recentReferrals: [
-      { id: 'r5', studentName: 'Rohan Deshmukh', college: 'CBIT - CSE', eventsRegistered: ['Autonomous Drone Race'], date: 'Today, 1:40 PM', amount: 600 },
-      { id: 'r6', studentName: 'Ananya Roy', college: 'CBIT - Mech', eventsRegistered: ['Bridge-O-Craft'], date: 'Yesterday', amount: 250 },
-      { id: 'r7', studentName: 'Gaurav K.', college: 'CBIT - EEE', eventsRegistered: ['RoboWars Heavyweight'], date: '2 days ago', amount: 500 }
-    ]
-  },
-  {
-    id: 'amb_rahul',
-    name: 'Rahul Reddy',
-    college: 'VNR Vignana Jyothi Institute (VNR VJIET)',
-    avatar: 'RR',
-    referralCode: 'FEST26-AMB-RAHUL',
-    totalReferrals: 41,
-    totalRevenue: 16400,
-    rank: 3,
-    points: 4100,
-    stipendEarned: 3280,
-    badge: 'Gold Pioneer',
-    recentReferrals: [
-      { id: 'r8', studentName: 'Kavya S.', college: 'VNR - IT', eventsRegistered: ['Web3 Decentralized Arena'], date: 'Today, 3:10 PM', amount: 400 },
-      { id: 'r9', studentName: 'Vivek Sharma', college: 'VNR - CSE', eventsRegistered: ['CodeSprint 2026'], date: 'Yesterday', amount: 300 }
-    ]
-  }
-];
+export const AMBASSADOR_PROFILES: AmbassadorProfile[] = [];
 
 // ---------------- Ambassador Milestone Rewards ----------------
 export const AMBASSADOR_MILESTONES: MilestoneReward[] = [
@@ -359,16 +260,7 @@ export const AMBASSADOR_MILESTONES: MilestoneReward[] = [
 ];
 
 // ---------------- Leaderboard Entries ----------------
-export const AMBASSADOR_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, name: 'Aditya Verma', college: 'Vardhaman College of Engineering', referrals: 68, points: 6800, badge: 'Grand Diamond' },
-  { rank: 2, name: 'Sneha Kulkarni', college: 'CBIT Hyderabad', referrals: 52, points: 5200, badge: 'Platinum Leader' },
-  { rank: 3, name: 'Rahul Reddy', college: 'VNR VJIET', referrals: 41, points: 4100, badge: 'Gold Pioneer' },
-  { rank: 4, name: 'Pooja Sharma', college: 'JNTU Hyderabad', referrals: 34, points: 3400, badge: 'Gold Pioneer' },
-  { rank: 5, name: 'Kiran Teja', college: 'Osmania University College of Engg', referrals: 29, points: 2900, badge: 'Rising Star' },
-  { rank: 6, name: 'Nikhil Goud', college: 'Mahatma Gandhi Institute of Tech (MGIT)', referrals: 24, points: 2400, badge: 'Rising Star' },
-  { rank: 7, name: 'Bhavani Shankar', college: 'Gokaraju Rangaraju (GRIET)', referrals: 19, points: 1900, badge: 'Rising Star' },
-  { rank: 8, name: 'Deepika Rao', college: 'Vasavi College of Engineering', referrals: 15, points: 1500, badge: 'Ambassador' }
-];
+export const AMBASSADOR_LEADERBOARD: LeaderboardEntry[] = [];
 
 // ---------------- Marketing Templates for Ambassadors ----------------
 export const MARKETING_TEMPLATES = [
