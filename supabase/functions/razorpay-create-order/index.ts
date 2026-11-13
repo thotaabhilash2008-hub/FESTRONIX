@@ -21,7 +21,7 @@ function normalizeRoll(value: unknown): string {
   return cleanText(value, 50).toUpperCase();
 }
 
-function cleanItem(item: Record<string, unknown>, eventId: string, format: string, fee: number) {
+function cleanItem(item: Record<string, unknown>, event: Record<string, any>) {
   const teammates = Array.isArray(item.teammates) ? item.teammates.slice(0, 10).map(member => {
     const value = (member && typeof member === 'object') ? member as Record<string, unknown> : {};
     return {
@@ -35,15 +35,15 @@ function cleanItem(item: Record<string, unknown>, eventId: string, format: strin
   }) : [];
 
   return {
-    eventId,
+    eventId: event.id,
     buyerRoll: cleanText(item.buyerRoll ?? item.buyer_roll, 50).toUpperCase(),
     leaderName: cleanText(item.leaderName ?? item.leader_name, 120),
     leaderEmail: cleanText(item.leaderEmail ?? item.leader_email, 180).toLowerCase(),
     leaderPhone: cleanText(item.leaderPhone ?? item.leader_phone, 40),
     leaderCollege: cleanText(item.leaderCollege ?? item.leader_college, 180),
     leaderRoll: cleanText(item.leaderRoll ?? item.leader_roll, 50).toUpperCase(),
-    format,
-    fee,
+    format: event.format,
+    fee: Number(event.fee) || 0,
     teammates,
     teamName: cleanText(item.teamName ?? item.team_name, 120),
     teamCode: cleanText(item.teamCode ?? item.team_code, 40).toUpperCase()
@@ -76,54 +76,74 @@ Deno.serve(async request => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    let event: any = null;
-    let eventError: any = null;
-    if (isUuid(requestedEvent)) {
-      const result = await db.from('events')
-        .select('id, slug, title, fee, format, capacity, registered_count, status, deadline, approval_status, is_deleted')
-        .eq('id', requestedEvent)
-        .maybeSingle();
-      event = result.data;
-      eventError = result.error;
-    } else {
-      const result = await db.from('events')
-        .select('id, slug, title, fee, format, capacity, registered_count, status, deadline, approval_status, is_deleted')
-        .eq('slug', requestedEvent)
-        .maybeSingle();
-      event = result.data;
-      eventError = result.error;
+    // Each cart item carries its event ID. The first event remains the order's
+    // index/anchor for compatibility with existing razorpay_orders rows.
+    const requestedEventIds = Array.from(new Set(items.map(item => {
+      const value = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      return cleanText(value.eventId ?? value.event_id ?? requestedEvent, 160);
+    })));
+    if (!requestedEventIds.includes(requestedEvent)) requestedEventIds.unshift(requestedEvent);
+
+    const eventsById = new Map<string, any>();
+    const eventTitles = new Map<string, string>();
+    for (const eventRef of requestedEventIds) {
+      let event: any = null;
+      let eventError: any = null;
+      if (isUuid(eventRef)) {
+        const result = await db.from('events')
+          .select('id, slug, title, fee, format, capacity, registered_count, status, deadline, approval_status, is_deleted')
+          .eq('id', eventRef)
+          .maybeSingle();
+        event = result.data;
+        eventError = result.error;
+      } else {
+        const result = await db.from('events')
+          .select('id, slug, title, fee, format, capacity, registered_count, status, deadline, approval_status, is_deleted')
+          .eq('slug', eventRef)
+          .maybeSingle();
+        event = result.data;
+        eventError = result.error;
+      }
+      if (eventError) return respond({ error: `Unable to validate the event: ${eventError.message}` }, 400);
+      if (!event || event.is_deleted) return respond({ error: 'One of the selected events could not be found.' }, 404);
+      if (event.status !== 'open' && event.status !== 'upcoming') return respond({ error: `${event.title} is not accepting registrations.` }, 400);
+      if (event.approval_status && event.approval_status !== 'approved') return respond({ error: `${event.title} is not approved for registration.` }, 400);
+      if (event.deadline && new Date(event.deadline).getTime() < Date.now()) return respond({ error: `The registration deadline for ${event.title} has passed.` }, 400);
+      if ((Number(event.fee) || 0) <= 0) return respond({ error: `${event.title} does not require a Razorpay payment.` }, 400);
+      eventsById.set(event.id, event);
+      eventTitles.set(event.id, event.title);
     }
-    if (eventError) return respond({ error: `Unable to validate the event: ${eventError.message}` }, 400);
-    if (!event || event.is_deleted) return respond({ error: 'Event not found.' }, 404);
-    if (event.status !== 'open' && event.status !== 'upcoming') return respond({ error: 'This event is not accepting registrations.' }, 400);
-    if (event.approval_status && event.approval_status !== 'approved') return respond({ error: 'This event is not approved for registration.' }, 400);
-    if (event.deadline && new Date(event.deadline).getTime() < Date.now()) return respond({ error: 'The registration deadline has passed.' }, 400);
 
-    const fee = Number(event.fee) || 0;
-    if (fee <= 0) return respond({ error: 'This event does not require a Razorpay payment.' }, 400);
-    if (Number(event.registered_count || 0) + items.length > Number(event.capacity || 0)) {
-      return respond({ error: 'There are not enough seats remaining for this order.' }, 409);
+    const normalizedItems = items.map(item => {
+      const value = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      const ref = cleanText(value.eventId ?? value.event_id ?? requestedEvent, 160);
+      const event = eventsById.get(ref) || Array.from(eventsById.values()).find(candidate => candidate.slug === ref);
+      if (!event) throw new Error('One of the selected events could not be validated.');
+      return cleanItem(value, event);
+    });
+
+    const itemCountsByEvent = new Map<string, number>();
+    for (const item of normalizedItems) itemCountsByEvent.set(item.eventId, (itemCountsByEvent.get(item.eventId) || 0) + 1);
+    for (const [eventId, count] of itemCountsByEvent) {
+      const event = eventsById.get(eventId)!;
+      if (Number(event.registered_count || 0) + count > Number(event.capacity || 0)) {
+        return respond({ error: `${event.title} does not have enough remaining seats for this order.` }, 409);
+      }
     }
 
-    const normalizedItems = items.map(item => cleanItem(
-      item && typeof item === 'object' ? item as Record<string, unknown> : {},
-      event.id,
-      event.format,
-      fee
-    ));
-
-    // Fail before creating a Razorpay order when any participant already has
-    // an active registration. This avoids taking a second payment for a pass
-    // that the finalization transaction would correctly reject later.
-    const requestedRolls = new Set<string>();
+    // Fail before creating an order when any participant already has an active
+    // registration. Rolls are scoped to an event so one person can buy passes
+    // for two different events in the same cart.
+    const requestedRolls = new Map<string, string>();
     const duplicateRolls = new Set<string>();
     for (const item of normalizedItems) {
       const rolls = [item.leaderRoll, ...item.teammates.map(member => member.rollNumber)];
       for (const roll of rolls) {
         const normalizedRoll = normalizeRoll(roll);
         if (!normalizedRoll) continue;
-        if (requestedRolls.has(normalizedRoll)) duplicateRolls.add(normalizedRoll);
-        requestedRolls.add(normalizedRoll);
+        const key = `${item.eventId}:${normalizedRoll}`;
+        if (requestedRolls.has(key)) duplicateRolls.add(`${normalizedRoll} (${eventTitles.get(item.eventId) || 'event'})`);
+        requestedRolls.set(key, normalizedRoll);
       }
     }
     if (duplicateRolls.size > 0) {
@@ -133,9 +153,10 @@ Deno.serve(async request => {
       }, 400);
     }
 
+    const eventIds = Array.from(itemCountsByEvent.keys());
     const { data: existingRegistrations, error: existingRegistrationError } = await db.from('registrations')
-      .select('id, display_id, leader_roll')
-      .eq('event_id', event.id)
+      .select('id, display_id, event_id, leader_roll')
+      .in('event_id', eventIds)
       .neq('payment_status', 'rejected');
     if (existingRegistrationError) {
       console.error('Razorpay duplicate preflight failed:', existingRegistrationError.message);
@@ -143,10 +164,12 @@ Deno.serve(async request => {
     }
 
     const existingRolls = new Map<string, string>();
+    const registrationEventById = new Map<string, string>();
     const registrationIds = (existingRegistrations || []).map(registration => {
       const id = cleanText(registration.id, 80);
       const roll = normalizeRoll(registration.leader_roll);
-      if (roll) existingRolls.set(roll, cleanText(registration.display_id, 80));
+      if (id) registrationEventById.set(id, cleanText(registration.event_id, 80));
+      if (roll) existingRolls.set(`${registration.event_id}:${roll}`, cleanText(registration.display_id, 80));
       return id;
     }).filter(Boolean);
 
@@ -160,34 +183,39 @@ Deno.serve(async request => {
       }
       for (const member of existingMembers || []) {
         const roll = normalizeRoll(member.roll_number);
-        if (roll && !existingRolls.has(roll)) existingRolls.set(roll, 'an existing registration');
+        const eventId = registrationEventById.get(cleanText(member.registration_id, 80));
+        if (roll && eventId && !existingRolls.has(`${eventId}:${roll}`)) existingRolls.set(`${eventId}:${roll}`, 'an existing registration');
       }
     }
 
-    for (const roll of requestedRolls) {
-      if (existingRolls.has(roll)) {
-        const existingPass = existingRolls.get(roll);
+    for (const [key, roll] of requestedRolls) {
+      if (existingRolls.has(key)) {
+        const eventId = key.split(':')[0];
+        const eventTitle = eventTitles.get(eventId) || 'this event';
+        const existingPass = existingRolls.get(key);
         return respond({
-          error: `Participant ${roll} is already registered for ${event.title}. Use the existing pass${existingPass && existingPass !== 'an existing registration' ? ` (${existingPass})` : ''} instead of starting another payment.`,
+          error: `Participant ${roll} is already registered for ${eventTitle}. Use the existing pass${existingPass && existingPass !== 'an existing registration' ? ` (${existingPass})` : ''} instead of starting another payment.`,
           code: 'DUPLICATE_REGISTRATION',
-          rollNumber: roll
+          rollNumber: roll,
+          eventId
         }, 409);
       }
     }
 
-    const amountPaise = fee * 100 * normalizedItems.length;
+    const amountPaise = normalizedItems.reduce((sum, item) => sum + (Number(item.fee) || 0) * 100, 0);
     if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) return respond({ error: 'The payment amount is invalid.' }, 400);
 
     const internalId = crypto.randomUUID();
     const receipt = `FEST26-${internalId.replaceAll('-', '').slice(0, 30)}`;
+    const primaryEventId = normalizedItems[0].eventId;
     const { data: orderRow, error: insertError } = await db.from('razorpay_orders').insert({
       id: internalId,
       receipt,
-      event_id: event.id,
+      event_id: primaryEventId,
       amount_paise: amountPaise,
       currency: 'INR',
       status: 'creating',
-      payload: { eventId: event.id, items: normalizedItems }
+      payload: { eventId: primaryEventId, eventIds, items: normalizedItems }
     }).select('id').single();
     if (insertError || !orderRow) return respond({ error: `Unable to create the payment order: ${insertError?.message || 'database error'}` }, 500);
 
@@ -201,7 +229,7 @@ Deno.serve(async request => {
         amount: amountPaise,
         currency: 'INR',
         receipt,
-        notes: { fest: 'FESTRONIX 2026', event_id: event.id }
+        notes: { fest: 'FESTRONIX 2026', event_id: primaryEventId, event_count: String(eventIds.length) }
       })
     });
 
@@ -224,11 +252,11 @@ Deno.serve(async request => {
       orderId: razorpayBody.id,
       amount: amountPaise,
       currency: 'INR',
-      eventTitle: event.title,
+      eventTitle: eventIds.length === 1 ? eventTitles.get(primaryEventId) : `${normalizedItems.length} FESTRONIX passes`,
       receipt
     });
   } catch (error) {
     console.error('Razorpay order creation failed:', error instanceof Error ? error.message : 'unknown error');
-    return respond({ error: 'Unable to start the Razorpay checkout.' }, 500);
+    return respond({ error: error instanceof Error ? error.message : 'Unable to start the Razorpay checkout.' }, 500);
   }
 });

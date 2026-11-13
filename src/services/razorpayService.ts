@@ -157,20 +157,40 @@ export async function completeRazorpayCheckout(
   event: FestEvent,
   items: RegistrationInput[]
 ): Promise<Registration[]> {
+  return completeRazorpayBatchCheckout([event], items);
+}
+
+/**
+ * Creates one Razorpay order for a cart that can contain passes from more
+ * than one individual event. The order payload is kept on the server and the
+ * verification function finalizes every pass atomically after Razorpay
+ * confirms the captured payment.
+ */
+export async function completeRazorpayBatchCheckout(
+  events: FestEvent[],
+  items: RegistrationInput[]
+): Promise<Registration[]> {
   if (!isSupabaseConfigured()) {
     const created = await StorageService.addMultipleRegistrations(
       items.map(item => ({
         ...item,
         paymentStatus: 'verified',
+        paymentMethod: 'razorpay',
         transactionId: `TEST-PAY-${Date.now()}`
       }))
     );
     return created;
   }
   if (items.length < 1) throw new Error('At least one registration is required for payment.');
+  if (events.length < 1) throw new Error('At least one event is required for payment.');
+
+  const eventById = new Map(events.map(event => [event.id, event]));
+  const primaryEvent = events[0];
+  const unknownEvent = items.find(item => !eventById.has(item.eventId));
+  if (unknownEvent) throw new Error('One or more selected events could not be validated. Please refresh and try again.');
 
   const { data: orderData, error: orderError } = await supabase.functions.invoke<RazorpayOrderResponse>('razorpay-create-order', {
-    body: { eventId: event.id, items }
+    body: { eventId: primaryEvent.id, items }
   });
   if (orderError) throw new Error(await getEdgeFunctionErrorMessage(orderError, 'Unable to start Razorpay checkout.'));
   if (!orderData?.success || !orderData.keyId || !orderData.orderId || !orderData.amount) {
@@ -201,7 +221,7 @@ export async function completeRazorpayCheckout(
       amount: orderData.amount!,
       currency: orderData.currency || 'INR',
       name: 'FESTRONIX 2026',
-      description: event.title,
+      description: events.length === 1 ? primaryEvent.title : `${items.length} FESTRONIX event passes`,
       order_id: orderData.orderId!,
       prefill: {
         name: firstItem.leaderName,
@@ -228,7 +248,10 @@ export async function completeRazorpayCheckout(
           if (error) throw new Error(await getEdgeFunctionErrorMessage(error, 'Unable to verify the Razorpay payment.'));
           if (!data?.success) throw new Error(data?.error || 'Razorpay payment verification failed.');
           const registrations = Array.isArray(data.registrations)
-            ? data.registrations.map(payload => registrationFromRazorpayPayload(payload, event))
+            ? data.registrations.map(payload => registrationFromRazorpayPayload(
+              payload,
+              eventById.get(String(payload.eventId || '')) || primaryEvent
+            ))
             : [];
           if (registrations.length !== items.length) throw new Error('Payment was verified, but the server did not return every registration pass.');
           complete(registrations);
