@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { EventsGlimpseSection } from './components/EventsGlimpseSection';
+import { EventsPage } from './components/EventsPage';
 import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
 import { Footer } from './components/Footer';
@@ -94,6 +95,13 @@ export const App: React.FC = () => {
     return path === '/passes' || path === '/passes/';
   };
 
+  const checkIsEventsPage = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return hash === '#eventspage' || path === '/events' || path === '/events/';
+  };
+
   const getRegistrationSlug = () => {
     if (typeof window === 'undefined') return '';
     const match = window.location.pathname.match(/^\/register\/([^/]+)\/?$/i);
@@ -101,6 +109,7 @@ export const App: React.FC = () => {
   };
 
   const [isPassesPageOpen, setIsPassesPageOpen] = useState<boolean>(checkIsPassesPage);
+  const [isEventsPageOpen, setIsEventsPageOpen] = useState<boolean>(checkIsEventsPage);
   const [isRegistrationPageOpen, setIsRegistrationPageOpen] = useState<boolean>(() => Boolean(getRegistrationSlug()));
   const [registrationSlug, setRegistrationSlug] = useState<string>(getRegistrationSlug);
 
@@ -174,6 +183,7 @@ export const App: React.FC = () => {
       setIsAdminView(checkIsAdmin());
       setIsSponsorsPageOpen(checkIsSponsorsPage());
       setIsPassesPageOpen(checkIsPassesPage());
+      setIsEventsPageOpen(checkIsEventsPage());
       const slug = getRegistrationSlug();
       setRegistrationSlug(slug);
       setIsRegistrationPageOpen(Boolean(slug));
@@ -240,6 +250,16 @@ export const App: React.FC = () => {
     refreshData();
   };
 
+  const handleOpenEventsPage = () => {
+    window.history.pushState(null, '', '/events');
+    setIsEventsPageOpen(true);
+  };
+
+  const handleBackFromEventsPage = () => {
+    window.history.pushState(null, '', '/');
+    setIsEventsPageOpen(false);
+  };
+
   const handleBackFromAdmin = () => {
     if (window.location.pathname.toLowerCase().startsWith('/admin')) {
       window.history.pushState(null, '', '/');
@@ -300,6 +320,18 @@ export const App: React.FC = () => {
           setTimeout(() => handleNavigateExplore(), 100);
         }}
         onRegisterNow={handleStartMultiPass}
+      />
+    );
+  }
+
+  // Render Events Directory Page at /events
+  if (isEventsPageOpen) {
+    return (
+      <EventsPage
+        events={events}
+        onBackToHome={handleBackFromEventsPage}
+        onSelectEvent={evt => setDetailEvent(evt)}
+        onRegisterEvent={handleStartEventRegistration}
       />
     );
   }
@@ -399,6 +431,7 @@ export const App: React.FC = () => {
         onNavigateHyped={handleNavigateHyped}
         onOpenAdmin={handleOpenAdmin}
         onOpenSponsors={handleOpenSponsorsPage}
+        onOpenEvents={handleOpenEventsPage}
       />
 
       {/* Main Experience View */}

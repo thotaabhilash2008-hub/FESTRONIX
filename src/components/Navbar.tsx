@@ -15,6 +15,7 @@ interface NavbarProps {
   onSelectDay?: (day: 'all' | '1' | '2') => void;
   onOpenAdmin?: () => void;
   onOpenSponsors?: () => void;
+  onOpenEvents?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -29,7 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectCategory,
   onSelectDay,
   onOpenAdmin,
-  onOpenSponsors
+  onOpenSponsors,
+  onOpenEvents
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -379,6 +381,39 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
+          {/* Events Directory Nav Link */}
+          {onOpenEvents && (
+            <button
+              onClick={onOpenEvents}
+              className="desktop-only"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: '#94A3B8',
+                fontSize: '0.84rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 8px',
+                transition: 'color 0.15s ease',
+                fontFamily: "'Space Grotesk', sans-serif",
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = '#FFFFFF';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = '#94A3B8';
+              }}
+              title="View All Events"
+            >
+              <span>Events</span>
+            </button>
+          )}
+
           {/* View Our Registration Passes */}
           <button
             onClick={onOpenPasses}
@@ -696,6 +731,36 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span>Sponsors & Partners Page</span>
                   </div>
                   <span style={{ fontSize: '0.75rem', color: '#38BDF8', fontWeight: 700 }}>Explore →</span>
+                </button>
+              )}
+
+              {/* Option 5: Events Directory Page Button */}
+              {onOpenEvents && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenEvents();
+                  }}
+                  style={{
+                    background: 'rgba(99, 179, 136, 0.1)',
+                    border: '1px solid rgba(99, 179, 136, 0.35)',
+                    borderRadius: '12px',
+                    padding: '13px 16px',
+                    color: '#63B388',
+                    fontSize: '0.88rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 4px 16px rgba(99, 179, 136, 0.15)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Layers size={18} color="#63B388" />
+                    <span>Events Directory</span>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#63B388', fontWeight: 700 }}>View All →</span>
                 </button>
               )}
 
