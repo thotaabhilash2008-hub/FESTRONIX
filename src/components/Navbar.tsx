@@ -15,6 +15,7 @@ interface NavbarProps {
   onSelectDay?: (day: 'all' | '1' | '2') => void;
   onOpenAdmin?: () => void;
   onOpenSponsors?: () => void;
+  onOpenAllEvents?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -29,7 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectCategory,
   onSelectDay,
   onOpenAdmin,
-  onOpenSponsors
+  onOpenSponsors,
+  onOpenAllEvents
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -282,6 +284,35 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <span>Browse Events</span>
           </button>
+
+          {onOpenAllEvents && (
+            <button
+              onClick={onOpenAllEvents}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: '#38BDF8',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '6px 8px',
+                transition: 'color 0.15s ease',
+                fontFamily: "'Space Grotesk', sans-serif",
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = '#FFFFFF';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = '#38BDF8';
+              }}
+            >
+              <span>All Events</span>
+            </button>
+          )}
 
           {/* 2. Hyped Events */}
           <button
@@ -623,7 +654,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  onNavigateExplore?.();
+                  if (onOpenAllEvents) {
+                    onOpenAllEvents();
+                  } else {
+                    onNavigateExplore?.();
+                  }
                 }}
                 className="mobile-menu-action mobile-browse"
                 style={{
@@ -641,7 +676,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <Layers size={18} color="#38BDF8" />
-                <span>Browse All Events</span>
+                <span>View All Events</span>
               </button>
 
               {/* Option 3: Buy Multiple Passes */}

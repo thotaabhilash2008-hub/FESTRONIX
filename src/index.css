@@ -1644,3 +1644,10 @@ body {
   filter: brightness(1.15);
   box-shadow: 0 4px 12px rgba(2, 132, 199, 0.5);
 }
+
+@media (max-width: 900px) {
+  .all-events-list-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
