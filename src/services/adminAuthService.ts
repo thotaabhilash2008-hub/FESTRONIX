@@ -477,6 +477,16 @@ export class AdminAuthService {
         .maybeSingle();
 
       if (roleRow) {
+        // Keep the authenticated portal session aligned with the database
+        // assignment table.  Returning the role row without these IDs makes
+        // event coordinators look like they have no assigned events, even
+        // though the assignment exists in Supabase.
+        const { data: assignmentRows, error: assignmentError } = await supabase
+          .from('admin_event_assignments')
+          .select('event_id')
+          .eq('admin_user_id', user.id);
+        if (assignmentError) throw assignmentError;
+
         return {
           id: user.id,
           username: roleRow.username || userMeta.username || emailLower.split('@')[0],
@@ -486,7 +496,10 @@ export class AdminAuthService {
           departmentCode: roleRow.department_code || userMeta.department_code || undefined,
           email: user.email || fallbackEmail,
           phone: roleRow.phone || userMeta.phone || undefined,
-          accessBoundary: roleRow.access_boundary || userMeta.access_boundary || undefined
+          accessBoundary: roleRow.access_boundary || userMeta.access_boundary || undefined,
+          assignedEvents: (assignmentRows || [])
+            .map(row => String((row as { event_id?: string }).event_id || '').trim())
+            .filter(Boolean)
         };
       }
     } catch (e) {
@@ -563,6 +576,64 @@ export class AdminAuthService {
     const admin = await this.resolveAdminFromAuth(data.user, cleanEmail);
     localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(admin));
     return admin;
+  }
+
+  /**
+   * Authenticate any portal account from its credentials alone.
+   *
+   * The portal must never trust a department, event, or role selected in the
+   * browser. Supabase Auth verifies the credentials and resolveAdminFromAuth
+   * reads the active role, department, and event assignments from the
+   * database-backed admin role record.
+   */
+  static async loginWithCredentials(
+    identifier: string,
+    password: string
+  ): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
+    const rawIdentifier = identifier.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!rawIdentifier || !cleanPassword) {
+      return { success: false, error: 'Enter your email or username and password.' };
+    }
+
+    // Keep the existing aliases working for official accounts. For accounts
+    // created in the admin portal, use the locally synced directory when it
+    // is available; the password is still verified by Supabase Auth below.
+    const directoryMatch = this.getAllAdmins().find(admin =>
+      admin.username.toLowerCase() === rawIdentifier ||
+      admin.email.toLowerCase() === rawIdentifier
+    );
+    const targetEmail = resolveTargetEmail(directoryMatch?.email || rawIdentifier);
+
+    if (!targetEmail.includes('@')) {
+      return {
+        success: false,
+        error: 'No account was found for that username. Use the account email or a synced portal username.'
+      };
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        const user = await this.authenticate(targetEmail, cleanPassword);
+        return { success: true, user };
+      } catch (err: any) {
+        return {
+          success: false,
+          error: err?.message || 'Invalid login credentials. Please check your email or username and password.'
+        };
+      }
+    }
+
+    // Local-only fallback for development environments without Supabase.
+    // Production uses the verified backend path above.
+    const preset = findPresetAdmin(targetEmail) || findPresetAdmin(rawIdentifier);
+    if (preset && checkPresetPassword(targetEmail, cleanPassword)) {
+      localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(preset));
+      return { success: true, user: preset };
+    }
+
+    return { success: false, error: 'Supabase backend is not configured for portal login.' };
   }
 
   /**
@@ -888,6 +959,31 @@ export class AdminAuthService {
     coordinator: Omit<AdminUser, 'id'> & { password?: string; assignedEvents?: string[] }
   ): Promise<AdminUser> {
     return this.addAdmin(coordinator);
+  }
+
+  /**
+   * Grants a scoped portal role to an already-authenticated Supabase account.
+   * This never creates a second Auth identity or changes the account password.
+   */
+  static async assignExistingAccount(options: {
+    identifier: string;
+    role: AdminRole;
+    departmentCode?: string;
+    designation?: string;
+    accessBoundary?: string;
+    assignedEvents?: string[];
+  }): Promise<AdminUser> {
+    const assigned = await invokeAdminApi<AdminUser>({
+      action: 'assign_existing',
+      identifier: options.identifier.trim(),
+      role: options.role,
+      departmentCode: options.departmentCode,
+      designation: options.designation,
+      accessBoundary: options.accessBoundary,
+      assignedEvents: options.assignedEvents || []
+    });
+    await this.fetchAdmins();
+    return assigned;
   }
 
   static async updateAdmin(

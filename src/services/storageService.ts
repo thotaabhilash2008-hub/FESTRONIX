@@ -1,5 +1,5 @@
-import { FestEvent, Registration, Announcement, FestStats, PaymentStatus, Teammate, Team, Department } from '../types/festronix';
-import { INITIAL_EVENTS, DEPARTMENTS } from '../data/mockData';
+import { FestEvent, Registration, Announcement, FestStats, PaymentStatus, Teammate, Team, Department, RazorpayRefundOrder } from '../types/festronix';
+import { INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_ANNOUNCEMENTS, INITIAL_TEAMS, DEPARTMENTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getEventRegistrationBlockReason, registrationDeadlineToIso } from '../lib/eventRegistration';
 import type { Database } from '../lib/database.types';
@@ -1140,6 +1140,34 @@ export class StorageService {
     };
     this.saveRegistrations(regs);
     return true;
+  }
+
+  /**
+   * Duplicate-payment refunds recorded by the Razorpay verifier. The database
+   * decides the staff scope (finance/global admins see every department, other
+   * staff only their own), so callers just render the returned rows.
+   */
+  static async fetchRazorpayRefundOrders(): Promise<RazorpayRefundOrder[]> {
+    if (!isSupabaseConfigured()) return [];
+    const { data, error } = await supabase.rpc('list_razorpay_refund_orders');
+    if (error) throw new Error(`Unable to load Razorpay refund records: ${error.message}`);
+    if (!Array.isArray(data)) return [];
+
+    return (data as any[]).map(row => ({
+      orderId: String(row?.orderId || ''),
+      paymentId: row?.paymentId ? String(row.paymentId) : undefined,
+      eventId: String(row?.eventId || ''),
+      eventTitle: String(row?.eventTitle || ''),
+      departmentCode: row?.departmentCode ? String(row.departmentCode) : undefined,
+      amountPaise: Number(row?.amountPaise) || 0,
+      orderStatus: String(row?.orderStatus || ''),
+      refundStatus: (row?.refundStatus || 'not_requested') as RazorpayRefundOrder['refundStatus'],
+      refundId: row?.refundId ? String(row.refundId) : undefined,
+      refundError: row?.refundError ? String(row.refundError) : undefined,
+      lastError: row?.lastError ? String(row.lastError) : undefined,
+      createdAt: String(row?.createdAt || ''),
+      updatedAt: String(row?.updatedAt || '')
+    })).filter(order => order.orderId);
   }
 
   /**

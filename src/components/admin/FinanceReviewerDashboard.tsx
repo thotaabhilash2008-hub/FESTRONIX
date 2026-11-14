@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { 
   CreditCard, IndianRupee, CheckCircle2, XCircle, Clock, Search, 
   Filter, Download, ArrowRight, LogOut, Eye, RefreshCw, AlertCircle, Sparkles, Shield,
-  Check, X, FileText
+  Check, X, FileText, AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
-import { Registration, PaymentStatus, FestEvent, FestStats } from '../../types/festronix';
+import { Registration, PaymentStatus, FestEvent, FestStats, RazorpayRefundOrder } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
 
@@ -30,6 +30,10 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | PaymentStatus>('all');
   const [deptFilter, setDeptFilter] = useState(() => departmentScope || 'all');
+
+  // Duplicate-payment refunds recorded by the Razorpay verifier
+  const [refundOrders, setRefundOrders] = useState<RazorpayRefundOrder[]>([]);
+  const [refundError, setRefundError] = useState('');
   
   // Proof Viewer Modal
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
@@ -53,6 +57,15 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
       setRegistrations(filterRegistrationsToScope(liveRegistrations, liveEvents));
     } catch (error) {
       console.warn('Finance dashboard sync warning:', error);
+    }
+
+    try {
+      setRefundOrders(await StorageService.fetchRazorpayRefundOrders());
+      setRefundError('');
+    } catch (error) {
+      // A refund follow-up failure must never block the main payment ledger.
+      console.warn('Razorpay refund sync warning:', error);
+      setRefundError((error as Error).message || 'Unable to load Razorpay refund records.');
     }
   };
 
@@ -127,6 +140,20 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
     }
     return true;
   });
+
+  const refundsNeedingFollowUp = refundOrders.filter(
+    order => order.refundStatus === 'failed' || order.refundStatus === 'pending'
+  );
+
+  const refundBadge = (status: RazorpayRefundOrder['refundStatus']) => {
+    if (status === 'succeeded') {
+      return { label: 'REFUNDED', color: '#34D399', bg: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)' };
+    }
+    if (status === 'failed') {
+      return { label: 'REFUND FAILED', color: '#F87171', bg: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.35)' };
+    }
+    return { label: 'REFUND PENDING', color: '#FBBF24', bg: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)' };
+  };
 
   const exportCSV = () => {
     const headers = ['Reg ID', 'Event Title', 'Leader Name', 'Roll No', 'Fee', 'Payment Status', 'Transaction ID / UTR', 'Verified By', 'Date'];
@@ -248,6 +275,116 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
             </div>
           </div>
         </div>
+
+        {/* Razorpay Duplicate-Payment Refunds */}
+        {(refundOrders.length > 0 || refundError) && (
+          <div className="admin-card" style={{ padding: '24px', marginBottom: '24px' }}>
+            <div className="admin-card-top-accent" />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 4px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Shield size={17} color="#38BDF8" />
+                  <span>Razorpay Duplicate-Payment Refunds</span>
+                </h2>
+                <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: 0 }}>
+                  A participant who was already registered has their second captured payment refunded automatically. Failed or in-flight refunds need manual follow-up with the gateway.
+                </p>
+              </div>
+              {refundsNeedingFollowUp.length > 0 && (
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    padding: '5px 12px',
+                    borderRadius: '9999px',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    color: '#FBBF24'
+                  }}
+                >
+                  {refundsNeedingFollowUp.length} NEED FOLLOW-UP
+                </span>
+              )}
+            </div>
+
+            {refundError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  borderRadius: '10px',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  color: '#FBBF24',
+                  fontSize: '0.78rem'
+                }}
+              >
+                <AlertTriangle size={14} />
+                <span>{refundError}</span>
+              </div>
+            )}
+
+            {refundOrders.length > 0 && (
+              <div className="admin-table-wrapper admin-scrollbar" style={{ overflowX: 'auto' }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Payment ID</th>
+                      <th>Event</th>
+                      <th>Amount</th>
+                      <th>Refund Status</th>
+                      <th>Gateway Detail</th>
+                      <th>Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {refundOrders.map(order => {
+                      const badge = refundBadge(order.refundStatus);
+                      const detail = order.refundError || order.lastError || (order.refundId ? `Refund ${order.refundId}` : '—');
+                      return (
+                        <tr key={order.orderId}>
+                          <td style={{ fontFamily: 'monospace', color: '#38BDF8', fontSize: '0.78rem' }}>
+                            {order.paymentId || order.orderId}
+                          </td>
+                          <td style={{ color: '#E2E8F0' }}>
+                            {order.eventTitle}
+                            {order.departmentCode && (
+                              <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{order.departmentCode}</div>
+                            )}
+                          </td>
+                          <td style={{ fontWeight: 800, color: '#34D399' }}>₹{(order.amountPaise / 100).toLocaleString()}</td>
+                          <td>
+                            <span
+                              style={{
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                padding: '3px 9px',
+                                borderRadius: '9999px',
+                                background: badge.bg,
+                                color: badge.color,
+                                border: badge.border
+                              }}
+                            >
+                              {badge.label}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.76rem', color: '#CBD5E1', maxWidth: '340px' }}>{detail}</td>
+                          <td style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                            {order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Ledger Section */}
         <div className="admin-card" style={{ padding: '28px' }}>

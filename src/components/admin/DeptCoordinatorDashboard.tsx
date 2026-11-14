@@ -81,6 +81,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     )
   );
   const [staffFormOpen, setStaffFormOpen] = useState(false);
+  const [staffAccountMode, setStaffAccountMode] = useState<'new' | 'existing'>('new');
+  const [existingStaffIdentifier, setExistingStaffIdentifier] = useState('');
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [staffForm, setStaffForm] = useState<ManagedStaffForm>(() => createEmptyStaffForm());
   const [staffSaving, setStaffSaving] = useState(false);
@@ -89,7 +91,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Helper to check if an event is assigned to the current user
   const isEventAssigned = (e: FestEvent): boolean => {
-    if (adminUser.assignedEvents && (adminUser.assignedEvents.includes(e.id) || adminUser.assignedEvents.includes(e.slug))) {
+    const assignedKeys = new Set((adminUser.assignedEvents || []).map(value => String(value).trim().toLowerCase()).filter(Boolean));
+    const eventKeys = [e.id, e.slug].map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+    if (eventKeys.some(key => assignedKeys.has(key))) {
       return true;
     }
     if (adminUser.fullName && e.coordinatorName && (
@@ -113,9 +117,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     return isEventCoord ? 'assigned' : 'all';
   });
 
-  // Active Tab: Dept coordinators can view/add events, view department revenue, do attendance check-in, or change password
+  // Event coordinators start in analytics and never receive the event-management tab.
   type DashboardTab = 'events' | 'revenue' | 'checkin' | 'security';
-  const [activeTab, setActiveTab] = useState<DashboardTab>('events');
+  const [activeTab, setActiveTab] = useState<DashboardTab>(isEventCoord ? 'revenue' : 'events');
 
   // Revenue Analysis States & Filters (Scoped strictly to this department / assigned events)
   const [deptRevenueSearch, setDeptRevenueSearch] = useState('');
@@ -145,6 +149,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [checkInScannerError, setCheckInScannerError] = useState('');
   const checkInVideoRef = useRef<HTMLVideoElement>(null);
   const checkInStreamRef = useRef<MediaStream | null>(null);
+  const checkInHandlerRef = useRef<(value: string) => Promise<void>>(async () => {});
 
   // Search Filter in Roster
   const [rosterSearch, setRosterSearch] = useState('');
@@ -450,6 +455,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     };
   }, [scopedRegistrations, visibleEvents]);
 
+  const analyticsScopeName = isEventCoord
+    ? visibleEvents.length === 1
+      ? visibleEvents[0].title
+      : 'Assigned Events'
+    : (deptInfo?.name || deptCode);
+
   const filteredDeptRevenueRegistrations = useMemo(() => {
     return scopedRegistrations.filter(r => {
       const matchEvent = deptRevenueEventFilter === 'all' || r.eventId === deptRevenueEventFilter;
@@ -510,6 +521,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Toggle Event Status
   const handleToggleEventStatus = async (event: FestEvent) => {
+    if (!isDeptChief) {
+      window.alert('Only the department coordinator can update event settings.');
+      return;
+    }
     try {
       const nextStatus = event.status === 'open' ? 'closed' : 'open';
       const updated = { ...event, status: nextStatus as any };
@@ -523,6 +538,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Save Edited Event
   const handleSaveEditedEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDeptChief) {
+      window.alert('Only the department coordinator can edit department events.');
+      return;
+    }
     if (!editingEvent) return;
     try {
       await StorageService.updateEvent(editingEvent);
@@ -605,6 +624,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Spot Registration Handler (8.1 • Create spot registrations on fest day)
   const handleCreateSpotRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDeptChief) {
+      window.alert('Only the department coordinator can create spot registrations.');
+      return;
+    }
     const targetEvt = events.find(ev => ev.id === spotEventId) || visibleEvents[0];
     if (!targetEvt || !spotLeaderName.trim() || !spotLeaderRoll.trim()) {
       alert('Please fill out attendee name and roll number.');
@@ -748,7 +771,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     // Check in scopedRegistrations / department registrations / master pool
     const allRegs = StorageService.getRegistrations();
-    const primaryPool = registrations.length > 0 ? registrations : scopedRegistrations;
+    const primaryPool = isEventCoord
+      ? scopedRegistrations
+      : (registrations.length > 0 ? registrations : scopedRegistrations);
 
     let matchingReg = primaryPool.find(
       r => (r.id && r.id.toLowerCase() === query) ||
@@ -759,7 +784,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
            (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase() === query))
     );
 
-    if (!matchingReg) {
+    if (!matchingReg && !isEventCoord) {
       matchingReg = allRegs.find(
         r => (r.id && r.id.toLowerCase() === query) ||
              (r.qrToken && r.qrToken.toLowerCase() === query) ||
@@ -777,6 +802,24 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         message: `No registration found matching "${cleanVal}". Please verify the pass or enter the Roll Number manually.`
       });
       return;
+    }
+
+    if (isEventCoord) {
+      const belongsToAssignedEvent = visibleEvents.some(event =>
+        event.id === matchingReg!.eventId ||
+        event.slug === matchingReg!.eventId ||
+        event.title.toLowerCase() === matchingReg!.eventTitle.toLowerCase()
+      );
+
+      if (!belongsToAssignedEvent) {
+        setCheckInResult({
+          success: false,
+          status: 'EVENT_MISMATCH',
+          message: 'This pass is not for an event assigned to your coordinator account.',
+          registration: matchingReg,
+        });
+        return;
+      }
     }
 
     // Event-specific validation when a specific event dropdown is selected
@@ -807,6 +850,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     refreshDeptData();
   };
 
+  // Keep the scanner lifecycle stable while still calling the latest check-in handler.
+  // The handler closes over live dashboard state, so it must not be added to the
+  // camera effect dependencies (doing so would restart the camera on every render).
+  useEffect(() => {
+    checkInHandlerRef.current = handleCheckInValue;
+  });
+
   const handleCheckInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await handleCheckInValue(checkInInput);
@@ -817,13 +867,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     if (!checkInScannerOpen) {
       checkInStreamRef.current?.getTracks().forEach(track => track.stop());
       checkInStreamRef.current = null;
+      if (checkInVideoRef.current) checkInVideoRef.current.srcObject = null;
       return;
     }
+    const videoElement = checkInVideoRef.current;
     let cancelled = false;
     let frame = 0;
+    let activeStream: MediaStream | null = null;
     const startScanner = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        activeStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: 'environment' },
             width: { ideal: 1280 },
@@ -832,13 +885,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           audio: false
         });
         if (cancelled) {
-          stream.getTracks().forEach(track => track.stop());
+          activeStream.getTracks().forEach(track => track.stop());
           return;
         }
-        checkInStreamRef.current = stream;
-        if (checkInVideoRef.current) {
-          checkInVideoRef.current.srcObject = stream;
-          await checkInVideoRef.current.play();
+        checkInStreamRef.current = activeStream;
+        if (videoElement) {
+          videoElement.srcObject = activeStream;
+          await videoElement.play();
         }
 
         const BarcodeDetectorCtor = (window as any).BarcodeDetector;
@@ -847,8 +900,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         const scan = async () => {
-          if (cancelled || !checkInVideoRef.current) return;
-          const video = checkInVideoRef.current;
+          if (cancelled || !videoElement) return;
+          const video = videoElement;
           if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
             let scannedValue = '';
 
@@ -882,7 +935,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               playScanBeep();
               setCheckInInput(scannedValue);
               setCheckInScannerOpen(false);
-              await handleCheckInValue(scannedValue);
+              await checkInHandlerRef.current(scannedValue);
               return;
             }
           }
@@ -898,10 +951,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
-      checkInStreamRef.current?.getTracks().forEach(track => track.stop());
-      checkInStreamRef.current = null;
+      activeStream?.getTracks().forEach(track => track.stop());
+      if (checkInStreamRef.current === activeStream) {
+        checkInStreamRef.current = null;
+        if (videoElement) videoElement.srcObject = null;
+      }
     };
-  }, [checkInScannerOpen, registrations]);
+  }, [checkInScannerOpen]);
 
   // Decode QR code from uploaded image or photo
   const handleScanImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -946,6 +1002,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Payment Verification Handler (8.1 • Review registrations and payment evidence)
   const handleVerifyPayment = async (regId: string, status: PaymentStatus, reason?: string) => {
+    if (!isDeptChief) {
+      window.alert('Payment verification is handled by the central finance team.');
+      return;
+    }
     const success = await StorageService.updatePaymentStatus(regId, status, adminUser.fullName, reason);
     if (success) {
       if (status === 'verified') {
@@ -1082,6 +1142,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   const openCreateStaffForm = () => {
     setEditingStaffId(null);
+    setStaffAccountMode('new');
+    setExistingStaffIdentifier('');
     setStaffForm(createEmptyStaffForm());
     setStaffError('');
     setStaffMessage('');
@@ -1091,6 +1153,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const openEditStaffForm = (staff: AdminUser) => {
     if (!managedStaffRoles.has(staff.role as ManagedStaffRole)) return;
     setEditingStaffId(staff.id);
+    setStaffAccountMode('new');
+    setExistingStaffIdentifier('');
     setStaffForm({
       fullName: staff.fullName,
       username: staff.username,
@@ -1111,13 +1175,20 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     setStaffError('');
     setStaffMessage('');
     const assignedEvents = staffForm.assignedEvents;
-    if (!staffForm.fullName.trim() || !staffForm.username.trim() || !staffForm.email.trim() || !staffForm.designation.trim()) {
-      setStaffError('Name, username, designation, and email are required.');
-      return;
-    }
-    if (!editingStaffId && staffForm.password.trim().length < 12) {
-      setStaffError('The initial password must be at least 12 characters.');
-      return;
+    if (!editingStaffId && staffAccountMode === 'existing') {
+      if (!existingStaffIdentifier.trim()) {
+        setStaffError('Enter the existing account email address or username.');
+        return;
+      }
+    } else {
+      if (!staffForm.fullName.trim() || !staffForm.username.trim() || !staffForm.email.trim() || !staffForm.designation.trim()) {
+        setStaffError('Name, username, designation, and email are required.');
+        return;
+      }
+      if (!editingStaffId && staffForm.password.trim().length < 12) {
+        setStaffError('The initial password must be at least 12 characters.');
+        return;
+      }
     }
     if (assignedEvents.length === 0) {
       setStaffError('Select at least one department event for this coordinator account.');
@@ -1142,6 +1213,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       if (editingStaffId) {
         await AdminAuthService.updateAdmin(editingStaffId, payload);
         setStaffMessage('Staff permissions and profile updated successfully.');
+      } else if (staffAccountMode === 'existing') {
+        await AdminAuthService.assignExistingAccount({
+          identifier: existingStaffIdentifier,
+          role: staffForm.role as AdminRole,
+          departmentCode: deptCode,
+          designation: staffForm.designation.trim(),
+          accessBoundary: `${deptCode} department operations`,
+          assignedEvents
+        });
+        setStaffMessage('Existing account assigned to this department successfully. The person can sign in with their current password.');
       } else {
         await AdminAuthService.addAdmin(payload);
         setStaffMessage(`Account created. Share username “${payload.username}” and the password you entered with the staff member.`);
@@ -1160,7 +1241,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   const handleStaffDelete = async (staff: AdminUser) => {
     if (!managedStaffRoles.has(staff.role as ManagedStaffRole)) return;
-    if (!window.confirm(`Permanently delete ${staff.fullName}'s account? They will lose access immediately.`)) return;
+    if (!window.confirm(`Permanently delete ${staff.fullName}'s account? This removes their Supabase Auth account, profile, portal role, and event assignments. The action cannot be undone.`)) return;
     setStaffError('');
     setStaffMessage('');
     try {
@@ -1351,14 +1432,26 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
           {/* Right: Add New Department Event Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setIsAddEventOpen(true)}
-              className="admin-btn admin-btn-emerald"
-              style={{ padding: '8px 18px', fontSize: '0.82rem', fontWeight: 700 }}
-            >
-              <Plus size={16} />
-              <span>+ Add Department Event</span>
-            </button>
+            {isDeptChief && (
+              <button
+                onClick={openCreateStaffForm}
+                className="admin-btn admin-btn-primary"
+                style={{ padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700 }}
+              >
+                <UserPlus size={16} />
+                <span>Manage Staff ({departmentStaff.length})</span>
+              </button>
+            )}
+            {isDeptChief && (
+              <button
+                onClick={() => setIsAddEventOpen(true)}
+                className="admin-btn admin-btn-emerald"
+                style={{ padding: '8px 18px', fontSize: '0.82rem', fontWeight: 700 }}
+              >
+                <Plus size={16} />
+                <span>+ Add Department Event</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1560,7 +1653,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         )}
 
         {/* TAB 1: EVENTS MANAGEMENT */}
-        {activeTab === 'events' && (
+        {!isEventCoord && activeTab === 'events' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
@@ -1573,22 +1666,24 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={() => setIsAddEventOpen(true)}
-                  className="btn-cyber-primary"
-                  style={{
-                    padding: '9px 18px',
-                    fontSize: '0.84rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    borderRadius: '10px'
-                  }}
-                >
-                  <Plus size={16} />
-                  <span>+ Add Department Event</span>
-                </button>
+                {isDeptChief && (
+                  <button
+                    onClick={() => setIsAddEventOpen(true)}
+                    className="btn-cyber-primary"
+                    style={{
+                      padding: '9px 18px',
+                      fontSize: '0.84rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      borderRadius: '10px'
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>+ Add Department Event</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1607,13 +1702,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 <p style={{ fontSize: '0.82rem', color: '#A8B3C2', margin: '0 0 16px' }}>
                   You currently have no events specifically assigned under your account name or email.
                 </p>
-                <button
-                  onClick={() => setEventScope('all')}
-                  className="btn-cyber-primary"
-                  style={{ padding: '8px 20px', fontSize: '0.82rem' }}
-                >
-                  Switch to View All {deptCode} Events
-                </button>
+                {isDeptChief && (
+                  <button
+                    onClick={() => setEventScope('all')}
+                    className="btn-cyber-primary"
+                    style={{ padding: '8px 20px', fontSize: '0.82rem' }}
+                  >
+                    Switch to View All {deptCode} Events
+                  </button>
+                )}
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '18px' }}>
@@ -1815,10 +1912,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   }}
                 >
                   <TrendingUp size={24} color="#34D399" />
-                  <span>{deptInfo?.name || deptCode} Revenue Analysis</span>
+                  <span>{isEventCoord ? `${analyticsScopeName} Analytics` : `${analyticsScopeName} Revenue Analysis`}</span>
                 </h2>
                 <p style={{ fontSize: '0.82rem', color: '#94A3B8', margin: '4px 0 0', maxWidth: '780px' }}>
-                  Real-time collections ledger, payment reconciliations, and capacity monetization strictly restricted to {deptInfo?.name || deptCode}.
+                  {isEventCoord
+                    ? `Real-time registrations, collections, capacity, and gateway attendance for ${analyticsScopeName.toLowerCase()}.`
+                    : `Real-time collections ledger, payment reconciliations, and capacity monetization strictly restricted to ${analyticsScopeName}.`}
                 </p>
               </div>
 
@@ -1829,7 +1928,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   style={{ padding: '9px 18px', fontSize: '0.84rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   <Download size={16} />
-                  <span>Export {deptCode} Revenue (CSV)</span>
+                  <span>{isEventCoord ? 'Export Event Analytics (CSV)' : `Export ${deptCode} Revenue (CSV)`}</span>
                 </button>
               </div>
             </div>
@@ -1849,7 +1948,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {deptCode} Verified Collections
+                      {isEventCoord ? 'Verified Collections' : `${deptCode} Verified Collections`}
                     </span>
                     <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
                       ₹{deptRevenueAnalytics.totalVerified.toLocaleString('en-IN')}
@@ -1927,7 +2026,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {deptCode} Potential Gross
+                      {isEventCoord ? 'Potential Gross' : `${deptCode} Potential Gross`}
                     </span>
                     <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
                       ₹{deptRevenueAnalytics.totalGross.toLocaleString('en-IN')}
@@ -2019,11 +2118,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Layers size={18} color="#38BDF8" />
                     <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
-                      {deptCode} Event-Wise Revenue Breakdown ({deptRevenueAnalytics.eventBreakdown.length} Arenas)
+                      {isEventCoord
+                        ? `Assigned Event Breakdown (${deptRevenueAnalytics.eventBreakdown.length})`
+                        : `${deptCode} Event-Wise Revenue Breakdown (${deptRevenueAnalytics.eventBreakdown.length} Arenas)`}
                     </h3>
                   </div>
                   <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0' }}>
-                    Financial reconciliation and capacity fill performance for each arena hosted by {deptCode}.
+                    {isEventCoord
+                      ? 'Financial reconciliation and capacity fill performance for each event assigned to this coordinator.'
+                      : `Financial reconciliation and capacity fill performance for each arena hosted by ${deptCode}.`}
                   </p>
                 </div>
               </div>
@@ -2046,7 +2149,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     {deptRevenueAnalytics.eventBreakdown.length === 0 ? (
                       <tr>
                         <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
-                          No events registered under this department yet.
+                          {isEventCoord ? 'No assigned event data is available yet.' : 'No events registered under this department yet.'}
                         </td>
                       </tr>
                     ) : (
@@ -2859,7 +2962,29 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             {staffError && <div style={{ marginBottom: '14px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(127,29,29,0.3)', border: '1px solid rgba(248,113,113,0.5)', color: '#FCA5A5', fontSize: '0.8rem' }}>{staffError}</div>}
 
             <form onSubmit={handleStaffSave} style={{ display: 'grid', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {!editingStaffId && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '4px', borderRadius: '10px', background: 'rgba(30, 41, 75, 0.7)', border: '1px solid rgba(96,165,250,0.25)' }}>
+                  <button type="button" onClick={() => { setStaffAccountMode('new'); setExistingStaffIdentifier(''); setStaffError(''); }} style={{ border: '1px solid transparent', borderRadius: '7px', padding: '10px 12px', background: staffAccountMode === 'new' ? '#2563EB' : 'transparent', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}>
+                    Create new account
+                  </button>
+                  <button type="button" onClick={() => { setStaffAccountMode('existing'); setStaffError(''); }} style={{ border: '1px solid transparent', borderRadius: '7px', padding: '10px 12px', background: staffAccountMode === 'existing' ? '#0EA5E9' : 'transparent', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}>
+                    Assign existing account
+                  </button>
+                </div>
+              )}
+
+              {!editingStaffId && staffAccountMode === 'existing' && (
+                <div style={{ padding: '13px 14px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(56,189,248,0.4)' }}>
+                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Supabase account</div>
+                  <div style={{ color: '#BAE6FD', fontSize: '0.75rem', lineHeight: 1.45, marginBottom: '10px' }}>Enter the account email or username. No duplicate login is created and the existing password remains unchanged.</div>
+                  <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+                    Existing account email or username *
+                    <input value={existingStaffIdentifier} onChange={event => setExistingStaffIdentifier(event.target.value)} placeholder="person@example.com or username" required style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.45)', background: '#0B1020', color: '#FFFFFF' }} />
+                  </label>
+                </div>
+              )}
+
+              {(staffAccountMode === 'new' || Boolean(editingStaffId)) && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
                   Full name *
                   <input value={staffForm.fullName} onChange={event => setStaffForm({ ...staffForm, fullName: event.target.value })} required style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
@@ -2868,7 +2993,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   Username *
                   <input value={staffForm.username} onChange={event => setStaffForm({ ...staffForm, username: event.target.value })} required pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
                 </label>
-              </div>
+              </div>}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
@@ -2883,7 +3008,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </label>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {(staffAccountMode === 'new' || Boolean(editingStaffId)) && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
                   Email *
                   <input type="email" value={staffForm.email} onChange={event => setStaffForm({ ...staffForm, email: event.target.value })} required style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
@@ -2892,12 +3017,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   Phone
                   <input value={staffForm.phone} onChange={event => setStaffForm({ ...staffForm, phone: event.target.value })} style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
                 </label>
-              </div>
+              </div>}
 
-              <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
+              {(staffAccountMode === 'new' || Boolean(editingStaffId)) && <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
                 {editingStaffId ? 'New password (optional)' : 'Initial password *'}
                 <input type="password" value={staffForm.password} onChange={event => setStaffForm({ ...staffForm, password: event.target.value })} required={!editingStaffId} minLength={12} placeholder={editingStaffId ? 'Leave blank to keep current password' : 'At least 12 characters'} style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }} />
-              </label>
+              </label>}
 
               <div style={{ border: '1px solid rgba(148,163,184,0.22)', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
@@ -2921,7 +3046,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '9px', marginTop: '4px' }}>
                 <button type="button" disabled={staffSaving} onClick={() => setStaffFormOpen(false)} style={{ border: '1px solid rgba(148,163,184,0.35)', borderRadius: '8px', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', color: '#CBD5E1', cursor: staffSaving ? 'not-allowed' : 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={staffSaving} style={{ border: '1px solid rgba(96,165,250,0.6)', borderRadius: '8px', padding: '10px 16px', background: '#2563EB', color: '#FFFFFF', fontWeight: 800, cursor: staffSaving ? 'wait' : 'pointer', opacity: staffSaving ? 0.7 : 1 }}>{staffSaving ? 'Saving…' : editingStaffId ? 'Save staff changes' : 'Create staff account'}</button>
+                <button type="submit" disabled={staffSaving} style={{ border: '1px solid rgba(96,165,250,0.6)', borderRadius: '8px', padding: '10px 16px', background: '#2563EB', color: '#FFFFFF', fontWeight: 800, cursor: staffSaving ? 'wait' : 'pointer', opacity: staffSaving ? 0.7 : 1 }}>{staffSaving ? 'Saving…' : editingStaffId ? 'Save staff changes' : staffAccountMode === 'existing' ? 'Assign existing account' : 'Create staff account'}</button>
               </div>
             </form>
           </div>
@@ -2929,7 +3054,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       )}
 
       {/* Spot Registration Modal (8.1 Create spot registrations on fest day) */}
-      {isSpotRegOpen && (
+      {isSpotRegOpen && isDeptChief && (
         <div
           style={{
             position: 'fixed',
@@ -3317,7 +3442,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       )}
 
       {/* Broadcast Announcement Modal (8.1 Publish event announcements) */}
-      {isBroadcastOpen && (
+      {isBroadcastOpen && isDeptChief && (
         <div
           style={{
             position: 'fixed',
@@ -3455,7 +3580,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       )}
 
       {/* Edit Event Modal (8.1 • Edit event details, rules, team limits, fee, capacity, deadline, schedule and venue) */}
-      {editingEvent && (
+      {editingEvent && isDeptChief && (
         <div
           style={{
             position: 'fixed',
@@ -3720,7 +3845,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       )}
 
       {/* Add Event Modal */}
-      {isAddEventOpen && (
+      {isAddEventOpen && isDeptChief && (
         <div
           style={{
             position: 'fixed',

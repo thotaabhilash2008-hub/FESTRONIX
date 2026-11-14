@@ -27,7 +27,9 @@ Razorpay test mode was added as the default paid-registration path. The older sc
 ## Current Razorpay files
 
 - `supabase/migrations/20261109143000_razorpay_test_checkout.sql`
+- `supabase/migrations/20261113120000_razorpay_refund_review.sql`
 - `supabase/functions/razorpay-create-order/index.ts`
 - `supabase/functions/razorpay-verify-payment/index.ts`
 - `src/services/razorpayService.ts`
 - `src/components/RegistrationModal.tsx`
+- `src/components/admin/FinanceReviewerDashboard.tsx` (refund reconciliation section)

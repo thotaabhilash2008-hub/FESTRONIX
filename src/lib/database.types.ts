@@ -597,6 +597,10 @@ export interface Database {
         };
         Returns: Json;
       };
+      list_razorpay_refund_orders: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
       toggle_check_in_registration: {
         Args: { p_display_id: string; p_staff_name?: string };
         Returns: Json;

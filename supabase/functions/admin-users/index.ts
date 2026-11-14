@@ -154,6 +154,35 @@ async function getAssignments(db: SupabaseClient, userIds: string[]): Promise<Ma
   return result;
 }
 
+/**
+ * Admin accounts can be referenced by historical operational data. Those
+ * references are intentionally nullable so deleting a staff login does not
+ * delete registrations, payments, audit history, announcements, or teams.
+ * Clear them before deleting auth.users; otherwise PostgreSQL can reject the
+ * final Auth deletion after the portal role has already disappeared.
+ */
+async function clearNullableUserReferences(db: SupabaseClient, userId: string): Promise<void> {
+  const references: Array<[string, string]> = [
+    ['admin_roles', 'granted_by'],
+    ['registrations', 'user_id'],
+    ['registrations', 'spot_registered_by'],
+    ['payment_proofs', 'reviewed_by'],
+    ['announcements', 'published_by'],
+    ['certificates', 'user_id'],
+    ['certificates', 'issued_by'],
+    ['teams', 'leader_id'],
+    ['audit_logs', 'actor_id']
+  ];
+
+  for (const [table, column] of references) {
+    const { error } = await db
+      .from(table)
+      .update({ [column]: null })
+      .eq(column, userId);
+    if (error) throw error;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return response({ error: 'Method not allowed.' }, 405);
@@ -204,6 +233,13 @@ Deno.serve(async (req: Request) => {
     return response(toAdminUser(data as AdminRow, assignments.get(caller.id) || []));
   }
 
+  // Event coordinators are operations-only accounts. They may read their
+  // assigned event data and run gate check-in, but they cannot create, edit,
+  // delete, or assign any portal staff account.
+  if (isEventCoordinator && !isGlobalAdmin && !isDepartmentCoordinator) {
+    return response({ error: 'Event coordinators cannot manage portal staff accounts.' }, 403);
+  }
+
   if (!isGlobalAdmin && !isDepartmentCoordinator && !isEventCoordinator) return response({ error: 'Only authorized coordinators can manage these admin accounts.' }, 403);
 
   try {
@@ -217,6 +253,155 @@ Deno.serve(async (req: Request) => {
       });
       const assignments = await getAssignments(db, rows.map(row => row.user_id));
       return response(rows.map(row => toAdminUser(row, assignments.get(row.user_id) || [])));
+    }
+
+    if (action === 'assign_existing') {
+      const identifier = requiredString(body.identifier, 'Existing account email or username', 254).toLowerCase();
+      const profileQuery = identifier.includes('@')
+        ? db.from('profiles').select('id,full_name,email,phone,username').eq('email', identifier).limit(1).maybeSingle()
+        : db.from('profiles').select('id,full_name,email,phone,username').eq('username', identifier).limit(1).maybeSingle();
+      const { data: profile, error: profileLookupError } = await profileQuery;
+      if (profileLookupError) throw profileLookupError;
+      if (!profile) {
+        throw new AdminRequestError('No existing account was found with that email address or username.', 404);
+      }
+
+      const { data: existingRoles, error: existingRoleError } = await db
+        .from('admin_roles')
+        .select('role')
+        .eq('user_id', profile.id)
+        .eq('active', true);
+      if (existingRoleError) throw existingRoleError;
+      if ((existingRoles || []).length > 0) {
+        throw new AdminRequestError('This account already has an active portal role. Edit that role or use another account.', 409);
+      }
+
+      const existingEmail = String(profile.email || '').trim().toLowerCase();
+      const existingUsername = String(profile.username || existingEmail.split('@')[0] || '').trim().toLowerCase();
+      if (!existingEmail || !existingUsername) {
+        throw new AdminRequestError('The existing account is missing a usable email or username. Complete its profile first.', 422);
+      }
+
+      const admin = normalizeRolePayload({
+        username: existingUsername,
+        email: existingEmail,
+        fullName: profile.full_name || existingUsername,
+        designation: typeof body.designation === 'string' && body.designation.trim()
+          ? body.designation
+          : 'Event Operations Coordinator',
+        role: body.role,
+        departmentCode: body.departmentCode,
+        phone: profile.phone || '',
+        accessBoundary: body.accessBoundary,
+        assignedEvents: body.assignedEvents
+      });
+
+      if (!isGlobalAdmin) {
+        if (!callerDepartmentCode || admin.departmentCode !== callerDepartmentCode) {
+          throw new Error('Staff accounts must belong to the coordinator\'s department.');
+        }
+        if (isDepartmentCoordinator) {
+          if (!DEPARTMENT_MANAGED_ROLES.has(admin.role)) {
+            throw new Error('Department coordinators may only assign event coordinator, payment reviewer, or gate check-in accounts.');
+          }
+          if (['event_coordinator', 'volunteer_checkin', 'checkin_staff'].includes(admin.role) && admin.assignedEvents.length === 0) {
+            throw new Error('Select at least one event for event and gate staff accounts.');
+          }
+          if (admin.role === 'finance_reviewer' && admin.assignedEvents.length > 0) {
+            throw new Error('Payment reviewers are department-wide and cannot be limited to event assignments.');
+          }
+        } else {
+          if (!['volunteer_checkin', 'checkin_staff'].includes(admin.role)) {
+            throw new Error('Event coordinators may only assign gate volunteer accounts.');
+          }
+          if (admin.assignedEvents.length !== 1) {
+            throw new Error('A gate volunteer must be assigned to exactly one event.');
+          }
+          const { data: callerAssignments, error: callerAssignmentError } = await db
+            .from('admin_event_assignments')
+            .select('event_id')
+            .eq('admin_user_id', caller.id)
+            .eq('event_id', admin.assignedEvents[0]);
+          if (callerAssignmentError) throw callerAssignmentError;
+          if (!callerAssignments || callerAssignments.length !== 1) {
+            throw new Error('You can only assign volunteers to events assigned to you.');
+          }
+        }
+      }
+
+      const { data: duplicateName, error: duplicateNameError } = await db
+        .from('admin_roles')
+        .select('user_id')
+        .ilike('username', admin.username)
+        .eq('active', true)
+        .limit(1)
+        .maybeSingle();
+      if (duplicateNameError) throw duplicateNameError;
+      const { data: duplicateEmail, error: duplicateEmailError } = await db
+        .from('admin_roles')
+        .select('user_id')
+        .ilike('email', admin.email)
+        .eq('active', true)
+        .limit(1)
+        .maybeSingle();
+      if (duplicateEmailError) throw duplicateEmailError;
+      if (duplicateName || duplicateEmail) {
+        throw new AdminRequestError('This existing account is already assigned to another active portal role.', 409);
+      }
+
+      if (admin.departmentCode) {
+        const { data: department, error } = await db.from('departments').select('code').eq('code', admin.departmentCode).maybeSingle();
+        if (error) throw error;
+        if (!department) throw new Error('Select an existing department.');
+      }
+
+      if (admin.assignedEvents.length > 0) {
+        const { data: events, error } = await db.from('events').select('id,department_code').in('id', admin.assignedEvents);
+        if (error) throw error;
+        if ((events || []).length !== admin.assignedEvents.length) throw new Error('One or more selected events no longer exist. Refresh and try again.');
+        if (admin.departmentCode && (events || []).some(event => event.department_code !== admin.departmentCode)) {
+          throw new Error('Portal staff can only be assigned to events in their department.');
+        }
+      }
+
+      const { error: roleInsertError } = await db.from('admin_roles').insert({
+        user_id: profile.id,
+        username: admin.username,
+        full_name: admin.fullName,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role,
+        department_code: admin.departmentCode,
+        designation: admin.designation,
+        access_boundary: admin.accessBoundary,
+        active: true,
+        granted_by: caller.id
+      });
+      if (roleInsertError) throw new AdminRequestError(databaseErrorMessage(roleInsertError, 'Unable to grant the existing account portal access.'), 400);
+
+      if (admin.assignedEvents.length > 0) {
+        const { error: assignmentError } = await db.from('admin_event_assignments').insert(
+          admin.assignedEvents.map(eventId => ({ admin_user_id: profile.id, event_id: eventId, granted_by: caller.id }))
+        );
+        if (assignmentError) {
+          await db.from('admin_roles').delete().eq('user_id', profile.id).eq('active', true);
+          throw new AdminRequestError(databaseErrorMessage(assignmentError, 'Unable to save the event assignments.'), 400);
+        }
+      }
+
+      return response(toAdminUser({
+        id: profile.id,
+        user_id: profile.id,
+        username: admin.username,
+        full_name: admin.fullName,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role,
+        designation: admin.designation,
+        department_code: admin.departmentCode,
+        access_boundary: admin.accessBoundary,
+        active: true
+      }, admin.assignedEvents));
     }
 
     if (action === 'create') {
@@ -570,8 +755,14 @@ Deno.serve(async (req: Request) => {
       }
 
       // This is a permanent account deletion, not a UI-only/soft delete.
-      // Remove dependent records first, then remove the Auth identity so the
-      // credentials cannot be reused or recovered through the portal.
+      // Preserve historical data, clear nullable Auth references, then delete
+      // the Auth identity first. The role/assignment/profile rows cascade in
+      // the production schema; explicit cleanup below also handles legacy
+      // rows created before those cascades existed.
+      await clearNullableUserReferences(db, id);
+      const { error: authDeleteError } = await db.auth.admin.deleteUser(id);
+      if (authDeleteError) throw authDeleteError;
+
       const { error: assignmentError } = await db.from('admin_event_assignments').delete().eq('admin_user_id', id);
       if (assignmentError) throw assignmentError;
 
@@ -580,9 +771,6 @@ Deno.serve(async (req: Request) => {
 
       const { error: profileDeleteError } = await db.from('profiles').delete().eq('id', id);
       if (profileDeleteError) throw profileDeleteError;
-
-      const { error: authDeleteError } = await db.auth.admin.deleteUser(id);
-      if (authDeleteError) throw authDeleteError;
 
       return response({ success: true, deleted: true, id });
     }

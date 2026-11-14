@@ -107,22 +107,24 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
   }
 
   const menuItems: DeptMenuItem[] = [
-    {
-      id: 'events',
-      label: isEventCoord ? 'Assigned Events' : `${deptCode} Events`,
+    // Event coordinators are intentionally limited to event operations. They
+    // must not see the department event-management surface at all.
+    ...(!isEventCoord ? [{
+      id: 'events' as const,
+      label: `${deptCode} Events`,
       icon: Layers,
       badge: eventsCount > 0 ? String(eventsCount) : undefined,
-    },
+    }] : []),
     {
       id: 'revenue',
-      label: 'Revenue Analysis',
+      label: isEventCoord ? 'Event Analytics' : 'Revenue Analysis',
       icon: TrendingUp,
-      badge: pendingPaymentsCount > 0 ? `${pendingPaymentsCount} pending` : undefined,
-      badgeType: pendingPaymentsCount > 0 ? 'warning' : undefined,
+      badge: !isEventCoord && pendingPaymentsCount > 0 ? `${pendingPaymentsCount} pending` : undefined,
+      badgeType: !isEventCoord && pendingPaymentsCount > 0 ? 'warning' : undefined,
     },
     {
       id: 'checkin',
-      label: 'Attendance Check-In',
+      label: isEventCoord ? 'Gateway Check-In' : 'Attendance Check-In',
       icon: QrCode,
       badge: 'QR',
     },

@@ -100,6 +100,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [gateScannerError, setGateScannerError] = useState('');
   const gateVideoRef = useRef<HTMLVideoElement>(null);
   const gateStreamRef = useRef<MediaStream | null>(null);
+  const gateLookupRef = useRef<(query: string) => Registration | null>(() => null);
 
   // New Announcement Form State
   const [newAnnTitle, setNewAnnTitle] = useState('');
@@ -143,6 +144,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [eventCreateError, setEventCreateError] = useState('');
 
   // Form State: Add New Coordinator / Department Coordinator / Staff
+  const [coordAccountMode, setCoordAccountMode] = useState<'new' | 'existing'>('new');
+  const [coordExistingIdentifier, setCoordExistingIdentifier] = useState('');
   const [coordFullName, setCoordFullName] = useState('');
   const [coordDeptCode, setCoordDeptCode] = useState('CSE');
   const [coordRole, setCoordRole] = useState<AdminRole>('faculty_coord');
@@ -434,6 +437,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       .some(value => String(value).toLowerCase() === normalized)) || null;
   };
 
+  // Keep the camera effect stable while resolving against the latest registrations.
+  useEffect(() => {
+    gateLookupRef.current = findGateRegistration;
+  });
+
   const handleGateLookup = () => {
     const match = findGateRegistration(gateQuery);
     setGateMatch(match);
@@ -445,22 +453,28 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     if (!gateScannerOpen) {
       gateStreamRef.current?.getTracks().forEach(track => track.stop());
       gateStreamRef.current = null;
+      if (gateVideoRef.current) gateVideoRef.current.srcObject = null;
       return;
     }
 
+    const videoElement = gateVideoRef.current;
     let cancelled = false;
     let frame = 0;
+    let activeStream: MediaStream | null = null;
     const startScanner = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        activeStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
         });
-        if (cancelled) return stream.getTracks().forEach(track => track.stop());
-        gateStreamRef.current = stream;
-        if (gateVideoRef.current) {
-          gateVideoRef.current.srcObject = stream;
-          await gateVideoRef.current.play();
+        if (cancelled) {
+          activeStream.getTracks().forEach(track => track.stop());
+          return;
+        }
+        gateStreamRef.current = activeStream;
+        if (videoElement) {
+          videoElement.srcObject = activeStream;
+          await videoElement.play();
         }
 
         const BarcodeDetectorCtor = (window as any).BarcodeDetector;
@@ -469,8 +483,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         const scan = async () => {
-          if (cancelled || !gateVideoRef.current) return;
-          const video = gateVideoRef.current;
+          if (cancelled || !videoElement) return;
+          const video = videoElement;
           if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
             let scannedValue = '';
 
@@ -498,7 +512,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
             if (scannedValue) {
               setGateQuery(scannedValue);
-              const match = findGateRegistration(scannedValue);
+              const match = gateLookupRef.current(scannedValue);
               setGateMatch(match);
               setGateScannerError(match ? '' : 'QR scanned, but no live registration matched this ticket.');
               setGateScannerOpen(false);
@@ -517,10 +531,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
-      gateStreamRef.current?.getTracks().forEach(track => track.stop());
-      gateStreamRef.current = null;
+      activeStream?.getTracks().forEach(track => track.stop());
+      if (gateStreamRef.current === activeStream) {
+        gateStreamRef.current = null;
+        if (videoElement) videoElement.srcObject = null;
+      }
     };
-  }, [gateScannerOpen, registrations]);
+  }, [gateScannerOpen]);
 
   // Broadcast Bulletin Handler
   const handleCreateAnnouncement = async (e: React.FormEvent) => {
@@ -715,6 +732,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   };
 
   const openCreateCoordinatorForEvent = (event: FestEvent) => {
+    setCoordAccountMode('new');
+    setCoordExistingIdentifier('');
     setCoordinatorCreatedForEventId(event.id);
     setCreatedCredential(null);
     // A new account must be entered as a new person. Keep the event context,
@@ -733,10 +752,69 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setIsAddCoordinatorOpen(true);
   };
 
+  const openAssignExistingCoordinator = () => {
+    setCoordAccountMode('existing');
+    setCoordExistingIdentifier('');
+    setCreatedCredential(null);
+    setCoordRole('event_coordinator');
+    setCoordDeptCode(departments[0]?.code || 'CSE');
+    setCoordDesignation('Event Operations Coordinator');
+    setCoordFullName('');
+    setCoordEmail('');
+    setCoordPhone('');
+    setCoordUsername('');
+    setCoordPassword('');
+    setCoordAssignedEvents([]);
+    setCoordFormError('');
+    setIsAddCoordinatorOpen(true);
+  };
+
   // Create Coordinator / Department Coordinator / Operational Staff Handler
   const handleCreateCoordinator = async (e: React.FormEvent) => {
     e.preventDefault();
     setCoordFormError('');
+
+    if (coordAccountMode === 'existing') {
+      if (!coordExistingIdentifier.trim()) {
+        setCoordFormError('Enter the existing account email address or username.');
+        return;
+      }
+      if (!coordDesignation.trim()) {
+        setCoordFormError('Enter the designation for this portal assignment.');
+        return;
+      }
+      if (supportsEventAssignments(coordRole) && coordAssignedEvents.length === 0) {
+        setCoordFormError('Select at least one event for this coordinator account.');
+        return;
+      }
+
+      setCoordSubmitting(true);
+      try {
+        const assigned = await AdminAuthService.assignExistingAccount({
+          identifier: coordExistingIdentifier,
+          role: coordRole,
+          departmentCode: requiresDepartment(coordRole) ? coordDeptCode : undefined,
+          designation: coordDesignation.trim(),
+          accessBoundary: (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
+            ? "Their department's events"
+            : 'Assigned event(s) only unless separately authorised',
+          assignedEvents: supportsEventAssignments(coordRole) ? coordAssignedEvents : []
+        });
+        setCoordinators(previous => [
+          ...previous.filter(coordinator => coordinator.id !== assigned.id && coordinator.email !== assigned.email),
+          assigned
+        ]);
+        setCreatedCredential({ username: assigned.username, role: assigned.role });
+        setCoordFormError('');
+        setIsAddCoordinatorOpen(false);
+      } catch (error) {
+        setCoordFormError((error as Error).message || 'Unable to assign the existing account.');
+      } finally {
+        setCoordSubmitting(false);
+      }
+      return;
+    }
+
     const normalizedUsername = coordUsername.trim().toLowerCase();
     const normalizedEmail = coordEmail.trim().toLowerCase();
     if (!coordFullName.trim() || !normalizedUsername || !coordPassword.trim() || !normalizedEmail) {
@@ -878,7 +956,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       return;
     }
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${roleName || 'coordinator'} "${name}"?\n\nThis will permanently remove their credentials and revoke their portal access immediately.`
+      `Are you sure you want to permanently delete ${roleName || 'coordinator'} "${name}"?\n\nThis permanently removes the Supabase Auth account, profile, portal role, and event assignments. The action cannot be undone.`
     );
     if (confirmed) {
       try {
@@ -1953,6 +2031,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         ) : (
                           <button
                             onClick={() => {
+                              setCoordAccountMode('new');
+                              setCoordExistingIdentifier('');
                               setCoordRole('dept_coordinator');
                               setCoordDeptCode(dept.code);
                               setCoordFullName(dept.chiefCoordinator);
@@ -2795,6 +2875,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
                   onClick={() => {
+                    setCoordAccountMode('new');
+                    setCoordExistingIdentifier('');
                     const firstDept = departments[0]?.code || 'CSE';
                     setCoordRole('dept_coordinator');
                     setCoordDeptCode(firstDept);
@@ -2828,6 +2910,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                 <button
                   onClick={() => {
+                    setCoordAccountMode('new');
+                    setCoordExistingIdentifier('');
                     setCoordRole('event_coordinator');
                     setCoordDeptCode(departments[0]?.code || 'CSE');
                     setCoordFullName('');
@@ -2860,6 +2944,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                 <button
                   onClick={() => {
+                    setCoordAccountMode('new');
+                    setCoordExistingIdentifier('');
                     setCoordRole('faculty_coord');
                     setCoordDeptCode(departments[0]?.code || 'CSE');
                     setCoordFullName('');
@@ -2885,6 +2971,26 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 >
                   <UserPlus size={14} />
                   <span>+ Appoint Coordinator</span>
+                </button>
+
+                <button
+                  onClick={openAssignExistingCoordinator}
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    background: 'rgba(14, 165, 233, 0.14)',
+                    color: '#BAE6FD',
+                    border: '1px solid rgba(56, 189, 248, 0.45)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Users size={14} />
+                  <span>+ Assign Existing Account</span>
                 </button>
               </div>
             </div>
@@ -6235,8 +6341,32 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             </div>
 
             <form onSubmit={handleCreateCoordinator} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '4px', borderRadius: '10px', background: 'rgba(16, 26, 53, 0.72)', border: '1px solid rgba(96, 165, 250, 0.25)' }}>
+                <button type="button" onClick={() => { setCoordAccountMode('new'); setCoordExistingIdentifier(''); setCoordFormError(''); }} style={{ border: '1px solid transparent', borderRadius: '7px', padding: '10px 12px', background: coordAccountMode === 'new' ? '#2563EB' : 'transparent', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}>
+                  Create new account
+                </button>
+                <button type="button" onClick={() => { setCoordAccountMode('existing'); setCoordFormError(''); }} style={{ border: '1px solid transparent', borderRadius: '7px', padding: '10px 12px', background: coordAccountMode === 'existing' ? '#0EA5E9' : 'transparent', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}>
+                  Assign existing account
+                </button>
+              </div>
+
+              {coordAccountMode === 'existing' && (
+                <div style={{ padding: '13px 14px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Supabase account</div>
+                  <div style={{ color: '#BAE6FD', fontSize: '0.75rem', lineHeight: 1.45, marginBottom: '10px' }}>Enter the account email or username. This reuses the existing login and password; it does not create a duplicate Auth user.</div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '10px' }}>
+                    Existing account email or username *
+                    <input type="text" value={coordExistingIdentifier} onChange={e => setCoordExistingIdentifier(e.target.value)} placeholder="person@example.com or username" required style={{ width: '100%', marginTop: '6px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(56, 189, 248, 0.45)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                  </label>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5' }}>
+                    Portal designation *
+                    <input type="text" value={coordDesignation} onChange={e => setCoordDesignation(e.target.value)} placeholder="Event Operations Coordinator" required style={{ width: '100%', marginTop: '6px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                  </label>
+                </div>
+              )}
+
               {/* Name & Academic Designation */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {coordAccountMode === 'new' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
                     Full Name *
@@ -6282,7 +6412,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     }}
                   />
                 </div>
-              </div>
+              </div>}
 
               {/* Department & Role */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -6394,7 +6524,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               )}
 
               {/* Email & Phone */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {coordAccountMode === 'new' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
                     Official Email *
@@ -6440,10 +6570,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     }}
                   />
                 </div>
-              </div>
+              </div>}
 
               {/* Portal Login Credentials */}
-              <div style={{ background: 'rgba(16, 26, 53, 0.7)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(120, 149, 147, 0.3)' }}>
+              {coordAccountMode === 'new' && <div style={{ background: 'rgba(16, 26, 53, 0.7)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(120, 149, 147, 0.3)' }}>
                 <span style={{ fontSize: '0.82rem', color: '#BACEBB', fontWeight: 700, display: 'block', marginBottom: '8px' }}>
                   🔑 Portal Access Credentials
                 </span>
@@ -6517,7 +6647,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     </div>
                   </div>
                 </div>
-              </div>
+              </div>}
 
               {coordFormError && (
                 <div role="alert" style={{ color: '#FCA5A5', background: 'rgba(127, 29, 29, 0.35)', border: '1px solid rgba(248, 113, 113, 0.35)', borderRadius: '8px', padding: '9px 11px', fontSize: '0.78rem' }}>
@@ -6555,7 +6685,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     cursor: coordSubmitting ? 'wait' : 'pointer'
                   }}
                 >
-                  {coordSubmitting ? 'Saving…' : 'Appoint & Grant Access'}
+                  {coordSubmitting ? 'Saving…' : coordAccountMode === 'existing' ? 'Assign Existing Account' : 'Appoint & Grant Access'}
                 </button>
               </div>
             </form>

@@ -164,6 +164,25 @@ export interface Registration {
   departmentCode?: string;
 }
 
+export type RazorpayRefundStatus = 'not_requested' | 'pending' | 'succeeded' | 'failed';
+
+/** A duplicate-payment refund recorded by the Razorpay verifier for follow-up. */
+export interface RazorpayRefundOrder {
+  orderId: string;
+  paymentId?: string;
+  eventId: string;
+  eventTitle: string;
+  departmentCode?: string;
+  amountPaise: number;
+  orderStatus: string;
+  refundStatus: RazorpayRefundStatus;
+  refundId?: string;
+  refundError?: string;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Announcement {
   id: string;
   title: string;

@@ -21,6 +21,10 @@ The registration form contains the branded payment summary and remains the sourc
 
 The order table and finalization RPC make retries idempotent. If the checkout callback is delivered twice, an already-paid order returns its stored result instead of creating duplicate registrations.
 
+### Refund visibility
+
+`razorpay_orders` stays service-role only. The finance console reads refund outcomes through `public.list_razorpay_refund_orders()`, a read-only RPC that returns only orders with a refund attempt and lets the database decide the staff scope: finance reviewers and global admins see every department, other staff only their own. Failed and pending refunds are flagged for manual gateway follow-up; a refund that cannot be created leaves the order at `refund_status = 'failed'` with `refund_error` and the payment ID for the desk.
+
 ## Preserved fallback
 
 The previous UPI/manual-proof implementation has not been deleted, but it is intentionally not exposed in the current Razorpay-first registration UI. It remains available for controlled fallback/recovery work and continues to use:
@@ -56,10 +60,12 @@ The create-order function intentionally rejects a non-test Key ID. This prevents
 
 - `supabase/migrations/20261109143000_razorpay_test_checkout.sql` — registration payment fields, order ledger, and secure finalization RPC.
 - `supabase/migrations/20261113090000_razorpay_refund_tracking.sql` — auditable, retry-safe duplicate-payment refund state.
+- `supabase/migrations/20261113120000_razorpay_refund_review.sql` — staff-scoped read-only RPC so the finance console can see refund outcomes without exposing `razorpay_orders` to the browser.
 - `supabase/functions/razorpay-create-order/` — trusted amount calculation and Razorpay order creation.
 - `supabase/functions/razorpay-verify-payment/` — signature, order, capture, and finalization checks.
 - `src/services/razorpayService.ts` — lazy Checkout script loading, Edge Function calls, and preservation of backend error messages.
 - `src/components/RegistrationModal.tsx` — Razorpay-first UI with the manual fallback preserved.
+- `src/components/admin/FinanceReviewerDashboard.tsx` — duplicate-payment refund reconciliation section for finance staff.
 - `src/types/festronix.ts` and `src/services/storageService.ts` — Razorpay metadata mapping.
 
 ## Test-mode checklist
