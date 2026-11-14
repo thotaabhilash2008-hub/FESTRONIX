@@ -132,8 +132,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   // 1. asif sir / cc / vencorpia (super_admin)
   // 2. dept co ordinator (dept)
   // 3. event co ordinators (event_coord)
-  // + ops (finance & volunteer)
-  const [activeTab, setActiveTab] = useState<'super_admin' | 'dept' | 'event_coord' | 'ops'>('super_admin');
+  const [activeTab, setActiveTab] = useState<'super_admin' | 'dept' | 'event_coord'>('super_admin');
   const [isStructureOpen, setIsStructureOpen] = useState(false);
   const [departments, setDepartments] = useState<Department[]>(() => {
     const list = StorageService.getDepartments();
@@ -170,7 +169,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
   const [showSuperPassword, setShowSuperPassword] = useState(false);
   const [showDeptPassword, setShowDeptPassword] = useState(false);
   const [showEventPassword, setShowEventPassword] = useState(false);
-  const [showOpsPassword, setShowOpsPassword] = useState(false);
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -208,13 +206,15 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     const cseEvt = StorageService.getEvents().find(e => e.departmentCode.toUpperCase() === 'CSE');
     return cseEvt?.id || 'evt-1';
   });
-  const [eventEmail, setEventEmail] = useState('');
+  const [eventCoordName, setEventCoordName] = useState(() => {
+    const cseEvt = StorageService.getEvents().find(e => e.departmentCode.toUpperCase() === 'CSE');
+    return cseEvt?.coordinatorName || '';
+  });
+  const [eventEmail, setEventEmail] = useState(() => {
+    const cseEvt = StorageService.getEvents().find(e => e.departmentCode.toUpperCase() === 'CSE');
+    return cseEvt?.coordinatorEmail || '';
+  });
   const [eventPassword, setEventPassword] = useState('');
-
-  // 4. Operational Staff Form (Finance & Volunteer Check-in)
-  const [opsRole, setOpsRole] = useState<'finance' | 'volunteer'>('finance');
-  const [opsEmail, setOpsEmail] = useState('');
-  const [opsPassword, setOpsPassword] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -240,10 +240,13 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     const firstEvt = deptEvents[0];
     if (firstEvt) {
       setSelectedEventId(firstEvt.id);
+      setEventCoordName(firstEvt.coordinatorName || '');
+      setEventEmail(firstEvt.coordinatorEmail || '');
     } else {
       setSelectedEventId('');
+      setEventCoordName('');
+      setEventEmail('');
     }
-    setEventEmail('');
     setEventPassword('');
   };
 
@@ -300,7 +303,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
         selectedEventId,
         eventEmail,
         eventPassword,
-        matchedEvt?.coordinatorName
+        eventCoordName.trim() || matchedEvt?.coordinatorName
       );
       setLoading(false);
       if (res.success && res.user) {
@@ -311,27 +314,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
     } catch (err: any) {
       setLoading(false);
       setErrorMessage(err?.message || 'Authentication error.');
-    }
-  };
-
-  // Submit Handler: Operational Roles (Finance & Volunteer)
-  const handleOpsSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setLoading(true);
-
-    try {
-      const targetEmail = opsEmail.trim() || (opsRole === 'finance' ? 'accounts.fest@vardhaman.org' : 'volunteers.fest@vardhaman.org');
-      const res = await AdminAuthService.loginCentral(targetEmail, opsPassword);
-      setLoading(false);
-      if (res.success && res.user) {
-        onLoginSuccess(res.user);
-      } else {
-        setErrorMessage(res.error || 'Failed to authenticate staff credentials.');
-      }
-    } catch (err: any) {
-      setLoading(false);
-      setErrorMessage(err?.message || 'Failed to authenticate staff credentials.');
     }
   };
 
@@ -500,32 +482,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
           >
             <Users size={15} color={activeTab === 'event_coord' ? '#A78BFA' : '#94A3B8'} />
             <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>3. EVENT COORDINATORS</span>
-          </button>
-        </div>
-
-        {/* Operational Staff Sub-Pill */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab(activeTab === 'ops' ? 'super_admin' : 'ops');
-              setErrorMessage('');
-            }}
-            style={{
-              background: activeTab === 'ops' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${activeTab === 'ops' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: '9999px',
-              padding: '4px 12px',
-              fontSize: '0.72rem',
-              color: activeTab === 'ops' ? '#34D399' : '#94A3B8',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <CreditCard size={13} />
-            <span>Operations Staff (Finance Desk & QR Volunteer Gate)</span>
           </button>
         </div>
 
@@ -905,6 +861,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                       onClick={() => {
                         setSelectedEventId(evt.id);
                         if (evt.coordinatorEmail) setEventEmail(evt.coordinatorEmail);
+                        if (evt.coordinatorName) setEventCoordName(evt.coordinatorName);
                       }}
                       style={{
                         background: isChosen ? 'rgba(139, 92, 246, 0.25)' : 'rgba(15, 23, 42, 0.6)',
@@ -952,10 +909,26 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Event Coordinator Email
+                Event Coordinator Full Name
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} color="#A78BFA" style={{ position: 'absolute', left: '14px', top: '15px' }} />
+                <input
+                  type="text"
+                  value={eventCoordName}
+                  onChange={e => setEventCoordName(e.target.value)}
+                  placeholder="Enter event coordinator full name"
+                  className="admin-form-input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
+                Event Coordinator Email
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} color="#A78BFA" style={{ position: 'absolute', left: '14px', top: '15px' }} />
                 <input
                   type="text"
                   autoComplete="username"
@@ -1029,110 +1002,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
                 <>
                   <Lock size={16} />
                   <span>Access {eventDept} Event Operations ({activeSelectedEvent?.title?.slice(0, 24)}...)</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
-        )}
-
-        {/* ==================================================================== */}
-        {/* TAB 4: OPS & FINANCE (PAYMENT AUDIT & QR VOLUNTEER STAFF)            */}
-        {/* ==================================================================== */}
-        {activeTab === 'ops' && (
-          <form onSubmit={handleOpsSubmit} className="admin-tab-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div
-              style={{
-                padding: '14px 16px',
-                borderRadius: '14px',
-                background: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.28)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}
-            >
-              <CreditCard size={24} color="#34D399" style={{ flexShrink: 0 }} />
-              <div>
-                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  Operational Staff • Accounts & Gate Entry Crew
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#CBD5E1', marginTop: '2px', lineHeight: 1.4 }}>
-                  <strong>Finance Reviewer:</strong> Audit transaction proofs and revenue records. <br />
-                  <strong>Volunteer Gate Crew:</strong> Rapid ticket scan, QR validation, and participant entry.
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Operational Staff Email
-              </label>
-              <div style={{ position: 'relative' }}>
-                <User size={16} color="#34D399" style={{ position: 'absolute', left: '14px', top: '15px' }} />
-                <input
-                  type="text"
-                  autoComplete="username"
-                  value={opsEmail}
-                  onChange={e => setOpsEmail(e.target.value)}
-                  placeholder="Enter staff email or username"
-                  className="admin-form-input"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}>
-                Staff Access Passcode
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Key size={16} color="#34D399" style={{ position: 'absolute', left: '14px', top: '15px' }} />
-                <input
-                  type={showOpsPassword ? 'text' : 'password'}
-                  value={opsPassword}
-                  onChange={e => setOpsPassword(e.target.value)}
-                  placeholder="Enter staff security passcode"
-                  required
-                  className="admin-form-input"
-                  style={{ paddingRight: '42px' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowOpsPassword(!showOpsPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '13px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#94A3B8',
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
-                  title={showOpsPassword ? 'Hide passcode' : 'Show passcode'}
-                >
-                  {showOpsPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="admin-btn admin-btn-emerald"
-              style={{
-                padding: '14px',
-                fontSize: '0.94rem',
-                width: '100%',
-                marginTop: '4px'
-              }}
-            >
-              {loading ? (
-                <span>Verifying Operational Credentials...</span>
-              ) : (
-                <>
-                  <Lock size={16} />
-                  <span>Enter Operational Terminal</span>
                   <ArrowRight size={16} />
                 </>
               )}

@@ -240,3 +240,4 @@ export const RefundPolicyPage: React.FC<RefundPolicyPageProps> = ({
     </div>
   );
 };
+

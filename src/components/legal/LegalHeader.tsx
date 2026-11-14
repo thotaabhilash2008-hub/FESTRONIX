@@ -168,3 +168,4 @@ export const LegalHeader: React.FC<LegalHeaderProps> = ({
     </header>
   );
 };
+

@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { AdminAuthService, AdminUser, isDepartmentAdminRole, isSuperAdminRole } from '../../services/adminAuthService';
 import { AdminLoginView } from './AdminLoginView';
 import { DeanDashboard } from './DeanDashboard';
-import { FinanceReviewerDashboard } from './FinanceReviewerDashboard';
-import { VolunteerCheckinDashboard } from './VolunteerCheckinDashboard';
 import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
 import { GlitterBackground } from '../GlitterBackground';
 import './admin.css';
@@ -126,18 +124,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
           />
         ) : isSuperAdminRole(adminUser.role) ? (
           <DeanDashboard
-            adminUser={adminUser}
-            onLogout={handleLogout}
-            onSwitchToFest={onBackToFest}
-          />
-        ) : adminUser.role === 'finance_reviewer' ? (
-          <FinanceReviewerDashboard
-            adminUser={adminUser}
-            onLogout={handleLogout}
-            onSwitchToFest={onBackToFest}
-          />
-        ) : adminUser.role === 'volunteer_checkin' || adminUser.role === 'checkin_staff' ? (
-          <VolunteerCheckinDashboard
             adminUser={adminUser}
             onLogout={handleLogout}
             onSwitchToFest={onBackToFest}

@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { StorageService } from './storageService';
 
 export type AdminRole =
   | 'super_admin'
@@ -88,31 +89,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: 'Fest-wide administration'
   },
 
-  // 3. Operational Roles (Finance Reviewer & Volunteer Gate Staff)
-  {
-    id: 'd16b71c5-b45b-47f4-a40b-e832b3cde5ab',
-    username: 'finance_reviewer',
-    fullName: 'VCE Accounts & Finance Desk',
-    designation: 'Central Payment Review Officer, FESTRONIX',
-    role: 'finance_reviewer',
-    email: 'accounts.fest@vardhaman.org',
-    phone: '+91 98480 55001',
-    accessBoundary: 'Payment data needed for assigned duties'
-  },
-  {
-    id: '20e681b2-a606-47cd-a819-7ae93fbf32ae',
-    username: 'volunteer_staff',
-    fullName: 'SAC Student Volunteer Crew',
-    designation: 'Gate Entry & Ticketing Volunteer',
-    role: 'volunteer_checkin',
-    email: 'volunteers.fest@vardhaman.org',
-    phone: '+91 98480 66001',
-    accessBoundary: 'Limited check-in access'
-  },
+  // 3. Operational Roles
   {
     id: '08704ea9-311d-4981-9586-f382c1c80856',
     username: 'event_coord',
-    fullName: 'Event Operations Team',
+    fullName: 'Event Operations Coordinator',
     designation: 'Lead Event Coordinator',
     role: 'event_coordinator',
     departmentCode: 'CSE',
@@ -375,12 +356,6 @@ const USER_ALIAS_MAP: Record<string, string> = {
   'mba': 'mba.festronix@vardhaman.org',
 
   // Operations
-  'finance': 'accounts.fest@vardhaman.org',
-  'finance_reviewer': 'accounts.fest@vardhaman.org',
-  'accounts': 'accounts.fest@vardhaman.org',
-  'volunteer': 'volunteers.fest@vardhaman.org',
-  'volunteer_staff': 'volunteers.fest@vardhaman.org',
-  'volunteers': 'volunteers.fest@vardhaman.org',
   'event_coord': 'eventcoord.fest@vardhaman.org',
   'eventcoord': 'eventcoord.fest@vardhaman.org'
 };
@@ -792,19 +767,38 @@ export class AdminAuthService {
       checkPresetPassword(targetEmail, cleanPass);
 
     if (isMatch) {
-      const preset = findPresetAdmin(targetEmail) || PRESET_ADMINS.find(a => a.departmentCode === effectiveDeptCode);
+      let matchedEvt: any = undefined;
+      try {
+        const evts = StorageService.getEvents();
+        matchedEvt = evts.find(e => e.id === eventId || e.slug === eventId);
+      } catch {
+        // Fallback if StorageService isn't available
+      }
+
+      let resolvedName = coordinatorName?.trim();
+      if (!resolvedName && matchedEvt?.coordinatorName) {
+        resolvedName = matchedEvt.coordinatorName.trim();
+      }
+      if (!resolvedName && rawEmail && !rawEmail.startsWith('event.') && !rawEmail.startsWith('eventcoord')) {
+        const prefix = rawEmail.split('@')[0];
+        resolvedName = prefix.replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      }
+      if (!resolvedName) {
+        resolvedName = matchedEvt?.title ? `${matchedEvt.title} Coordinator` : `Event Coordinator (${cleanDept})`;
+      }
+
       const user: AdminUser = {
         id: `event_coord_${eventId || effectiveDeptCode.toLowerCase()}_${Date.now()}`,
         username: `eventcoord_${effectiveDeptCode.toLowerCase()}`,
-        fullName: coordinatorName || preset?.fullName || `Event Coordinator (${cleanDept})`,
-        designation: `Event Operations Coordinator (${cleanDept})`,
+        fullName: resolvedName,
+        designation: matchedEvt?.title ? `Event Coordinator • ${matchedEvt.title}` : `Event Operations Coordinator (${cleanDept})`,
         role: 'event_coordinator',
         departmentCode: effectiveDeptCode,
         departmentName: effectiveDeptCode,
         email: targetEmail,
-        phone: preset?.phone || '+91 98480 33001',
-        accessBoundary: 'Assigned event operations and participant management',
-        assignedEvents: eventId ? [eventId] : ['evt-1', 'evt-2']
+        phone: matchedEvt?.coordinatorPhone || '+91 98480 33001',
+        accessBoundary: matchedEvt?.title ? `Assigned event: ${matchedEvt.title}` : 'Assigned event operations and participant management',
+        assignedEvents: eventId ? [eventId] : (matchedEvt ? [matchedEvt.id] : ['evt-1', 'evt-2'])
       };
 
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));

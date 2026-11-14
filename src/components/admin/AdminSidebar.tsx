@@ -26,7 +26,6 @@ export type AdminNavTab =
   | 'payments'
   | 'events'
   | 'coordinators'
-  | 'checkin'
   | 'roster'
   | 'bulletins'
   | 'reports'
@@ -65,7 +64,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       badge: totalEventsCount > 0 ? totalEventsCount : undefined
     },
     { id: 'coordinators' as AdminNavTab, label: 'Event Coordinators', icon: Users },
-    { id: 'checkin' as AdminNavTab, label: 'Gate Check-in', icon: QrCode },
     { id: 'roster' as AdminNavTab, label: 'Participants', icon: Layers },
     { id: 'bulletins' as AdminNavTab, label: 'Campus Bulletins', icon: Bell },
     { id: 'reports' as AdminNavTab, label: 'Analytics & Reports', icon: BarChart3 },

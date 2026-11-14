@@ -207,3 +207,4 @@ export const TermsAndConditionsPage: React.FC<TermsAndConditionsPageProps> = ({
     </div>
   );
 };
+

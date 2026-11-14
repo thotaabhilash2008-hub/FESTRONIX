@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Building2, Users, IndianRupee, Layers, CheckCircle2, Clock, Search,
   Download, Plus, Edit3, Trash2, ArrowRight, LogOut, Globe, QrCode,
@@ -49,7 +49,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     )
   );
 
-  type ManagedStaffRole = 'event_coordinator' | 'finance_reviewer' | 'volunteer_checkin' | 'checkin_staff';
+  type ManagedStaffRole = 'event_coordinator';
   type ManagedStaffForm = {
     fullName: string;
     username: string;
@@ -61,10 +61,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     assignedEvents: string[];
   };
   const managedStaffRoles = new Set<ManagedStaffRole>([
-    'event_coordinator',
-    'finance_reviewer',
-    'volunteer_checkin',
-    'checkin_staff'
+    'event_coordinator'
   ]);
   const createEmptyStaffForm = (): ManagedStaffForm => ({
     fullName: '',
@@ -141,14 +138,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [checkInScannerError, setCheckInScannerError] = useState('');
   const checkInVideoRef = useRef<HTMLVideoElement>(null);
   const checkInStreamRef = useRef<MediaStream | null>(null);
-
-  const [volunteerFormOpen, setVolunteerFormOpen] = useState(false);
-  const [volunteerEventId, setVolunteerEventId] = useState('');
-  const [volunteerName, setVolunteerName] = useState('');
-  const [volunteerEmail, setVolunteerEmail] = useState('');
-  const [volunteerUsername, setVolunteerUsername] = useState('');
-  const [volunteerPassword, setVolunteerPassword] = useState('');
-  const [volunteerError, setVolunteerError] = useState('');
 
   // Search Filter in Roster
   const [rosterSearch, setRosterSearch] = useState('');
@@ -665,41 +654,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     };
   }, [checkInScannerOpen, registrations]);
 
-  const openVolunteerForm = (eventId: string) => {
-    const event = visibleEvents.find(item => item.id === eventId);
-    setVolunteerEventId(eventId);
-    setVolunteerName('');
-    setVolunteerEmail('');
-    setVolunteerUsername('');
-    setVolunteerPassword('');
-    setVolunteerError('');
-    setVolunteerFormOpen(true);
-  };
-
-  const handleAssignVolunteer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const event = visibleEvents.find(item => item.id === volunteerEventId);
-    if (!event || !volunteerName.trim() || !volunteerEmail.trim() || !volunteerUsername.trim()) return;
-    try {
-      await AdminAuthService.addCoordinator({
-        username: volunteerUsername.trim().toLowerCase(),
-        fullName: volunteerName.trim(),
-        email: volunteerEmail.trim().toLowerCase(),
-        phone: '',
-        role: 'volunteer_checkin',
-        designation: `Gate Volunteer — ${event.title}`,
-        departmentCode: deptCode,
-        departmentName: deptInfo?.name,
-        accessBoundary: `Gate check-in access for ${event.title} only`,
-        assignedEvents: [event.id],
-        password: volunteerPassword
-      });
-      setVolunteerFormOpen(false);
-    } catch (error) {
-      setVolunteerError((error as Error).message || 'Unable to assign gate volunteer.');
-    }
-  };
-
   // 1-Click Check-in directly from the roster table
   const handleQuickCheckInFromRoster = async (reg: Registration) => {
     const res = await StorageService.checkInRegistration(reg.id, adminUser.fullName);
@@ -876,7 +830,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     event.preventDefault();
     setStaffError('');
     setStaffMessage('');
-    const assignedEvents = staffForm.role === 'finance_reviewer' ? [] : staffForm.assignedEvents;
+    const assignedEvents = staffForm.assignedEvents;
     if (!staffForm.fullName.trim() || !staffForm.username.trim() || !staffForm.email.trim() || !staffForm.designation.trim()) {
       setStaffError('Name, username, designation, and email are required.');
       return;
@@ -885,8 +839,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       setStaffError('The initial password must be at least 12 characters.');
       return;
     }
-    if ((staffForm.role === 'event_coordinator' || staffForm.role === 'volunteer_checkin' || staffForm.role === 'checkin_staff') && assignedEvents.length === 0) {
-      setStaffError('Select at least one department event for this staff account.');
+    if (assignedEvents.length === 0) {
+      setStaffError('Select at least one department event for this coordinator account.');
       return;
     }
 
@@ -1610,18 +1564,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 )}
               </div>
 
-              {isEventCoord && visibleEvents.length > 0 && (
-                <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.22)' }}>
-                  <div style={{ color: '#A8B3C2', fontSize: '0.75rem', marginBottom: '8px' }}>Assign a gate volunteer to one assigned event</div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <select value={volunteerEventId || visibleEvents[0].id} onChange={e => setVolunteerEventId(e.target.value)} style={{ flex: 1, minWidth: '220px', padding: '9px', borderRadius: '8px', background: '#101A35', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }}>
-                      {visibleEvents.map(event => <option key={event.id} value={event.id}>{event.title}</option>)}
-                    </select>
-                    <button type="button" onClick={() => openVolunteerForm(volunteerEventId || visibleEvents[0].id)} className="admin-btn admin-btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 12px' }}><UserPlus size={15} /> Assign volunteer</button>
-                  </div>
-                </div>
-              )}
-
               {checkInScannerOpen ? (
                 <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', background: '#020617', minHeight: '250px', marginBottom: '16px' }}>
                   <video ref={checkInVideoRef} muted playsInline style={{ width: '100%', minHeight: '250px', display: 'block', objectFit: 'cover' }} />
@@ -1912,11 +1854,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
                   Login role *
-                  <select value={staffForm.role} onChange={event => setStaffForm({ ...staffForm, role: event.target.value as ManagedStaffRole, assignedEvents: event.target.value === 'finance_reviewer' ? [] : staffForm.assignedEvents })} style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }}>
+                  <select value={staffForm.role} onChange={event => setStaffForm({ ...staffForm, role: event.target.value as ManagedStaffRole })} style={{ display: 'block', width: '100%', marginTop: '5px', boxSizing: 'border-box', padding: '10px 11px', borderRadius: '8px', border: '1px solid rgba(148,163,184,0.35)', background: '#0B1020', color: '#FFFFFF' }}>
                     <option value="event_coordinator">Event Coordinator</option>
-                    <option value="finance_reviewer">Payment Reviewer</option>
-                    <option value="volunteer_checkin">Gate Check-in Volunteer</option>
-                    <option value="checkin_staff">Gate Check-in Staff</option>
                   </select>
                 </label>
                 <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
@@ -1944,23 +1883,21 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div style={{ border: '1px solid rgba(148,163,184,0.22)', borderRadius: '10px', padding: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
                   <div>
-                    <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.84rem' }}>Event access</div>
-                    <div style={{ color: '#94A3B8', fontSize: '0.72rem' }}>{staffForm.role === 'finance_reviewer' ? 'Payment reviewers can review all payment records for this department.' : 'Only events belonging to this department are listed.'}</div>
+                    <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.84rem' }}>Assigned Event Access</div>
+                    <div style={{ color: '#94A3B8', fontSize: '0.72rem' }}>Only events belonging to this department are listed.</div>
                   </div>
-                  {staffForm.role !== 'finance_reviewer' && <span style={{ color: '#38BDF8', fontSize: '0.72rem', fontWeight: 700 }}>{staffForm.assignedEvents.length} selected</span>}
+                  <span style={{ color: '#38BDF8', fontSize: '0.72rem', fontWeight: 700 }}>{staffForm.assignedEvents.length} selected</span>
                 </div>
-                {staffForm.role !== 'finance_reviewer' ? (
-                  events.length > 0 ? (
-                    <div style={{ display: 'grid', gap: '7px', maxHeight: '170px', overflowY: 'auto' }}>
-                      {events.map(eventItem => (
-                        <label key={eventItem.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#CBD5E1', fontSize: '0.78rem' }}>
-                          <input type="checkbox" checked={staffForm.assignedEvents.includes(eventItem.id)} onChange={change => setStaffForm({ ...staffForm, assignedEvents: change.target.checked ? [...staffForm.assignedEvents, eventItem.id] : staffForm.assignedEvents.filter(id => id !== eventItem.id) })} />
-                          <span>{eventItem.title}</span>
-                        </label>
-                      ))}
-                    </div>
-                  ) : <div style={{ color: '#FBBF24', fontSize: '0.78rem' }}>Create a department event before assigning event staff.</div>
-                ) : <div style={{ color: '#A7F3D0', fontSize: '0.78rem' }}>Department-wide payment review scope. No event assignment is required.</div>}
+                {events.length > 0 ? (
+                  <div style={{ display: 'grid', gap: '7px', maxHeight: '170px', overflowY: 'auto' }}>
+                    {events.map(eventItem => (
+                      <label key={eventItem.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#CBD5E1', fontSize: '0.78rem' }}>
+                        <input type="checkbox" checked={staffForm.assignedEvents.includes(eventItem.id)} onChange={change => setStaffForm({ ...staffForm, assignedEvents: change.target.checked ? [...staffForm.assignedEvents, eventItem.id] : staffForm.assignedEvents.filter(id => id !== eventItem.id) })} />
+                        <span>{eventItem.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : <div style={{ color: '#FBBF24', fontSize: '0.78rem' }}>Create a department event before assigning event coordinators.</div>}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '9px', marginTop: '4px' }}>
@@ -3034,24 +2971,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-      {volunteerFormOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)', display: 'grid', placeItems: 'center', padding: '20px' }}>
-          <form onSubmit={handleAssignVolunteer} style={{ width: 'min(520px, 100%)', background: '#101A35', border: '1px solid rgba(56,189,248,0.35)', borderRadius: '16px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h3 style={{ color: '#FFFFFF', margin: 0 }}>Assign Gate Volunteer</h3>
-            <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: 0 }}>This account will be restricted to gate check-in for <strong style={{ color: '#BACEBB' }}>{visibleEvents.find(event => event.id === volunteerEventId)?.title}</strong> only.</p>
-            <input required value={volunteerName} onChange={e => setVolunteerName(e.target.value)} placeholder="Volunteer full name" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
-            <input required type="email" value={volunteerEmail} onChange={e => setVolunteerEmail(e.target.value)} placeholder="Volunteer email" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
-            <input required value={volunteerUsername} onChange={e => setVolunteerUsername(e.target.value)} placeholder="Portal username" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
-            <input required minLength={12} value={volunteerPassword} onChange={e => setVolunteerPassword(e.target.value)} placeholder="Initial password (12+ characters)" style={{ padding: '10px', borderRadius: '8px', background: '#080C16', border: '1px solid rgba(220,227,229,0.2)', color: '#FFFFFF' }} />
-            {volunteerError && <div style={{ color: '#FCA5A5', fontSize: '0.78rem' }}>{volunteerError}</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '5px' }}>
-              <button type="button" onClick={() => setVolunteerFormOpen(false)} className="admin-btn admin-btn-ghost">Cancel</button>
-              <button type="submit" className="btn-cyber-primary" style={{ padding: '9px 14px' }}>Create event volunteer</button>
-            </div>
-          </form>
         </div>
       )}
 

@@ -83,28 +83,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         iconBg: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #789593 100%)'
       };
     }
-    if (role === 'finance_reviewer') {
-      return {
-        title: titleOverride || 'CENTRAL FINANCE & PAYMENT AUDIT CONSOLE',
-        badge: badgeOverride || '💳 FINANCE REVIEW OFFICER',
-        badgeBg: 'rgba(16, 185, 129, 0.15)',
-        badgeBorder: 'rgba(16, 185, 129, 0.45)',
-        badgeColor: '#34D399',
-        icon: CreditCard,
-        iconBg: 'linear-gradient(135deg, #065F46 0%, #059669 50%, #10B981 100%)'
-      };
-    }
-    if (role === 'volunteer_checkin') {
-      return {
-        title: titleOverride || 'GATE ENTRY & PASS CHECK-IN CONSOLE',
-        badge: badgeOverride || '🎟️ VOLUNTEER GATE CREW',
-        badgeBg: 'rgba(168, 85, 247, 0.15)',
-        badgeBorder: 'rgba(168, 85, 247, 0.45)',
-        badgeColor: '#C084FC',
-        icon: QrCode,
-        iconBg: 'linear-gradient(135deg, #6B21A8 0%, #9333EA 50%, #A855F7 100%)'
-      };
-    }
     if (role === 'event_coordinator') {
       return {
         title: titleOverride || `${adminUser.departmentCode || 'EVENT'} OPERATIONS & COORDINATOR DESK`,

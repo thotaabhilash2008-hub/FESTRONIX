@@ -720,9 +720,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       return;
     }
 
-    const deptName = coordRole === 'finance_reviewer'
-      ? 'Central Accounts & Finance Desk'
-      : (departments.find(d => d.code === coordDeptCode)?.name || coordDeptCode);
+    const deptName = departments.find(d => d.code === coordDeptCode)?.name || coordDeptCode;
 
     setCoordSubmitting(true);
     try {
@@ -732,17 +730,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         fullName: coordFullName.trim(),
         designation: coordDesignation.trim(),
         role: coordRole,
-        departmentCode: coordRole === 'finance_reviewer' ? 'FINANCE' : coordDeptCode,
+        departmentCode: coordDeptCode,
         departmentName: deptName,
         email: normalizedEmail,
         phone: coordPhone.trim(),
         assignedEvents: supportsEventAssignments(coordRole) ? coordAssignedEvents : [],
-        accessBoundary: coordRole === 'finance_reviewer'
-          ? 'Payment data needed for assigned duties'
-          : (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
+        accessBoundary: (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
           ? "Their department's events"
-          : (coordRole === 'volunteer_checkin' || coordRole === 'checkin_staff')
-          ? 'Limited check-in access'
           : 'Assigned event(s) only unless separately authorised'
       });
 
@@ -809,9 +803,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       return;
     }
 
-    const deptName = editCoordRole === 'finance_reviewer'
-      ? 'Central Accounts & Finance Desk'
-      : (departments.find(d => d.code === editCoordDeptCode)?.name || editCoordDeptCode);
+    const deptName = departments.find(d => d.code === editCoordDeptCode)?.name || editCoordDeptCode;
 
     setCoordSubmitting(true);
     try {
@@ -821,17 +813,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         ...(editCoordPassword.trim() ? { password: editCoordPassword.trim() } : {}),
         designation: editCoordDesignation.trim(),
         role: editCoordRole,
-        departmentCode: editCoordRole === 'finance_reviewer' ? 'FINANCE' : editCoordDeptCode,
+        departmentCode: editCoordDeptCode,
         departmentName: deptName,
         email: editCoordEmail.trim(),
         phone: editCoordPhone.trim(),
         assignedEvents: supportsEventAssignments(editCoordRole) ? editCoordAssignedEvents : [],
-        accessBoundary: editCoordRole === 'finance_reviewer'
-          ? 'Payment data needed for assigned duties'
-          : (editCoordRole === 'dept_chief_coordinator' || editCoordRole === 'dept_coordinator')
+        accessBoundary: (editCoordRole === 'dept_chief_coordinator' || editCoordRole === 'dept_coordinator')
           ? "Their department's events"
-          : (editCoordRole === 'volunteer_checkin' || editCoordRole === 'checkin_staff')
-          ? 'Limited check-in access'
           : 'Assigned event(s) only unless separately authorised'
       });
 
@@ -1065,13 +1053,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     
     const matchDept = coordDeptFilter === 'all' || 
       (c.departmentCode && c.departmentCode.toUpperCase() === coordDeptFilter.toUpperCase()) ||
-      (coordDeptFilter === 'SAC' && (!c.departmentCode || c.departmentCode === 'SAC' || c.departmentCode === 'FINANCE'));
+      (coordDeptFilter === 'SAC' && (!c.departmentCode || c.departmentCode === 'SAC'));
 
     const matchRole = coordRoleFilter === 'all' ||
       (coordRoleFilter === 'dept_coordinator' && (c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator')) ||
       (coordRoleFilter === 'faculty_coord' && supportsEventAssignments(c.role)) ||
-      (coordRoleFilter === 'volunteer_checkin' && (c.role === 'volunteer_checkin' || c.role === 'checkin_staff')) ||
-      (coordRoleFilter !== 'dept_coordinator' && coordRoleFilter !== 'dept_chief_coordinator' && coordRoleFilter !== 'faculty_coord' && coordRoleFilter !== 'volunteer_checkin' && c.role === coordRoleFilter);
+      (coordRoleFilter !== 'dept_coordinator' && coordRoleFilter !== 'dept_chief_coordinator' && coordRoleFilter !== 'faculty_coord' && c.role === coordRoleFilter);
 
     return matchSearch && matchDept && matchRole;
   });
@@ -1704,239 +1691,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 ← All events
               </button>
             </div>
-            {/* Payment Reviewer Operations Desk Banner */}
-            <div
-              style={{
-                background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(40, 59, 120, 0.45) 100%)',
-                border: '1px solid rgba(52, 211, 153, 0.35)',
-                borderRadius: '14px',
-                padding: '16px 20px',
-                marginBottom: '20px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '14px',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.1rem' }}>💳</span>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#FFFFFF' }}>
-                    Payment Reviewer Operations Desk
-                  </span>
-                  <span style={{ fontSize: '0.72rem', background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                    {coordinators.filter(c => c.role === 'finance_reviewer').length} Active Reviewer(s)
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.76rem', color: '#BACEBB', marginTop: '4px' }}>
-                  Super Admin can create, edit, or revoke Finance Reviewers. Reviewers log in via <em>Operational Staff</em> tab to verify student UTRs.
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => {
-                    setCoordRole('finance_reviewer');
-                    setCoordDeptCode('SAC');
-                    setCoordFullName('');
-                    setCoordDesignation('Central Payment Review Officer');
-                    setCoordEmail('');
-                    setCoordPhone('+91 98480 55001');
-                    setCoordUsername('');
-                    setCoordPassword('');
-                    setCoordAssignedEvents([]);
-                    setCoordFormError('');
-                    setIsAddCoordinatorOpen(true);
-                  }}
-                  className="btn-cyber-primary"
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <Plus size={15} />
-                  <span>+ Appoint Payment Reviewer</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setCoordRoleFilter('finance_reviewer');
-                    setActiveTab('coordinators');
-                  }}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(220, 227, 229, 0.25)',
-                    borderRadius: '8px',
-                    padding: '8px 14px',
-                    color: '#DCE3E5',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Manage in Staff Tab
-                </button>
-              </div>
-            </div>
-
-            {/* Active Payment Reviewers Operations Panel */}
-            <div
-              style={{
-                marginBottom: '20px',
-                background: 'rgba(20, 31, 62, 0.75)',
-                border: '1px solid rgba(52, 211, 153, 0.3)',
-                borderRadius: '12px',
-                padding: '16px 18px',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                <div>
-                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#FFFFFF', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ShieldCheck size={16} color="#34D399" />
-                    <span>Payment Verification Staff Roster ({coordinators.filter(c => c.role === 'finance_reviewer').length})</span>
-                  </h4>
-                  <p style={{ fontSize: '0.74rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                    Staff assigned to review student transaction screenshots, verify UTRs, and approve passes.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setCoordRole('finance_reviewer');
-                    setCoordDeptCode('FINANCE');
-                    setCoordFullName('');
-                    setCoordDesignation('Central Payment Review Officer');
-                    setCoordEmail('');
-                    setCoordPhone('+91 98480 55001');
-                    setCoordUsername('');
-                    setCoordPassword('');
-                    setIsAddCoordinatorOpen(true);
-                  }}
-                  className="btn-cyber-primary"
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '0.76rem',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <Plus size={14} />
-                  <span>+ Create Payment User</span>
-                </button>
-              </div>
-
-              {coordinators.filter(c => c.role === 'finance_reviewer').length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '16px', color: '#A8B3C2', fontSize: '0.8rem' }}>
-                  No payment users appointed yet. Click "+ Create Payment User" to add one.
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '12px' }}>
-                  {coordinators.filter(c => c.role === 'finance_reviewer').map(reviewer => (
-                    <div
-                      key={reviewer.id}
-                      style={{
-                        background: 'rgba(16, 26, 53, 0.9)',
-                        border: '1px solid rgba(52, 211, 153, 0.25)',
-                        borderRadius: '10px',
-                        padding: '12px 14px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                          <div>
-                            <strong style={{ fontSize: '0.88rem', color: '#FFFFFF', display: 'block' }}>{reviewer.fullName}</strong>
-                            <span style={{ fontSize: '0.72rem', color: '#34D399' }}>{reviewer.designation}</span>
-                          </div>
-                          <span
-                            style={{
-                              fontSize: '0.65rem',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              background: 'rgba(52, 211, 153, 0.15)',
-                              border: '1px solid rgba(52, 211, 153, 0.35)',
-                              color: '#34D399',
-                              fontWeight: 700
-                            }}
-                          >
-                            FINANCE
-                          </span>
-                        </div>
-
-                        <div style={{ fontSize: '0.74rem', color: '#DCE3E5', display: 'flex', flexDirection: 'column', gap: '4px', margin: '8px 0', background: 'rgba(20, 31, 62, 0.7)', padding: '8px 10px', borderRadius: '6px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#A8B3C2' }}>Username:</span>
-                            <code style={{ color: '#FFFFFF', fontWeight: 700 }}>{reviewer.username}</code>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#A8B3C2' }}>Authentication:</span>
-                            <code style={{ color: '#34D399', fontWeight: 700 }}>Backend managed</code>
-                          </div>
-                          {reviewer.email && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#A8B3C2' }}>Email:</span>
-                              <span style={{ color: '#DCE3E5', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '170px' }}>{reviewer.email}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', paddingTop: '8px', borderTop: '1px solid rgba(220, 227, 229, 0.1)' }}>
-                        <button
-                          onClick={() => handleOpenEditCoordinator(reviewer)}
-                          style={{
-                            background: 'rgba(59, 130, 246, 0.15)',
-                            border: '1px solid rgba(59, 130, 246, 0.35)',
-                            borderRadius: '6px',
-                            color: '#60A5FA',
-                            padding: '4px 10px',
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <Edit3 size={11} /> Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCoordinator(reviewer.id, reviewer.fullName, 'Payment Reviewer')}
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.15)',
-                            border: '1px solid rgba(239, 68, 68, 0.35)',
-                            borderRadius: '6px',
-                            color: '#f87171',
-                            padding: '4px 10px',
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <Trash2 size={11} /> Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
@@ -2315,66 +2069,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           </div>
         )}
 
-        {/* TAB: LIVE GATE CHECK-IN */}
-        {activeTab === 'checkin' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h3 className="font-title" style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0 }}>Live Gate Check-in</h3>
-              <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: '4px 0 0' }}>Scan a participant ticket or search the live registration database before granting entry.</p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, 0.85fr)', gap: '16px', alignItems: 'start' }}>
-              <div style={{ background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(56, 189, 248, 0.28)', borderRadius: '14px', padding: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
-                  <QrCode size={19} color="#38BDF8" />
-                  <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem' }}>Ticket scanner</h4>
-                </div>
-                <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: '0 0 14px' }}>Use the camera to scan the QR code printed on the participant’s pass.</p>
-                {gateScannerOpen ? (
-                  <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '10px', background: '#020617', minHeight: '250px' }}>
-                    <video ref={gateVideoRef} muted playsInline style={{ width: '100%', display: 'block', minHeight: '250px', objectFit: 'cover' }} />
-                    <div style={{ position: 'absolute', inset: '22% 16%', border: '2px solid #38BDF8', borderRadius: '14px', boxShadow: '0 0 0 999px rgba(2, 6, 23, 0.35)' }} />
-                    <button type="button" onClick={() => setGateScannerOpen(false)} style={{ position: 'absolute', right: '10px', top: '10px', padding: '7px 10px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(2,6,23,0.75)', color: '#FFFFFF', cursor: 'pointer' }}><StopCircle size={14} /></button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => { setGateScannerError(''); setGateScannerOpen(true); }} className="admin-btn admin-btn-primary" style={{ width: '100%', padding: '12px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Camera size={17} /> Open camera scanner
-                  </button>
-                )}
-                {gateScannerError && <div style={{ marginTop: '12px', color: '#FCA5A5', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid rgba(248, 113, 113, 0.35)', borderRadius: '8px', padding: '9px 11px', fontSize: '0.76rem' }}>{gateScannerError}</div>}
-              </div>
-
-              <div style={{ background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(220, 227, 229, 0.16)', borderRadius: '14px', padding: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
-                  <Search size={18} color="#BACEBB" />
-                  <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem' }}>Manual check-in</h4>
-                </div>
-                <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: '0 0 14px' }}>Search by registration ID, QR token, roll number, email, or team code.</p>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input value={gateQuery} onChange={e => setGateQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleGateLookup()} placeholder="FEST-2026-… or roll no." style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: '8px', background: 'rgba(8, 12, 22, 0.8)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }} />
-                  <button type="button" onClick={handleGateLookup} className="admin-btn admin-btn-primary" style={{ padding: '10px 13px' }}>Find</button>
-                </div>
-                {gateMatch && (
-                  <div style={{ marginTop: '16px', padding: '14px', borderRadius: '10px', border: `1px solid ${gateMatch.checkedIn ? 'rgba(52, 211, 153, 0.4)' : 'rgba(56, 189, 248, 0.35)'}`, background: 'rgba(8, 12, 22, 0.45)' }}>
-                    <div style={{ color: '#FFFFFF', fontWeight: 800 }}>{gateMatch.leaderName}</div>
-                    <div style={{ color: '#94A3B8', fontSize: '0.75rem', marginTop: '4px' }}>{gateMatch.eventTitle} • {gateMatch.leaderRoll}</div>
-                    <div style={{ color: '#BACEBB', fontSize: '0.75rem', marginTop: '4px' }}>{gateMatch.id}</div>
-                    <button type="button" onClick={() => handleToggleCheckIn(gateMatch.id)} className="admin-btn admin-btn-primary" style={{ marginTop: '13px', width: '100%', justifyContent: 'center', display: 'flex', gap: '7px', padding: '10px' }}>
-                      {gateMatch.checkedIn ? <Clock size={15} /> : <CheckCircle2 size={15} />}
-                      {gateMatch.checkedIn ? 'Revert check-in' : 'Confirm manual check-in'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div style={{ marginTop: '18px', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '15px 18px', borderRadius: '12px', background: 'rgba(20, 31, 62, 0.7)', border: '1px solid rgba(220, 227, 229, 0.14)' }}>
-              <span style={{ color: '#A8B3C2', fontSize: '0.8rem' }}>Live attendance</span>
-              <strong style={{ color: '#34D399', fontSize: '0.85rem' }}>{stats.checkedInCount} of {stats.totalRegistrations} participants checked in</strong>
-            </div>
-          </div>
-        )}
-
         {/* TAB 3: FEST EVENTS MASTER DIRECTORY */}
         {activeTab === 'events' && (
           <div>
@@ -2697,36 +2391,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </p>
               </div>
 
-              {/* Dedicated Action Buttons for Payment Users, Department Coordinators, and Event Coordinators */}
+              {/* Dedicated Action Buttons for Department Coordinators and Event Coordinators */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <button
-                  onClick={() => {
-                    setCoordRole('finance_reviewer');
-                    setCoordDeptCode('FINANCE');
-                    setCoordFullName('');
-                    setCoordDesignation('Central Payment Review Officer');
-                    setCoordEmail('');
-                    setCoordPhone('+91 98480 55001');
-                    setCoordUsername('');
-                    setCoordPassword('');
-                    setIsAddCoordinatorOpen(true);
-                  }}
-                  className="btn-cyber-primary"
-                  style={{
-                    padding: '8px 14px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)'
-                  }}
-                >
-                  <Plus size={14} />
-                  <span>+ Create Payment User</span>
-                </button>
-
                 <button
                   onClick={() => {
                     const firstDept = departments[0]?.code || 'CSE';
@@ -2794,38 +2460,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                 <button
                   onClick={() => {
-                    setCoordRole('volunteer_checkin');
-                    setCoordDeptCode('SAC');
-                    setCoordFullName('');
-                    setCoordDesignation('Gate Entry & Ticketing Volunteer');
-                    setCoordEmail('');
-                    setCoordPhone('+91 ');
-                    setCoordUsername('');
-                    setCoordPassword('');
-                    setCoordAssignedEvents([]);
-                    setCoordFormError('');
-                    setIsAddCoordinatorOpen(true);
-                  }}
-                  style={{
-                    padding: '8px 14px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #DB2777 0%, #EC4899 100%)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <UserCheck size={14} />
-                  <span>+ Create Gate Volunteer</span>
-                </button>
-
-                <button
-                  onClick={() => {
                     setCoordRole('faculty_coord');
                     setCoordDeptCode(departments[0]?.code || 'CSE');
                     setCoordFullName('');
@@ -2886,10 +2520,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
               {[
                 { id: 'all', label: '👥 All Staff', count: coordinators.length },
-                { id: 'finance_reviewer', label: '💳 Payment Users', count: coordinators.filter(c => c.role === 'finance_reviewer').length },
                 { id: 'dept_coordinator', label: '🏛️ Department Coordinators', count: coordinators.filter(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator').length },
-                { id: 'faculty_coord', label: '🎯 Event Coordinators', count: coordinators.filter(c => c.role === 'faculty_coord' || c.role === 'student_coord' || c.role === 'event_coordinator').length },
-                { id: 'volunteer_checkin', label: '🎟️ Gate Volunteers', count: coordinators.filter(c => c.role === 'volunteer_checkin' || c.role === 'checkin_staff').length }
+                { id: 'faculty_coord', label: '🎯 Event Coordinators', count: coordinators.filter(c => c.role === 'faculty_coord' || c.role === 'student_coord' || c.role === 'event_coordinator').length }
               ].map(pill => {
                 const isSelected = coordRoleFilter === pill.id;
                 return (
@@ -2970,7 +2602,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   <option key={d.code} value={d.code}>{d.code} — {d.name}</option>
                 ))}
                 <option value="SAC">SAC Central</option>
-                <option value="FINANCE">Finance Desk</option>
               </select>
 
               <select
@@ -2987,12 +2618,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               >
                 <option value="all">All Roles</option>
                 <option value="dept_coordinator">Department Coordinator</option>
-                <option value="finance_reviewer">Payment Reviewer (Finance Desk)</option>
                 <option value="faculty_coord">Faculty Event Convener</option>
                 <option value="student_coord">Student Lead Organizer</option>
                 <option value="event_coordinator">Event Operations Coordinator</option>
-                <option value="volunteer_checkin">Volunteer Gate Staff</option>
-                <option value="checkin_staff">Gate Check-in Staff</option>
                 <option value="dean_sac">Dean SAC / Super Admin</option>
               </select>
             </div>
@@ -3000,9 +2628,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             {/* Coordinators Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
               {filteredCoordinators.map(coord => {
-                const isCustom = coord.id.startsWith('coord_') || coord.id.startsWith('reviewer_') || coord.id.startsWith('dept_') || coord.id.startsWith('hod_') || coord.id.startsWith('volunteer_');
+                const isCustom = coord.id.startsWith('coord_') || coord.id.startsWith('dept_') || coord.id.startsWith('hod_');
                 const isSelf = coord.id === adminUser.id;
-                const isFinance = coord.role === 'finance_reviewer';
                 const isDeptCoordinator = coord.role === 'dept_chief_coordinator' || coord.role === 'dept_coordinator';
 
                 return (
@@ -3010,9 +2637,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     key={coord.id}
                     style={{
                       background: 'rgba(20, 31, 62, 0.85)',
-                      border: isFinance 
-                        ? '1px solid rgba(52, 211, 153, 0.35)' 
-                        : isDeptCoordinator
+                      border: isDeptCoordinator
                         ? '1px solid rgba(168, 85, 247, 0.35)' 
                         : '1px solid rgba(220, 227, 229, 0.16)',
                       borderRadius: '16px',
@@ -3038,7 +2663,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               color: '#BACEBB'
                             }}
                           >
-                            {coord.departmentCode || (isFinance ? 'FINANCE' : 'CENTRAL')}
+                            {coord.departmentCode || 'CENTRAL'}
                           </span>
                           <span
                             style={{
@@ -3046,34 +2671,28 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               fontWeight: 700,
                               padding: '3px 8px',
                               borderRadius: '4px',
-                              background: isFinance 
-                                ? 'rgba(52, 211, 153, 0.15)' 
-                                : isDeptCoordinator
+                              background: isDeptCoordinator
                                 ? 'rgba(168, 85, 247, 0.15)' 
                                 : isCustom 
                                 ? 'rgba(52, 211, 153, 0.15)' 
                                 : 'rgba(251, 191, 36, 0.15)',
-                              border: isFinance 
-                                ? '1px solid rgba(52, 211, 153, 0.35)' 
-                                : isDeptCoordinator
+                              border: isDeptCoordinator
                                 ? '1px solid rgba(168, 85, 247, 0.35)' 
                                 : 'none',
-                              color: isFinance 
-                                ? '#34D399' 
-                                : isDeptCoordinator
+                              color: isDeptCoordinator
                                 ? '#C084FC' 
                                 : isCustom 
                                 ? '#34D399' 
                                 : '#FBBF24'
                             }}
                           >
-                            {isFinance ? '💳 PAYMENT REVIEWER' : isDeptCoordinator ? '🏛️ DEPARTMENT COORDINATOR' : coord.role.toUpperCase().replace('_', ' ')}
+                            {isDeptCoordinator ? '🏛️ DEPARTMENT COORDINATOR' : coord.role.toUpperCase().replace('_', ' ')}
                           </span>
                         </div>
 
                         {!isSelf && (
                           <button
-                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isDeptCoordinator ? 'Department Coordinator' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
+                            onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isDeptCoordinator ? 'Department Coordinator' : 'Event Coordinator')}
                             style={{
                               background: 'rgba(239, 68, 68, 0.15)',
                               border: '1px solid rgba(239, 68, 68, 0.35)',
@@ -3099,7 +2718,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 2px' }}>
                         {coord.fullName}
                       </h4>
-                      <p style={{ fontSize: '0.78rem', color: isDeptCoordinator ? '#C084FC' : isFinance ? '#34D399' : '#BACEBB', margin: '0 0 12px' }}>
+                      <p style={{ fontSize: '0.78rem', color: isDeptCoordinator ? '#C084FC' : '#BACEBB', margin: '0 0 12px' }}>
                         {coord.designation}
                       </p>
 
@@ -3224,7 +2843,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
                       {!isSelf && (
                         <button
-                          onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isDeptCoordinator ? 'Department Coordinator' : isFinance ? 'Payment Reviewer' : 'Event Coordinator')}
+                          onClick={() => handleDeleteCoordinator(coord.id, coord.fullName, isDeptCoordinator ? 'Department Coordinator' : 'Event Coordinator')}
                           style={{
                             background: 'rgba(239, 68, 68, 0.15)',
                             border: '1px solid rgba(239, 68, 68, 0.4)',
@@ -5006,23 +4625,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         : coordDeptCode;
                       setCoordRole(newRole);
                       if (requiresDepartment(newRole)) setCoordDeptCode(nextDept);
-                      if (newRole === 'finance_reviewer') {
-                        setCoordDeptCode('SAC');
-                        setCoordDesignation('Central Payment Review Officer');
-                        setCoordEmail('');
-                        setCoordPhone('+91 98480 55001');
-                        setCoordUsername('');
-                        setCoordPassword('');
-                      } else if (newRole === 'dept_chief_coordinator' || newRole === 'dept_coordinator') {
+                      if (newRole === 'dept_chief_coordinator' || newRole === 'dept_coordinator') {
                         const handle = departmentHandle(nextDept);
                         setCoordDesignation(`Department Coordinator (${nextDept})`);
                         setCoordUsername('');
                         setCoordPassword('');
                         setCoordEmail('');
-                      } else if (newRole === 'volunteer_checkin' || newRole === 'checkin_staff') {
-                        setCoordDesignation('Gate Entry & Ticketing Volunteer');
-                        setCoordUsername('');
-                        setCoordPassword('');
                       }
                       if (!supportsEventAssignments(newRole)) setCoordAssignedEvents([]);
                     }}
@@ -5037,11 +4645,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     }}
                   >
                     <option value="dept_coordinator">🏛️ Department Coordinator</option>
-                    <option value="finance_reviewer">💳 Central Payment Reviewer (Finance Desk)</option>
                     <option value="faculty_coord">⚡ Faculty Event Convener</option>
                     <option value="student_coord">🎓 Student Lead Organizer</option>
-                    <option value="volunteer_checkin">🎟️ Gate Check-in & Ticketing Volunteer</option>
-                    <option value="checkin_staff">🎟️ Gate Check-in Staff</option>
                     <option value="event_coordinator">🎯 Event Operations Coordinator</option>
                     <option value="dean_sac">👑 SAC Central Leadership</option>
                   </select>
@@ -5136,7 +4741,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       type="text"
                       value={coordUsername}
                       onChange={e => setCoordUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                      placeholder="e.g. dept_cse or finance_reviewer"
+                      placeholder="e.g. dept_cse or coord_cse_web"
                       required
                       style={{
                         width: '100%',
@@ -5402,11 +5007,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     }}
                   >
                     <option value="dept_coordinator">🏛️ Department Coordinator</option>
-                    <option value="finance_reviewer">💳 Central Payment Reviewer (Finance Desk)</option>
                     <option value="faculty_coord">⚡ Faculty Event Convener</option>
                     <option value="student_coord">🎓 Student Lead Organizer</option>
-                    <option value="volunteer_checkin">🎟️ Gate Check-in & Ticketing Volunteer</option>
-                    <option value="checkin_staff">🎟️ Gate Check-in Staff</option>
                     <option value="event_coordinator">🎯 Event Operations Coordinator</option>
                     <option value="dean_sac">👑 SAC Central Leadership</option>
                   </select>
