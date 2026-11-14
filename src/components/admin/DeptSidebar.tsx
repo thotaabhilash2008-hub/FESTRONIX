@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Building2, Layers, ShieldCheck, Users, QrCode, Clock, Megaphone,
-  FileSpreadsheet, Phone, Globe, LogOut, ChevronRight, Sparkles, KeyRound,
+  Building2, Layers, ShieldCheck, Users, QrCode, Phone, Globe, LogOut, ChevronRight, Sparkles, KeyRound,
   Menu, X
 } from 'lucide-react';
 import { AdminUser } from '../../services/adminAuthService';
@@ -11,9 +10,6 @@ export type DeptDashboardTab =
   | 'readiness'
   | 'roster'
   | 'checkin'
-  | 'payments'
-  | 'announcements'
-  | 'reports'
   | 'coordinators'
   | 'security';
 
@@ -134,26 +130,8 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
       icon: QrCode,
       badge: 'QR',
     },
-    {
-      id: 'payments' as DeptDashboardTab,
-      label: 'Payment Review',
-      icon: Clock,
-      badge: pendingPaymentsCount > 0 ? String(pendingPaymentsCount) : undefined,
-      badgeType: 'danger' as const,
-    },
     ...(isDeptChief
       ? [
-          {
-            id: 'announcements' as DeptDashboardTab,
-            label: 'Campus Bulletins',
-            icon: Megaphone,
-            badge: announcementsCount > 0 ? String(announcementsCount) : undefined,
-          },
-          {
-            id: 'reports' as DeptDashboardTab,
-            label: 'Consolidated Reports',
-            icon: FileSpreadsheet,
-          },
           {
             id: 'coordinators' as DeptDashboardTab,
             label: 'Coordinators Directory',
@@ -297,7 +275,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
                 <span
                   className="admin-sidebar-badge"
                   style={{
-                    ...(item.badgeType === 'danger'
+                    ...((item.badgeType as string) === 'danger'
                       ? { background: '#EF4444', color: '#FFFFFF', boxShadow: '0 0 10px rgba(239, 68, 68, 0.55)' }
                       : item.badgeType === 'success'
                       ? { background: 'rgba(16, 185, 129, 0.25)', color: '#34D399', border: '1px solid rgba(16, 185, 129, 0.5)', boxShadow: '0 0 8px rgba(16, 185, 129, 0.3)' }
