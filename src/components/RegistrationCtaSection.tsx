@@ -168,7 +168,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 }}
               >
                 <Ticket size={17} color="#38BDF8" />
-                <span>Browse Individual Events</span>
+                <span>View All Events</span>
               </button>
             </div>
           </div>

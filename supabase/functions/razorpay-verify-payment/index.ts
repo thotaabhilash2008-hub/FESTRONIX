@@ -13,6 +13,13 @@ const respond = (body: unknown, status = 200) => new Response(JSON.stringify(bod
 
 const clean = (value: unknown) => String(value ?? '').trim();
 
+type RefundResult = {
+  success: boolean;
+  refundId?: string;
+  error?: string;
+  alreadyRefunded?: boolean;
+};
+
 async function createSignature(orderId: string, paymentId: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -30,6 +37,53 @@ function signaturesMatch(left: string, right: string): boolean {
   let difference = 0;
   for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
   return difference === 0;
+}
+
+async function refundCapturedPayment(
+  paymentId: string,
+  orderId: string,
+  amountPaise: number,
+  authHeader: Record<string, string>,
+  alreadyRefunded: boolean
+): Promise<RefundResult> {
+  if (alreadyRefunded) return { success: true, alreadyRefunded: true };
+
+  let response: Response;
+  try {
+    response = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refunds`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: amountPaise,
+        receipt: `duplicate-${orderId}`,
+        notes: {
+          reason: 'duplicate_registration',
+          razorpay_order_id: orderId
+        }
+      })
+    });
+  } catch {
+    return { success: false, error: 'Razorpay refund request could not reach the payment gateway.' };
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body.id) {
+    // A concurrent callback may have completed the refund first. Re-read the
+    // payment resource before marking this attempt as a manual-review case.
+    try {
+      const paymentCheck = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`, { headers: authHeader });
+      const paymentState = await paymentCheck.json().catch(() => ({}));
+      if (paymentCheck.ok && Number(paymentState.amount_refunded || 0) >= amountPaise) {
+        return { success: true, alreadyRefunded: true };
+      }
+    } catch {
+      // Preserve the original refund failure for retry/manual review.
+    }
+    return {
+      success: false,
+      error: clean(body?.error?.description || body?.error?.reason || 'Razorpay refund could not be created.')
+    };
+  }
+  return { success: true, refundId: clean(body.id) };
 }
 
 Deno.serve(async request => {
@@ -53,7 +107,7 @@ Deno.serve(async request => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
     const { data: order, error: orderError } = await db.from('razorpay_orders')
-      .select('id, razorpay_order_id, amount_paise, currency, status, result_payload')
+      .select('id, razorpay_order_id, amount_paise, currency, status, result_payload, refund_status, refund_id')
       .eq('razorpay_order_id', orderId)
       .maybeSingle();
     if (orderError || !order) return respond({ error: 'The payment order could not be found.' }, 404);
@@ -63,6 +117,19 @@ Deno.serve(async request => {
     if (!signaturesMatch(expectedSignature, signature)) {
       await db.from('razorpay_orders').update({ status: 'attempted', last_error: 'Invalid Razorpay signature.', updated_at: new Date().toISOString() }).eq('id', order.id);
       return respond({ error: 'Razorpay signature verification failed.' }, 400);
+    }
+
+    // A duplicate payment that was already refunded must remain idempotent on
+    // callback retries. Do not call the finalization RPC again for a failed
+    // order that has already been safely resolved.
+    if (order.refund_status === 'succeeded') {
+      return respond({
+        error: 'This participant is already registered for the event. The duplicate Razorpay payment was already refunded.',
+        code: 'DUPLICATE_REGISTRATION',
+        razorpayPaymentId: paymentId,
+        refunded: true,
+        refundId: order.refund_id || undefined
+      }, 409);
     }
 
     const authHeader = { Authorization: `Basic ${btoa(`${keyId}:${keySecret}`)}` };
@@ -84,7 +151,69 @@ Deno.serve(async request => {
     });
     if (finalizeError) {
       console.error('Razorpay registration finalization failed:', finalizeError.message);
-      return respond({ error: 'Payment was verified, but the registration could not be finalized safely. Please contact the fest desk with your payment ID.' }, 500);
+      const duplicate = /already registered|duplicate participant|already belongs to/i.test(finalizeError.message);
+      if (duplicate) {
+        if (order.refund_status === 'succeeded') {
+          return respond({
+            error: 'This participant is already registered for the event. The duplicate Razorpay payment was already refunded.',
+            code: 'DUPLICATE_REGISTRATION',
+            razorpayPaymentId: paymentId,
+            refunded: true,
+            refundId: order.refund_id || undefined
+          }, 409);
+        }
+
+        await db.from('razorpay_orders').update({
+          refund_status: 'pending',
+          updated_at: new Date().toISOString()
+        }).eq('id', order.id);
+
+        const refund = await refundCapturedPayment(
+          paymentId,
+          orderId,
+          Number(order.amount_paise),
+          authHeader,
+          Number(payment.amount_refunded || 0) >= Number(payment.amount)
+        );
+        const duplicateMessage = 'This participant is already registered for the event.';
+        if (refund.success) {
+          await db.from('razorpay_orders').update({
+            status: 'failed',
+            refund_status: 'succeeded',
+            refund_id: refund.refundId || order.refund_id || null,
+            refund_error: null,
+            last_error: duplicateMessage,
+            updated_at: new Date().toISOString()
+          }).eq('id', order.id);
+          return respond({
+            error: `${duplicateMessage} The duplicate Razorpay payment was automatically refunded.`,
+            code: 'DUPLICATE_REGISTRATION',
+            razorpayPaymentId: paymentId,
+            refunded: true,
+            refundId: refund.refundId || order.refund_id || undefined
+          }, 409);
+        }
+
+        await db.from('razorpay_orders').update({
+          status: 'attempted',
+          refund_status: 'failed',
+          refund_error: refund.error || 'Refund failed.',
+          last_error: `${duplicateMessage} Refund pending manual review.`,
+          updated_at: new Date().toISOString()
+        }).eq('id', order.id);
+        return respond({
+          error: `${duplicateMessage} The payment could not be refunded automatically. Please contact the fest desk with payment ID ${paymentId}.`,
+          code: 'DUPLICATE_REGISTRATION_REFUND_PENDING',
+          razorpayPaymentId: paymentId,
+          refunded: false
+        }, 500);
+      }
+
+      return respond({
+        error: `Payment was verified, but registration finalization failed. Please retry or contact the fest desk with payment ID ${paymentId}.`,
+        code: 'REGISTRATION_FINALIZATION_FAILED',
+        razorpayPaymentId: paymentId
+      }, 500);
     }
     return respond(result || { success: true, registrations: [] });
   } catch (error) {

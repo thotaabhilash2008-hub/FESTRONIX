@@ -1645,78 +1645,9 @@ body {
   box-shadow: 0 4px 12px rgba(2, 132, 199, 0.5);
 }
 
-
-/* ============================================================
-   EVENTS PAGE — Full Directory Layout
-   ============================================================ */
-
-/* Responsive grid for event cards */
-.events-page-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 18px;
-}
-
-@media (max-width: 480px) {
-  .events-page-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Individual event card */
-.events-page-card {
-  background: #0B132B;
-  border: 1px solid #1E293B;
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.events-page-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(56, 189, 248, 0.45);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.12);
-}
-
-/* Styled select dropdown used in filter panel */
-.events-page-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background: rgba(11, 19, 43, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 7px;
-  color: #E2E8F0;
-  font-size: 0.8rem;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 500;
-  padding: 6px 28px 6px 10px;
-  cursor: pointer;
-  outline: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  transition: border-color 0.2s ease;
-  min-width: 140px;
-}
-
-.events-page-select:focus {
-  border-color: rgba(56, 189, 248, 0.45);
-}
-
-.events-page-select option {
-  background: #0B132B;
-  color: #E2E8F0;
-}
-
-/* Hide "Home" text label on very small screens */
-@media (max-width: 360px) {
-  .events-page-back-text {
-    display: none;
-  }
-  .events-page-filter-text {
-    display: none;
+@media (max-width: 900px) {
+  .all-events-list-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
   }
 }

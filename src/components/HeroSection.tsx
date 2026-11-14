@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio } from 'lucide-react';
+import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio, LayoutGrid } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
 import { HeroAnimation } from './animations';
 
 interface HeroSectionProps {
   onExploreEvents: () => void;
+  onViewAllEvents?: () => void;
   onOpenIntro?: () => void;
   onRegisterNow: () => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onExploreEvents,
+  onViewAllEvents,
   onOpenIntro,
   onRegisterNow
 }) => {
@@ -290,6 +292,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <span>Explore Events</span>
             <ArrowRight size={15} />
           </button>
+
+          {onViewAllEvents && (
+            <button
+              type="button"
+              onClick={onViewAllEvents}
+              className="btn-cyber-secondary"
+              style={{
+                padding: '10px 22px',
+                fontSize: '0.88rem',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <LayoutGrid size={16} color="#38BDF8" />
+              <span>View All Events</span>
+            </button>
+          )}
 
           <button
             onClick={onRegisterNow}

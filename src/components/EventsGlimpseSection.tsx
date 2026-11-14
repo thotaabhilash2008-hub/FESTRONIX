@@ -10,7 +10,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Pause,
-  Play
+  Play,
+  ArrowRight,
+  LayoutGrid
 } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { ScrollReveal } from './animations';
@@ -19,6 +21,7 @@ interface EventsGlimpseSectionProps {
   events: FestEvent[];
   onSelectEvent: (event: FestEvent) => void;
   onRegisterEvent: (event: FestEvent) => void;
+  onViewAllEvents?: () => void;
 }
 
 // Compact Event Card Component
@@ -406,7 +409,8 @@ const InteractiveGlimpseRow: React.FC<InteractiveRowProps> = ({
 export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
   events,
   onSelectEvent,
-  onRegisterEvent
+  onRegisterEvent,
+  onViewAllEvents
 }) => {
   // 1. Popular Events (sorted by registeredCount descending)
   const popularEvents = useMemo(() => {
@@ -484,6 +488,27 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
           <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.92rem, 1.3vw, 1.02rem)', lineHeight: 1.6 }}>
             A glimpse into Vardhaman's flagship battlegrounds. Select any arena for full rules, prizes, and registrations.
           </p>
+
+          {onViewAllEvents && (
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={onViewAllEvents}
+                className="btn-cyber-gold"
+                style={{
+                  padding: '11px 24px',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  borderRadius: '10px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <LayoutGrid size={16} />
+                <span>View All Events{events.length > 0 ? ` (${events.length})` : ''}</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          )}
         </div>
       </ScrollReveal>
 
@@ -530,6 +555,27 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
           onRegisterEvent={onRegisterEvent}
         />
       </div>
+
+      {onViewAllEvents && (
+        <div style={{ marginTop: '36px', display: 'flex', justifyContent: 'center', padding: '0 20px' }}>
+          <button
+            type="button"
+            onClick={onViewAllEvents}
+            className="btn-cyber-primary"
+            style={{
+              padding: '12px 26px',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              borderRadius: '10px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <LayoutGrid size={16} color="#38BDF8" />
+            <span>View All Events{events.length > 0 ? ` (${events.length})` : ''}</span>
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      )}
     </section>
   );
 };

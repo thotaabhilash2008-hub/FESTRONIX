@@ -1,5 +1,5 @@
 import { FestEvent, Registration, Announcement, FestStats, PaymentStatus, Teammate, Team, Department } from '../types/festronix';
-import { INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_ANNOUNCEMENTS, INITIAL_TEAMS, DEPARTMENTS } from '../data/mockData';
+import { INITIAL_EVENTS, DEPARTMENTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getEventRegistrationBlockReason, registrationDeadlineToIso } from '../lib/eventRegistration';
 import type { Database } from '../lib/database.types';
@@ -211,6 +211,84 @@ function teamFromDb(row: any): Team {
 
 export class StorageService {
   private static isRealtimeInitialized = false;
+  private static demoPurged = false;
+
+  private static purgeLegacyDemoData(): void {
+    if (this.demoPurged || typeof window === 'undefined') return;
+    this.demoPurged = true;
+
+    const PURGE_FLAG = 'festronix_demo_purged_v1';
+    if (localStorage.getItem(PURGE_FLAG) === '1') return;
+
+    const DUMMY_REG_IDS = new Set([
+      'FEST-2026-1082', 'FEST-2026-1095', 'FEST-2026-2144', 'FEST-2026-2150',
+      'FEST-2026-3401', 'FEST-2026-3410', 'FEST-2026-4012', 'FEST-2026-4020',
+      'FEST-2026-5001', 'FEST-2026-5015', 'FEST-2026-7001', 'FEST-2026-7020',
+      'FEST-2026-6001', 'FEST-2026-6012', 'FEST-2026-8001', 'FEST-2026-8025'
+    ]);
+    const DUMMY_TEAM_IDS = new Set(['TEAM-1082', 'TEAM-2144', 'TEAM-6443']);
+    const DUMMY_ANN_IDS = new Set(['ann-1', 'ann-2', 'ann-3']);
+
+    let remainingRegs: Registration[] = [];
+    try {
+      const rawRegs = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
+      if (rawRegs) {
+        const parsed = JSON.parse(rawRegs);
+        if (Array.isArray(parsed)) {
+          remainingRegs = parsed.filter((r: any) => r && !DUMMY_REG_IDS.has(r.id));
+          localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(remainingRegs));
+        }
+      }
+    } catch {}
+
+    try {
+      const rawTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
+      if (rawTeams) {
+        const parsed = JSON.parse(rawTeams);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter((t: any) => t && !DUMMY_TEAM_IDS.has(t.id));
+          localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(cleaned));
+        }
+      }
+    } catch {}
+
+    try {
+      const rawAnns = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      if (rawAnns) {
+        const parsed = JSON.parse(rawAnns);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter((a: any) => a && !DUMMY_ANN_IDS.has(a.id));
+          localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(cleaned));
+        }
+      }
+    } catch {}
+
+    try {
+      const rawEvents = localStorage.getItem(STORAGE_KEYS.EVENTS);
+      if (rawEvents) {
+        const parsed = JSON.parse(rawEvents);
+        if (Array.isArray(parsed)) {
+          const countsByEvent = new Map<string, number>();
+          for (const reg of remainingRegs) {
+            if (reg?.eventId) {
+              countsByEvent.set(reg.eventId, (countsByEvent.get(reg.eventId) || 0) + 1);
+            }
+          }
+          const cleanedEvents = parsed.map((evt: any) => {
+            if (!evt || !evt.id) return evt;
+            const liveCount = countsByEvent.get(evt.id) || 0;
+            const status = evt.status === 'full' && liveCount < Number(evt.capacity || 0) ? 'open' : evt.status;
+            return { ...evt, registeredCount: liveCount, status };
+          });
+          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(cleanedEvents));
+        }
+      }
+    } catch {}
+
+    try {
+      localStorage.setItem(PURGE_FLAG, '1');
+    } catch {}
+  }
 
   private static canUseLocalDevelopmentMode(operation: string): boolean {
     if (isSupabaseConfigured()) return false;
@@ -314,6 +392,7 @@ export class StorageService {
    * Synchronous cached getter for instant render cycles
    */
   static getEvents(): FestEvent[] {
+    this.purgeLegacyDemoData();
     const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
     if (raw) {
       try {
@@ -544,37 +623,18 @@ export class StorageService {
   }
 
   /**
-   * Synchronous cached getter for registrations with automatic seed merging
+   * Synchronous cached getter for registrations
    */
   static getRegistrations(): Registration[] {
+    this.purgeLegacyDemoData();
     const raw = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
-    let current: Registration[] = [];
-    if (raw) {
-      try {
-        current = JSON.parse(raw);
-        if (!Array.isArray(current)) current = [];
-      } catch {
-        current = [];
-      }
-
-    // Demo seed registrations are only available in an offline development build.
-    if (isSupabaseConfigured()) return current;
+    if (!raw) return [];
+    try {
+      const current = JSON.parse(raw);
+      return Array.isArray(current) ? current : [];
+    } catch {
+      return [];
     }
-
-    // Merge any missing initial seed registrations to guarantee all departments have live demo data
-    const existingIds = new Set(current.map(r => r.id));
-    let hasNew = false;
-    for (const init of INITIAL_REGISTRATIONS) {
-      if (!existingIds.has(init.id)) {
-        current.push(init);
-        hasNew = true;
-      }
-    }
-
-    if (hasNew || !raw) {
-      localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(current));
-    }
-    return current;
   }
 
   static saveRegistrations(regs: Registration[]): void {
@@ -1284,16 +1344,14 @@ export class StorageService {
   // ==========================================
 
   static getAnnouncements(): Announcement[] {
+    this.purgeLegacyDemoData();
     const raw = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
-    if (!raw) {
-      if (isSupabaseConfigured()) return [];
-      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(INITIAL_ANNOUNCEMENTS));
-      return INITIAL_ANNOUNCEMENTS;
-    }
+    if (!raw) return [];
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return INITIAL_ANNOUNCEMENTS;
+      return [];
     }
   }
 
@@ -1596,17 +1654,14 @@ export class StorageService {
   // ==========================================
 
   static getTeams(): Team[] {
+    this.purgeLegacyDemoData();
     const raw = localStorage.getItem(STORAGE_KEYS.TEAMS);
-    if (!raw) {
-      if (isSupabaseConfigured()) return [];
-      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(INITIAL_TEAMS));
-      return INITIAL_TEAMS;
-    }
+    if (!raw) return [];
     try {
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : (isSupabaseConfigured() ? [] : INITIAL_TEAMS);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return isSupabaseConfigured() ? [] : INITIAL_TEAMS;
+      return [];
     }
   }
 
@@ -1868,14 +1923,6 @@ export class StorageService {
     if (!found) {
       const localTeams = this.getTeams();
       found = localTeams.find(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normQuery) || null;
-    }
-
-    // 1b. Check INITIAL_TEAMS as fallback
-    if (!found) {
-      found = INITIAL_TEAMS.find(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normQuery) || null;
-      if (found) {
-        this.saveTeams([found, ...this.getTeams().filter(t => t.teamCode !== found!.teamCode)]);
-      }
     }
 
     // 2. Check local registrations (in case registered via pass)
@@ -2353,9 +2400,9 @@ export class StorageService {
 
   static resetToDefaults(): void {
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS));
-    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(INITIAL_REGISTRATIONS));
-    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(INITIAL_ANNOUNCEMENTS));
-    localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(INITIAL_TEAMS));
+    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEPARTMENTS));
   }
 }

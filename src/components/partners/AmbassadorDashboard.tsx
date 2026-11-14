@@ -47,6 +47,38 @@ export const AmbassadorDashboard: React.FC<AmbassadorDashboardProps> = ({ onBack
   const [profiles, setProfiles] = useState<AmbassadorProfile[]>(AMBASSADOR_PROFILES);
 
   const currentAmbassador = profiles.find(p => p.id === selectedAmbassadorId) || profiles[0];
+
+  if (!currentAmbassador) {
+    return (
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '48px 20px', textAlign: 'center' }}>
+        <div className="partner-card" style={{ maxWidth: '520px', margin: '0 auto', padding: '36px 24px' }}>
+          <Users size={36} color="#C084FC" style={{ margin: '0 auto 12px' }} />
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>
+            No Campus Ambassadors Registered Yet
+          </h2>
+          <p style={{ fontSize: '0.86rem', color: '#94A3B8', margin: '0 0 20px' }}>
+            Live campus ambassador profiles and referral stats will appear here once ambassadors are onboarded.
+          </p>
+          <button
+            onClick={onBackToFest}
+            style={{
+              background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '10px 18px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+          >
+            Back to Fest Portal
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const referralUrl = `https://festronix-fawn.vercel.app/?ref=${currentAmbassador.referralCode}`;
 
   const handleCopyLink = () => {

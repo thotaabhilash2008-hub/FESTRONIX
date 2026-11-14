@@ -8,6 +8,8 @@ interface AdminTopNavProps {
   onSwitchToFest: () => void;
   searchQuery?: string;
   onSearchChange?: (val: string) => void;
+  notificationCount?: number;
+  onNotificationClick?: () => void;
 }
 
 export const AdminTopNav: React.FC<AdminTopNavProps> = ({
@@ -15,7 +17,9 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
   onLogout,
   onSwitchToFest,
   searchQuery = '',
-  onSearchChange
+  onSearchChange,
+  notificationCount = 0,
+  onNotificationClick
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -105,9 +109,10 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
           <span className="admin-kbd-badge">Ctrl K</span>
         </div>
 
-        {/* Notification Bell with Ping */}
+        {/* Notification Bell with Live Count */}
         <div style={{ position: 'relative' }}>
           <button
+            onClick={onNotificationClick}
             style={{
               position: 'relative',
               width: '38px',
@@ -118,33 +123,36 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
+              cursor: onNotificationClick ? 'pointer' : 'default',
               color: '#E2E8F0',
               transition: 'all 0.2s'
             }}
-            title="Notifications"
+            title={notificationCount > 0 ? `${notificationCount} pending payment approvals` : 'No pending notifications'}
           >
             <Bell size={17} />
-            <span
-              style={{
-                position: 'absolute',
-                top: '-3px',
-                right: '-3px',
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                background: '#EF4444',
-                color: '#FFFFFF',
-                fontSize: '0.62rem',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)'
-              }}
-            >
-              1
-            </span>
+            {notificationCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-3px',
+                  right: '-3px',
+                  minWidth: '16px',
+                  height: '16px',
+                  padding: '0 4px',
+                  borderRadius: '9999px',
+                  background: '#EF4444',
+                  color: '#FFFFFF',
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)'
+                }}
+              >
+                {notificationCount}
+              </span>
+            )}
           </button>
         </div>
 

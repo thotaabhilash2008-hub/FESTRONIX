@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { EventsGlimpseSection } from './components/EventsGlimpseSection';
-import { EventsPage } from './components/EventsPage';
 import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
 import { Footer } from './components/Footer';
@@ -13,6 +12,7 @@ import { DigitalPassModal } from './components/DigitalPassModal';
 import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { PublicSponsorsPage } from './components/PublicSponsorsPage';
+import { AllEventsPage } from './components/AllEventsPage';
 
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
@@ -95,21 +95,28 @@ export const App: React.FC = () => {
     return path === '/passes' || path === '/passes/';
   };
 
-  const checkIsEventsPage = () => {
-    if (typeof window === 'undefined') return false;
-    const path = window.location.pathname.toLowerCase();
-    const hash = window.location.hash.toLowerCase();
-    return hash === '#eventspage' || path === '/events' || path === '/events/';
-  };
-
   const getRegistrationSlug = () => {
     if (typeof window === 'undefined') return '';
     const match = window.location.pathname.match(/^\/register\/([^/]+)\/?$/i);
     return match ? decodeURIComponent(match[1]) : '';
   };
 
+  const checkIsAllEventsPage = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    return (
+      path === '/events' ||
+      path === '/events/' ||
+      hash === '#all-events' ||
+      hash === '#events-all' ||
+      search.includes('events=all')
+    );
+  };
+
   const [isPassesPageOpen, setIsPassesPageOpen] = useState<boolean>(checkIsPassesPage);
-  const [isEventsPageOpen, setIsEventsPageOpen] = useState<boolean>(checkIsEventsPage);
+  const [isAllEventsPageOpen, setIsAllEventsPageOpen] = useState<boolean>(checkIsAllEventsPage);
   const [isRegistrationPageOpen, setIsRegistrationPageOpen] = useState<boolean>(() => Boolean(getRegistrationSlug()));
   const [registrationSlug, setRegistrationSlug] = useState<string>(getRegistrationSlug);
 
@@ -183,7 +190,7 @@ export const App: React.FC = () => {
       setIsAdminView(checkIsAdmin());
       setIsSponsorsPageOpen(checkIsSponsorsPage());
       setIsPassesPageOpen(checkIsPassesPage());
-      setIsEventsPageOpen(checkIsEventsPage());
+      setIsAllEventsPageOpen(checkIsAllEventsPage());
       const slug = getRegistrationSlug();
       setRegistrationSlug(slug);
       setIsRegistrationPageOpen(Boolean(slug));
@@ -222,6 +229,7 @@ export const App: React.FC = () => {
     window.history.pushState(null, '', '/');
     window.location.hash = '';
     setIsPassesPageOpen(false);
+    setIsAllEventsPageOpen(false);
     setIsRegistrationPageOpen(false);
     setRegistrationSlug('');
     setRegisterEvent(null);
@@ -229,11 +237,32 @@ export const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleOpenAllEventsPage = () => {
+    window.history.pushState(null, '', '/events');
+    window.location.hash = '';
+    setIsAllEventsPageOpen(true);
+    setIsSponsorsPageOpen(false);
+    setIsPassesPageOpen(false);
+    setIsRegistrationPageOpen(false);
+    setIsAdminView(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const handleBackFromAllEventsPage = () => {
+    if (window.location.pathname.toLowerCase().startsWith('/events')) {
+      window.history.pushState(null, '', '/');
+    }
+    window.location.hash = '';
+    setIsAllEventsPageOpen(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
   const handleOpenPassesPage = (passId?: string) => {
     const suffix = passId ? `?registration=${encodeURIComponent(passId)}` : '';
     window.history.pushState(null, '', `/passes${suffix}`);
     setActivePassId(passId);
     setIsPassesPageOpen(true);
+    setIsAllEventsPageOpen(false);
     setIsRegistrationPageOpen(false);
     setIsPassesModalOpen(false);
   };
@@ -248,16 +277,6 @@ export const App: React.FC = () => {
     window.location.hash = '';
     setIsSponsorsPageOpen(false);
     refreshData();
-  };
-
-  const handleOpenEventsPage = () => {
-    window.history.pushState(null, '', '/events');
-    setIsEventsPageOpen(true);
-  };
-
-  const handleBackFromEventsPage = () => {
-    window.history.pushState(null, '', '/');
-    setIsEventsPageOpen(false);
   };
 
   const handleBackFromAdmin = () => {
@@ -315,24 +334,41 @@ export const App: React.FC = () => {
     return (
       <PublicSponsorsPage
         onBackToHome={handleBackFromSponsorsPage}
-        onExploreEvents={() => {
-          handleBackFromSponsorsPage();
-          setTimeout(() => handleNavigateExplore(), 100);
-        }}
+        onExploreEvents={handleOpenAllEventsPage}
         onRegisterNow={handleStartMultiPass}
       />
     );
   }
 
-  // Render Events Directory Page at /events
-  if (isEventsPageOpen) {
+  if (isAllEventsPageOpen && !isRegistrationPageOpen && !isPassesPageOpen && !isAdminView) {
     return (
-      <EventsPage
-        events={events}
-        onBackToHome={handleBackFromEventsPage}
-        onSelectEvent={evt => setDetailEvent(evt)}
-        onRegisterEvent={handleStartEventRegistration}
-      />
+      <>
+        <AllEventsPage
+          events={events}
+          passesCount={registrations.length}
+          onBackToHome={handleBackFromAllEventsPage}
+          onSelectEvent={evt => setDetailEvent(evt)}
+          onRegisterEvent={handleStartEventRegistration}
+          onOpenMultiPass={handleStartMultiPass}
+          onOpenPasses={() => handleOpenPassesPage()}
+          onOpenAdmin={handleOpenAdmin}
+          onOpenSponsors={handleOpenSponsorsPage}
+        />
+
+        <EventDetailModal
+          event={detailEvent}
+          onClose={() => setDetailEvent(null)}
+          onRegister={handleStartEventRegistration}
+        />
+
+        <MultiPassModal
+          isOpen={isMultiPassModalOpen}
+          onClose={() => setIsMultiPassModalOpen(false)}
+          events={events}
+          currentUser={currentUser}
+          onSuccess={handleMultiPassSuccess}
+        />
+      </>
     );
   }
 
@@ -344,7 +380,7 @@ export const App: React.FC = () => {
         activePassId={activePassLookup}
         pageMode
         onClose={navigateHome}
-        onBrowseEvents={navigateHome}
+        onBrowseEvents={handleOpenAllEventsPage}
         onOpenMultiPass={() => {
           navigateHome();
           setIsMultiPassModalOpen(true);
@@ -431,7 +467,7 @@ export const App: React.FC = () => {
         onNavigateHyped={handleNavigateHyped}
         onOpenAdmin={handleOpenAdmin}
         onOpenSponsors={handleOpenSponsorsPage}
-        onOpenEvents={handleOpenEventsPage}
+        onOpenAllEvents={handleOpenAllEventsPage}
       />
 
       {/* Main Experience View */}
@@ -439,6 +475,7 @@ export const App: React.FC = () => {
         {/* HERO SECTION: Cinematic Introduction */}
         <HeroSection
           onExploreEvents={handleNavigateExplore}
+          onViewAllEvents={handleOpenAllEventsPage}
           onOpenIntro={() => setIsIntroOpen(true)}
           onRegisterNow={handleStartMultiPass}
         />
@@ -451,6 +488,7 @@ export const App: React.FC = () => {
           events={events}
           onSelectEvent={evt => setDetailEvent(evt)}
           onRegisterEvent={handleStartEventRegistration}
+          onViewAllEvents={handleOpenAllEventsPage}
         />
 
         {/* Engineering Departments Overview */}
@@ -462,7 +500,7 @@ export const App: React.FC = () => {
         {/* Closing Registration CTA: Final Cinematic Moment */}
         <RegistrationCtaSection
           onOpenMultiPass={handleStartMultiPass}
-          onExploreEvents={handleNavigateExplore}
+          onExploreEvents={handleOpenAllEventsPage}
         />
       </main>
 

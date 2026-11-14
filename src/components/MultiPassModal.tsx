@@ -5,6 +5,7 @@ import { FestEvent, Registration, User as UserType, AdditionalMember } from '../
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { sendRegistrationPassEmail } from '../services/registrationEmailService';
+import { completeRazorpayBatchCheckout } from '../services/razorpayService';
 
 interface MultiPassModalProps {
   isOpen: boolean;
@@ -222,13 +223,15 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
     if (totalAmount === 0) {
       // Free events: submit directly
-      handleFinalSubmit();
+      handleManualProofSubmit();
     } else {
       setStep(2);
     }
   };
 
-  const handleFinalSubmit = async () => {
+  // Legacy manual-proof implementation is intentionally retained for old
+  // records and recovery tooling, but it is no longer exposed in this cart UI.
+  const handleManualProofSubmit = async () => {
     if (isSubmitting) return;
     if (totalAmount > 0) {
       if (!transactionId.trim()) {
@@ -317,6 +320,76 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       onSuccess(created);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to complete registration passes.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRazorpayCheckout = async () => {
+    if (isSubmitting) return;
+    if (totalAmount <= 0) {
+      handleManualProofSubmit();
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const batchData: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>> = [];
+      const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+      for (const item of selectedEventEntries) {
+        const extra = additionalMembersByEvent[item.event.id] || [];
+        for (let i = 0; i < item.quantity; i++) {
+          const isBuyer = i === 0;
+          const memberInfo = isBuyer ? null : extra[i - 1];
+
+          batchData.push({
+            userId: currentUser?.id,
+            buyerRoll: buyerInfo.rollNumber.trim().toUpperCase(),
+            eventId: item.event.id,
+            eventTitle: `${item.event.title}${item.quantity > 1 ? ` (Pass #${i + 1}${memberInfo ? `: ${memberInfo.name.trim()}` : ''})` : ''}`,
+            leaderName: isBuyer ? buyerInfo.name.trim() : memberInfo!.name.trim(),
+            leaderEmail: buyerInfo.email.trim(),
+            leaderPhone: buyerInfo.phone.trim(),
+            leaderCollege: buyerInfo.college.trim(),
+            leaderRoll: isBuyer ? buyerInfo.rollNumber.trim().toUpperCase() : memberInfo!.rollNumber.trim().toUpperCase(),
+            deptSection: memberInfo ? memberInfo.deptSection.trim().toUpperCase() : undefined,
+            teammates: [],
+            format: item.event.format,
+            fee: item.event.fee,
+            source: 'online',
+            registrationDate: dateNow,
+            paymentStatus: 'verification_pending',
+            paymentMethod: 'razorpay'
+          });
+        }
+      }
+
+      const created = await completeRazorpayBatchCheckout(
+        selectedEventEntries.map(item => item.event),
+        batchData
+      );
+
+      try {
+        const myPassIds = JSON.parse(localStorage.getItem('festronix_my_registered_pass_ids') || '[]');
+        created.forEach(reg => {
+          if (!myPassIds.includes(reg.id)) myPassIds.push(reg.id);
+          sendRegistrationPassEmail(reg).catch(err => console.warn('Email send notice:', err));
+        });
+        localStorage.setItem('festronix_my_registered_pass_ids', JSON.stringify(myPassIds));
+        localStorage.setItem('festronix_last_registered_email', buyerInfo.email.trim().toLowerCase());
+        localStorage.setItem('festronix_last_registered_roll', buyerInfo.rollNumber.trim().toUpperCase());
+        if (created.length > 0) localStorage.setItem('festronix_last_pass_id', created[created.length - 1].id);
+      } catch (e) {
+        console.warn('Error saving local pass tracking:', e);
+      }
+
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      onSuccess(created);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Razorpay payment could not be completed. No passes were issued.');
     } finally {
       setIsSubmitting(false);
     }
@@ -920,114 +993,65 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
             </div>
           </div>
         ) : (
-          /* STEP 2: Unified Bulk UPI Payment */
+          /* STEP 2: Unified Razorpay Payment */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Payment instructions card */}
+            {/* Razorpay payment summary. Manual UPI proof remains supported in
+                legacy data/recovery code, but is intentionally not offered in
+                the public multi-pass checkout. */}
             <div
               style={{
                 padding: '20px',
-                background: 'rgba(16, 26, 53, 0.92)',
-                border: '1px solid rgba(120, 149, 147, 0.35)',
-                borderRadius: '12px',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1.3fr',
-                gap: '20px',
-                alignItems: 'center'
+                background: 'linear-gradient(135deg, rgba(16, 42, 72, 0.96), rgba(16, 26, 53, 0.96))',
+                border: '1px solid rgba(56, 189, 248, 0.48)',
+                borderRadius: '12px'
               }}
             >
-              {/* QR Code Presentation */}
-              <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '12px', borderRadius: '10px' }}>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=festronix2026@vce%26pn=Festronix%20VCE%26am=${totalAmount}%26cu=INR`}
-                  alt="UPI Payment QR"
-                  style={{ width: '135px', height: '135px', display: 'block', margin: '0 auto' }}
-                />
-                <div style={{ fontSize: '0.72rem', color: '#101A35', fontWeight: 800, marginTop: '6px' }}>
-                  SCAN WITH ANY UPI APP
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#38BDF8', fontWeight: 800, letterSpacing: '0.08em' }}>
+                    SECURE CHECKOUT • RAZORPAY TEST MODE
+                  </div>
+                  <div className="font-title" style={{ fontSize: '1.5rem', color: '#FFFFFF', fontWeight: 800, marginTop: '5px' }}>
+                    ₹{totalAmount} <span style={{ fontSize: '0.82rem', color: '#BACEBB', fontFamily: 'inherit' }}>INR</span>
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#DCE3E5', marginTop: '8px', lineHeight: 1.45 }}>
+                    One Razorpay checkout covers {totalPassCount} pass{totalPassCount === 1 ? '' : 'es'} across {selectedEventEntries.length} event{selectedEventEntries.length === 1 ? '' : 's'}.
+                  </div>
                 </div>
+                <Shield size={30} color="#34D399" />
               </div>
-
-              {/* Instructions */}
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>COMBINED BATCH AMOUNT:</div>
-                <div className="font-title" style={{ fontSize: '1.5rem', color: '#fbbf24', fontWeight: 800, marginTop: '2px' }}>
-                  ₹{totalAmount} ({totalPassCount} Passes)
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#DCE3E5', marginTop: '6px' }}>
-                  Beneficiary: <strong>Festronix SAC Vardhaman</strong>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#BACEBB', fontWeight: 700, marginTop: '4px' }}>
-                  UPI ID: festronix2026@vce
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '6px', lineHeight: 1.4 }}>
-                  One single transaction covers all {totalPassCount} tickets. Supports PhonePe, GPay, Paytm, BHIM, etc.
-                </div>
-              </div>
-            </div>
-
-            {/* Proof Submission inputs */}
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#DCE3E5', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                UPI TRANSACTION ID / UTR NUMBER (12 Digits) *
-              </label>
-              <input
-                type="text"
-                className="cyber-input"
-                placeholder="e.g. 428901928374 or UPI-SBIN-89384729"
-                value={transactionId}
-                onChange={e => setTransactionId(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#DCE3E5', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                PAYMENT RECEIPT SCREENSHOT *
-              </label>
               <div
                 style={{
-                  border: '2px dashed rgba(120, 149, 147, 0.45)',
-                  borderRadius: '10px',
-                  padding: '16px',
-                  textAlign: 'center',
-                  background: 'rgba(16, 26, 53, 0.75)',
-                  cursor: 'pointer'
+                  marginTop: '14px',
+                  padding: '10px 12px',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(52, 211, 153, 0.3)',
+                  borderRadius: '8px',
+                  color: '#BACEBB',
+                  fontSize: '0.75rem',
+                  lineHeight: 1.4
                 }}
               >
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFileUpload}
-                  style={{ display: 'none' }}
-                  id="multi-screenshot-upload"
-                />
-                <label htmlFor="multi-screenshot-upload" style={{ cursor: 'pointer', display: 'block' }}>
-                  {screenshotPreview ? (
-                    <div>
-                      <img
-                        src={screenshotPreview}
-                        alt="Screenshot Preview"
-                        style={{ maxHeight: '120px', borderRadius: '6px', margin: '0 auto', display: 'block' }}
-                      />
-                      <span style={{ fontSize: '0.75rem', color: '#BACEBB', display: 'block', marginTop: '6px', fontWeight: 600 }}>
-                        ✓ Screenshot uploaded (Click to change)
-                      </span>
-                    </div>
-                  ) : (
-                    <div>
-                      <Upload size={28} color="#BACEBB" style={{ margin: '0 auto 8px' }} />
-                      <div style={{ fontSize: '0.85rem', color: '#FFFFFF', fontWeight: 600 }}>
-                        Click to upload payment screenshot
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '4px' }}>
-                        Supports PNG, JPG, WebP up to 5MB
-                      </div>
-                    </div>
-                  )}
-                </label>
+                <CheckCircle2 size={14} color="#34D399" style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+                No UTR or screenshot is required. Passes are issued only after the backend verifies the Razorpay payment.
               </div>
             </div>
 
-            {/* Back / Submit Buttons */}
+            <div
+              style={{
+                padding: '16px',
+                background: 'rgba(16, 26, 53, 0.8)',
+                border: '1px solid rgba(120, 149, 147, 0.28)',
+                borderRadius: '10px',
+                color: '#A8B3C2',
+                fontSize: '0.78rem',
+                lineHeight: 1.5
+              }}
+            >
+              Razorpay will open securely in the next step. Keep this tab open until payment verification completes and your passes appear.
+            </div>
+
+            {/* Back / Pay Buttons */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
               <button
                 type="button"
@@ -1040,12 +1064,13 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
               <button
                 type="button"
-                onClick={handleFinalSubmit}
+                onClick={handleRazorpayCheckout}
+                disabled={isSubmitting}
                 className="btn-cyber-primary"
-                style={{ padding: '10px 24px', fontSize: '0.88rem' }}
+                style={{ padding: '10px 24px', fontSize: '0.88rem', opacity: isSubmitting ? 0.7 : 1 }}
               >
-                <span>Submit & Generate {totalPassCount} Passes</span>
-                <CheckCircle2 size={16} />
+                <span>{isSubmitting ? 'Opening Razorpay...' : `Pay ₹${totalAmount} with Razorpay`}</span>
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
