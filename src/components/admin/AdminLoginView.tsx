@@ -7,6 +7,7 @@ import {
   EyeOff,
   Key,
   Lock,
+  Mail,
   Shield,
   ShieldCheck,
   User
@@ -146,17 +147,17 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               htmlFor="admin-login-identifier"
               style={{ display: 'block', fontSize: '0.8rem', color: '#E2E8F0', fontWeight: 600, marginBottom: '6px' }}
             >
-              Email or username
+              Enter Gmail
             </label>
             <div style={{ position: 'relative' }}>
-              <User size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
+              <Mail size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
               <input
                 id="admin-login-identifier"
                 type="text"
-                autoComplete="username"
+                autoComplete="email"
                 value={identifier}
                 onChange={event => setIdentifier(event.target.value)}
-                placeholder="Enter your email or username"
+                placeholder="Enter Gmail"
                 required
                 className="admin-form-input"
                 style={{ paddingLeft: '42px' }}

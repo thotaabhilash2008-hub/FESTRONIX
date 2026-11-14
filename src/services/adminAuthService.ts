@@ -280,9 +280,12 @@ const USER_ALIAS_MAP: Record<string, string> = {
   'asif': 'dean.sac@vardhaman.org',
   'asifsir': 'dean.sac@vardhaman.org',
   'asif_sir': 'dean.sac@vardhaman.org',
+  'asif@gmail.com': 'dean.sac@vardhaman.org',
   'dean': 'dean.sac@vardhaman.org',
   'dean_sac': 'dean.sac@vardhaman.org',
   'deansac': 'dean.sac@vardhaman.org',
+  'dean.sac@gmail.com': 'dean.sac@vardhaman.org',
+  'deansac@gmail.com': 'dean.sac@vardhaman.org',
 
   // CC (CONNECT Club)
   'cc': 'connect.club@vardhaman.org',
@@ -594,7 +597,7 @@ export class AdminAuthService {
     const cleanPassword = password.trim();
 
     if (!rawIdentifier || !cleanPassword) {
-      return { success: false, error: 'Enter your email or username and password.' };
+      return { success: false, error: 'Enter your Gmail and password.' };
     }
 
     // Keep the existing aliases working for official accounts. For accounts
@@ -609,7 +612,7 @@ export class AdminAuthService {
     if (!targetEmail.includes('@')) {
       return {
         success: false,
-        error: 'No account was found for that username. Use the account email or a synced portal username.'
+        error: 'No account was found for that Gmail. Please enter your registered Gmail address.'
       };
     }
 
@@ -620,7 +623,7 @@ export class AdminAuthService {
       } catch (err: any) {
         return {
           success: false,
-          error: err?.message || 'Invalid login credentials. Please check your email or username and password.'
+          error: err?.message || 'Invalid login credentials. Please check your Gmail and password.'
         };
       }
     }
