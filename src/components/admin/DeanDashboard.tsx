@@ -6,8 +6,9 @@ import {
   UserCheck, UserPlus, Phone, Mail, Copy, Check,
   Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key,
   Calendar, ArrowRight, QrCode, Camera, StopCircle,
-  TrendingUp, Filter, FileSpreadsheet, ArrowUpRight, BarChart3, PieChart
+  TrendingUp, Filter, FileSpreadsheet, ArrowUpRight, BarChart3, PieChart, Upload
 } from 'lucide-react';
+import jsQR from 'jsqr';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
@@ -451,35 +452,64 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     let frame = 0;
     const startScanner = async () => {
       try {
-        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
-        if (!BarcodeDetectorCtor) throw new Error('QR scanning is not supported in this browser. Use manual ticket lookup.');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
         if (cancelled) return stream.getTracks().forEach(track => track.stop());
         gateStreamRef.current = stream;
         if (gateVideoRef.current) {
           gateVideoRef.current.srcObject = stream;
           await gateVideoRef.current.play();
         }
-        const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+
+        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+        const detector = BarcodeDetectorCtor ? new BarcodeDetectorCtor({ formats: ['qr_code'] }) : null;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
         const scan = async () => {
           if (cancelled || !gateVideoRef.current) return;
-          try {
-            const codes = await detector.detect(gateVideoRef.current);
-            const value = codes[0]?.rawValue;
-            if (value) {
-              setGateQuery(value);
-              const match = findGateRegistration(value);
+          const video = gateVideoRef.current;
+          if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
+            let scannedValue = '';
+
+            if (detector) {
+              try {
+                const codes = await detector.detect(video);
+                if (codes && codes.length > 0 && codes[0].rawValue) {
+                  scannedValue = codes[0].rawValue;
+                }
+              } catch { /* fallback to jsQR */ }
+            }
+
+            if (!scannedValue && ctx) {
+              try {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const qr = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'attemptBoth' });
+                if (qr && qr.data) {
+                  scannedValue = qr.data;
+                }
+              } catch { /* frame processing error */ }
+            }
+
+            if (scannedValue) {
+              setGateQuery(scannedValue);
+              const match = findGateRegistration(scannedValue);
               setGateMatch(match);
               setGateScannerError(match ? '' : 'QR scanned, but no live registration matched this ticket.');
               setGateScannerOpen(false);
               return;
             }
-          } catch { /* camera frames can be unavailable while the video warms up */ }
+          }
           frame = requestAnimationFrame(scan);
         };
         frame = requestAnimationFrame(scan);
       } catch (error) {
-        setGateScannerError((error as Error).message || 'Unable to start the QR scanner.');
+        setGateScannerError((error as Error).message || 'Unable to access camera for QR scanning.');
         setGateScannerOpen(false);
       }
     };

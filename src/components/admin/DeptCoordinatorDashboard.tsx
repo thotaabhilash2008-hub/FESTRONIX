@@ -4,8 +4,10 @@ import {
   Download, Plus, Edit3, Trash2, ArrowRight, LogOut, Globe, QrCode,
   Sparkles, Check, AlertCircle, RefreshCw, XCircle, Eye, Phone, Mail,
   Copy, Megaphone, UserPlus, FileSpreadsheet, ShieldCheck, Award, Camera, StopCircle,
-  Percent, ChevronRight, Share2, Printer, MapPin, Calendar, Bell, Filter, HelpCircle, KeyRound, TrendingUp
+  Percent, ChevronRight, Share2, Printer, MapPin, Calendar, Bell, Filter, HelpCircle, KeyRound, TrendingUp,
+  Upload
 } from 'lucide-react';
+import jsQR from 'jsqr';
 import confetti from 'canvas-confetti';
 import { AdminRole, AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
@@ -700,13 +702,57 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     setSpotTeammates(spotTeammates.filter((_, i) => i !== index));
   };
 
+  // Audio feedback on successful QR scan
+  const playScanBeep = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch { /* audio not supported */ }
+  };
+
   // Fast Gate Check-In Handler (8.1 • Validate QR tickets and view attendance)
   const handleCheckInValue = async (value: string) => {
-    const query = value.trim().toLowerCase();
-    if (!query) return;
-    const matchingReg = registrations.find(
-      r => r.id.toLowerCase() === query ||
-           r.qrToken.toLowerCase() === query ||
+    let cleanVal = String(value || '').trim();
+    if (!cleanVal) return;
+
+    // 1. JSON payload support if QR code was encoded as JSON
+    if (cleanVal.startsWith('{') && cleanVal.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(cleanVal);
+        cleanVal = parsed.token || parsed.qrToken || parsed.id || parsed.regId || cleanVal;
+      } catch { /* not JSON */ }
+    }
+
+    // 2. URL extraction support if QR code was encoded as a URL
+    if (cleanVal.includes('http://') || cleanVal.includes('https://')) {
+      try {
+        const url = new URL(cleanVal);
+        cleanVal = url.searchParams.get('token') || url.searchParams.get('id') || url.pathname.split('/').pop() || cleanVal;
+      } catch { /* raw */ }
+    }
+
+    // 3. Strip common text prefixes (e.g. "TOKEN: ", "ID: ", "PASS: ")
+    cleanVal = cleanVal.replace(/^(token|id|registration|pass):\s*/i, '').trim();
+    const query = cleanVal.toLowerCase();
+
+    // Check in scopedRegistrations / department registrations / master pool
+    const allRegs = StorageService.getRegistrations();
+    const primaryPool = registrations.length > 0 ? registrations : scopedRegistrations;
+
+    let matchingReg = primaryPool.find(
+      r => (r.id && r.id.toLowerCase() === query) ||
+           (r.qrToken && r.qrToken.toLowerCase() === query) ||
            (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
            (r.buyerRoll && r.buyerRoll.toLowerCase() === query) ||
            (r.teamCode && r.teamCode.toLowerCase() === query) ||
@@ -714,10 +760,21 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     );
 
     if (!matchingReg) {
+      matchingReg = allRegs.find(
+        r => (r.id && r.id.toLowerCase() === query) ||
+             (r.qrToken && r.qrToken.toLowerCase() === query) ||
+             (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
+             (r.buyerRoll && r.buyerRoll.toLowerCase() === query) ||
+             (r.teamCode && r.teamCode.toLowerCase() === query) ||
+             (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase() === query))
+      );
+    }
+
+    if (!matchingReg) {
       setCheckInResult({
         success: false,
         status: 'NOT_FOUND',
-        message: `No registration found matching "${value}" for the ${deptCode} department.`
+        message: `No registration found matching "${cleanVal}". Please verify the pass or enter the Roll Number manually.`
       });
       return;
     }
@@ -743,6 +800,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     setCheckInResult(res);
 
     if (res.success) {
+      playScanBeep();
       confetti({ particleCount: 70, spread: 50, origin: { y: 0.6 } });
       setCheckInInput('');
     }
@@ -754,6 +812,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     await handleCheckInValue(checkInInput);
   };
 
+  // QR Scanning via live camera stream (Works in all browsers using jsQR + hardware BarcodeDetector fallback)
   useEffect(() => {
     if (!checkInScannerOpen) {
       checkInStreamRef.current?.getTracks().forEach(track => track.stop());
@@ -764,33 +823,74 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     let frame = 0;
     const startScanner = async () => {
       try {
-        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
-        if (!BarcodeDetectorCtor) throw new Error('QR scanning is not supported in this browser. Use manual lookup.');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        if (cancelled) return stream.getTracks().forEach(track => track.stop());
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        if (cancelled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
         checkInStreamRef.current = stream;
         if (checkInVideoRef.current) {
           checkInVideoRef.current.srcObject = stream;
           await checkInVideoRef.current.play();
         }
-        const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
+
+        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+        const detector = BarcodeDetectorCtor ? new BarcodeDetectorCtor({ formats: ['qr_code'] }) : null;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
         const scan = async () => {
           if (cancelled || !checkInVideoRef.current) return;
-          try {
-            const codes = await detector.detect(checkInVideoRef.current);
-            const value = codes[0]?.rawValue;
-            if (value) {
-              setCheckInInput(value);
+          const video = checkInVideoRef.current;
+          if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
+            let scannedValue = '';
+
+            // 1. Try native BarcodeDetector if available
+            if (detector) {
+              try {
+                const codes = await detector.detect(video);
+                if (codes && codes.length > 0 && codes[0].rawValue) {
+                  scannedValue = codes[0].rawValue;
+                }
+              } catch { /* fallback to jsQR */ }
+            }
+
+            // 2. High-performance universal jsQR fallback (runs in 100% of browsers)
+            if (!scannedValue && ctx) {
+              try {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const qr = jsQR(imgData.data, imgData.width, imgData.height, {
+                  inversionAttempts: 'attemptBoth'
+                });
+                if (qr && qr.data) {
+                  scannedValue = qr.data;
+                }
+              } catch { /* frame processing */ }
+            }
+
+            if (scannedValue) {
+              playScanBeep();
+              setCheckInInput(scannedValue);
               setCheckInScannerOpen(false);
-              await handleCheckInValue(value);
+              await handleCheckInValue(scannedValue);
               return;
             }
-          } catch { /* camera frame not ready */ }
+          }
           frame = requestAnimationFrame(scan);
         };
         frame = requestAnimationFrame(scan);
       } catch (error) {
-        setCheckInScannerError((error as Error).message || 'Unable to start the QR scanner.');
+        setCheckInScannerError((error as Error).message || 'Unable to access camera. Please allow camera permissions or enter Roll Number manually.');
         setCheckInScannerOpen(false);
       }
     };
@@ -802,6 +902,37 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       checkInStreamRef.current = null;
     };
   }, [checkInScannerOpen, registrations]);
+
+  // Decode QR code from uploaded image or photo
+  const handleScanImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, img.width, img.height);
+        const qr = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'attemptBoth' });
+        if (qr && qr.data) {
+          playScanBeep();
+          setCheckInInput(qr.data);
+          setCheckInScannerError('');
+          await handleCheckInValue(qr.data);
+        } else {
+          setCheckInScannerError('No QR code detected in the uploaded image. Please ensure the QR code is clearly visible.');
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   // 1-Click Check-in directly from the roster table
   const handleQuickCheckInFromRoster = async (reg: Registration) => {
@@ -2415,13 +2546,51 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               </div>
 
               {checkInScannerOpen ? (
-                <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', background: '#020617', minHeight: '250px', marginBottom: '16px' }}>
-                  <video ref={checkInVideoRef} muted playsInline style={{ width: '100%', minHeight: '250px', display: 'block', objectFit: 'cover' }} />
-                  <div style={{ position: 'absolute', inset: '20% 15%', border: '2px solid #38BDF8', borderRadius: '14px', boxShadow: '0 0 0 999px rgba(2, 6, 23, 0.32)' }} />
-                  <button type="button" onClick={() => setCheckInScannerOpen(false)} style={{ position: 'absolute', right: '10px', top: '10px', padding: '7px 10px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(2,6,23,0.75)', color: '#FFFFFF', cursor: 'pointer' }}><StopCircle size={14} /></button>
+                <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '14px', background: '#020617', minHeight: '280px', marginBottom: '16px', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+                  <video ref={checkInVideoRef} muted playsInline style={{ width: '100%', minHeight: '280px', maxHeight: '360px', display: 'block', objectFit: 'cover' }} />
+                  {/* Targeting Reticle */}
+                  <div style={{ position: 'absolute', inset: '16% 16%', border: '2px solid #38BDF8', borderRadius: '16px', boxShadow: '0 0 0 999px rgba(2, 6, 23, 0.45)', pointerEvents: 'none' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: '#38BDF8', boxShadow: '0 0 8px #38BDF8' }} />
+                  </div>
+                  <div style={{ position: 'absolute', bottom: '12px', left: '16px', right: '16px', textAlign: 'center', color: '#FFFFFF', fontSize: '0.74rem', background: 'rgba(2,6,23,0.75)', padding: '6px 12px', borderRadius: '8px', pointerEvents: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    🎯 Point camera at Pass QR code • Auto-scanning active
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCheckInScannerOpen(false)}
+                    style={{ position: 'absolute', right: '12px', top: '12px', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(2,6,23,0.85)', color: '#FFFFFF', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', zIndex: 10 }}
+                  >
+                    <StopCircle size={15} color="#F43F5E" />
+                    <span>Stop Camera</span>
+                  </button>
                 </div>
               ) : (
-                <button type="button" onClick={() => { setCheckInScannerError(''); setCheckInScannerOpen(true); }} className="admin-btn admin-btn-ghost" style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '7px', padding: '11px', marginBottom: '14px' }}><Camera size={16} /> Open camera QR scanner</button>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setCheckInScannerError(''); setCheckInScannerOpen(true); }}
+                    className="admin-btn admin-btn-emerald"
+                    style={{ flex: 1, minWidth: '220px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', fontSize: '0.84rem', fontWeight: 700 }}
+                  >
+                    <Camera size={17} />
+                    <span>Open Live Camera QR Scanner</span>
+                  </button>
+
+                  <label
+                    className="admin-btn admin-btn-ghost"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 18px', cursor: 'pointer', border: '1px solid rgba(56, 189, 248, 0.35)', color: '#38BDF8', fontSize: '0.82rem', fontWeight: 600 }}
+                    title="Upload student pass screenshot or photo"
+                  >
+                    <Upload size={16} />
+                    <span>Scan from Pass Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScanImageFile}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
               )}
               {checkInScannerError && <div style={{ marginBottom: '14px', color: '#FCA5A5', fontSize: '0.76rem' }}>{checkInScannerError}</div>}
 
