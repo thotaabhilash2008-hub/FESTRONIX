@@ -5,7 +5,8 @@ import {
   Layers, Eye, RefreshCw, Building2,
   UserCheck, UserPlus, Phone, Mail, Copy, Check,
   Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key,
-  Calendar, ArrowRight, QrCode, Camera, StopCircle
+  Calendar, ArrowRight, QrCode, Camera, StopCircle,
+  TrendingUp, Filter, FileSpreadsheet, ArrowUpRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
@@ -87,6 +88,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'pending' | 'verified' | 'rejected' | 'all'>('pending');
   const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(null);
   const [selectedRosterEventId, setSelectedRosterEventId] = useState<string | null>(null);
+
+  // Revenue Analysis States & Filters (Super Admin overall view)
+  const [revenueDeptFilter, setRevenueDeptFilter] = useState('all');
+  const [revenueStatusFilter, setRevenueStatusFilter] = useState<'all' | 'verified' | 'verification_pending' | 'rejected'>('all');
+  const [revenueSearch, setRevenueSearch] = useState('');
   const [gateQuery, setGateQuery] = useState('');
   const [gateMatch, setGateMatch] = useState<Registration | null>(null);
   const [gateScannerOpen, setGateScannerOpen] = useState(false);
@@ -1062,6 +1068,201 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
     return matchSearch && matchDept && matchRole;
   });
+
+  // Super Admin Overall Revenue Calculations
+  const revenueAnalytics = useMemo(() => {
+    let totalVerified = 0;
+    let totalPending = 0;
+    let totalRejected = 0;
+    let verifiedCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
+    let onlineVerified = 0;
+    let spotVerified = 0;
+    let onlineCount = 0;
+    let spotCount = 0;
+
+    registrations.forEach(r => {
+      const fee = Number(r.fee) || 0;
+      if (r.paymentStatus === 'verified') {
+        totalVerified += fee;
+        verifiedCount++;
+        if (r.source === 'spot') {
+          spotVerified += fee;
+          spotCount++;
+        } else {
+          onlineVerified += fee;
+          onlineCount++;
+        }
+      } else if (r.paymentStatus === 'verification_pending') {
+        totalPending += fee;
+        pendingCount++;
+      } else if (r.paymentStatus === 'rejected') {
+        totalRejected += fee;
+        rejectedCount++;
+      }
+    });
+
+    const totalGross = totalVerified + totalPending;
+    const avgPerDelegate = verifiedCount > 0 ? Math.round(totalVerified / verifiedCount) : 0;
+    const totalPotentialCapacityRevenue = events.reduce((sum, e) => sum + ((e.capacity || 0) * (e.fee || 0)), 0);
+    const capacityMonetizationRate = totalPotentialCapacityRevenue > 0
+      ? Math.min(100, Math.round((totalVerified / totalPotentialCapacityRevenue) * 100))
+      : 0;
+
+    // Department Breakdown
+    const deptMap: Record<string, { code: string; name: string; eventsCount: number; verifiedRev: number; pendingRev: number; grossRev: number; regsCount: number }> = {};
+    departments.forEach(d => {
+      deptMap[d.code.toUpperCase()] = {
+        code: d.code,
+        name: d.name,
+        eventsCount: 0,
+        verifiedRev: 0,
+        pendingRev: 0,
+        grossRev: 0,
+        regsCount: 0
+      };
+    });
+
+    events.forEach(e => {
+      const deptCode = e.departmentCode.toUpperCase();
+      if (deptMap[deptCode]) {
+        deptMap[deptCode].eventsCount++;
+      }
+    });
+
+    registrations.forEach(r => {
+      const ev = events.find(e => e.id === r.eventId);
+      const code = (r.departmentCode || ev?.departmentCode || 'OTHER').toUpperCase();
+      if (!deptMap[code]) {
+        deptMap[code] = {
+          code,
+          name: code,
+          eventsCount: 0,
+          verifiedRev: 0,
+          pendingRev: 0,
+          grossRev: 0,
+          regsCount: 0
+        };
+      }
+      const fee = Number(r.fee) || 0;
+      deptMap[code].regsCount++;
+      if (r.paymentStatus === 'verified') {
+        deptMap[code].verifiedRev += fee;
+        deptMap[code].grossRev += fee;
+      } else if (r.paymentStatus === 'verification_pending') {
+        deptMap[code].pendingRev += fee;
+        deptMap[code].grossRev += fee;
+      }
+    });
+
+    const deptList = Object.values(deptMap).sort((a, b) => b.verifiedRev - a.verifiedRev);
+
+    // Top Earning Events
+    const eventRevenueList = events.map(ev => {
+      const evRegs = registrations.filter(r => r.eventId === ev.id);
+      const verifiedRegs = evRegs.filter(r => r.paymentStatus === 'verified');
+      const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
+      const verifiedRev = verifiedRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+      const pendingRev = pendingRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+      return {
+        id: ev.id,
+        title: ev.title,
+        departmentCode: ev.departmentCode,
+        category: ev.category,
+        fee: ev.fee,
+        capacity: ev.capacity,
+        totalRegs: evRegs.length,
+        verifiedCount: verifiedRegs.length,
+        pendingCount: pendingRegs.length,
+        verifiedRev,
+        pendingRev,
+        grossRev: verifiedRev + pendingRev
+      };
+    }).sort((a, b) => b.verifiedRev - a.verifiedRev);
+
+    return {
+      totalVerified,
+      totalPending,
+      totalRejected,
+      totalGross,
+      verifiedCount,
+      pendingCount,
+      rejectedCount,
+      onlineVerified,
+      spotVerified,
+      onlineCount,
+      spotCount,
+      avgPerDelegate,
+      totalPotentialCapacityRevenue,
+      capacityMonetizationRate,
+      deptList,
+      eventRevenueList
+    };
+  }, [registrations, events, departments]);
+
+  const filteredRevenueRegistrations = useMemo(() => {
+    return registrations.filter(r => {
+      const ev = events.find(e => e.id === r.eventId);
+      const dept = (r.departmentCode || ev?.departmentCode || '').toUpperCase();
+      const matchDept = revenueDeptFilter === 'all' || dept === revenueDeptFilter.toUpperCase();
+      const matchStatus = revenueStatusFilter === 'all' || r.paymentStatus === revenueStatusFilter;
+      const q = revenueSearch.trim().toLowerCase();
+      const matchSearch = !q ||
+        r.id.toLowerCase().includes(q) ||
+        (r.leaderName && r.leaderName.toLowerCase().includes(q)) ||
+        (r.leaderRoll && r.leaderRoll.toLowerCase().includes(q)) ||
+        (r.leaderEmail && r.leaderEmail.toLowerCase().includes(q)) ||
+        (r.eventTitle && r.eventTitle.toLowerCase().includes(q)) ||
+        (ev && ev.title.toLowerCase().includes(q)) ||
+        (r.transactionId && r.transactionId.toLowerCase().includes(q)) ||
+        (r.razorpayPaymentId && r.razorpayPaymentId.toLowerCase().includes(q));
+      return matchDept && matchStatus && matchSearch;
+    });
+  }, [registrations, events, revenueDeptFilter, revenueStatusFilter, revenueSearch]);
+
+  const handleExportRevenueCSV = () => {
+    const headers = [
+      'Registration ID',
+      'Department',
+      'Event Name',
+      'Participant Name',
+      'Roll Number',
+      'Email',
+      'Fee (INR)',
+      'Payment Status',
+      'Payment Mode',
+      'Source',
+      'Transaction ID / UTR',
+      'Registered Date'
+    ];
+    const rows = filteredRevenueRegistrations.map(r => {
+      const ev = events.find(e => e.id === r.eventId);
+      const dept = r.departmentCode || ev?.departmentCode || 'CENTRAL';
+      return [
+        r.id,
+        `"${dept}"`,
+        `"${(ev?.title || r.eventTitle || '').replace(/"/g, '""')}"`,
+        `"${(r.leaderName || '').replace(/"/g, '""')}"`,
+        `"${r.leaderRoll || ''}"`,
+        `"${r.leaderEmail || ''}"`,
+        Number(r.fee) || 0,
+        r.paymentStatus,
+        r.paymentMethod || 'UPI',
+        r.source || 'online',
+        `"${r.transactionId || r.razorpayPaymentId || (r.paymentScreenshotUrl ? 'Proof Attached' : '')}"`,
+        `"${r.registrationDate || ''}"`
+      ].join(',');
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `FESTRONIX_2026_REVENUE_AUDIT_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleExportRosterCSV = () => {
     const headers = ['Registration ID', 'Event Name', 'Participant / Leader Name', 'Roll Number', 'Email', 'College', 'Department / Section', 'Phone', 'Payment Status', 'Gate Checked In'];
@@ -2871,10 +3072,549 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           </div>
         )}
 
-        {/* TAB 5: CAMPUS BULLETINS BROADCAST */}
-        {activeTab === 'bulletins' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            {/* Create Bulletin Form */}
+        {/* TAB 5: FEST-WIDE REVENUE ANALYSIS (SUPER ADMIN ONLY) */}
+        {activeTab === 'revenue' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header & Export Bar */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px',
+                padding: '22px 26px',
+                background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: '#38BDF8',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      padding: '3px 9px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(56, 189, 248, 0.25)'
+                    }}
+                  >
+                    CENTRAL GOVERNANCE • SUPER ADMIN ONLY
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>• Real-Time Financial Ledger</span>
+                </div>
+                <h2
+                  className="font-title"
+                  style={{
+                    fontSize: '1.5rem',
+                    color: '#FFFFFF',
+                    margin: 0,
+                    fontWeight: 800,
+                    letterSpacing: '-0.02em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}
+                >
+                  <TrendingUp size={24} color="#34D399" />
+                  <span>Fest-Wide Revenue & Financial Analysis</span>
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: '#94A3B8', margin: '4px 0 0', maxWidth: '780px' }}>
+                  Overall gross collections, department-wise financial distributions, and registration audit across all departments for Festronix 2026.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleExportRevenueCSV}
+                  className="admin-btn admin-btn-emerald"
+                  style={{ padding: '9px 18px', fontSize: '0.84rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Download size={16} />
+                  <span>Download Financial Audit (CSV)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Top 4 Financial KPI Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              {/* Card 1: Verified Revenue */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(52, 211, 153, 0.3)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(16, 185, 129, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Total Verified Revenue
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      ₹{revenueAnalytics.totalVerified.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(52, 211, 153, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(52, 211, 153, 0.3)'
+                    }}
+                  >
+                    <IndianRupee size={22} color="#34D399" />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                  <span style={{ color: '#34D399', fontWeight: 700 }}>{revenueAnalytics.verifiedCount} transactions</span> bank settled & confirmed
+                </div>
+              </div>
+
+              {/* Card 2: Pending Verification Pipeline */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(251, 191, 36, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FBBF24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Pending Approval Pipeline
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      ₹{revenueAnalytics.totalPending.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(251, 191, 36, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(251, 191, 36, 0.3)'
+                    }}
+                  >
+                    <Clock size={22} color="#FBBF24" />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                  <span style={{ color: '#FBBF24', fontWeight: 700 }}>{revenueAnalytics.pendingCount} transactions</span> awaiting Dean review
+                </div>
+              </div>
+
+              {/* Card 3: Total Potential Gross */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(56, 189, 248, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Total Potential Gross
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      ₹{revenueAnalytics.totalGross.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(56, 189, 248, 0.3)'
+                    }}
+                  >
+                    <TrendingUp size={22} color="#38BDF8" />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                  Average <span style={{ color: '#38BDF8', fontWeight: 700 }}>₹{revenueAnalytics.avgPerDelegate}</span> per verified delegate
+                </div>
+              </div>
+
+              {/* Card 4: Capacity Monetization */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(192, 132, 252, 0.3)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(192, 132, 252, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#C084FC', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Capacity Monetization
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      {revenueAnalytics.capacityMonetizationRate}%
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(192, 132, 252, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(192, 132, 252, 0.3)'
+                    }}
+                  >
+                    <Layers size={22} color="#C084FC" />
+                  </div>
+                </div>
+                <div className="admin-progress-track" style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', margin: '8px 0 6px' }}>
+                  <div
+                    className="admin-progress-fill"
+                    style={{
+                      width: `${revenueAnalytics.capacityMonetizationRate}%`,
+                      background: 'linear-gradient(90deg, #9333EA, #C084FC)',
+                      height: '100%',
+                      borderRadius: '3px'
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                  ₹{revenueAnalytics.totalVerified.toLocaleString('en-IN')} of ₹{revenueAnalytics.totalPotentialCapacityRevenue.toLocaleString('en-IN')} theoretical cap
+                </div>
+              </div>
+            </div>
+
+            {/* Department-Wise Revenue Comparison Table */}
+            <div
+              style={{
+                background: 'rgba(20, 31, 62, 0.85)',
+                border: '1px solid rgba(220, 227, 229, 0.18)',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Building2 size={18} color="#38BDF8" />
+                    <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+                      Department Financial Comparison & Contribution
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0' }}>
+                    Comparative breakdown of collections and fest gross share across all 10+ college departments.
+                  </p>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color: '#94A3B8',
+                    background: 'rgba(255,255,255,0.05)',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}
+                >
+                  Ranked by Verified Collections
+                </span>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '760px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.12)', fontSize: '0.74rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <th style={{ padding: '12px 14px' }}>Department</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center' }}>Events</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center' }}>Registrations</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Verified (₹)</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Pending (₹)</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Gross (₹)</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right', minWidth: '160px' }}>Contribution Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revenueAnalytics.deptList.map(dept => {
+                      const share = revenueAnalytics.totalVerified > 0
+                        ? ((dept.verifiedRev / revenueAnalytics.totalVerified) * 100)
+                        : 0;
+                      return (
+                        <tr
+                          key={dept.code}
+                          style={{
+                            borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
+                            fontSize: '0.84rem',
+                            transition: 'background 0.15s ease'
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <td style={{ padding: '14px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span
+                                style={{
+                                  background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(192, 132, 252, 0.2))',
+                                  color: '#38BDF8',
+                                  fontWeight: 800,
+                                  fontSize: '0.75rem',
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                                  letterSpacing: '0.05em'
+                                }}
+                              >
+                                {dept.code}
+                              </span>
+                              <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{dept.name}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '14px 14px', textAlign: 'center', color: '#DCE3E5' }}>
+                            {dept.eventsCount}
+                          </td>
+                          <td style={{ padding: '14px 14px', textAlign: 'center', color: '#DCE3E5', fontWeight: 600 }}>
+                            {dept.regsCount}
+                          </td>
+                          <td style={{ padding: '14px 14px', textAlign: 'right', color: '#34D399', fontWeight: 800 }}>
+                            ₹{dept.verifiedRev.toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ padding: '14px 14px', textAlign: 'right', color: '#FBBF24', fontWeight: 600 }}>
+                            ₹{dept.pendingRev.toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ padding: '14px 14px', textAlign: 'right', color: '#FFFFFF', fontWeight: 700 }}>
+                            ₹{dept.grossRev.toLocaleString('en-IN')}
+                          </td>
+                          <td style={{ padding: '14px 14px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                              <div style={{ width: '80px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    width: `${Math.min(100, share)}%`,
+                                    height: '100%',
+                                    background: 'linear-gradient(90deg, #38BDF8, #34D399)',
+                                    borderRadius: '3px'
+                                  }}
+                                />
+                              </div>
+                              <span style={{ fontSize: '0.76rem', color: '#38BDF8', fontWeight: 700, minWidth: '40px' }}>
+                                {share.toFixed(1)}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Two-Column Grid: Payment Breakdown & Top Earning Events */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
+              {/* Payment Source Distribution */}
+              <div
+                style={{
+                  background: 'rgba(20, 31, 62, 0.85)',
+                  border: '1px solid rgba(220, 227, 229, 0.18)',
+                  borderRadius: '16px',
+                  padding: '24px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <TrendingUp size={18} color="#38BDF8" />
+                  <h3 className="font-title" style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: 0 }}>
+                    Collections by Payment Channel
+                  </h3>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Online Channel */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(56, 189, 248, 0.2)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>Online Delegate Portal</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
+                        {revenueAnalytics.onlineCount} registrations • Razorpay / Direct UPI QR
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#38BDF8' }}>
+                        ₹{revenueAnalytics.onlineVerified.toLocaleString('en-IN')}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#34D399', fontWeight: 700 }}>
+                        {revenueAnalytics.totalVerified > 0 ? ((revenueAnalytics.onlineVerified / revenueAnalytics.totalVerified) * 100).toFixed(1) : 0}% of settled
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Spot Desk Channel */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(52, 211, 153, 0.2)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>Campus Spot Desk</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
+                        {revenueAnalytics.spotCount} registrations • Walk-in UPI / Cash Desks
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#34D399' }}>
+                        ₹{revenueAnalytics.spotVerified.toLocaleString('en-IN')}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#34D399', fontWeight: 700 }}>
+                        {revenueAnalytics.totalVerified > 0 ? ((revenueAnalytics.spotVerified / revenueAnalytics.totalVerified) * 100).toFixed(1) : 0}% of settled
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rejected Transactions */}
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      background: 'rgba(244, 63, 94, 0.08)',
+                      border: '1px solid rgba(244, 63, 94, 0.25)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#F43F5E' }}>Rejected / Invalid Claims</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
+                        {revenueAnalytics.rejectedCount} fraudulent or failed submissions rejected
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#F43F5E' }}>
+                      ₹{revenueAnalytics.totalRejected.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top Grossing Events Leaderboard */}
+              <div
+                style={{
+                  background: 'rgba(20, 31, 62, 0.85)',
+                  border: '1px solid rgba(220, 227, 229, 0.18)',
+                  borderRadius: '16px',
+                  padding: '24px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Award size={18} color="#FBBF24" />
+                    <h3 className="font-title" style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: 0 }}>
+                      Top Earning Arenas
+                    </h3>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Top 5 Grossing</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {revenueAnalytics.eventRevenueList.slice(0, 5).map((ev, index) => (
+                    <div
+                      key={ev.id}
+                      style={{
+                        padding: '12px 14px',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.12)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <span
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            background: index === 0 ? '#FBBF24' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : 'rgba(255,255,255,0.1)',
+                            color: index < 3 ? '#000000' : '#FFFFFF',
+                            fontSize: '0.72rem',
+                            fontWeight: 900,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
+                          {index + 1}
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {ev.title}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                            <span style={{ fontSize: '0.66rem', color: '#38BDF8', fontWeight: 800 }}>{ev.departmentCode}</span>
+                            <span style={{ fontSize: '0.66rem', color: '#94A3B8' }}>• ₹{ev.fee}/slot • {ev.verifiedCount} verified</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#34D399' }}>
+                          ₹{ev.verifiedRev.toLocaleString('en-IN')}
+                        </div>
+                        {ev.pendingRev > 0 && (
+                          <div style={{ fontSize: '0.66rem', color: '#FBBF24' }}>
+                            +₹{ev.pendingRev.toLocaleString('en-IN')} pending
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Filterable Registration Audit Ledger */}
             <div
               style={{
                 background: 'rgba(20, 31, 62, 0.85)',
@@ -2883,152 +3623,221 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 padding: '24px'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <Bell size={18} color="#BACEBB" />
-                <h3 className="font-title" style={{ fontSize: '1.1rem', color: '#FFFFFF', margin: 0 }}>
-                  Broadcast New Campus Bulletin
-                </h3>
-              </div>
-
-              <form onSubmit={handleCreateAnnouncement} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Bulletin Priority / Category
-                  </label>
+                  <h3 className="font-title" style={{ fontSize: '1.12rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+                    Detailed Registration Audit Ledger ({filteredRevenueRegistrations.length})
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '3px 0 0' }}>
+                    Granular transaction level records. Filter by department, approval status, or participant query.
+                  </p>
+                </div>
+
+                {/* Filter Controls */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {/* Search Bar */}
+                  <div style={{ position: 'relative', width: '220px' }}>
+                    <Search size={14} color="#94A3B8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="text"
+                      placeholder="Search participant / UTR..."
+                      value={revenueSearch}
+                      onChange={e => setRevenueSearch(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '7px 10px 7px 30px',
+                        borderRadius: '8px',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        color: '#FFFFFF',
+                        fontSize: '0.78rem',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  {/* Department Filter */}
                   <select
-                    value={newAnnType}
-                    onChange={e => setNewAnnType(e.target.value as any)}
+                    value={revenueDeptFilter}
+                    onChange={e => setRevenueDeptFilter(e.target.value)}
                     style={{
-                      width: '100%',
-                      padding: '10px 12px',
+                      padding: '7px 12px',
                       borderRadius: '8px',
                       background: 'rgba(16, 26, 53, 0.9)',
-                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      border: '1px solid rgba(220, 227, 229, 0.2)',
                       color: '#FFFFFF',
-                      fontSize: '0.84rem'
+                      fontSize: '0.78rem'
                     }}
                   >
-                    <option value="urgent">Urgent Announcement (Red)</option>
-                    <option value="general">General Campus Notice (Sage)</option>
-                    <option value="prize">Prize Pool / Perk Alert</option>
-                    <option value="workshop">Keynote & Workshop Notice</option>
+                    <option value="all">All Departments</option>
+                    {departments.map(d => (
+                      <option key={d.code} value={d.code}>
+                        {d.code} - {d.name}
+                      </option>
+                    ))}
                   </select>
-                </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Headline Title
-                  </label>
-                  <input
-                    type="text"
-                    value={newAnnTitle}
-                    onChange={e => setNewAnnTitle(e.target.value)}
-                    placeholder="e.g. Hackathon Schedule Shift or Cash Prize update"
-                    required
+                  {/* Payment Status Filter */}
+                  <select
+                    value={revenueStatusFilter}
+                    onChange={e => setRevenueStatusFilter(e.target.value as any)}
                     style={{
-                      width: '100%',
-                      padding: '10px 12px',
+                      padding: '7px 12px',
                       borderRadius: '8px',
                       background: 'rgba(16, 26, 53, 0.9)',
-                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      border: '1px solid rgba(220, 227, 229, 0.2)',
                       color: '#FFFFFF',
-                      fontSize: '0.84rem',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Message Content
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={newAnnMessage}
-                    onChange={e => setNewAnnMessage(e.target.value)}
-                    placeholder="Detail message to display on the fest marquee and student bells"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(16, 26, 53, 0.9)',
-                      border: '1px solid rgba(220, 227, 229, 0.25)',
-                      color: '#FFFFFF',
-                      fontSize: '0.84rem',
-                      resize: 'vertical',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn-cyber-primary"
-                  style={{
-                    padding: '11px',
-                    fontSize: '0.88rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Plus size={16} />
-                  <span>Publish Fest-Wide Bulletin</span>
-                </button>
-              </form>
-            </div>
-
-            {/* Existing Bulletins List */}
-            <div>
-              <h3 className="font-title" style={{ fontSize: '1.1rem', color: '#FFFFFF', margin: '0 0 16px' }}>
-                Active Bulletins ({announcements.length})
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {announcements.map(ann => (
-                  <div
-                    key={ann.id}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: '12px',
-                      background: 'rgba(20, 31, 62, 0.85)',
-                      borderLeft: `4px solid ${ann.type === 'urgent' ? '#F43F5E' : '#789593'}`,
-                      border: '1px solid rgba(220, 227, 229, 0.16)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      gap: '12px'
+                      fontSize: '0.78rem'
                     }}
                   >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>{ann.title}</span>
-                        <span style={{ fontSize: '0.68rem', color: '#A8B3C2' }}>• {ann.date}</span>
-                      </div>
-                      <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: 0, lineHeight: 1.5 }}>
-                        {ann.message}
-                      </p>
-                    </div>
+                    <option value="all">All Statuses</option>
+                    <option value="verified">Verified Only</option>
+                    <option value="verification_pending">Pending Only</option>
+                    <option value="rejected">Rejected Only</option>
+                  </select>
 
+                  {(revenueDeptFilter !== 'all' || revenueStatusFilter !== 'all' || revenueSearch) && (
                     <button
-                      onClick={() => handleDeleteAnnouncement(ann.id)}
+                      onClick={() => {
+                        setRevenueDeptFilter('all');
+                        setRevenueStatusFilter('all');
+                        setRevenueSearch('');
+                      }}
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#f87171',
+                        color: '#38BDF8',
+                        fontSize: '0.76rem',
                         cursor: 'pointer',
-                        padding: '4px',
-                        borderRadius: '4px'
+                        textDecoration: 'underline'
                       }}
-                      title="Remove Bulletin"
                     >
-                      <Trash2 size={16} />
+                      Reset Filters
                     </button>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
+
+              {/* Transactions Table */}
+              <div style={{ overflowX: 'auto', maxHeight: '480px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '780px' }}>
+                  <thead style={{ position: 'sticky', top: 0, background: '#101B35', zIndex: 2 }}>
+                    <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.16)', fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <th style={{ padding: '10px 12px' }}>Registration ID</th>
+                      <th style={{ padding: '10px 12px' }}>Participant / Roll</th>
+                      <th style={{ padding: '10px 12px' }}>Dept & Arena</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Fee</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'center' }}>Channel</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'center' }}>Approval Status</th>
+                      <th style={{ padding: '10px 12px' }}>Txn / UTR ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRevenueRegistrations.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
+                          No registration records match the selected revenue filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredRevenueRegistrations.slice(0, 50).map(r => {
+                        const ev = events.find(e => e.id === r.eventId);
+                        const dept = r.departmentCode || ev?.departmentCode || 'CENTRAL';
+                        return (
+                          <tr
+                            key={r.id}
+                            style={{
+                              borderBottom: '1px solid rgba(220, 227, 229, 0.07)',
+                              fontSize: '0.8rem',
+                              transition: 'background 0.15s ease'
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <td style={{ padding: '12px 12px', fontFamily: 'monospace', color: '#38BDF8', fontWeight: 600 }}>
+                              {r.id}
+                            </td>
+                            <td style={{ padding: '12px 12px' }}>
+                              <div style={{ color: '#FFFFFF', fontWeight: 600 }}>{r.leaderName || 'Individual Delegate'}</div>
+                              <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{r.leaderRoll || r.leaderEmail}</div>
+                            </td>
+                            <td style={{ padding: '12px 12px' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 800,
+                                  color: '#38BDF8',
+                                  background: 'rgba(56, 189, 248, 0.12)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  marginRight: '6px'
+                                }}
+                              >
+                                {dept}
+                              </span>
+                              <span style={{ color: '#DCE3E5' }}>{ev?.title || r.eventTitle}</span>
+                            </td>
+                            <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 800, color: '#FFFFFF' }}>
+                              ₹{Number(r.fee) || 0}
+                            </td>
+                            <td style={{ padding: '12px 12px', textAlign: 'center' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  color: r.source === 'spot' ? '#FBBF24' : '#38BDF8',
+                                  textTransform: 'uppercase'
+                                }}
+                              >
+                                {r.source === 'spot' ? 'Spot' : 'Online'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 12px', textAlign: 'center' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 800,
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background:
+                                    r.paymentStatus === 'verified'
+                                      ? 'rgba(52, 211, 153, 0.15)'
+                                      : r.paymentStatus === 'rejected'
+                                      ? 'rgba(244, 63, 94, 0.15)'
+                                      : 'rgba(251, 191, 36, 0.15)',
+                                  color:
+                                    r.paymentStatus === 'verified'
+                                      ? '#34D399'
+                                      : r.paymentStatus === 'rejected'
+                                      ? '#F43F5E'
+                                      : '#FBBF24',
+                                  border: `1px solid ${
+                                    r.paymentStatus === 'verified'
+                                      ? 'rgba(52, 211, 153, 0.3)'
+                                      : r.paymentStatus === 'rejected'
+                                      ? 'rgba(244, 63, 94, 0.3)'
+                                      : 'rgba(251, 191, 36, 0.3)'
+                                  }`
+                                }}
+                              >
+                                {r.paymentStatus === 'verified' ? 'VERIFIED' : r.paymentStatus === 'rejected' ? 'REJECTED' : 'PENDING'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 12px', fontFamily: 'monospace', fontSize: '0.74rem', color: '#94A3B8' }}>
+                              {r.transactionId || r.razorpayPaymentId || (r.paymentScreenshotUrl ? 'Proof Attached' : '—')}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {filteredRevenueRegistrations.length > 50 && (
+                <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                  Showing first 50 of {filteredRevenueRegistrations.length} registrations. Export CSV for the full audit.
+                </div>
+              )}
             </div>
           </div>
         )}

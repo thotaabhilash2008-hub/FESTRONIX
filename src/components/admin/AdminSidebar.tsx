@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   Briefcase,
   Menu,
-  X
+  X,
+  TrendingUp
 } from 'lucide-react';
 
 export type AdminNavTab =
@@ -24,10 +25,10 @@ export type AdminNavTab =
   | 'sponsors'
   | 'registrations'
   | 'payments'
+  | 'revenue'
   | 'events'
   | 'coordinators'
   | 'roster'
-  | 'bulletins'
   | 'reports'
   | 'structure'
   | 'users'
@@ -57,6 +58,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       icon: CreditCard,
       badge: pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined
     },
+    { id: 'revenue' as AdminNavTab, label: 'Revenue Analysis', icon: TrendingUp },
     {
       id: 'events' as AdminNavTab,
       label: 'Events',
@@ -65,7 +67,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     },
     { id: 'coordinators' as AdminNavTab, label: 'Event Coordinators', icon: Users },
     { id: 'roster' as AdminNavTab, label: 'Participants', icon: Layers },
-    { id: 'bulletins' as AdminNavTab, label: 'Campus Bulletins', icon: Bell },
     { id: 'reports' as AdminNavTab, label: 'Analytics & Reports', icon: BarChart3 },
     { id: 'structure' as AdminNavTab, label: 'User Management', icon: UserCog },
     { id: 'settings' as AdminNavTab, label: 'Settings', icon: Settings }
