@@ -13,6 +13,9 @@ import { MultiPassModal } from './components/MultiPassModal';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { PublicSponsorsPage } from './components/PublicSponsorsPage';
 import { AllEventsPage } from './components/AllEventsPage';
+import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
+import { TermsAndConditionsPage } from './components/legal/TermsAndConditionsPage';
+import { RefundPolicyPage } from './components/legal/RefundPolicyPage';
 
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
@@ -115,8 +118,53 @@ export const App: React.FC = () => {
     );
   };
 
+  const checkIsPrivacyPage = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return (
+      path === '/privacy' ||
+      path === '/privacy/' ||
+      path === '/privacy-policy' ||
+      path === '/privacy-policy/' ||
+      hash === '#privacy' ||
+      hash === '#privacy-policy'
+    );
+  };
+
+  const checkIsTermsPage = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return (
+      path === '/terms' ||
+      path === '/terms/' ||
+      path === '/terms-and-conditions' ||
+      path === '/terms-and-conditions/' ||
+      hash === '#terms' ||
+      hash === '#terms-and-conditions'
+    );
+  };
+
+  const checkIsRefundPage = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return (
+      path === '/refund' ||
+      path === '/refund/' ||
+      path === '/refund-policy' ||
+      path === '/refund-policy/' ||
+      hash === '#refund' ||
+      hash === '#refund-policy'
+    );
+  };
+
   const [isPassesPageOpen, setIsPassesPageOpen] = useState<boolean>(checkIsPassesPage);
   const [isAllEventsPageOpen, setIsAllEventsPageOpen] = useState<boolean>(checkIsAllEventsPage);
+  const [isPrivacyPageOpen, setIsPrivacyPageOpen] = useState<boolean>(checkIsPrivacyPage);
+  const [isTermsPageOpen, setIsTermsPageOpen] = useState<boolean>(checkIsTermsPage);
+  const [isRefundPageOpen, setIsRefundPageOpen] = useState<boolean>(checkIsRefundPage);
   const [isRegistrationPageOpen, setIsRegistrationPageOpen] = useState<boolean>(() => Boolean(getRegistrationSlug()));
   const [registrationSlug, setRegistrationSlug] = useState<string>(getRegistrationSlug);
 
@@ -191,6 +239,9 @@ export const App: React.FC = () => {
       setIsSponsorsPageOpen(checkIsSponsorsPage());
       setIsPassesPageOpen(checkIsPassesPage());
       setIsAllEventsPageOpen(checkIsAllEventsPage());
+      setIsPrivacyPageOpen(checkIsPrivacyPage());
+      setIsTermsPageOpen(checkIsTermsPage());
+      setIsRefundPageOpen(checkIsRefundPage());
       const slug = getRegistrationSlug();
       setRegistrationSlug(slug);
       setIsRegistrationPageOpen(Boolean(slug));
@@ -231,10 +282,64 @@ export const App: React.FC = () => {
     setIsPassesPageOpen(false);
     setIsAllEventsPageOpen(false);
     setIsRegistrationPageOpen(false);
+    setIsPrivacyPageOpen(false);
+    setIsTermsPageOpen(false);
+    setIsRefundPageOpen(false);
     setRegistrationSlug('');
     setRegisterEvent(null);
     setIsPassesModalOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenPrivacyPage = () => {
+    window.history.pushState(null, '', '/privacy');
+    window.location.hash = '';
+    setIsPrivacyPageOpen(true);
+    setIsTermsPageOpen(false);
+    setIsRefundPageOpen(false);
+    setIsAllEventsPageOpen(false);
+    setIsSponsorsPageOpen(false);
+    setIsPassesPageOpen(false);
+    setIsRegistrationPageOpen(false);
+    setIsAdminView(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const handleOpenTermsPage = () => {
+    window.history.pushState(null, '', '/terms');
+    window.location.hash = '';
+    setIsTermsPageOpen(true);
+    setIsPrivacyPageOpen(false);
+    setIsRefundPageOpen(false);
+    setIsAllEventsPageOpen(false);
+    setIsSponsorsPageOpen(false);
+    setIsPassesPageOpen(false);
+    setIsRegistrationPageOpen(false);
+    setIsAdminView(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const handleOpenRefundPage = () => {
+    window.history.pushState(null, '', '/refund');
+    window.location.hash = '';
+    setIsRefundPageOpen(true);
+    setIsPrivacyPageOpen(false);
+    setIsTermsPageOpen(false);
+    setIsAllEventsPageOpen(false);
+    setIsSponsorsPageOpen(false);
+    setIsPassesPageOpen(false);
+    setIsRegistrationPageOpen(false);
+    setIsAdminView(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const handleBackFromLegalPage = () => {
+    window.history.pushState(null, '', '/');
+    window.location.hash = '';
+    setIsPrivacyPageOpen(false);
+    setIsTermsPageOpen(false);
+    setIsRefundPageOpen(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const handleOpenAllEventsPage = () => {
@@ -328,6 +433,37 @@ export const App: React.FC = () => {
   const activePassLookup = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('registration') || activePassId
     : activePassId;
+
+  // Render Legal Pages (/privacy, /terms, /refund)
+  if (isPrivacyPageOpen) {
+    return (
+      <PrivacyPolicyPage
+        onBackToHome={handleBackFromLegalPage}
+        onNavigateToTerms={handleOpenTermsPage}
+        onNavigateToRefund={handleOpenRefundPage}
+      />
+    );
+  }
+
+  if (isTermsPageOpen) {
+    return (
+      <TermsAndConditionsPage
+        onBackToHome={handleBackFromLegalPage}
+        onNavigateToPrivacy={handleOpenPrivacyPage}
+        onNavigateToRefund={handleOpenRefundPage}
+      />
+    );
+  }
+
+  if (isRefundPageOpen) {
+    return (
+      <RefundPolicyPage
+        onBackToHome={handleBackFromLegalPage}
+        onNavigateToPrivacy={handleOpenPrivacyPage}
+        onNavigateToTerms={handleOpenTermsPage}
+      />
+    );
+  }
 
   // Render Public Sponsors Page if in #sponsors or #partners view
   if (isSponsorsPageOpen) {
@@ -505,7 +641,13 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <Footer onOpenAdmin={handleOpenAdmin} />
+      <Footer
+        onOpenAdmin={handleOpenAdmin}
+        onOpenSponsors={handleOpenSponsorsPage}
+        onOpenPrivacy={handleOpenPrivacyPage}
+        onOpenTerms={handleOpenTermsPage}
+        onOpenRefund={handleOpenRefundPage}
+      />
 
       {/* User Modals */}
       <EventDetailModal

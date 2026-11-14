@@ -114,9 +114,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     return isEventCoord ? 'assigned' : 'all';
   });
 
-  // Active Tab: Event Coordinator vs Department Coordinator defaults
-  type DashboardTab = 'events' | 'readiness' | 'roster' | 'checkin' | 'coordinators' | 'security';
+  // Active Tab: Dept coordinators can view/add events, do attendance check-in, or change password
+  type DashboardTab = 'events' | 'checkin' | 'security';
   const [activeTab, setActiveTab] = useState<DashboardTab>('events');
+
+  // Attendance Check-in Event Filter & Attendee Search
+  const [checkInEventFilter, setCheckInEventFilter] = useState<string>('all');
+  const [checkInAttendeeSearch, setCheckInAttendeeSearch] = useState<string>('');
 
   // Password change is handled by Supabase Auth; values never enter localStorage.
   const [passwordCurrent, setPasswordCurrent] = useState('');
@@ -129,7 +133,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [checkInInput, setCheckInInput] = useState('');
   const [checkInResult, setCheckInResult] = useState<{
     success: boolean;
-    status: 'VALID' | 'ALREADY_CHECKED_IN' | 'NOT_FOUND' | 'PAYMENT_PENDING';
+    status: 'VALID' | 'ALREADY_CHECKED_IN' | 'NOT_FOUND' | 'PAYMENT_PENDING' | 'EVENT_MISMATCH';
     registration?: Registration;
     message: string;
   } | null>(null);
@@ -317,6 +321,30 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
     return registrations;
   }, [eventScope, assignedEventsList, registrations, isEventCoord]);
+
+  // Registrations scoped to the specific event chosen in the check-in dropdown
+  const checkInRegistrations = useMemo(() => {
+    if (checkInEventFilter === 'all') return scopedRegistrations;
+    const targetEvent = visibleEvents.find(e => e.id === checkInEventFilter);
+    return scopedRegistrations.filter(r =>
+      r.eventId === checkInEventFilter ||
+      (targetEvent && r.eventTitle.toLowerCase() === targetEvent.title.toLowerCase())
+    );
+  }, [checkInEventFilter, scopedRegistrations, visibleEvents]);
+
+  // Filtered attendees for the check-in attendee directory table
+  const filteredCheckInAttendees = useMemo(() => {
+    const query = checkInAttendeeSearch.trim().toLowerCase();
+    if (!query) return checkInRegistrations;
+    return checkInRegistrations.filter(r =>
+      r.id.toLowerCase().includes(query) ||
+      r.leaderName.toLowerCase().includes(query) ||
+      (r.leaderRoll && r.leaderRoll.toLowerCase().includes(query)) ||
+      (r.buyerRoll && r.buyerRoll.toLowerCase().includes(query)) ||
+      (r.teamCode && r.teamCode.toLowerCase().includes(query)) ||
+      (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase().includes(query)))
+    );
+  }, [checkInRegistrations, checkInAttendeeSearch]);
 
   // Filtered Roster with Search and Status
   const filteredRoster = useMemo(() => {
@@ -554,6 +582,23 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         message: `No registration found matching "${value}" for the ${deptCode} department.`
       });
       return;
+    }
+
+    // Event-specific validation when a specific event dropdown is selected
+    if (checkInEventFilter !== 'all') {
+      const selectedEvent = visibleEvents.find(e => e.id === checkInEventFilter);
+      const isMatchingEvent = matchingReg.eventId === checkInEventFilter ||
+        (selectedEvent && matchingReg.eventTitle.toLowerCase() === selectedEvent.title.toLowerCase());
+
+      if (!isMatchingEvent) {
+        setCheckInResult({
+          success: false,
+          status: 'EVENT_MISMATCH',
+          message: `Notice: This pass is for "${matchingReg.eventTitle}", but your desk is filtered for "${selectedEvent?.title || 'Selected Event'}". Switch the dropdown to validate this student.`,
+          registration: matchingReg
+        });
+        return;
+      }
     }
 
     const res = await StorageService.checkInRegistration(matchingReg.id, adminUser.fullName);
@@ -1070,18 +1115,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             </div>
           </div>
 
-          {/* Right: Quick Spot Reg Action Button */}
+          {/* Right: Add New Department Event Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <button
-              onClick={() => {
-                setSpotEventId(visibleEvents[0]?.id || events[0]?.id || '');
-                setIsSpotRegOpen(true);
-              }}
+              onClick={() => setIsAddEventOpen(true)}
               className="admin-btn admin-btn-emerald"
-              style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+              style={{ padding: '8px 18px', fontSize: '0.82rem', fontWeight: 700 }}
             >
-              <UserPlus size={15} />
-              <span>+ Spot Registration (Fest Day)</span>
+              <Plus size={16} />
+              <span>+ Add Department Event</span>
             </button>
           </div>
         </div>
@@ -1297,24 +1339,22 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                {isDeptChief && (
-                  <button
-                    onClick={() => setIsAddEventOpen(true)}
-                    className="btn-cyber-primary"
-                    style={{
-                      padding: '9px 18px',
-                      fontSize: '0.84rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      borderRadius: '10px'
-                    }}
-                  >
-                    <Plus size={16} />
-                    <span>Submit Department Event</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => setIsAddEventOpen(true)}
+                  className="btn-cyber-primary"
+                  style={{
+                    padding: '9px 18px',
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderRadius: '10px'
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>+ Add Department Event</span>
+                </button>
               </div>
             </div>
 
@@ -1461,39 +1501,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                         </div>
 
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          {/* Quick Spot Reg for this Event */}
-                          <button
-                            onClick={() => {
-                              setSpotEventId(event.id);
-                              setIsSpotRegOpen(true);
-                            }}
-                            title="Register walk-in student for this event"
-                            style={{
-                              background: 'rgba(16, 185, 129, 0.2)',
-                              border: '1px solid rgba(16, 185, 129, 0.4)',
-                              borderRadius: '6px',
-                              padding: '6px 10px',
-                              color: '#6EE7B7',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <UserPlus size={13} />
-                            <span>Spot</span>
-                          </button>
-
-                          {/* 8.1 Edit Event Details */}
                           <button
                             onClick={() => setEditingEvent(event)}
                             style={{
                               background: 'rgba(255, 255, 255, 0.05)',
                               border: '1px solid rgba(220, 227, 229, 0.2)',
                               borderRadius: '6px',
-                              padding: '6px 10px',
+                              padding: '6px 12px',
                               color: '#DCE3E5',
                               fontSize: '0.72rem',
                               fontWeight: 600,
@@ -1504,23 +1518,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                             }}
                           >
                             <Edit3 size={13} />
-                            <span>Edit</span>
-                          </button>
-
-                          <button
-                            onClick={() => handleToggleEventStatus(event)}
-                            style={{
-                              background: event.status === 'open' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(52, 211, 153, 0.15)',
-                              border: `1px solid ${event.status === 'open' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(52, 211, 153, 0.4)'}`,
-                              borderRadius: '6px',
-                              padding: '6px 10px',
-                              color: event.status === 'open' ? '#fca5a5' : '#34D399',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {event.status === 'open' ? 'Close' : 'Open'}
+                            <span>Edit Event</span>
                           </button>
                         </div>
                       </div>
@@ -1532,387 +1530,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         )}
 
-        {/* TAB: DEPARTMENT READINESS & CAPACITY MONITOR (8.2 Department Coordinator) */}
-        {activeTab === 'readiness' && isDeptChief && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h3 className="font-title" style={{ fontSize: '1.2rem', color: '#FFFFFF', margin: 0 }}>
-                {deptCode} Department Readiness & Readiness Score
-              </h3>
-              <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                Operational checklist and health monitor for Fest Day preparedness
-              </p>
-            </div>
-
-            {/* Big Health Banner */}
-            <div
-              style={{
-                background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(16, 26, 53, 0.95) 100%)',
-                border: '1px solid rgba(220, 227, 229, 0.25)',
-                borderRadius: '18px',
-                padding: '24px',
-                marginBottom: '24px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '24px',
-                alignItems: 'center'
-              }}
-            >
-              <div>
-                <span style={{ fontSize: '0.76rem', color: '#A8B3C2', textTransform: 'uppercase', fontWeight: 700 }}>
-                  Overall Department Preparedness
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '6px' }}>
-                  <div style={{ fontSize: '3rem', fontWeight: 900, color: readinessMetrics.score >= 80 ? '#34D399' : '#FBBF24' }}>
-                    {readinessMetrics.score}%
-                  </div>
-                  <div style={{ fontSize: '0.9rem', color: '#BACEBB', fontWeight: 700 }}>
-                    {readinessMetrics.score >= 90 ? 'EXCELLENT READINESS' : readinessMetrics.score >= 75 ? 'GOOD (FINALIZE DETAILS)' : 'REQUIRES ATTENTION'}
-                  </div>
-                </div>
-                <p style={{ fontSize: '0.8rem', color: '#DCE3E5', margin: '8px 0 0', lineHeight: 1.5 }}>
-                  Synthesized across {events.length} department events, venue assignments, coordinator coverage, and payment review queues.
-                </p>
-              </div>
-
-              {/* Checklist Grid */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem' }}>
-                  {readinessMetrics.eventsWithVenues === readinessMetrics.totalEventsCount ? (
-                    <CheckCircle2 size={18} color="#34D399" />
-                  ) : (
-                    <AlertCircle size={18} color="#FBBF24" />
-                  )}
-                  <span style={{ color: '#FFFFFF' }}>
-                    Venue Allocated: <strong>{readinessMetrics.eventsWithVenues} / {readinessMetrics.totalEventsCount}</strong> events confirmed
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem' }}>
-                  {readinessMetrics.eventsWithCoords === readinessMetrics.totalEventsCount ? (
-                    <CheckCircle2 size={18} color="#34D399" />
-                  ) : (
-                    <AlertCircle size={18} color="#FBBF24" />
-                  )}
-                  <span style={{ color: '#FFFFFF' }}>
-                    Lead Coordinators Appointed: <strong>{readinessMetrics.eventsWithCoords} / {readinessMetrics.totalEventsCount}</strong> events with full contacts
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem' }}>
-                  {readinessMetrics.pendingPaymentCount === 0 ? (
-                    <CheckCircle2 size={18} color="#34D399" />
-                  ) : (
-                    <AlertCircle size={18} color="#f87171" />
-                  )}
-                  <span style={{ color: '#FFFFFF' }}>
-                    Payment Verification Queue: {readinessMetrics.pendingPaymentCount === 0 ? 'Clear (100% verified)' : `${readinessMetrics.pendingPaymentCount} review(s) pending`}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem' }}>
-                  <CheckCircle2 size={18} color="#34D399" />
-                  <span style={{ color: '#FFFFFF' }}>
-                    Capacity Filled: <strong>{deptStats.totalRegistrations} / {deptStats.totalCapacity}</strong> slots ({readinessMetrics.capacityFilledPct}%)
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Per-Event Readiness Table */}
-            <div
-              style={{
-                background: 'rgba(20, 31, 62, 0.85)',
-                border: '1px solid rgba(220, 227, 229, 0.16)',
-                borderRadius: '16px',
-                padding: '20px'
-              }}
-            >
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 14px' }}>
-                Department Event Capacity & Readiness Breakdown
-              </h4>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.15)', color: '#A8B3C2' }}>
-                      <th style={{ padding: '10px 14px' }}>Event Name</th>
-                      <th style={{ padding: '10px 14px' }}>Coordinator</th>
-                      <th style={{ padding: '10px 14px' }}>Venue</th>
-                      <th style={{ padding: '10px 14px' }}>Schedule</th>
-                      <th style={{ padding: '10px 14px' }}>Capacity Utilization</th>
-                      <th style={{ padding: '10px 14px' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {events.map(e => {
-                      const evtRegs = registrations.filter(r => r.eventId === e.id || r.eventTitle.toLowerCase() === e.title.toLowerCase());
-                      const pct = e.capacity > 0 ? Math.round((evtRegs.length / e.capacity) * 100) : 0;
-                      return (
-                        <tr key={e.id} style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.08)' }}>
-                          <td style={{ padding: '12px 14px', fontWeight: 700, color: '#FFFFFF' }}>{e.title}</td>
-                          <td style={{ padding: '12px 14px', color: '#DCE3E5' }}>{e.coordinatorName} ({e.coordinatorPhone})</td>
-                          <td style={{ padding: '12px 14px', color: '#BACEBB' }}>{e.venue || 'Unassigned'}</td>
-                          <td style={{ padding: '12px 14px', color: '#A8B3C2' }}>{e.date} • {e.time}</td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '9999px', overflow: 'hidden' }}>
-                                <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: pct >= 90 ? '#f87171' : pct >= 70 ? '#FBBF24' : '#34D399' }} />
-                              </div>
-                              <span style={{ fontSize: '0.74rem', color: '#DCE3E5' }}>{evtRegs.length}/{e.capacity} ({pct}%)</span>
-                            </div>
-                          </td>
-                          <td style={{ padding: '12px 14px' }}>
-                            <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: e.status === 'open' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(239, 68, 68, 0.2)', color: e.status === 'open' ? '#34D399' : '#f87171', fontWeight: 700 }}>
-                              {e.status.toUpperCase()}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: ATTENDEE ROSTER (8.1 & 8.2) */}
-        {activeTab === 'roster' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
-                  {eventScope === 'assigned' ? 'Assigned Events Attendee Master Roster' : `${deptCode} Attendee Master Roster`}
-                </h3>
-                <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Real-time participant database with 1-click check-in, search, filter, and export
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {/* Spot Reg Button */}
-                <button
-                  onClick={() => {
-                    setSpotEventId(visibleEvents[0]?.id || events[0]?.id || '');
-                    setIsSpotRegOpen(true);
-                  }}
-                  className="btn-cyber-primary"
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <UserPlus size={15} />
-                  <span>+ Spot Registration</span>
-                </button>
-
-                {/* Export CSV */}
-                <button
-                  onClick={() => handleExportCSV('filtered')}
-                  style={{
-                    background: 'rgba(40, 59, 120, 0.45)',
-                    border: '1px solid rgba(120, 149, 147, 0.4)',
-                    padding: '8px 16px',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    color: '#BACEBB',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    borderRadius: '8px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Download size={15} />
-                  <span>Export CSV</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Filter Controls Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-              {/* Search Input */}
-              <div style={{ position: 'relative' }}>
-                <Search size={15} color="#789593" style={{ position: 'absolute', left: '12px', top: '11px' }} />
-                <input
-                  type="text"
-                  placeholder="Search by student name, roll number, team code, or ID..."
-                  value={rosterSearch}
-                  onChange={e => setRosterSearch(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px 8px 36px',
-                    borderRadius: '10px',
-                    background: 'rgba(20, 31, 62, 0.85)',
-                    border: '1px solid rgba(220, 227, 229, 0.2)',
-                    color: '#FFFFFF',
-                    fontSize: '0.84rem',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <select
-                  value={rosterStatusFilter}
-                  onChange={e => setRosterStatusFilter(e.target.value as any)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    background: 'rgba(20, 31, 62, 0.85)',
-                    border: '1px solid rgba(220, 227, 229, 0.2)',
-                    color: '#FFFFFF',
-                    fontSize: '0.84rem'
-                  }}
-                >
-                  <option value="all">All Payment & Attendance Statuses</option>
-                  <option value="verified">Verified Payments Only</option>
-                  <option value="verification_pending">Pending Payment Verification Only</option>
-                  <option value="checked_in">Checked In (Present) Only</option>
-                  <option value="rejected">Rejected Payments Only</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div
-              style={{
-                background: 'rgba(20, 31, 62, 0.85)',
-                border: '1px solid rgba(220, 227, 229, 0.16)',
-                borderRadius: '14px',
-                overflowX: 'auto'
-              }}
-            >
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.15)', background: 'rgba(16, 26, 53, 0.6)', color: '#A8B3C2' }}>
-                    <th style={{ padding: '12px 16px' }}>Reg ID</th>
-                    <th style={{ padding: '12px 16px' }}>Delegate Name</th>
-                    <th style={{ padding: '12px 16px' }}>Roll Number</th>
-                    <th style={{ padding: '12px 16px' }}>Event</th>
-                    <th style={{ padding: '12px 16px' }}>Fee</th>
-                    <th style={{ padding: '12px 16px' }}>Payment</th>
-                    <th style={{ padding: '12px 16px' }}>Gate Check-In</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRoster.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: '#A8B3C2' }}>
-                        No registrations found matching the current search criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRoster.map(r => (
-                      <tr
-                        key={r.id}
-                        style={{
-                          borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
-                          transition: 'background 0.15s'
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(40, 59, 120, 0.25)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#BACEBB', fontWeight: 700 }}>
-                          <div>{r.id}</div>
-                          {r.source === 'spot' && (
-                            <span style={{ fontSize: '0.65rem', background: 'rgba(16, 185, 129, 0.2)', color: '#34D399', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
-                              SPOT REG
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
-                          {r.leaderName}
-                          <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderPhone} • {r.leaderCollege}</div>
-                        </td>
-                        <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
-                          {r.leaderRoll}
-                        </td>
-                        <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
-                          <div>{r.eventTitle}</div>
-                          {(r.teamName || r.teamCode) && (
-                            <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px' }}>
-                              Squad: <strong>{r.teamName || 'Team'}</strong> <span style={{ fontFamily: 'monospace', color: '#A8B3C2' }}>({r.teamCode})</span>
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 16px', color: '#BACEBB', fontWeight: 700 }}>
-                          ₹{r.fee}
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              fontWeight: 700,
-                              background:
-                                r.paymentStatus === 'verified' ? 'rgba(52, 211, 153, 0.15)' :
-                                r.paymentStatus === 'verification_pending' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                              color:
-                                r.paymentStatus === 'verified' ? '#34D399' :
-                                r.paymentStatus === 'verification_pending' ? '#FBBF24' : '#f87171'
-                            }}
-                          >
-                            {r.paymentStatus.toUpperCase()}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          {r.checkedIn ? (
-                            <span
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                background: 'rgba(52, 211, 153, 0.2)',
-                                color: '#34D399',
-                                fontWeight: 700,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <Check size={12} />
-                              <span>Checked In</span>
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleQuickCheckInFromRoster(r)}
-                              style={{
-                                background: 'rgba(40, 59, 120, 0.45)',
-                                border: '1px solid rgba(120, 149, 147, 0.4)',
-                                borderRadius: '6px',
-                                padding: '4px 10px',
-                                color: '#BACEBB',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Mark Present
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: FAST GATE CHECK-IN DESK & ATTENDANCE (8.1) */}
+        {/* TAB 2: FAST GATE CHECK-IN DESK & ATTENDANCE WITH SPECIFIC EVENT DROPDOWN */}
         {activeTab === 'checkin' && (
-          <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '960px', margin: '0 auto' }}>
             <div
               style={{
                 background: 'rgba(20, 31, 62, 0.95)',
@@ -1939,11 +1559,55 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   <QrCode size={28} color="#FFFFFF" />
                 </div>
                 <h3 className="font-title" style={{ fontSize: '1.35rem', color: '#FFFFFF', margin: '0 0 6px' }}>
-                  {deptCode} Fast Gate Check-In Desk
+                  {deptCode} Fast Gate Check-In & Attendance Desk
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: 0 }}>
-                  Enter student Roll Number, Registration ID, Team Code, or paste QR Token to validate entry pass
+                  Select a specific event below or check in across all department arenas via QR scan or student Roll No
                 </p>
+              </div>
+
+              {/* Specific Events Dropdown Selector */}
+              <div style={{ marginBottom: '22px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#38BDF8', marginBottom: '8px', letterSpacing: '0.04em' }}>
+                  🎯 SELECT SPECIFIC EVENT FOR ATTENDANCE CHECK-IN:
+                </label>
+                <select
+                  value={checkInEventFilter}
+                  onChange={e => {
+                    setCheckInEventFilter(e.target.value);
+                    setCheckInResult(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: '#101A35',
+                    border: '1px solid rgba(56, 189, 248, 0.5)',
+                    color: '#FFFFFF',
+                    fontSize: '0.92rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxSizing: 'border-box',
+                    boxShadow: '0 0 16px rgba(56, 189, 248, 0.12)'
+                  }}
+                >
+                  <option value="all">🏢 All {deptCode} Department Events ({visibleEvents.length})</option>
+                  {visibleEvents.map(event => {
+                    const eventRegsCount = registrations.filter(r => r.eventId === event.id || r.eventTitle.toLowerCase() === event.title.toLowerCase()).length;
+                    return (
+                      <option key={event.id} value={event.id}>
+                        🎯 {event.title} • {event.date} ({eventRegsCount} registered)
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {checkInEventFilter !== 'all' && (
+                  <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#6EE7B7', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle2 size={13} color="#6EE7B7" />
+                    <span>Currently Filtered for: <strong>{visibleEvents.find(e => e.id === checkInEventFilter)?.title}</strong></span>
+                  </div>
+                )}
               </div>
 
               {isEventCoord && visibleEvents.length > 0 && (
@@ -1975,7 +1639,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     type="text"
                     value={checkInInput}
                     onChange={e => setCheckInInput(e.target.value)}
-                    placeholder="Enter Student Roll No (e.g. 22VCECS104) or Reg ID"
+                    placeholder="Enter Student Roll No (e.g. 22VCECS104) or Reg ID / Token"
                     required
                     autoFocus
                     style={{
@@ -2044,7 +1708,50 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               )}
             </div>
 
-            {/* Live Attendance Turnout Summary Widget */}
+            {/* Live Attendance Rate Breakdown Widget for Selected Event */}
+            <div
+              style={{
+                background: 'rgba(20, 31, 62, 0.85)',
+                border: '1px solid rgba(220, 227, 229, 0.18)',
+                borderRadius: '16px',
+                padding: '20px',
+                marginBottom: '24px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>
+                  {checkInEventFilter === 'all' ? `Live Attendance (${deptCode} Department Total)` : `Live Attendance for "${visibleEvents.find(e => e.id === checkInEventFilter)?.title || 'Event'}"`}
+                </h4>
+                {checkInRegistrations.length > 0 && (
+                  <span style={{ fontSize: '0.78rem', color: '#34D399', fontWeight: 700 }}>
+                    {Math.round((checkInRegistrations.filter(r => r.checkedIn).length / checkInRegistrations.length) * 100)}% Turnout Rate
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', textAlign: 'center' }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '12px', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>TOTAL ENROLLED</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFFFFF', marginTop: '4px' }}>
+                    {checkInRegistrations.length}
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(52, 211, 153, 0.1)', padding: '12px', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#34D399' }}>VENUE CHECKED-IN</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#34D399', marginTop: '4px' }}>
+                    {checkInRegistrations.filter(r => r.checkedIn).length}
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '12px', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#FBBF24' }}>PENDING ARRIVAL</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FBBF24', marginTop: '4px' }}>
+                    {checkInRegistrations.filter(r => !r.checkedIn).length}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Event Attendees Roster & 1-Click Check-In Table */}
             <div
               style={{
                 background: 'rgba(20, 31, 62, 0.85)',
@@ -2053,211 +1760,119 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 padding: '20px'
               }}
             >
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 12px' }}>
-                Live Attendance Rate Breakdown
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', textAlign: 'center' }}>
-                <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '12px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>TOTAL ENROLLED</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFFFFF', marginTop: '4px' }}>
-                    {scopedRegistrations.length}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>
+                    {checkInEventFilter === 'all' ? 'All Enrolled Attendees' : `Attendees: ${visibleEvents.find(e => e.id === checkInEventFilter)?.title}`}
+                  </h4>
+                  <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '2px' }}>
+                    Showing {filteredCheckInAttendees.length} delegates • Click "Check In" to mark attendance directly
                   </div>
                 </div>
-                <div style={{ background: 'rgba(52, 211, 153, 0.1)', padding: '12px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#34D399' }}>VENUE CHECKED-IN</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#34D399', marginTop: '4px' }}>
-                    {scopedRegistrations.filter(r => r.checkedIn).length}
-                  </div>
-                </div>
-                <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '12px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#FBBF24' }}>PENDING ARRIVAL</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FBBF24', marginTop: '4px' }}>
-                    {scopedRegistrations.filter(r => !r.checkedIn).length}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* TAB 7: COORDINATORS DIRECTORY & COMMS (8.2 Coordinate with Event Coordinators) */}
-        {activeTab === 'coordinators' && isDeptChief && (
-          <div>
-            <div style={{ marginBottom: '18px', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div>
-                <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
-                  {deptCode} Operations Staff
-                </h3>
-                <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0', maxWidth: '680px' }}>
-                  Create and manage event coordinators, payment reviewers, and gate check-in staff for {deptCode} only. Every change is validated by the backend.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={openCreateStaffForm}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(52, 211, 153, 0.55)', borderRadius: '8px', padding: '9px 13px', background: 'linear-gradient(135deg, #059669, #10B981)', color: '#04120D', fontWeight: 800, cursor: 'pointer' }}
-              >
-                <UserPlus size={15} /> Add department staff
-              </button>
-            </div>
-
-            {(staffError || staffMessage) && (
-              <div style={{ marginBottom: '14px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${staffError ? 'rgba(248,113,113,0.55)' : 'rgba(52,211,153,0.45)'}`, background: staffError ? 'rgba(127,29,29,0.25)' : 'rgba(6,78,59,0.28)', color: staffError ? '#FCA5A5' : '#A7F3D0', fontSize: '0.8rem' }}>
-                {staffError || staffMessage}
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {departmentCoordinatorsList.map(coord => (
-                <div
-                  key={coord.id}
-                  style={{
-                    background: 'rgba(20, 31, 62, 0.85)',
-                    border: '1px solid rgba(220, 227, 229, 0.18)',
-                    borderRadius: '16px',
-                    padding: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span
-                        style={{
-                          fontSize: '0.7rem',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: 'rgba(59, 130, 246, 0.2)',
-                          color: '#93C5FD',
-                          fontWeight: 700
-                        }}
-                      >
-                        {coord.role.replace('_', ' ').toUpperCase()}
-                      </span>
-                      <span style={{ fontSize: '0.7rem', color: '#A8B3C2' }}>
-                        {coord.designation}
-                      </span>
-                    </div>
-
-                    <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 6px' }}>
-                      {coord.fullName}
-                    </h4>
-
-                    <div style={{ fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                      📞 Phone: <strong style={{ color: '#FFFFFF' }}>{coord.phone}</strong>
-                    </div>
-
-                    <div style={{ fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '12px' }}>
-                      ✉️ Email: <strong>{coord.email}</strong>
-                    </div>
-
-                    {coord.assignedEvents && coord.assignedEvents.length > 0 && (
-                      <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginBottom: '12px' }}>
-                        Assigned: <strong>{coord.assignedEvents.join(', ')}</strong>
-                      </div>
-                    )}
-                  </div>
-
-                  <div
+                {/* Attendee Search */}
+                <div style={{ position: 'relative', minWidth: '260px' }}>
+                  <Search size={14} color="#789593" style={{ position: 'absolute', left: '12px', top: '10px' }} />
+                  <input
+                    type="text"
+                    placeholder="Search by student name, roll number, or reg ID..."
+                    value={checkInAttendeeSearch}
+                    onChange={e => setCheckInAttendeeSearch(e.target.value)}
                     style={{
-                      paddingTop: '12px',
-                      borderTop: '1px solid rgba(220, 227, 229, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
+                      width: '100%',
+                      padding: '8px 12px 8px 34px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.95)',
+                      border: '1px solid rgba(220, 227, 229, 0.2)',
+                      color: '#FFFFFF',
+                      fontSize: '0.8rem',
+                      boxSizing: 'border-box'
                     }}
-                  >
-                    <a
-                      href={`tel:${coord.phone}`}
-                      style={{
-                        flex: 1,
-                        background: 'rgba(16, 185, 129, 0.2)',
-                        border: '1px solid rgba(16, 185, 129, 0.4)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        color: '#6EE7B7',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        textDecoration: 'none',
-                        textAlign: 'center',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <Phone size={13} />
-                      <span>Call</span>
-                    </a>
-
-                    <a
-                      href={`mailto:${coord.email}`}
-                      style={{
-                        flex: 1,
-                        background: 'rgba(59, 130, 246, 0.2)',
-                        border: '1px solid rgba(59, 130, 246, 0.4)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        color: '#93C5FD',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        textDecoration: 'none',
-                        textAlign: 'center',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <Mail size={13} />
-                      <span>Email</span>
-                    </a>
-
-                    <button
-                      onClick={() => handleCopyContact(`${coord.fullName} | ${coord.phone} | ${coord.email}`, coord.fullName)}
-                      title="Copy contact"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(220, 227, 229, 0.2)',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        color: '#DCE3E5',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Copy size={13} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openEditStaffForm(coord)}
-                      title="Edit staff account"
-                      style={{ background: 'rgba(59, 130, 246, 0.16)', border: '1px solid rgba(59, 130, 246, 0.45)', borderRadius: '6px', padding: '6px 10px', color: '#93C5FD', cursor: 'pointer' }}
-                    >
-                      <Edit3 size={13} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleStaffDelete(coord)}
-                      title="Delete staff account"
-                      style={{ background: 'rgba(239, 68, 68, 0.14)', border: '1px solid rgba(239, 68, 68, 0.42)', borderRadius: '6px', padding: '6px 10px', color: '#FCA5A5', cursor: 'pointer' }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  />
                 </div>
-              ))}
-            </div>
-
-            {departmentCoordinatorsList.length === 0 && (
-              <div style={{ padding: '28px', borderRadius: '12px', border: '1px dashed rgba(148,163,184,0.3)', color: '#A8B3C2', textAlign: 'center', fontSize: '0.84rem' }}>
-                No event coordinators, payment reviewers, or gate check-in staff are assigned to {deptCode} yet.
               </div>
-            )}
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.15)', background: 'rgba(16, 26, 53, 0.6)', color: '#A8B3C2' }}>
+                      <th style={{ padding: '10px 14px' }}>Reg ID</th>
+                      <th style={{ padding: '10px 14px' }}>Delegate</th>
+                      <th style={{ padding: '10px 14px' }}>Roll Number</th>
+                      <th style={{ padding: '10px 14px' }}>Event</th>
+                      <th style={{ padding: '10px 14px' }}>Attendance Status</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCheckInAttendees.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#A8B3C2' }}>
+                          No registered delegates found for this event matching your query.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCheckInAttendees.map(r => (
+                        <tr
+                          key={r.id}
+                          style={{
+                            borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
+                            background: r.checkedIn ? 'rgba(52, 211, 153, 0.04)' : 'transparent'
+                          }}
+                        >
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#DCE3E5' }}>{r.id}</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#FFFFFF' }}>{r.leaderName}</td>
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#38BDF8' }}>{r.leaderRoll || r.buyerRoll || '—'}</td>
+                          <td style={{ padding: '10px 14px', color: '#CBD5E1', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.eventTitle}>
+                            {r.eventTitle}
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            {r.checkedIn ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(52, 211, 153, 0.15)', color: '#34D399', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>
+                                <CheckCircle2 size={11} /> CHECKED IN
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(251, 191, 36, 0.15)', color: '#FBBF24', border: '1px solid rgba(251, 191, 36, 0.4)', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>
+                                <Clock size={11} /> PENDING
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                            {r.checkedIn ? (
+                              <span style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>Checked in</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleQuickCheckInFromRoster(r)}
+                                style={{
+                                  background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '5px 12px',
+                                  color: '#04120D',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <CheckCircle2 size={12} />
+                                <span>Check In</span>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
+
       </main>
 
       {/* Department-scoped operations staff management */}

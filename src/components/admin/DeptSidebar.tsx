@@ -7,10 +7,7 @@ import { AdminUser } from '../../services/adminAuthService';
 
 export type DeptDashboardTab =
   | 'events'
-  | 'readiness'
-  | 'roster'
   | 'checkin'
-  | 'coordinators'
   | 'security';
 
 interface DeptSidebarProps {
@@ -100,48 +97,29 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
     } as any;
   }
 
-  const menuItems = [
+  interface DeptMenuItem {
+    id: DeptDashboardTab;
+    label: string;
+    icon: any;
+    badge?: string;
+    badgeType?: 'danger' | 'success' | 'warning';
+  }
+
+  const menuItems: DeptMenuItem[] = [
     {
-      id: 'events' as DeptDashboardTab,
+      id: 'events',
       label: isEventCoord ? 'Assigned Events' : `${deptCode} Events`,
       icon: Layers,
       badge: eventsCount > 0 ? String(eventsCount) : undefined,
     },
-    ...(isDeptChief
-      ? [
-          {
-            id: 'readiness' as DeptDashboardTab,
-            label: 'Readiness Audit',
-            icon: ShieldCheck,
-            badge: `${readinessScore}%`,
-            badgeType: readinessScore >= 80 ? ('success' as const) : ('warning' as const),
-          },
-        ]
-      : []),
     {
-      id: 'roster' as DeptDashboardTab,
-      label: 'Attendee Roster',
-      icon: Users,
-      badge: rosterCount > 0 ? String(rosterCount) : undefined,
-    },
-    {
-      id: 'checkin' as DeptDashboardTab,
-      label: 'Fast Gate Check-In',
+      id: 'checkin',
+      label: 'Attendance Check-In',
       icon: QrCode,
       badge: 'QR',
     },
-    ...(isDeptChief
-      ? [
-          {
-            id: 'coordinators' as DeptDashboardTab,
-            label: 'Coordinators Directory',
-            icon: Phone,
-            badge: coordinatorsCount > 0 ? String(coordinatorsCount) : undefined,
-          },
-        ]
-      : []),
     {
-      id: 'security' as DeptDashboardTab,
+      id: 'security',
       label: 'Change Password',
       icon: KeyRound,
     },

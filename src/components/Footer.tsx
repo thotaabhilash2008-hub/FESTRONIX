@@ -4,9 +4,18 @@ import { ShieldCheck, MapPin, Phone, Mail, Globe, Shield, Building2 } from 'luci
 interface FooterProps {
   onOpenAdmin?: () => void;
   onOpenSponsors?: () => void;
+  onOpenPrivacy?: () => void;
+  onOpenTerms?: () => void;
+  onOpenRefund?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) => {
+export const Footer: React.FC<FooterProps> = ({
+  onOpenAdmin,
+  onOpenSponsors,
+  onOpenPrivacy,
+  onOpenTerms,
+  onOpenRefund
+}) => {
   return (
     <footer
       className="public-footer"
@@ -305,6 +314,79 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, onOpenSponsors }) =
             )}
           </div>
         </div>
+      </div>
+
+      {/* Legal & Compliance Policies Bar */}
+      <div
+        style={{
+          maxWidth: '1280px',
+          margin: '0 auto',
+          paddingBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          gap: '24px',
+          fontSize: '0.8rem',
+          borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
+          marginBottom: '20px'
+        }}
+      >
+        <button
+          onClick={onOpenPrivacy}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#94A3B8',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            transition: 'color 0.15s ease'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#38BDF8'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
+        >
+          Privacy Policy
+        </button>
+
+        <span style={{ color: 'rgba(148, 163, 184, 0.3)' }}>•</span>
+
+        <button
+          onClick={onOpenTerms}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#94A3B8',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            transition: 'color 0.15s ease'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#C084FC'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
+        >
+          Terms & Conditions
+        </button>
+
+        <span style={{ color: 'rgba(148, 163, 184, 0.3)' }}>•</span>
+
+        <button
+          onClick={onOpenRefund}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#FBBF24',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            padding: '4px 8px',
+            transition: 'color 0.15s ease'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#F59E0B'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#FBBF24'; }}
+        >
+          Refund Policy (No Refund)
+        </button>
       </div>
 
       {/* Bottom Copyright */}
