@@ -610,7 +610,7 @@ export const App: React.FC = () => {
       <main className="public-main" style={{ flex: 1, position: 'relative', zIndex: 10 }}>
         {/* HERO SECTION: Cinematic Introduction */}
         <HeroSection
-          onExploreEvents={handleNavigateExplore}
+          onExploreEvents={handleOpenAllEventsPage}
           onViewAllEvents={handleOpenAllEventsPage}
           onOpenIntro={() => setIsIntroOpen(true)}
           onRegisterNow={handleStartMultiPass}

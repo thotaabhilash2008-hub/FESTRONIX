@@ -281,7 +281,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           <button
-            onClick={onExploreEvents}
+            onClick={onViewAllEvents || onExploreEvents}
             className="btn-cyber-primary"
             style={{
               padding: '10px 22px',
@@ -289,25 +289,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             }}
           >
             <CalendarDays size={16} color="#CBD5E1" />
-            <span>Explore Events</span>
+            <span>Browse Events</span>
             <ArrowRight size={15} />
           </button>
-
-          {onViewAllEvents && (
-            <button
-              type="button"
-              onClick={onViewAllEvents}
-              className="btn-cyber-secondary"
-              style={{
-                padding: '10px 22px',
-                fontSize: '0.88rem',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <LayoutGrid size={16} color="#38BDF8" />
-              <span>View All Events</span>
-            </button>
-          )}
 
           <button
             onClick={onRegisterNow}

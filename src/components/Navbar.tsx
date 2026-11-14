@@ -258,33 +258,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
           className="desktop-nav"
         >
-          {/* 1. Browse Events Simple Hyperlink */}
-          <button
-            onClick={() => onNavigateExplore?.()}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: '#94A3B8',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '6px 8px',
-              transition: 'color 0.15s ease',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = '#94A3B8';
-            }}
-          >
-            <span>Browse Events</span>
-          </button>
-
           {onOpenAllEvents && (
             <button
               onClick={onOpenAllEvents}
@@ -293,12 +266,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 border: 'none',
                 outline: 'none',
                 color: '#38BDF8',
-                fontSize: '0.84rem',
+                fontSize: '0.88rem',
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '6px 8px',
+                padding: '6px 12px',
                 transition: 'color 0.15s ease',
                 fontFamily: "'Space Grotesk', sans-serif",
                 whiteSpace: 'nowrap'
@@ -313,36 +286,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>All Events</span>
             </button>
           )}
-
-          {/* 2. Hyped Events */}
-          <button
-            onClick={() => {
-              onNavigateHyped();
-            }}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: '#94A3B8',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 8px',
-              transition: 'color 0.15s ease',
-              fontFamily: "'Space Grotesk', sans-serif"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = '#94A3B8';
-            }}
-          >
-            <span>Hyped Events</span>
-          </button>
         </div>
 
         {/* Right Action Icons & Passes */}
@@ -676,7 +619,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <Layers size={18} color="#38BDF8" />
-                <span>View All Events</span>
+                <span>All Events</span>
               </button>
 
               {/* Option 3: Buy Multiple Passes */}
@@ -811,31 +754,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </a>
                 </div>
               </div>
-
-              {/* Option 7: Hyped Events */}
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onNavigateHyped();
-                }}
-                className="mobile-menu-action mobile-hyped"
-                style={{
-                  background: 'rgba(255, 107, 53, 0.1)',
-                  border: '1px solid rgba(255, 107, 53, 0.3)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  color: '#F3F0EA',
-                  fontSize: '0.88rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px'
-                }}
-              >
-                <Flame size={18} color="#FF6B35" />
-                <span>🔥 Hyped Competitions</span>
-              </button>
             </div>
 
             {/* Sidebar Bottom Footer Info */}

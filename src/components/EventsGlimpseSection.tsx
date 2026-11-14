@@ -504,7 +504,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
                 }}
               >
                 <LayoutGrid size={16} />
-                <span>View All Events{events.length > 0 ? ` (${events.length})` : ''}</span>
+                <span>Browse Events{events.length > 0 ? ` (${events.length})` : ''}</span>
                 <ArrowRight size={15} />
               </button>
             </div>
@@ -571,7 +571,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
             }}
           >
             <LayoutGrid size={16} color="#38BDF8" />
-            <span>View All Events{events.length > 0 ? ` (${events.length})` : ''}</span>
+            <span>Browse Events{events.length > 0 ? ` (${events.length})` : ''}</span>
             <ArrowRight size={15} />
           </button>
         </div>
