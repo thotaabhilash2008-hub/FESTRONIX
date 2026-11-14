@@ -74,7 +74,7 @@ export const AboutSection: React.FC = () => {
         <div className="public-six-grid about-dossier-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
             gap: '24px'
           }}
         >

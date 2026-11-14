@@ -491,15 +491,15 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       onClick={pageMode ? undefined : onClose}
     >
       <div
-        className={pageMode ? 'pass-page-content' : 'modal-content'}
+        className={pageMode ? 'pass-page-content' : 'modal-content pass-modal-content'}
         data-lenis-prevent-wheel
         data-lenis-prevent-touch
         onClick={pageMode ? undefined : e => e.stopPropagation()}
         style={{
-          padding: pageMode ? 'clamp(24px, 4vw, 56px) 0 72px' : '28px',
+          padding: pageMode ? 'clamp(20px, 3.5vw, 56px) 0 72px' : 'clamp(18px, 3.5vw, 28px)',
           maxWidth: pageMode ? '1120px' : '700px',
-          width: pageMode ? 'min(100% - 32px, 1120px)' : '95%',
-          maxHeight: pageMode ? 'none' : 'calc(100dvh - 40px)',
+          width: pageMode ? 'min(100% - 24px, 1120px)' : '95%',
+          maxHeight: pageMode ? 'none' : 'calc(100dvh - 24px)',
           overflowY: pageMode ? 'visible' : 'auto',
           overscrollBehavior: 'contain',
           WebkitOverflowScrolling: 'touch',

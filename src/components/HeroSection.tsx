@@ -271,6 +271,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
         {/* Action CTAs */}
         <div
+          className="hero-cta-buttons"
           style={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -308,6 +309,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
         {/* Architectural Countdown Metrics */}
         <div
+          className="hero-countdown-box"
           style={{
             marginTop: '4px',
             display: 'flex',
@@ -322,6 +324,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           <span
+            className="hero-countdown-label"
             style={{
               fontSize: '0.68rem',
               color: '#88B2AE',
@@ -333,7 +336,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             {timeLeft.isLive ? 'FESTRONIX IS LIVE' : 'EVENT STARTS IN'}
           </span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="hero-countdown-units" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {[
               { val: timeLeft.days, label: 'DAYS' },
               { val: timeLeft.hours, label: 'HOURS' },
@@ -342,6 +345,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             ].map((unit, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div
+                  className="hero-countdown-unit-card"
                   style={{
                     background: 'rgba(8, 12, 22, 0.85)',
                     border: '1px solid rgba(220, 227, 232, 0.16)',
@@ -385,6 +389,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
         {/* 4 Feature Highlights - Sleek compact architectural metric strip */}
         <div
+          className="hero-highlights-strip"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -404,6 +409,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           ].map((item, i) => (
             <div
               key={i}
+              className="hero-highlight-pill"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

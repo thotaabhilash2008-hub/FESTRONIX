@@ -599,7 +599,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
               alignItems: 'center'
             }}
           >
-            <div style={{ position: 'relative', gridColumn: 'span 2' }}>
+            <div className="all-events-search-wrap" style={{ position: 'relative', gridColumn: 'span 2' }}>
               <Search
                 size={16}
                 color="#94A3B8"
@@ -693,7 +693,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
           {/* Row 2: Category Tabs, Day Tabs, Format Tabs, Layout Mode */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Category Tabs */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+            <div className="all-events-categories-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
               {categories.map(cat => {
                 const active = selectedCategory === cat.key;
                 return (
@@ -952,9 +952,10 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
                 </div>
 
                 <div
+                  className="all-events-cards-grid"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
                     gap: '18px'
                   }}
                 >
@@ -969,9 +970,10 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
           </div>
         ) : (
           <div
+            className="all-events-cards-grid"
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
               gap: '18px'
             }}
           >

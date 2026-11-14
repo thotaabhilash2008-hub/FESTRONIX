@@ -384,7 +384,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
           >
             <Ticket size={14} color="#FFFFFF" />
-            <span>My Passes</span>
+            <span className="desktop-only">My Passes</span>
             {passesCount > 0 && (
               <span
                 style={{

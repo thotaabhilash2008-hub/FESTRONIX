@@ -42,7 +42,7 @@ export const Festronix3DTitle: React.FC = () => {
       style={{
         position: 'relative',
         width: '100%',
-        maxWidth: 'clamp(380px, 46vw, 680px)',
+        maxWidth: 'min(100%, clamp(260px, 86vw, 680px))',
         margin: '0 auto',
         perspective: '1200px',
         cursor: 'pointer',
@@ -105,7 +105,7 @@ export const Festronix3DTitle: React.FC = () => {
         }}
       >
         {/* High-Resolution 3D Chrome Festronix Logo Image */}
-        <div className="festronix-title-image-wrap" style={{ position: 'relative', width: '100%', maxWidth: 'clamp(440px, 52vw, 760px)' }}>
+        <div className="festronix-title-image-wrap" style={{ position: 'relative', width: '100%', maxWidth: 'min(100%, clamp(280px, 88vw, 760px))' }}>
           <img
             src="/festronix_3d_title_clean.png"
             alt="FESTRONIX 3D Chrome Logo"

@@ -14,6 +14,7 @@ export const LegalHeader: React.FC<LegalHeaderProps> = ({
 }) => {
   return (
     <header
+      className="legal-header"
       style={{
         position: 'sticky',
         top: 0,
@@ -26,6 +27,7 @@ export const LegalHeader: React.FC<LegalHeaderProps> = ({
       }}
     >
       <div
+        className="legal-header-container"
         style={{
           maxWidth: '1180px',
           margin: '0 auto',

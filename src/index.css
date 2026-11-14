@@ -1651,3 +1651,198 @@ body {
     gap: 10px !important;
   }
 }
+
+/* ======================================================
+   COMPREHENSIVE MOBILE RESPONSIVENESS SUITE
+   ====================================================== */
+
+/* Prevent horizontal overflow on entire document */
+html, body, #root, .public-site-shell {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Hero Section Mobile Adaptations */
+@media (max-width: 768px) {
+  .public-hero {
+    min-height: auto !important;
+    padding: 20px 14px 28px !important;
+  }
+
+  .hero-content-wrapper {
+    gap: 12px !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-countdown-box {
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 10px 14px !important;
+    width: 100% !important;
+    max-width: 360px !important;
+    box-sizing: border-box !important;
+  }
+
+  .hero-countdown-units {
+    gap: 4px !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+
+  .hero-countdown-unit-card {
+    min-width: 38px !important;
+    padding: 3px 6px !important;
+  }
+
+  .hero-countdown-unit-card > div:first-child {
+    font-size: 0.92rem !important;
+  }
+
+  .hero-countdown-unit-card > div:last-child {
+    font-size: 0.46rem !important;
+  }
+
+  .hero-highlights-strip {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .hero-highlight-pill {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 6px 8px !important;
+    font-size: 0.74rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .hero-cta-buttons {
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .hero-cta-buttons button {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 12px 18px !important;
+  }
+}
+
+/* Registration CTA Section Mobile */
+@media (max-width: 640px) {
+  .registration-cta-section {
+    padding: 60px 14px 48px !important;
+  }
+
+  .registration-cta-card {
+    padding: 24px 16px !important;
+  }
+
+  .cta-perks-strip {
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .cta-perk-item {
+    width: 100% !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    padding: 8px 12px !important;
+    font-size: 0.78rem !important;
+  }
+
+  .cta-action-buttons {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+
+  .cta-btn-primary,
+  .cta-btn-secondary {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 13px 20px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Modals Mobile Optimizations */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 8px !important;
+    align-items: center !important;
+  }
+
+  .modal-content {
+    border-radius: 16px !important;
+    padding: 18px 14px !important;
+    margin: 8px auto !important;
+    max-height: calc(100dvh - 16px) !important;
+    width: 100% !important;
+  }
+
+  .registration-modal-content,
+  .multipass-modal-content,
+  .pass-modal-content,
+  .event-detail-modal-content {
+    padding: 16px 12px !important;
+  }
+}
+
+/* All Events Catalog Mobile */
+@media (max-width: 768px) {
+  .all-events-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .all-events-search-wrap {
+    grid-column: span 1 !important;
+  }
+
+  .all-events-categories-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 4px !important;
+    max-width: 100% !important;
+  }
+
+  .all-events-categories-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .all-events-categories-bar button {
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Sections General Mobile Spacing */
+@media (max-width: 640px) {
+  .about-section,
+  .prizes-section {
+    padding: 60px 14px 40px !important;
+  }
+
+  .public-section h2.text-editorial-headline {
+    font-size: clamp(1.8rem, 7vw, 2.4rem) !important;
+  }
+
+  .public-footer {
+    padding: 40px 16px 24px !important;
+  }
+
+  .legal-header {
+    padding: 12px 14px !important;
+  }
+
+  .legal-main-content {
+    padding: 28px 16px 48px !important;
+  }
+}

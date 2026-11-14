@@ -408,12 +408,12 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="modal-content"
+        className="modal-content multipass-modal-content"
         onClick={e => e.stopPropagation()}
         style={{
           maxWidth: '850px',
           width: '95%',
-          padding: '28px',
+          padding: 'clamp(18px, 3.5vw, 28px)',
           background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.98) 0%, rgba(16, 26, 53, 0.98) 100%)',
           border: '1px solid rgba(220, 227, 229, 0.22)',
           boxShadow: '0 25px 70px rgba(0, 0, 0, 0.9), 0 0 35px rgba(40, 59, 120, 0.4)',

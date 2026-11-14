@@ -28,7 +28,7 @@ export const RefundPolicyPage: React.FC<RefundPolicyPageProps> = ({
     <div style={{ backgroundColor: '#080C16', color: '#F3F0EA', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <LegalHeader activePage="refund" onNavigate={handleNavigate} onBackToHome={onBackToHome} />
 
-      <main style={{ flex: 1, maxWidth: '960px', width: '100%', margin: '0 auto', padding: '48px 24px 80px' }}>
+      <main className="legal-main-content" style={{ flex: 1, maxWidth: '960px', width: '100%', margin: '0 auto', padding: '48px 24px 80px' }}>
         {/* Page Title & Intro */}
         <div style={{ marginBottom: '36px', borderBottom: '1px solid rgba(220, 227, 229, 0.12)', paddingBottom: '28px' }}>
           <div

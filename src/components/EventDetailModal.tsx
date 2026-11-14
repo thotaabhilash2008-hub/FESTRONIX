@@ -35,9 +35,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div 
-        className="modal-content" 
+        className="modal-content event-detail-modal-content" 
         onClick={e => e.stopPropagation()}
-        style={{ padding: '32px', maxWidth: '850px' }}
+        style={{ padding: 'clamp(18px, 3.5vw, 32px)', maxWidth: '850px' }}
       >
         {/* Header bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>

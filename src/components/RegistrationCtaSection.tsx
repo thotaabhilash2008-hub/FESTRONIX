@@ -27,11 +27,11 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
       <ScrollReveal threshold="top 85%" duration={0.8}>
         <Tilt3DCard maxTilt={3} scale={1.01}>
           <div
-            className="cyber-card"
+            className="cyber-card registration-cta-card"
             style={{
               position: 'relative',
               borderRadius: '16px',
-              padding: 'clamp(40px, 6vw, 72px)',
+              padding: 'clamp(24px, 4vw, 64px)',
               background: '#0F172A',
               border: '1px solid #1E293B',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
@@ -94,6 +94,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
 
             {/* Perks Strip */}
             <div
+              className="cta-perks-strip"
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -109,6 +110,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               ].map((perk, i) => (
                 <div
                   key={i}
+                  className="cta-perk-item"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -131,6 +133,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
 
             {/* Primary Action Buttons */}
             <div
+              className="cta-action-buttons"
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -141,7 +144,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
             >
               <button
                 onClick={onOpenMultiPass}
-                className="btn-cyber-gold"
+                className="btn-cyber-gold cta-btn-primary"
                 style={{
                   padding: '16px 38px',
                   fontSize: '0.96rem',
@@ -157,7 +160,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
 
               <button
                 onClick={onExploreEvents}
-                className="btn-cyber-secondary"
+                className="btn-cyber-secondary cta-btn-secondary"
                 style={{
                   padding: '15px 32px',
                   fontSize: '0.92rem',
