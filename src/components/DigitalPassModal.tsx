@@ -429,7 +429,59 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   const handlePrint = () => {
-    window.print();
+    // Find the pass card element
+    const passEl = (document.getElementById('festronix-pass-card') || document.querySelector('.ticket-wrapper')) as HTMLElement;
+    if (!passEl) { window.print(); return; }
+
+    // Clone the pass HTML
+    const html = passEl.outerHTML;
+
+    // Collect all stylesheet links from the page
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(node => node.outerHTML)
+      .join('\n');
+
+    // Open a hidden print window
+    const printWin = window.open('', '_blank', 'width=900,height=700');
+    if (!printWin) { window.print(); return; }
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Festronix Pass – ${reg?.id ?? ''}</title>
+          ${styles}
+          <style>
+            @page { size: A5 landscape; margin: 12mm; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body {
+              margin: 0;
+              background: #080C16;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              font-family: 'Space Grotesk', sans-serif;
+            }
+            .ticket-wrapper {
+              width: 100%;
+              max-width: 720px;
+              page-break-inside: avoid;
+            }
+          </style>
+        </head>
+        <body>
+          ${html}
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); window.close(); }, 400);
+            };
+          <\/script>
+        </body>
+      </html>
+    `);
+    printWin.document.close();
   };
 
   return (
@@ -599,6 +651,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         {/* Digital Ticket Container */}
         {reg ? (
           <div
+            id="festronix-pass-card"
             className="ticket-wrapper"
             style={{
               padding: '24px',
