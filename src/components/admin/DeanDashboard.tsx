@@ -6,7 +6,7 @@ import {
   UserCheck, UserPlus, Phone, Mail, Copy, Check,
   Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key,
   Calendar, ArrowRight, QrCode, Camera, StopCircle,
-  TrendingUp, Filter, FileSpreadsheet, ArrowUpRight
+  TrendingUp, Filter, FileSpreadsheet, ArrowUpRight, BarChart3, PieChart
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
@@ -1291,18 +1291,187 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     document.body.removeChild(link);
   };
 
+  const handleExportAttendanceCSV = () => {
+    const headers = [
+      'Registration ID',
+      'Department',
+      'Event Name',
+      'Participant / Leader Name',
+      'Roll Number',
+      'Email',
+      'College',
+      'Phone',
+      'Registration Mode',
+      'Gate Checked In',
+      'Check-In Timestamp',
+      'Verified Status'
+    ];
+    const rows = registrations.map(r => {
+      const ev = events.find(e => e.id === r.eventId);
+      const dept = r.departmentCode || ev?.departmentCode || 'CENTRAL';
+      return [
+        r.id,
+        `"${dept}"`,
+        `"${(ev?.title || r.eventTitle || '').replace(/"/g, '""')}"`,
+        `"${(r.leaderName || '').replace(/"/g, '""')}"`,
+        `"${r.leaderRoll || ''}"`,
+        `"${r.leaderEmail || ''}"`,
+        `"${(r.leaderCollege || '').replace(/"/g, '""')}"`,
+        r.leaderPhone || '',
+        r.source || 'online',
+        r.checkedIn ? 'YES' : 'NO',
+        `"${r.checkedInAt || ''}"`,
+        r.paymentStatus
+      ].join(',');
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `FESTRONIX_2026_GATE_ATTENDANCE_AUDIT_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportDepartmentSummaryCSV = () => {
+    const headers = [
+      'Department Code',
+      'Department Name',
+      'Total Arenas / Events',
+      'Total Registrations',
+      'Total Verified Attendees',
+      'Gate Checked-In',
+      'Turnout Rate (%)',
+      'Capacity',
+      'Avg Registrations Per Event'
+    ];
+    const rows = reportsAnalytics.deptStatsList.map(d => {
+      return [
+        `"${d.code}"`,
+        `"${d.name.replace(/"/g, '""')}"`,
+        d.eventsCount,
+        d.regsCount,
+        d.verifiedCount,
+        d.checkedInCount,
+        `${d.turnoutRate}%`,
+        d.capacity,
+        d.avgPerEvent
+      ].join(',');
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `FESTRONIX_2026_DEPARTMENT_SUMMARY_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Executive Reports & Analytics Calculations
+  const reportsAnalytics = useMemo(() => {
+    const totalRegs = registrations.length;
+    const checkedInCount = registrations.filter(r => r.checkedIn).length;
+    const turnoutRate = totalRegs > 0 ? Math.round((checkedInCount / totalRegs) * 100) : 0;
+    
+    const verifiedCount = registrations.filter(r => r.paymentStatus === 'verified').length;
+    const pendingCount = registrations.filter(r => r.paymentStatus === 'verification_pending').length;
+    const rejectedCount = registrations.filter(r => r.paymentStatus === 'rejected').length;
+    const verificationRate = totalRegs > 0 ? Math.round((verifiedCount / totalRegs) * 100) : 0;
+
+    const onlineCount = registrations.filter(r => r.source !== 'spot').length;
+    const spotCount = registrations.filter(r => r.source === 'spot').length;
+
+    // Format breakdown (individual, duo, team)
+    let soloCount = 0;
+    let duoCount = 0;
+    let teamCount = 0;
+    registrations.forEach(r => {
+      const fmt = r.format || 'individual';
+      if (fmt === 'duo') duoCount++;
+      else if (fmt === 'team') teamCount++;
+      else soloCount++;
+    });
+
+    // Category breakdown
+    const catMap: Record<string, number> = {};
+    events.forEach(e => {
+      catMap[e.category] = (catMap[e.category] || 0);
+    });
+    registrations.forEach(r => {
+      const ev = events.find(e => e.id === r.eventId);
+      const cat = ev?.category || 'technical';
+      catMap[cat] = (catMap[cat] || 0) + 1;
+    });
+
+    // Department participation metrics
+    const deptStatsList = departments.map(d => {
+      const deptEvts = events.filter(e => e.departmentCode.toUpperCase() === d.code.toUpperCase());
+      const deptRegs = registrations.filter(r => {
+        const ev = events.find(e => e.id === r.eventId);
+        return (r.departmentCode || ev?.departmentCode || '').toUpperCase() === d.code.toUpperCase();
+      });
+      const deptCheckedIn = deptRegs.filter(r => r.checkedIn).length;
+      const deptVerified = deptRegs.filter(r => r.paymentStatus === 'verified').length;
+      const deptCapacity = deptEvts.reduce((sum, e) => sum + (e.capacity || 0), 0);
+      const deptTurnout = deptRegs.length > 0 ? Math.round((deptCheckedIn / deptRegs.length) * 100) : 0;
+
+      return {
+        code: d.code,
+        name: d.name,
+        eventsCount: deptEvts.length,
+        regsCount: deptRegs.length,
+        checkedInCount: deptCheckedIn,
+        verifiedCount: deptVerified,
+        capacity: deptCapacity,
+        turnoutRate: deptTurnout,
+        avgPerEvent: deptEvts.length > 0 ? Math.round(deptRegs.length / deptEvts.length) : 0
+      };
+    }).sort((a, b) => b.regsCount - a.regsCount);
+
+    // Top 5 Attended Events
+    const topAttendedEvents = events.map(ev => {
+      const evRegs = registrations.filter(r => r.eventId === ev.id);
+      const checkedIn = evRegs.filter(r => r.checkedIn).length;
+      return {
+        id: ev.id,
+        title: ev.title,
+        departmentCode: ev.departmentCode,
+        category: ev.category,
+        capacity: ev.capacity,
+        totalRegs: evRegs.length,
+        checkedIn,
+        turnout: evRegs.length > 0 ? Math.round((checkedIn / evRegs.length) * 100) : 0,
+        fillRate: ev.capacity > 0 ? Math.round((evRegs.length / ev.capacity) * 100) : 0
+      };
+    }).sort((a, b) => b.totalRegs - a.totalRegs).slice(0, 5);
+
+    return {
+      totalRegs,
+      checkedInCount,
+      turnoutRate,
+      verifiedCount,
+      pendingCount,
+      rejectedCount,
+      verificationRate,
+      onlineCount,
+      spotCount,
+      soloCount,
+      duoCount,
+      teamCount,
+      catMap,
+      deptStatsList,
+      topAttendedEvents
+    };
+  }, [registrations, events, departments]);
+
   return (
     <div className="admin-shell-layout">
       {/* 1. Left Vertical Sidebar Navigation */}
       <AdminSidebar
         activeTab={activeTab}
-        onSelectTab={tab => {
-          if (tab === 'reports') {
-            handleExportRosterCSV();
-          } else {
-            setActiveTab(tab);
-          }
-        }}
+        onSelectTab={setActiveTab}
         pendingPaymentsCount={stats.pendingCount}
         totalEventsCount={events.length}
       />
@@ -1378,11 +1547,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </button>
 
                 <button
-                  onClick={handleExportRosterCSV}
+                  onClick={() => setActiveTab('reports')}
                   className="admin-action-chip-item"
                 >
-                  <Download size={15} color="#34D399" />
-                  <span>Generate Reports</span>
+                  <BarChart3 size={15} color="#34D399" />
+                  <span>Analytics & Reports</span>
                 </button>
               </div>
 
@@ -4254,6 +4423,714 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: ANALYTICS & INSTITUTIONAL REPORTS */}
+        {activeTab === 'reports' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header & Quick Export Bar */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px',
+                padding: '22px 26px',
+                background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '16px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.66rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: '#38BDF8',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      padding: '3px 9px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(56, 189, 248, 0.25)'
+                    }}
+                  >
+                    EXECUTIVE ANALYTICS & INSTITUTIONAL AUDIT
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>• Festronix 2026</span>
+                </div>
+                <h2
+                  className="font-title"
+                  style={{
+                    fontSize: '1.5rem',
+                    color: '#FFFFFF',
+                    margin: 0,
+                    fontWeight: 800,
+                    letterSpacing: '-0.02em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}
+                >
+                  <BarChart3 size={24} color="#38BDF8" />
+                  <span>Analytics & Reports Dashboard</span>
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: '#94A3B8', margin: '4px 0 0', maxWidth: '780px' }}>
+                  Fest attendance rates, department participation metrics, event popularity trends, and official CSV audit downloads.
+                </p>
+              </div>
+
+              {/* Download Buttons Group */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleExportRosterCSV}
+                  className="admin-btn admin-btn-emerald"
+                  style={{ padding: '9px 16px', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Download size={15} />
+                  <span>Download Master Roster (CSV)</span>
+                </button>
+                <button
+                  onClick={handleExportAttendanceCSV}
+                  className="admin-btn admin-btn-ghost"
+                  style={{ padding: '9px 16px', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38BDF8' }}
+                >
+                  <Download size={15} />
+                  <span>Attendance Audit (CSV)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 4 Summary Analytics KPI Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              {/* Card 1: Total Delegates */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(56, 189, 248, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Total Registered Delegates
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      {reportsAnalytics.totalRegs}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(56, 189, 248, 0.3)'
+                    }}
+                  >
+                    <Users size={22} color="#38BDF8" />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#38BDF8', fontWeight: 600 }}>
+                  {reportsAnalytics.onlineCount} online portal • {reportsAnalytics.spotCount} spot desk
+                </div>
+              </div>
+
+              {/* Card 2: Gate Turnout Rate */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(52, 211, 153, 0.25)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(52, 211, 153, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Gate Check-In Turnout
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      {reportsAnalytics.turnoutRate}%
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(52, 211, 153, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(52, 211, 153, 0.3)'
+                    }}
+                  >
+                    <CheckCircle2 size={22} color="#34D399" />
+                  </div>
+                </div>
+                <div className="admin-progress-track" style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', margin: '8px 0 6px' }}>
+                  <div
+                    className="admin-progress-fill"
+                    style={{
+                      width: `${reportsAnalytics.turnoutRate}%`,
+                      background: 'linear-gradient(90deg, #059669, #34D399)',
+                      height: '100%',
+                      borderRadius: '3px'
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                  <span style={{ color: '#34D399', fontWeight: 700 }}>{reportsAnalytics.checkedInCount}</span> checked-in delegates at venues
+                </div>
+              </div>
+
+              {/* Card 3: Payment Verification Health */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(192, 132, 252, 0.25)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(192, 132, 252, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#C084FC', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Payment Clearance Rate
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      {reportsAnalytics.verificationRate}%
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(192, 132, 252, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(192, 132, 252, 0.3)'
+                    }}
+                  >
+                    <ShieldCheck size={22} color="#C084FC" />
+                  </div>
+                </div>
+                <div className="admin-progress-track" style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', margin: '8px 0 6px' }}>
+                  <div
+                    className="admin-progress-fill"
+                    style={{
+                      width: `${reportsAnalytics.verificationRate}%`,
+                      background: 'linear-gradient(90deg, #9333EA, #C084FC)',
+                      height: '100%',
+                      borderRadius: '3px'
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                  {reportsAnalytics.verifiedCount} approved • {reportsAnalytics.pendingCount} pending review
+                </div>
+              </div>
+
+              {/* Card 4: Arenas & Capacity */}
+              <div
+                style={{
+                  background: 'rgba(16, 26, 53, 0.85)',
+                  border: '1px solid rgba(251, 191, 36, 0.25)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(251, 191, 36, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FBBF24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Active Fest Arenas
+                    </span>
+                    <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
+                      {events.length}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: 'rgba(251, 191, 36, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(251, 191, 36, 0.3)'
+                    }}
+                  >
+                    <Layers size={22} color="#FBBF24" />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
+                  Across <span style={{ color: '#FBBF24', fontWeight: 700 }}>{departments.length}</span> academic engineering departments
+                </div>
+              </div>
+            </div>
+
+            {/* Department Participation & Turnout Table */}
+            <div
+              style={{
+                background: 'rgba(20, 31, 62, 0.85)',
+                border: '1px solid rgba(220, 227, 229, 0.18)',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Building2 size={18} color="#38BDF8" />
+                    <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+                      Department Participation & Gate Turnout Matrix
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0' }}>
+                    Registration counts, check-in turnout, and delegate density across all departments.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleExportDepartmentSummaryCSV}
+                  className="admin-btn admin-btn-ghost"
+                  style={{ padding: '7px 14px', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Download size={14} />
+                  <span>Export Dept Matrix (CSV)</span>
+                </button>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '780px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.12)', fontSize: '0.74rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <th style={{ padding: '12px 14px' }}>Department</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center' }}>Events</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center' }}>Total Delegates</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center' }}>Verified</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center' }}>Gate Checked-In</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right', minWidth: '150px' }}>Turnout Rate</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Avg / Event</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportsAnalytics.deptStatsList.map(dept => (
+                      <tr
+                        key={dept.code}
+                        style={{
+                          borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
+                          fontSize: '0.84rem',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <td style={{ padding: '14px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span
+                              style={{
+                                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(192, 132, 252, 0.2))',
+                                color: '#38BDF8',
+                                fontWeight: 800,
+                                fontSize: '0.75rem',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                letterSpacing: '0.05em'
+                              }}
+                            >
+                              {dept.code}
+                            </span>
+                            <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{dept.name}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 14px', textAlign: 'center', color: '#DCE3E5' }}>
+                          {dept.eventsCount}
+                        </td>
+                        <td style={{ padding: '14px 14px', textAlign: 'center', color: '#FFFFFF', fontWeight: 700 }}>
+                          {dept.regsCount}
+                        </td>
+                        <td style={{ padding: '14px 14px', textAlign: 'center', color: '#34D399', fontWeight: 600 }}>
+                          {dept.verifiedCount}
+                        </td>
+                        <td style={{ padding: '14px 14px', textAlign: 'center', color: '#38BDF8', fontWeight: 700 }}>
+                          {dept.checkedInCount}
+                        </td>
+                        <td style={{ padding: '14px 14px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                            <div style={{ width: '70px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  width: `${Math.min(100, dept.turnoutRate)}%`,
+                                  height: '100%',
+                                  background: 'linear-gradient(90deg, #38BDF8, #34D399)',
+                                  borderRadius: '3px'
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontSize: '0.74rem', color: '#38BDF8', fontWeight: 700, minWidth: '35px' }}>
+                              {dept.turnoutRate}%
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 14px', textAlign: 'right', color: '#DCE3E5', fontWeight: 600 }}>
+                          {dept.avgPerEvent}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Two-Column Breakdown: Registration Format & Top Attended Arenas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
+              {/* Participation Demographics */}
+              <div
+                style={{
+                  background: 'rgba(20, 31, 62, 0.85)',
+                  border: '1px solid rgba(220, 227, 229, 0.18)',
+                  borderRadius: '16px',
+                  padding: '24px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <PieChart size={18} color="#38BDF8" />
+                  <h3 className="font-title" style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: 0 }}>
+                    Registration Format & Demographics
+                  </h3>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Solo */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(56, 189, 248, 0.2)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>Solo / Individual Entries</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
+                        Single participant registrations
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#38BDF8' }}>
+                        {reportsAnalytics.soloCount}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#34D399', fontWeight: 700 }}>
+                        {reportsAnalytics.totalRegs > 0 ? Math.round((reportsAnalytics.soloCount / reportsAnalytics.totalRegs) * 100) : 0}% of total
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duo */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(192, 132, 252, 0.2)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>Duo Pairs (2 Members)</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
+                        Pair challenge & coding teams
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#C084FC' }}>
+                        {reportsAnalytics.duoCount}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#34D399', fontWeight: 700 }}>
+                        {reportsAnalytics.totalRegs > 0 ? Math.round((reportsAnalytics.duoCount / reportsAnalytics.totalRegs) * 100) : 0}% of total
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Team */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(52, 211, 153, 0.2)',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>Squad / Team Entries (3-5 Members)</div>
+                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
+                        Hackathons & multi-disciplinary teams
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#34D399' }}>
+                        {reportsAnalytics.teamCount}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#34D399', fontWeight: 700 }}>
+                        {reportsAnalytics.totalRegs > 0 ? Math.round((reportsAnalytics.teamCount / reportsAnalytics.totalRegs) * 100) : 0}% of total
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top 5 Most Attended Arenas */}
+              <div
+                style={{
+                  background: 'rgba(20, 31, 62, 0.85)',
+                  border: '1px solid rgba(220, 227, 229, 0.18)',
+                  borderRadius: '16px',
+                  padding: '24px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Award size={18} color="#FBBF24" />
+                    <h3 className="font-title" style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: 0 }}>
+                      Highest Attendance Arenas
+                    </h3>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Top 5 Events</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {reportsAnalytics.topAttendedEvents.map((ev, index) => (
+                    <div
+                      key={ev.id}
+                      style={{
+                        padding: '12px 14px',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.12)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <span
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            background: index === 0 ? '#FBBF24' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : 'rgba(255,255,255,0.1)',
+                            color: index < 3 ? '#000000' : '#FFFFFF',
+                            fontSize: '0.72rem',
+                            fontWeight: 900,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}
+                        >
+                          {index + 1}
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {ev.title}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                            <span style={{ fontSize: '0.66rem', color: '#38BDF8', fontWeight: 800 }}>{ev.departmentCode}</span>
+                            <span style={{ fontSize: '0.66rem', color: '#94A3B8' }}>• {ev.totalRegs} registered • {ev.checkedIn} checked in</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#34D399' }}>
+                          {ev.turnout}%
+                        </div>
+                        <div style={{ fontSize: '0.66rem', color: '#94A3B8' }}>
+                          turnout rate
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Institutional Download & Audit Center */}
+            <div
+              style={{
+                background: 'rgba(20, 31, 62, 0.85)',
+                border: '1px solid rgba(220, 227, 229, 0.18)',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileSpreadsheet size={18} color="#34D399" />
+                  <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+                    Official Audit Reports & CSV Export Center
+                  </h3>
+                </div>
+                <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0' }}>
+                  Download institutional audit records for academic accreditation, financial reconciliation, and gate security.
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {/* Report 1: Master Student Roster */}
+                <div
+                  style={{
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
+                      Master Participant Roster
+                    </div>
+                    <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>
+                      Complete student directory with contact info, roll numbers, college names, event assignments, and verification states.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleExportRosterCSV}
+                    className="admin-btn admin-btn-emerald"
+                    style={{ width: '100%', padding: '9px', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    <Download size={14} />
+                    <span>Download Master Roster (CSV)</span>
+                  </button>
+                </div>
+
+                {/* Report 2: Attendance Audit */}
+                <div
+                  style={{
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(52, 211, 153, 0.25)',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
+                      Gate Attendance & Turnout Audit
+                    </div>
+                    <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>
+                      Time-stamped QR scan logs, venue entrance audits, and verification tokens for all checked-in participants.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleExportAttendanceCSV}
+                    className="admin-btn admin-btn-ghost"
+                    style={{ width: '100%', padding: '9px', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '1px solid rgba(52, 211, 153, 0.35)', color: '#34D399' }}
+                  >
+                    <Download size={14} />
+                    <span>Download Attendance Audit (CSV)</span>
+                  </button>
+                </div>
+
+                {/* Report 3: Department Summary */}
+                <div
+                  style={{
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(192, 132, 252, 0.25)',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
+                      Department Participation Matrix
+                    </div>
+                    <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>
+                      Academic department summaries, events hosted, delegate volume, verified attendees, and venue turnout percentages.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleExportDepartmentSummaryCSV}
+                    className="admin-btn admin-btn-ghost"
+                    style={{ width: '100%', padding: '9px', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '1px solid rgba(192, 132, 252, 0.35)', color: '#C084FC' }}
+                  >
+                    <Download size={14} />
+                    <span>Download Dept Summary (CSV)</span>
+                  </button>
+                </div>
+
+                {/* Report 4: Financial Reconciliation */}
+                <div
+                  style={{
+                    background: 'rgba(16, 26, 53, 0.9)',
+                    border: '1px solid rgba(251, 191, 36, 0.25)',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
+                      Financial Revenue Audit
+                    </div>
+                    <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>
+                      Full payment transactions ledger with UPI reference codes, UTR IDs, payment mode, and verified gross collections.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleExportRevenueCSV}
+                    className="admin-btn admin-btn-ghost"
+                    style={{ width: '100%', padding: '9px', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '1px solid rgba(251, 191, 36, 0.35)', color: '#FBBF24' }}
+                  >
+                    <Download size={14} />
+                    <span>Download Revenue Audit (CSV)</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
