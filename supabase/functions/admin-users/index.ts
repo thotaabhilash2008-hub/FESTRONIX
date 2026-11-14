@@ -49,6 +49,28 @@ function requiredString(value: unknown, field: string, max = 200): string {
   return clean;
 }
 
+class AdminRequestError extends Error {
+  constructor(message: string, public readonly status = 400) {
+    super(message);
+    this.name = 'AdminRequestError';
+  }
+}
+
+function databaseErrorMessage(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message : '';
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code?: unknown }).code || '')
+    : '';
+
+  if (code === '23505' || /duplicate key|already exists|unique constraint/i.test(message)) {
+    return 'That username, email address, or account identifier is already in use.';
+  }
+  if (/database error creating new user/i.test(message)) {
+    return 'Supabase could not create this account because its profile data conflicts with an existing user. Use a new username and email address, then try again.';
+  }
+  return message || fallback;
+}
+
 function canonicalAdminRole(role: string): string {
   // Keep existing production rows and older credentials readable while all
   // newly-created and returned accounts use the department-coordinator name.
@@ -235,11 +257,50 @@ Deno.serve(async (req: Request) => {
           }
         }
       }
-      const { data: duplicateName, error: duplicateNameError } = await db.from('admin_roles').select('user_id').eq('username', admin.username).eq('active', true).maybeSingle();
+      const { data: duplicateName, error: duplicateNameError } = await db
+        .from('admin_roles')
+        .select('user_id')
+        .ilike('username', admin.username)
+        .eq('active', true)
+        .limit(1)
+        .maybeSingle();
       if (duplicateNameError) throw duplicateNameError;
-      const { data: duplicateEmail, error: duplicateEmailError } = await db.from('admin_roles').select('user_id').eq('email', admin.email).eq('active', true).maybeSingle();
+      const { data: duplicateEmail, error: duplicateEmailError } = await db
+        .from('admin_roles')
+        .select('user_id')
+        .ilike('email', admin.email)
+        .eq('active', true)
+        .limit(1)
+        .maybeSingle();
       if (duplicateEmailError) throw duplicateEmailError;
-      if (duplicateName || duplicateEmail) throw new Error('That username or email is already assigned to an admin account.');
+      if (duplicateName || duplicateEmail) {
+        throw new AdminRequestError('That username or email is already assigned to an active admin account.', 409);
+      }
+
+      // The Auth signup trigger also writes the username into profiles. A
+      // duplicate student/profile username makes Supabase Auth return only
+      // the opaque "Database error creating new user" message. Detect both
+      // global profile conflicts before creating Auth so the coordinator gets
+      // an actionable validation error and no orphaned Auth user is created.
+      const { data: profileUsernameRows, error: profileUsernameError } = await db
+        .from('profiles')
+        .select('id')
+        .ilike('username', admin.username)
+        .limit(1);
+      if (profileUsernameError) throw profileUsernameError;
+      if ((profileUsernameRows || []).length > 0) {
+        throw new AdminRequestError('That username is already used by another account. Choose a different username.', 409);
+      }
+
+      const { data: profileEmailRows, error: profileEmailError } = await db
+        .from('profiles')
+        .select('id')
+        .ilike('email', admin.email)
+        .limit(1);
+      if (profileEmailError) throw profileEmailError;
+      if ((profileEmailRows || []).length > 0) {
+        throw new AdminRequestError('That email address is already registered. Use a different email address for this staff account.', 409);
+      }
 
       if (admin.departmentCode) {
         const { data: department, error } = await db.from('departments').select('code').eq('code', admin.departmentCode).maybeSingle();
@@ -271,11 +332,11 @@ Deno.serve(async (req: Request) => {
           email_confirm: true,
           user_metadata: userMetadata
         });
-        if (error) throw error;
+        if (error) throw new AdminRequestError(databaseErrorMessage(error, 'Unable to create the authentication account.'), 400);
         createdUser = data.user;
       } else {
         const { data, error } = await db.auth.admin.inviteUserByEmail(admin.email, { data: userMetadata });
-        if (error) throw error;
+        if (error) throw new AdminRequestError(databaseErrorMessage(error, 'Unable to invite the authentication account.'), 400);
         createdUser = data.user;
       }
       if (!createdUser) throw new Error('The authentication provider did not return the new account.');
@@ -290,7 +351,7 @@ Deno.serve(async (req: Request) => {
           roll_number: `ADMIN_${admin.username.toUpperCase()}`,
           username: admin.username
         }, { onConflict: 'id' });
-        if (profileError) throw profileError;
+        if (profileError) throw new AdminRequestError(databaseErrorMessage(profileError, 'Unable to save the staff profile.'), 400);
 
         const { error: roleInsertError } = await db.from('admin_roles').insert({
           user_id: createdUser.id,
@@ -305,13 +366,13 @@ Deno.serve(async (req: Request) => {
           active: true,
           granted_by: caller.id
         });
-        if (roleInsertError) throw roleInsertError;
+        if (roleInsertError) throw new AdminRequestError(databaseErrorMessage(roleInsertError, 'Unable to save the staff permissions.'), 400);
 
         if (admin.assignedEvents.length > 0) {
           const { error: assignmentError } = await db.from('admin_event_assignments').insert(
             admin.assignedEvents.map(eventId => ({ admin_user_id: createdUser!.id, event_id: eventId, granted_by: caller.id }))
           );
-          if (assignmentError) throw assignmentError;
+          if (assignmentError) throw new AdminRequestError(databaseErrorMessage(assignmentError, 'Unable to save the event assignments.'), 400);
         }
       } catch (error) {
         await db.auth.admin.deleteUser(createdUser.id);
@@ -528,6 +589,7 @@ Deno.serve(async (req: Request) => {
 
     return response({ error: 'Unsupported admin action.' }, 400);
   } catch (error) {
-    return response({ error: error instanceof Error ? error.message : 'The admin request failed.' }, 400);
+    const status = error instanceof AdminRequestError ? error.status : 400;
+    return response({ error: databaseErrorMessage(error, 'The admin request failed.') }, status);
   }
 });
