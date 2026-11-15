@@ -39,6 +39,8 @@ export interface FestEvent {
   tagline?: string;
   departmentId?: string;
   departmentCode: string;
+  /** Optional cluster boundary used by departments such as CSE. */
+  clusterCode?: string;
   category: EventCategory;
   format: EventFormat;
   minTeamSize: number;

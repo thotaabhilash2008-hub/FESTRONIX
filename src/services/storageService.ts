@@ -54,6 +54,7 @@ function eventFromDb(row: EventRow): FestEvent {
     tagline: row.tagline || undefined,
     departmentId: row.department_id || '',
     departmentCode: row.department_code,
+    clusterCode: row.cluster_code || undefined,
     category: row.category,
     format: row.format,
     minTeamSize: row.min_team_size,
@@ -91,6 +92,7 @@ function eventToDb(evt: FestEvent) {
     title: evt.title,
     tagline: evt.tagline || null,
     department_code: evt.departmentCode,
+    cluster_code: evt.clusterCode || null,
     category: evt.category,
     format: evt.format,
     min_team_size: evt.minTeamSize,
@@ -439,28 +441,112 @@ export class StorageService {
     return this.getEvents();
   }
 
+  /**
+   * Fetch only the authoritative event list from Supabase.
+   *
+   * `fetchEvents()` intentionally falls back to the browser cache for public
+   * pages when the network is unavailable. That is useful for resilience, but
+   * it is unsafe for permission-sensitive actions such as assigning staff:
+   * cached demo events can be submitted even though they do not exist in the
+   * production database. Callers performing a write should use this strict
+   * variant so stale local data is rejected before it reaches the API.
+   */
+  static async fetchLiveEvents(): Promise<FestEvent[]> {
+    if (!isSupabaseConfigured()) {
+      return this.getEvents();
+    }
+
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('is_deleted', false)
+      .order('title', { ascending: true });
+
+    if (error) {
+      throw new Error(`Unable to verify live events: ${error.message}`);
+    }
+
+    const mapped = Array.isArray(data) ? data.map(eventFromDb) : [];
+    this.saveEvents(mapped);
+    window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: mapped }));
+    return mapped;
+  }
+
+  static async fetchLiveEventsForIds(eventIds: string[]): Promise<FestEvent[]> {
+    const ids = [...new Set(eventIds.map(id => String(id).trim()).filter(Boolean))];
+    if (ids.length === 0) return [];
+
+    if (!isSupabaseConfigured()) {
+      const idSet = new Set(ids);
+      return this.getEvents().filter(event => idSet.has(event.id));
+    }
+
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .in('id', ids)
+      .eq('is_deleted', false)
+      .order('title', { ascending: true });
+
+    if (error) throw new Error(`Unable to load assigned events: ${error.message}`);
+    return (data || []).map(eventFromDb);
+  }
+
   static async addEvent(newEvent: FestEvent): Promise<FestEvent> {
     if (isSupabaseConfigured()) {
+      // A configured Supabase project is authoritative. Never report success
+      // or write a browser-only copy when the production insert fails; that
+      // made department-created events look successful but disappear on the
+      // next device or refresh.
       try {
-        const { data, error } = await supabase.from('events').insert(eventToDb(newEvent)).select('*').single();
-        if (error) {
-          console.warn('Supabase addEvent warning, persisted locally:', error.message);
-          const events = [newEvent, ...this.getEvents().filter(e => e.id !== newEvent.id && e.slug !== newEvent.slug)];
-          this.saveEvents(events);
-          window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-          return newEvent;
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        let session = sessionData.session;
+        const expiresSoon = Boolean(
+          session?.expires_at && session.expires_at * 1000 <= Date.now() + 30_000
+        );
+
+        // Supabase access tokens expire while a tab remains open. Refresh the
+        // session before the insert so a valid coordinator is not rejected by
+        // RLS merely because the browser kept an old token in memory.
+        if (sessionError || !session?.user || expiresSoon) {
+          const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) throw refreshError;
+          session = refreshed.session;
         }
-        const created = data ? eventFromDb(data) : newEvent;
+
+        if (!session?.user) {
+          throw new Error('Your backend admin session is missing or expired. Sign out and sign in again before creating an event.');
+        }
+
+        const { data, error } = await supabase
+          .from('events')
+          .insert(eventToDb(newEvent))
+          .select('*')
+          .single();
+
+        if (error) {
+          if (error.code === '42501' || /row-level security|permission denied/i.test(error.message || '')) {
+            const details = [error.message, error.details, error.hint]
+              .filter((value): value is string => Boolean(value))
+              .join(' — ');
+            throw new Error(
+              `The database denied event creation${details ? `: ${details}` : '.'} Check that your active coordinator role has access to this department and cluster.`
+            );
+          }
+          throw new Error(`Unable to create the event in the backend: ${error.message}`);
+        }
+        if (!data) {
+          throw new Error('The backend did not return the created event. Please try again.');
+        }
+
+        const created = eventFromDb(data);
         const events = [created, ...this.getEvents().filter(e => e.id !== created.id && e.slug !== created.slug)];
         this.saveEvents(events);
         window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
         return created;
-      } catch (err: any) {
-        console.warn('Supabase addEvent exception, persisted locally:', err);
-        const events = [newEvent, ...this.getEvents().filter(e => e.id !== newEvent.id && e.slug !== newEvent.slug)];
-        this.saveEvents(events);
-        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-        return newEvent;
+      } catch (err: unknown) {
+        if (err instanceof Error) throw err;
+        throw new Error('Unable to create the event in the backend. Please try again.');
       }
     }
 
@@ -669,6 +755,33 @@ export class StorageService {
       return mapped;
     }
     return this.getRegistrations();
+  }
+
+  static async fetchRegistrationsForEvents(eventIds: string[]): Promise<Registration[]> {
+    const ids = [...new Set(eventIds.map(id => String(id).trim()).filter(Boolean))];
+    if (ids.length === 0) return [];
+
+    if (!isSupabaseConfigured()) {
+      const idSet = new Set(ids);
+      return this.getRegistrations().filter(registration => idSet.has(registration.eventId));
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) return [];
+
+    const { data, error } = await supabase
+      .from('registrations')
+      .select(`
+        *,
+        events (department_code, title),
+        tickets (qr_token, checked_in, checked_in_at, checked_in_by),
+        registration_members (name, email, phone, college, roll_number)
+      `)
+      .in('event_id', ids)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Unable to load assigned event registrations: ${error.message}`);
+    return this.signPaymentProofUrls((data || []).map(registrationFromDb));
   }
 
   /**

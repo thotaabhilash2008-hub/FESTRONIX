@@ -33,6 +33,7 @@ export interface AdminUser {
   role: AdminRole;
   departmentCode?: string;
   departmentName?: string;
+  clusterCode?: string;
   email: string;
   phone?: string;
   accessBoundary?: string;
@@ -160,10 +161,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     designation: 'Staff Coordinator (CSE - 1st Cluster: Verma)',
     role: 'dept_chief_coordinator',
     departmentCode: 'CSE',
+    clusterCode: 'CSE-1',
     departmentName: 'Computer Science & Engineering (1st Cluster)',
     email: 'varma@vardhaman.org',
     phone: '8143275536',
-    accessBoundary: "CSE department's events"
+    accessBoundary: "CSE 1 cluster events"
   },
   {
     id: 'admin_coord_cse_2',
@@ -172,10 +174,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     designation: 'Staff Coordinator (CSE - 2nd Cluster: Balu)',
     role: 'dept_chief_coordinator',
     departmentCode: 'CSE',
+    clusterCode: 'CSE-2',
     departmentName: 'Computer Science & Engineering (2nd Cluster)',
     email: 'balu1681@vardhaman.org',
     phone: '8184864242',
-    accessBoundary: "CSE department's events"
+    accessBoundary: "CSE 2 cluster events"
   },
   {
     id: 'admin_coord_cse_1',
@@ -184,10 +187,11 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     designation: 'Staff Coordinator (CSE - 3rd Cluster: Raghavendra)',
     role: 'dept_chief_coordinator',
     departmentCode: 'CSE',
+    clusterCode: 'CSE-3',
     departmentName: 'Computer Science & Engineering (3rd Cluster)',
     email: 'raghavendra1797@vardhaman.org',
     phone: '6303169820',
-    accessBoundary: "CSE department's events"
+    accessBoundary: "CSE 3 cluster events"
   },
   {
     id: 'admin_coord_it',
@@ -238,6 +242,34 @@ export const PRESET_ADMINS: Array<AdminUser & { password?: string }> = [
     accessBoundary: "MBA department's events"
   }
 ];
+
+/**
+ * Older admin_role rows may predate the CSE cluster migration. Keep the
+ * directory and portal scope correct for those known accounts while the
+ * database backfill is applied. Explicit cluster_code always wins.
+ */
+const inferCseClusterCode = (record: Record<string, unknown>): string | undefined => {
+  const explicit = String(record.clusterCode ?? record.cluster_code ?? '').trim().toUpperCase();
+  if (['CSE-1', 'CSE-2', 'CSE-3'].includes(explicit)) return explicit;
+
+  const departmentCode = String(record.departmentCode ?? record.department_code ?? '').trim().toUpperCase();
+  if (departmentCode && departmentCode !== 'CSE') return undefined;
+
+  const identity = [record.username, record.email, record.fullName, record.full_name, record.designation]
+    .map(value => String(value ?? '').toLowerCase())
+    .join(' ');
+  if (/\b(varma|bjv_varma)\b|varma@/.test(identity)) return 'CSE-1';
+  if (/\b(balu|ch bala|bala subramanyam)\b|balu1681@/.test(identity)) return 'CSE-2';
+  if (/\b(raghavendra|m raghavendra)\b|raghavendra1797@/.test(identity)) return 'CSE-3';
+  return undefined;
+};
+
+const normalizeManagedAdmin = (admin: Record<string, any>): ManagedAdmin => ({
+  ...admin,
+  departmentCode: admin.departmentCode || admin.department_code || undefined,
+  clusterCode: inferCseClusterCode(admin),
+  assignedEvents: Array.isArray(admin.assignedEvents) ? admin.assignedEvents : undefined
+} as ManagedAdmin);
 
 export const PRESET_ADMIN_PASSWORDS: Record<string, string[]> = {
   // 1. Asif Sir / CC / Vencorpia & Super Admins
@@ -416,14 +448,53 @@ async function invokeAdminApi<T>(body: Record<string, unknown>): Promise<T> {
   }
   const { data, error } = await supabase.functions.invoke<T>('admin-users', { body });
   if (error) {
-    const context = (error as any).context;
-    const details = context && typeof context.json === 'function'
-      ? await context.json().catch(() => null)
-      : null;
-    throw new Error(details?.error || error.message || 'The admin request failed.');
+    // Supabase wraps non-2xx Edge Function responses in FunctionsHttpError.
+    // Its response body is not always available through `error.message`, so
+    // preserve the API's actionable validation message whenever possible.
+    const context = (error as any).context as Response | undefined;
+    let details: any = null;
+    if (context && typeof context.clone === 'function') {
+      const responseCopy = context.clone();
+      details = await responseCopy.json().catch(async () => {
+        const text = await context.clone().text().catch(() => '');
+        return text ? { error: text } : null;
+      });
+    }
+    const message = details?.error || details?.message || (error as any).message;
+    const status = context?.status || (error as any).status;
+    if (status === 401) {
+      throw new Error('Your backend admin session is missing or expired. Sign out and sign in again with the Supabase account credentials.');
+    }
+    throw new Error(typeof message === 'string' && message.trim() ? message : 'The admin request failed.');
   }
   if (!data) throw new Error('The admin service returned an empty response.');
   return data;
+}
+
+async function invokeAdminAuth<T>(body: Record<string, unknown>): Promise<T> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase backend is not configured.');
+  }
+
+  const { data, error } = await supabase.functions.invoke<T>('admin-auth', { body });
+  if (!error && data) return data;
+
+  const context = (error as any)?.context as Response | undefined;
+  let details: any = null;
+  if (context && typeof context.clone === 'function') {
+    details = await context.clone().json().catch(async () => {
+      const text = await context.clone().text().catch(() => '');
+      return text ? { error: text } : null;
+    });
+  }
+  const message = details?.error || details?.message || (error as any)?.message;
+  const status = context?.status || (error as any)?.status;
+  const wrapped = new Error(
+    typeof message === 'string' && message.trim() ? message : 'Admin authentication service is unavailable.'
+  ) as Error & { status?: number; code?: string };
+  wrapped.status = status;
+  wrapped.code = (error as any)?.code;
+  throw wrapped;
 }
 
 export class AdminAuthService {
@@ -448,13 +519,39 @@ export class AdminAuthService {
   }
 
   static getCurrentAdmin(): AdminUser | null {
-    return readCached<AdminUser | null>(STORAGE_KEY_ADMIN_SESSION, null);
+    const cached = readCached<AdminUser | null>(STORAGE_KEY_ADMIN_SESSION, null);
+    return cached ? normalizeManagedAdmin(cached) : null;
+  }
+
+  static async fetchCurrentAdminEventAssignments(): Promise<string[]> {
+    if (!isSupabaseConfigured()) {
+      return this.getCurrentAdmin()?.assignedEvents || [];
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw new Error(`Unable to verify the coordinator session: ${authError.message}`);
+    if (!authData.user) throw new Error('The coordinator session has expired. Sign in again.');
+
+    const { data, error } = await supabase
+      .from('admin_event_assignments')
+      .select('event_id')
+      .eq('admin_user_id', authData.user.id);
+
+    if (error) throw new Error(`Unable to load assigned events: ${error.message}`);
+    return [...new Set((data || [])
+      .map(row => String(row.event_id || '').trim())
+      .filter(Boolean))];
   }
 
   static getAllAdmins(): ManagedAdmin[] {
     const cached = readCached<ManagedAdmin[]>(STORAGE_KEY_ADMIN_DIRECTORY, []);
-    if (cached.length > 0) return cached;
-    const initial = PRESET_ADMINS.map(({ password: _, ...admin }) => admin);
+    if (cached.length > 0) {
+      const normalized = cached.map(admin => normalizeManagedAdmin(admin));
+      localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(normalized));
+      return normalized;
+    }
+    const initial = PRESET_ADMINS
+      .map(({ password: _, ...admin }) => normalizeManagedAdmin(admin));
     localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(initial));
     return initial;
   }
@@ -497,6 +594,11 @@ export class AdminAuthService {
           designation: roleRow.designation || userMeta.designation || 'Administrator',
           role: roleRow.role as AdminRole,
           departmentCode: roleRow.department_code || userMeta.department_code || undefined,
+          // A backend-authenticated session must use the explicit scope stored
+          // in admin_roles. Do not infer a cluster from a display name/email:
+          // that can make the UI appear to be in CSE-3 while RLS correctly
+          // sees a NULL cluster and rejects the event write.
+          clusterCode: roleRow.cluster_code || undefined,
           email: user.email || fallbackEmail,
           phone: roleRow.phone || userMeta.phone || undefined,
           accessBoundary: roleRow.access_boundary || userMeta.access_boundary || undefined,
@@ -512,17 +614,17 @@ export class AdminAuthService {
     // 2. Try Supabase Edge Function 'admin-users' me action
     try {
       const edgeUser = await invokeAdminApi<AdminUser>({ action: 'me' });
-      if (edgeUser && edgeUser.role) return edgeUser;
+      if (edgeUser && edgeUser.role) return normalizeManagedAdmin(edgeUser);
     } catch {
       // Edge function may not have a database row mapped yet
     }
 
-    const preset = findPresetAdmin(emailLower);
-    if (preset) {
-      return { ...preset, id: user.id || preset.id };
-    }
-
-    throw new Error('No active admin role is assigned to this account. Contact a super admin.');
+    // When Supabase is configured, a browser preset is never an authorization
+    // source.  Falling back to a cached/preset identity made the portal look
+    // authenticated while the database had no matching admin_roles row; any
+    // subsequent write was (correctly) rejected by RLS.  Fail closed and make
+    // the administrator assignment explicit instead.
+    throw new Error('No active admin role is assigned to this account in the backend. Contact a super admin.');
   }
 
   static async restoreCurrentAdmin(): Promise<AdminUser | null> {
@@ -530,18 +632,43 @@ export class AdminAuthService {
 
     if (isSupabaseConfigured()) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        let session = sessionData.session;
+
+        // A cached browser identity can outlive the short-lived access token.
+        // Refresh it before resolving the protected portal; otherwise the UI
+        // may render successfully while the next database request receives a
+        // 401/403 from Supabase RLS.
+        const expiresSoon = Boolean(
+          session?.expires_at && session.expires_at * 1000 <= Date.now() + 30_000
+        );
+        if (sessionError || !session?.user || expiresSoon) {
+          const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) throw refreshError;
+          session = refreshed.session;
+        }
+
         if (session?.user) {
           try {
             const fresh = await this.resolveAdminFromAuth(session.user, session.user.email || '');
             localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(fresh));
             return fresh;
           } catch {
-            // Retain cached session if role resolution is pending
+            // A cached identity must never be enough to enter a protected
+            // portal. Supabase Auth and the active role row are authoritative.
+            localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+            return null;
           }
         }
+        // Do not render a cached portal session without a live Supabase Auth
+        // session. Database writes would otherwise be rejected by RLS while
+        // the UI misleadingly appears authenticated.
+        localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+        return null;
       } catch {
-        // Retain cached session on network or session check issue
+        // Fail closed when the backend session cannot be verified.
+        localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+        return null;
       }
     }
 
@@ -582,6 +709,54 @@ export class AdminAuthService {
   }
 
   /**
+   * Authenticate through the server-side username/email resolver. This keeps
+   * usernames out of the browser directory as an authority and returns a real
+   * Supabase session for RLS-protected portal operations.
+   */
+  private static async authenticateViaAdminFunction(
+    identifier: string,
+    password: string,
+    portal: 'auto' | 'central' | 'department' | 'event' = 'auto',
+    departmentCode?: string,
+    clusterCode?: string,
+    eventId?: string
+  ): Promise<AdminUser> {
+    const response = await invokeAdminAuth<{
+      user: AdminUser;
+      session: { access_token: string; refresh_token: string };
+    }>({
+      identifier: identifier.trim().toLowerCase(),
+      password,
+      portal,
+      departmentCode,
+      clusterCode,
+      eventId
+    });
+
+    if (!response?.user || !response.session?.access_token || !response.session?.refresh_token) {
+      throw new Error('Admin authentication returned an incomplete session.');
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession(response.session);
+    if (sessionError) throw new Error(`Unable to establish the backend session: ${sessionError.message}`);
+
+    if (!sessionData.user) {
+      throw new Error('Admin authentication returned a session without an authenticated user.');
+    }
+
+    // The Edge Function resolves username -> email, but the database remains
+    // the authorization source. Re-read the role through the new Auth session
+    // so stale/old Edge Function responses cannot create a misleading portal
+    // session that will later fail against RLS.
+    const user = await this.resolveAdminFromAuth(
+      sessionData.user,
+      response.user.email || sessionData.user.email || identifier
+    );
+    localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+    return user;
+  }
+
+  /**
    * Authenticate any portal account from its credentials alone.
    *
    * The portal must never trust a department, event, or role selected in the
@@ -618,9 +793,24 @@ export class AdminAuthService {
 
     if (isSupabaseConfigured()) {
       try {
-        const user = await this.authenticate(targetEmail, cleanPassword);
+        const user = await this.authenticateViaAdminFunction(rawIdentifier, cleanPassword, 'auto');
         return { success: true, user };
       } catch (err: any) {
+        // Keep email login compatible with environments where the new
+        // admin-auth function has not been deployed yet. Never fall back to
+        // preset credentials or a cached identity, and never use this fallback
+        // for usernames because Supabase Auth accepts emails here only.
+        if (rawIdentifier.includes('@')) {
+          try {
+            const user = await this.authenticate(rawIdentifier, cleanPassword);
+            return { success: true, user };
+          } catch (fallbackError: any) {
+            return {
+              success: false,
+              error: fallbackError?.message || err?.message || 'Invalid login credentials.'
+            };
+          }
+        }
         return {
           success: false,
           error: err?.message || 'Invalid login credentials. Please check your Gmail and password.'
@@ -655,20 +845,14 @@ export class AdminAuthService {
 
     const targetEmail = resolveTargetEmail(rawInput);
 
-    // 1. Check against official preset credentials first
-    if (checkPresetPassword(targetEmail, cleanPass)) {
+    // Supabase is authoritative whenever configured. The preset directory is
+    // only a local-development fallback; using it in production would render
+    // a cached admin UI without an Auth session and every protected write
+    // would be rejected by Row-Level Security.
+    if (!isSupabaseConfigured() && checkPresetPassword(targetEmail, cleanPass)) {
       const preset = findPresetAdmin(targetEmail) || findPresetAdmin(rawInput);
       if (preset) {
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(preset));
-
-        // Background non-blocking session sync if Supabase is configured
-        if (isSupabaseConfigured()) {
-          supabase.auth.signInWithPassword({
-            email: targetEmail,
-            password: cleanPass
-          }).catch(() => {});
-        }
-
         return { success: true, user: preset };
       }
     }
@@ -676,9 +860,17 @@ export class AdminAuthService {
     // 2. If not a preset match and Supabase is configured, verify against Supabase Auth
     if (isSupabaseConfigured()) {
       try {
-        const user = await this.authenticate(targetEmail, cleanPass);
+        const user = await this.authenticateViaAdminFunction(rawInput, cleanPass, 'central');
         return { success: true, user };
       } catch (err: any) {
+        if (targetEmail.includes('@')) {
+          try {
+            const user = await this.authenticate(targetEmail, cleanPass);
+            return { success: true, user };
+          } catch (fallbackError: any) {
+            return { success: false, error: fallbackError?.message || err?.message || 'Invalid login credentials.' };
+          }
+        }
         return { success: false, error: err?.message || 'Invalid login credentials. Please check your email and password.' };
       }
     }
@@ -710,6 +902,7 @@ export class AdminAuthService {
     const isCse1 = cleanDept === 'CSE 1' || cleanDept === 'CSE-1' || cleanDept === 'CSE1';
     const isCse2 = cleanDept === 'CSE 2' || cleanDept === 'CSE-2' || cleanDept === 'CSE2';
     const isCse3 = cleanDept === 'CSE 3' || cleanDept === 'CSE-3' || cleanDept === 'CSE3';
+    const requestedClusterCode = isCse1 ? 'CSE-1' : isCse2 ? 'CSE-2' : isCse3 ? 'CSE-3' : undefined;
 
     let defaultDeptEmail = `${cleanDept.toLowerCase().replace(/\s+/g, '')}.festronix@vardhaman.org`;
     if (isCse1) defaultDeptEmail = 'varma@vardhaman.org';
@@ -734,12 +927,30 @@ export class AdminAuthService {
       cleanPass === 'festronix2026' ||
       checkPresetPassword(targetEmail, cleanPass);
 
-    if (isDeptPresetMatch) {
+    // Preset credentials are retained only for local development without
+    // Supabase. A configured production backend must issue the Auth session
+    // used by the events RLS policy.
+    if (!isSupabaseConfigured() && isDeptPresetMatch) {
       let preset = findPresetAdmin(targetEmail);
+
+      // This legacy helper is still kept for compatibility with older links,
+      // but the selected department must never change the identity returned by
+      // the credentials.  Reject a credential from another CSE cluster before
+      // constructing the local session.
+      if (preset) {
+        const presetDepartment = preset.departmentCode?.toUpperCase();
+        const presetCluster = preset.clusterCode?.toUpperCase();
+        if (requestedClusterCode && (presetDepartment !== 'CSE' || presetCluster !== requestedClusterCode)) {
+          return { success: false, error: `These credentials belong to the ${presetCluster} CSE cluster, not ${requestedClusterCode}.` };
+        }
+        if (!requestedClusterCode && presetDepartment && presetDepartment !== cleanDept) {
+          return { success: false, error: `These credentials belong to the ${presetDepartment} department.` };
+        }
+      }
       if (!preset) {
-        if (isCse1) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_3');
+        if (isCse1) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_1');
         else if (isCse2) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_2');
-        else if (isCse3) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_1');
+        else if (isCse3) preset = PRESET_ADMINS.find(a => a.id === 'admin_coord_cse_3');
         else preset = PRESET_ADMINS.find(a => a.departmentCode === cleanDept);
       }
 
@@ -752,6 +963,7 @@ export class AdminAuthService {
           role: 'dept_chief_coordinator',
           departmentCode: (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept,
           departmentName: isCse1 ? 'Computer Science & Engineering (1st Cluster)' : isCse2 ? 'Computer Science & Engineering (2nd Cluster)' : isCse3 ? 'Computer Science & Engineering (3rd Cluster)' : cleanDept,
+          clusterCode: requestedClusterCode,
           email: targetEmail
         })
       };
@@ -760,6 +972,7 @@ export class AdminAuthService {
         user.fullName = coordinatorName;
       }
       user.departmentCode = (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept;
+      if (requestedClusterCode) user.clusterCode = requestedClusterCode;
       if (isCse1) {
         user.designation = 'Staff Coordinator (CSE - 1st Cluster: Verma)';
         user.departmentName = 'Computer Science & Engineering (1st Cluster)';
@@ -773,24 +986,35 @@ export class AdminAuthService {
 
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
 
-      if (isSupabaseConfigured()) {
-        supabase.auth.signInWithPassword({
-          email: targetEmail,
-          password: cleanPass
-        }).catch(() => {});
-      }
-
       return { success: true, user };
     }
 
     // 2. If not preset match and Supabase is configured, authenticate with Supabase Auth
     if (isSupabaseConfigured()) {
       try {
-        const user = await this.authenticate(targetEmail, cleanPass);
+        const user = await this.authenticateViaAdminFunction(
+          rawEmail,
+          cleanPass,
+          'department',
+          (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept,
+          requestedClusterCode
+        );
+        const actualDepartment = user.departmentCode?.toUpperCase();
+        const actualCluster = user.clusterCode?.toUpperCase();
+        if (requestedClusterCode && (actualDepartment !== 'CSE' || actualCluster !== requestedClusterCode)) {
+          return {
+            success: false,
+            error: actualCluster
+              ? `These credentials belong to the ${actualCluster} CSE cluster, not ${requestedClusterCode}.`
+              : `This account is not assigned to ${requestedClusterCode} in the backend. Ask the administrator to assign the CSE cluster, then sign in again.`
+          };
+        }
+        if (!requestedClusterCode && actualDepartment !== cleanDept) {
+          return { success: false, error: `These credentials belong to the ${actualDepartment} department.` };
+        }
         if (coordinatorName) {
           user.fullName = coordinatorName;
         }
-        user.departmentCode = (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept;
         localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
         return { success: true, user };
       } catch (err: any) {
@@ -840,7 +1064,10 @@ export class AdminAuthService {
       (cleanDept === 'MECHANICAL' && cleanPass === 'mech2026') ||
       checkPresetPassword(targetEmail, cleanPass);
 
-    if (isMatch) {
+    // The legacy event-coordinator presets are local-only. When Supabase is
+    // configured, authenticate first so attendance and event operations carry
+    // a real Auth token and satisfy backend RLS.
+    if (!isSupabaseConfigured() && isMatch) {
       let matchedEvt: any = undefined;
       try {
         const evts = StorageService.getEvents();
@@ -877,14 +1104,29 @@ export class AdminAuthService {
 
       localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
 
-      if (isSupabaseConfigured()) {
-        supabase.auth.signInWithPassword({
-          email: targetEmail,
-          password: cleanPass
-        }).catch(() => {});
-      }
-
       return { success: true, user };
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        const user = await this.authenticateViaAdminFunction(
+          rawEmail,
+          cleanPass,
+          'event',
+          effectiveDeptCode,
+          undefined,
+          eventId
+        );
+        const actualDepartment = user.departmentCode?.toUpperCase();
+        if (actualDepartment && actualDepartment !== effectiveDeptCode) {
+          return { success: false, error: `These credentials belong to the ${actualDepartment} department.` };
+        }
+        if (coordinatorName) user.fullName = coordinatorName;
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+        return { success: true, user };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Authentication failed for this event coordinator.' };
+      }
     }
 
     return {
@@ -898,9 +1140,10 @@ export class AdminAuthService {
       try {
         const admins = await invokeAdminApi<ManagedAdmin[]>({ action: 'list' });
         if (Array.isArray(admins)) {
-          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(admins));
-          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
-          return admins;
+          const normalizedAdmins = admins.map(admin => normalizeManagedAdmin(admin as Record<string, any>));
+          localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(normalizedAdmins));
+          window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: normalizedAdmins }));
+          return normalizedAdmins;
         }
       } catch (e) {
         console.warn('Could not fetch admins via edge function:', e);
@@ -910,13 +1153,14 @@ export class AdminAuthService {
         const { data: dbRoles, error } = await supabase.from('admin_roles').select('*').eq('active', true);
         if (error) throw error;
         if (Array.isArray(dbRoles)) {
-          const list: ManagedAdmin[] = dbRoles.map((r: any) => ({
+          const list: ManagedAdmin[] = dbRoles.map((r: any) => normalizeManagedAdmin({
             id: r.user_id,
             username: r.username,
             fullName: r.full_name,
             designation: r.designation || 'Administrator',
             role: r.role as AdminRole,
             departmentCode: r.department_code || undefined,
+            clusterCode: r.cluster_code || undefined,
             email: r.email,
             phone: r.phone || undefined,
             accessBoundary: r.access_boundary || undefined
@@ -972,6 +1216,7 @@ export class AdminAuthService {
     identifier: string;
     role: AdminRole;
     departmentCode?: string;
+    clusterCode?: string;
     designation?: string;
     accessBoundary?: string;
     assignedEvents?: string[];
@@ -981,6 +1226,7 @@ export class AdminAuthService {
       identifier: options.identifier.trim(),
       role: options.role,
       departmentCode: options.departmentCode,
+      clusterCode: options.clusterCode,
       designation: options.designation,
       accessBoundary: options.accessBoundary,
       assignedEvents: options.assignedEvents || []

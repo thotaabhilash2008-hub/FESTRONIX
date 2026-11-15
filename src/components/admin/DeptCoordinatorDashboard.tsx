@@ -11,6 +11,7 @@ import jsQR from 'jsqr';
 import confetti from 'canvas-confetti';
 import { AdminRole, AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
+import { isSupabaseConfigured } from '../../lib/supabase';
 import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
 import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
@@ -29,23 +30,79 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   onSwitchToFest
 }) => {
   const deptCode = adminUser.departmentCode || 'CSE';
+  const clusterCode = adminUser.clusterCode?.toUpperCase();
+  const clusterLabel = clusterCode
+    ? ({ 'CSE-1': '1st Cluster · Verma', 'CSE-2': '2nd Cluster · Balu', 'CSE-3': '3rd Cluster · Raghavendra' } as Record<string, string>)[clusterCode] || clusterCode
+    : '';
+  const isCseDepartment = deptCode.toUpperCase() === 'CSE';
+  // Event coordinators are authorized by explicit event assignments only.
+  // Their department is account metadata and must not widen their portal data.
+  const isEventCoord = adminUser.role === 'event_coordinator' || adminUser.role === 'faculty_coord' || adminUser.role === 'student_coord';
+  const isDeptChief = adminUser.role === 'dept_chief_coordinator' || adminUser.role === 'dept_coordinator';
+  const scopeDisplayName = isEventCoord
+    ? 'Assigned Events'
+    : clusterLabel ? `${deptCode} · ${clusterLabel}` : deptCode;
+  const [assignedEventIds, setAssignedEventIds] = useState<string[]>(() =>
+    [...new Set((adminUser.assignedEvents || []).map(value => String(value).trim()).filter(Boolean))]
+  );
   const deptInfo = StorageService.getDepartments().find(d => d.code.toUpperCase() === deptCode.toUpperCase()) ||
                    DEPARTMENTS.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
 
-  // Role Checks (8.1 Event Coordinator vs 8.2 Department Coordinator)
-  const isEventCoord = adminUser.role === 'event_coordinator' || adminUser.role === 'faculty_coord' || adminUser.role === 'student_coord';
-  const isDeptChief = adminUser.role === 'dept_chief_coordinator' || adminUser.role === 'dept_coordinator';
+  const eventMatchesAssignments = (event: FestEvent, eventIds: string[]): boolean =>
+    eventIds.some(id => id.toLowerCase() === event.id.toLowerCase());
+
+  const registrationMatchesAssignedEvents = (registration: Registration, scopedEvents: FestEvent[]): boolean =>
+    scopedEvents.some(event => event.id === registration.eventId);
+
+  // Cluster membership is an authorization boundary, not only a visual filter.
+  const eventMatchesScope = (event: FestEvent): boolean =>
+    event.departmentCode.toUpperCase() === deptCode.toUpperCase() &&
+    (!isCseDepartment
+      ? true
+      : Boolean(clusterCode) && event.clusterCode?.toUpperCase() === clusterCode);
+
+  const registrationMatchesEvents = (registration: Registration, scopedEvents: FestEvent[]): boolean => {
+    const ids = new Set(scopedEvents.map(event => event.id));
+    const slugs = new Set(scopedEvents.map(event => event.slug));
+    const titles = new Set(scopedEvents.map(event => event.title.toLowerCase()));
+    return ids.has(registration.eventId) || slugs.has(registration.eventId) || titles.has(registration.eventTitle.toLowerCase());
+  };
+
+  const initialScopedEvents = StorageService.getEvents().filter(event =>
+    isEventCoord
+      ? eventMatchesAssignments(event, assignedEventIds)
+      : eventMatchesScope(event)
+  );
+  const initialScopedRegistrations = (isEventCoord
+    ? StorageService.getRegistrations()
+    : StorageService.getDepartmentRegistrations(deptCode))
+    .filter(registration => isEventCoord
+      ? registrationMatchesAssignedEvents(registration, initialScopedEvents)
+      : registrationMatchesEvents(registration, initialScopedEvents));
 
   // Base Data States
-  const [deptStats, setDeptStats] = useState<FestStats>(StorageService.getDepartmentStats(deptCode));
-  const [events, setEvents] = useState<FestEvent[]>(() =>
-    StorageService.getEvents().filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase())
-  );
-  const [registrations, setRegistrations] = useState<Registration[]>(() =>
-    StorageService.getDepartmentRegistrations(deptCode)
-  );
+  const [deptStats, setDeptStats] = useState<FestStats>(() => {
+    const scopedEvents = initialScopedEvents;
+    const scopedRegistrations = initialScopedRegistrations;
+    return {
+      totalRegistrations: scopedRegistrations.length,
+      verifiedCount: scopedRegistrations.filter(r => r.paymentStatus === 'verified').length,
+      pendingCount: scopedRegistrations.filter(r => r.paymentStatus === 'verification_pending').length,
+      rejectedCount: scopedRegistrations.filter(r => r.paymentStatus === 'rejected').length,
+      spotCount: scopedRegistrations.filter(r => r.source === 'spot').length,
+      onlineCount: scopedRegistrations.filter(r => r.source !== 'spot').length,
+      totalCollected: scopedRegistrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+      totalCapacity: scopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
+      checkedInCount: scopedRegistrations.filter(r => r.checkedIn).length
+    };
+  });
+  // A configured Supabase project is authoritative for department operations.
+  // Do not render cached demo events while the first live read is in flight.
+  const [events, setEvents] = useState<FestEvent[]>(() => isSupabaseConfigured() ? [] : initialScopedEvents);
+  const [registrations, setRegistrations] = useState<Registration[]>(() => isSupabaseConfigured() ? [] : initialScopedRegistrations);
+  const [eventAccessError, setEventAccessError] = useState<string | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
-    StorageService.getAnnouncements().filter(a =>
+    isEventCoord ? [] : StorageService.getAnnouncements().filter(a =>
       a.scope === 'fest-wide' ||
       (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
     )
@@ -65,6 +122,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const managedStaffRoles = new Set<ManagedStaffRole>([
     'event_coordinator'
   ]);
+  const filterDepartmentStaffByEventScope = (admins: AdminUser[], scopedEvents: FestEvent[]) => {
+    const scopedEventKeys = new Set(
+      scopedEvents.flatMap(event => [event.id, event.slug].map(value => value.toLowerCase()))
+    );
+    return admins.filter(admin =>
+      managedStaffRoles.has(admin.role as ManagedStaffRole) &&
+      (admin.assignedEvents || []).some(eventId => scopedEventKeys.has(eventId.toLowerCase()))
+    );
+  };
   const createEmptyStaffForm = (): ManagedStaffForm => ({
     fullName: '',
     username: '',
@@ -76,9 +142,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     assignedEvents: []
   });
   const [departmentStaff, setDepartmentStaff] = useState<AdminUser[]>(() =>
-    AdminAuthService.getAllAdmins().filter(admin =>
-      admin.departmentCode?.toUpperCase() === deptCode.toUpperCase() && managedStaffRoles.has(admin.role as ManagedStaffRole)
-    )
+    filterDepartmentStaffByEventScope(AdminAuthService.getAllAdmins(), initialScopedEvents)
   );
   const [staffFormOpen, setStaffFormOpen] = useState(false);
   const [staffAccountMode, setStaffAccountMode] = useState<'new' | 'existing'>('new');
@@ -89,28 +153,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [staffError, setStaffError] = useState('');
   const [staffMessage, setStaffMessage] = useState('');
 
-  // Helper to check if an event is assigned to the current user
+  // Match only the event IDs in admin_event_assignments. Names, emails,
+  // titles, department, and CSE cluster are never assignment fallbacks.
   const isEventAssigned = (e: FestEvent): boolean => {
-    const assignedKeys = new Set((adminUser.assignedEvents || []).map(value => String(value).trim().toLowerCase()).filter(Boolean));
-    const eventKeys = [e.id, e.slug].map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
-    if (eventKeys.some(key => assignedKeys.has(key))) {
-      return true;
-    }
-    if (adminUser.fullName && e.coordinatorName && (
-      e.coordinatorName.toLowerCase().includes(adminUser.fullName.toLowerCase()) ||
-      adminUser.fullName.toLowerCase().includes(e.coordinatorName.toLowerCase())
-    )) {
-      return true;
-    }
-    if (adminUser.email && e.coordinatorEmail && e.coordinatorEmail.toLowerCase() === adminUser.email.toLowerCase()) {
-      return true;
-    }
-    return false;
+    return eventMatchesAssignments(e, assignedEventIds);
   };
 
   const assignedEventsList = useMemo(() => {
     return events.filter(isEventAssigned);
-  }, [events, adminUser]);
+  }, [events, assignedEventIds]);
 
   // 8.1: See assigned events by default
   const [eventScope, setEventScope] = useState<'assigned' | 'all'>(() => {
@@ -160,6 +211,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Edit Event Modal State (8.1 • Edit event details, rules, team limits, fee, capacity, deadline, schedule and venue)
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
+  const [eventCreateError, setEventCreateError] = useState('');
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
 
   // Spot Registration Modal State (8.1 • Create spot registrations on fest day)
   const [isSpotRegOpen, setIsSpotRegOpen] = useState(false);
@@ -202,7 +255,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [newEventCoordinatorName, setNewEventCoordinatorName] = useState(adminUser.fullName);
   const [newEventCoordinatorPhone, setNewEventCoordinatorPhone] = useState(adminUser.phone || '+91 98480 12345');
   const [newEventCoordinatorEmail, setNewEventCoordinatorEmail] = useState(adminUser.email);
-  const [newEventPublishPolicy, setNewEventPublishPolicy] = useState<'open' | 'pending_approval'>('open');
 
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const refreshQueuedRef = useRef(false);
@@ -217,40 +269,95 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
 
     const refresh = (async () => {
-      setDeptStats(StorageService.getDepartmentStats(deptCode));
-      const all = StorageService.getEvents();
-      const deptEvts = all.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
-      setEvents(deptEvts);
-      setRegistrations(StorageService.getDepartmentRegistrations(deptCode));
-      setAnnouncements(
-        StorageService.getAnnouncements().filter(a =>
-          a.scope === 'fest-wide' ||
-          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-        )
-      );
+      if (!isSupabaseConfigured()) {
+        const all = StorageService.getEvents();
+        const scopedEvts = all.filter(event => isEventCoord
+          ? eventMatchesAssignments(event, assignedEventIds)
+          : eventMatchesScope(event));
+        const localRegs = (isEventCoord
+          ? StorageService.getRegistrations()
+          : StorageService.getDepartmentRegistrations(deptCode))
+          .filter(registration => isEventCoord
+            ? registrationMatchesAssignedEvents(registration, scopedEvts)
+            : registrationMatchesEvents(registration, scopedEvts));
+        setEvents(scopedEvts);
+        setRegistrations(localRegs);
+        setDeptStats({
+          totalRegistrations: localRegs.length,
+          verifiedCount: localRegs.filter(r => r.paymentStatus === 'verified').length,
+          pendingCount: localRegs.filter(r => r.paymentStatus === 'verification_pending').length,
+          rejectedCount: localRegs.filter(r => r.paymentStatus === 'rejected').length,
+          spotCount: localRegs.filter(r => r.source === 'spot').length,
+          onlineCount: localRegs.filter(r => r.source !== 'spot').length,
+          totalCollected: localRegs.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+          totalCapacity: scopedEvts.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
+          checkedInCount: localRegs.filter(r => r.checkedIn).length
+        });
+        setAnnouncements(isEventCoord ? [] :
+          StorageService.getAnnouncements().filter(a =>
+            a.scope === 'fest-wide' ||
+            (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+          )
+        );
+      }
 
       try {
+        if (isEventCoord) setEventAccessError(null);
+        const refreshedAssignedIds = isEventCoord
+          ? await AdminAuthService.fetchCurrentAdminEventAssignments()
+          : [];
+        if (isEventCoord) setAssignedEventIds(refreshedAssignedIds);
+
         const [liveEvts, liveRegs, liveAnnouncements, liveAdmins] = await Promise.all([
-          StorageService.fetchEvents(),
-          StorageService.fetchRegistrations(),
-          StorageService.fetchAnnouncements(),
+          isEventCoord
+            ? StorageService.fetchLiveEventsForIds(refreshedAssignedIds)
+            : isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
+          isEventCoord
+            ? StorageService.fetchRegistrationsForEvents(refreshedAssignedIds)
+            : StorageService.fetchRegistrations(),
+          isEventCoord ? Promise.resolve([] as Announcement[]) : StorageService.fetchAnnouncements(),
           isDeptChief ? AdminAuthService.fetchAdmins() : Promise.resolve([] as AdminUser[])
         ]);
-        const updatedDeptEvts = liveEvts.filter(e => e.departmentCode.toUpperCase() === deptCode.toUpperCase());
-        setEvents(updatedDeptEvts);
-        setRegistrations(liveRegs.filter(r => StorageService.resolveDepartmentForRegistration(r, liveEvts) === deptCode.toUpperCase()));
-        setAnnouncements(liveAnnouncements.filter(a =>
+        const updatedScopedEvents = isEventCoord
+          ? liveEvts.filter(event => eventMatchesAssignments(event, refreshedAssignedIds))
+          : liveEvts.filter(eventMatchesScope);
+        setEvents(updatedScopedEvents);
+        const updatedScopedRegistrations = isEventCoord
+          ? liveRegs.filter(registration => registrationMatchesAssignedEvents(registration, updatedScopedEvents))
+          : liveRegs.filter(registration =>
+              StorageService.resolveDepartmentForRegistration(registration, liveEvts) === deptCode.toUpperCase() &&
+              registrationMatchesEvents(registration, updatedScopedEvents)
+            );
+        setRegistrations(updatedScopedRegistrations);
+        setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(a =>
           a.scope === 'fest-wide' ||
           (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
         ));
         if (isDeptChief) {
-          setDepartmentStaff(liveAdmins.filter(admin =>
-            admin.departmentCode?.toUpperCase() === deptCode.toUpperCase() && managedStaffRoles.has(admin.role as ManagedStaffRole)
-          ));
+          setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
         }
-        setDeptStats(StorageService.getDepartmentStats(deptCode));
+        setDeptStats({
+          totalRegistrations: updatedScopedRegistrations.length,
+          verifiedCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verified').length,
+          pendingCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verification_pending').length,
+          rejectedCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'rejected').length,
+          spotCount: updatedScopedRegistrations.filter(r => r.source === 'spot').length,
+          onlineCount: updatedScopedRegistrations.filter(r => r.source !== 'spot').length,
+          totalCollected: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+          totalCapacity: updatedScopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
+          checkedInCount: updatedScopedRegistrations.filter(r => r.checkedIn).length
+        });
       } catch (err) {
         console.warn('Dept dashboard sync warning:', err);
+        if (isEventCoord) {
+          // Fail closed: never leave stale department-wide or previous-account
+          // rows visible when assignment verification fails.
+          setEventAccessError(err instanceof Error ? err.message : 'Unable to verify assigned event access.');
+          setAssignedEventIds([]);
+          setEvents([]);
+          setRegistrations([]);
+          setAnnouncements([]);
+        }
       }
     })();
 
@@ -279,7 +386,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     };
 
     const handleAnnouncementsUpdate = () => {
-      setAnnouncements(
+      setAnnouncements(isEventCoord ? [] :
         StorageService.getAnnouncements().filter(a =>
           a.scope === 'fest-wide' ||
           (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
@@ -304,7 +411,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       window.removeEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [deptCode, isDeptChief]);
+  }, [deptCode, clusterCode, isDeptChief, isEventCoord]);
 
   // Determine which events are actively filtered into view
   const visibleEvents = useMemo(() => {
@@ -314,14 +421,17 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Determine registrations for active event scope
   const scopedRegistrations = useMemo(() => {
-    if (isEventCoord || eventScope === 'assigned') {
+    if (isEventCoord) {
+      return registrations.filter(registration => registrationMatchesAssignedEvents(registration, assignedEventsList));
+    }
+    if (eventScope === 'assigned') {
       const assignedIds = new Set(assignedEventsList.map(e => e.id));
       const assignedSlugs = new Set(assignedEventsList.map(e => e.slug));
       const assignedTitles = new Set(assignedEventsList.map(e => e.title.toLowerCase()));
       return registrations.filter(r => assignedIds.has(r.eventId) || assignedSlugs.has(r.eventId) || assignedTitles.has(r.eventTitle.toLowerCase()));
     }
-    return registrations;
-  }, [eventScope, assignedEventsList, registrations, isEventCoord]);
+    return registrations.filter(registration => registrationMatchesEvents(registration, events));
+  }, [eventScope, assignedEventsList, registrations, events, isEventCoord]);
 
   // Registrations scoped to the specific event chosen in the check-in dropdown
   const checkInRegistrations = useMemo(() => {
@@ -329,9 +439,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     const targetEvent = visibleEvents.find(e => e.id === checkInEventFilter);
     return scopedRegistrations.filter(r =>
       r.eventId === checkInEventFilter ||
-      (targetEvent && r.eventTitle.toLowerCase() === targetEvent.title.toLowerCase())
+      (!isEventCoord && targetEvent && r.eventTitle.toLowerCase() === targetEvent.title.toLowerCase())
     );
-  }, [checkInEventFilter, scopedRegistrations, visibleEvents]);
+  }, [checkInEventFilter, scopedRegistrations, visibleEvents, isEventCoord]);
 
   // Filtered attendees for the check-in attendee directory table
   const filteredCheckInAttendees = useMemo(() => {
@@ -412,7 +522,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     // Event-wise revenue breakdown (ONLY for this coordinator's visible events)
     const eventBreakdown = visibleEvents.map(ev => {
-      const evRegs = scopedRegistrations.filter(r => r.eventId === ev.id || r.eventTitle?.toLowerCase() === ev.title.toLowerCase());
+      const evRegs = scopedRegistrations.filter(r =>
+        r.eventId === ev.id || (!isEventCoord && r.eventTitle?.toLowerCase() === ev.title.toLowerCase())
+      );
       const verifiedRegs = evRegs.filter(r => r.paymentStatus === 'verified');
       const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
       const verifiedRev = verifiedRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
@@ -453,13 +565,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       capacityMonetizationRate,
       eventBreakdown
     };
-  }, [scopedRegistrations, visibleEvents]);
+  }, [scopedRegistrations, visibleEvents, isEventCoord]);
 
   const analyticsScopeName = isEventCoord
     ? visibleEvents.length === 1
       ? visibleEvents[0].title
       : 'Assigned Events'
-    : (deptInfo?.name || deptCode);
+    : clusterLabel
+      ? `${deptCode} · ${clusterLabel}`
+      : (deptInfo?.name || deptCode);
 
   const filteredDeptRevenueRegistrations = useMemo(() => {
     return scopedRegistrations.filter(r => {
@@ -481,7 +595,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const handleExportDeptRevenueCSV = () => {
     const headers = [
       'Registration ID',
-      'Department',
+      ...(!isEventCoord ? ['Department'] : []),
       'Event Name',
       'Participant Name',
       'Roll Number',
@@ -496,7 +610,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     const rows = filteredDeptRevenueRegistrations.map(r => {
       return [
         r.id,
-        `"${deptCode}"`,
+        ...(!isEventCoord ? [`"${deptCode}"`] : []),
         `"${(r.eventTitle || '').replace(/"/g, '""')}"`,
         `"${(r.leaderName || '').replace(/"/g, '""')}"`,
         `"${r.leaderRoll || ''}"`,
@@ -513,7 +627,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `FESTRONIX_2026_${deptCode}_REVENUE_REPORT_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `FESTRONIX_2026_${isEventCoord ? 'ASSIGNED_EVENTS' : deptCode}_REVENUE_REPORT_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -556,11 +670,74 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Add New Event (FR-EVT-01 to FR-EVT-08)
   const handleCreateNewEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEventCreateError('');
     if (!isDeptChief) {
-      alert('Only the department coordinator can create department events.');
+      setEventCreateError('Only the department coordinator can create department events.');
       return;
     }
-    if (!newEventTitle.trim()) return;
+    if (!newEventTitle.trim()) {
+      setEventCreateError('Enter an event title before saving.');
+      return;
+    }
+    if (newEventTitle.trim().length < 3 || newEventTitle.trim().length > 120) {
+      setEventCreateError('Event title must be between 3 and 120 characters.');
+      return;
+    }
+    if (isCseDepartment && !clusterCode) {
+      setEventCreateError('Your CSE coordinator account is not assigned to a cluster. Ask an administrator to assign CSE-1, CSE-2, or CSE-3 before creating an event.');
+      return;
+    }
+    if (!Number.isFinite(Number(newEventFee)) || Number(newEventFee) < 0) {
+      setEventCreateError('Enter a valid non-negative event fee.');
+      return;
+    }
+    if (!Number.isFinite(Number(newEventCapacity)) || Number(newEventCapacity) < 1) {
+      setEventCreateError('Enter a valid seat capacity greater than zero.');
+      return;
+    }
+
+    const title = newEventTitle.trim();
+    const venue = newEventVenue.trim();
+    const description = newEventDesc.trim();
+    const paymentInstructions = newEventPaymentInstructions.trim();
+    const coordinatorName = newEventCoordinatorName.trim();
+    const coordinatorPhone = newEventCoordinatorPhone.trim();
+    const coordinatorEmail = newEventCoordinatorEmail.trim();
+    const phoneDigits = coordinatorPhone.replace(/\D/g, '');
+    const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(coordinatorEmail);
+
+    if (!venue || venue.length > 160) {
+      setEventCreateError('Enter a venue between 1 and 160 characters.');
+      return;
+    }
+    if (description.length > 2000 || newEventRules.length > 2000 || paymentInstructions.length > 500) {
+      setEventCreateError('Description and event instructions are too long. Keep the description/rules under 2,000 characters and payment instructions under 500.');
+      return;
+    }
+    if (!coordinatorName || coordinatorName.length > 120) {
+      setEventCreateError('Enter a valid coordinator name.');
+      return;
+    }
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      setEventCreateError('Enter a valid coordinator phone number.');
+      return;
+    }
+    if (!emailLooksValid) {
+      setEventCreateError('Enter a valid coordinator email address.');
+      return;
+    }
+    if (!newEventDate.trim() || Number.isNaN(Date.parse(newEventDate))) {
+      setEventCreateError('Choose a valid event date.');
+      return;
+    }
+    if (!newEventDeadline.trim() || Number.isNaN(Date.parse(newEventDeadline))) {
+      setEventCreateError('Choose a valid registration deadline.');
+      return;
+    }
+    if (Date.parse(newEventDeadline) > Date.parse(newEventDate)) {
+      setEventCreateError('Registration deadline cannot be after the event date.');
+      return;
+    }
 
     let minSize = 1;
     let maxSize = 1;
@@ -568,6 +745,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       minSize = 2;
       maxSize = 2;
     } else if (newEventFormat === 'team') {
+      if (!Number.isInteger(Number(newEventMinTeamSize)) || !Number.isInteger(Number(newEventMaxTeamSize)) || Number(newEventMinTeamSize) < 2 || Number(newEventMaxTeamSize) < Number(newEventMinTeamSize) || Number(newEventMaxTeamSize) > 15) {
+        setEventCreateError('Team size must be whole numbers between 2 and 15, with maximum at least minimum.');
+        return;
+      }
       minSize = Math.max(2, Number(newEventMinTeamSize) || 2);
       maxSize = Math.max(minSize, Number(newEventMaxTeamSize) || 4);
     }
@@ -577,12 +758,20 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       .map(r => r.trim())
       .filter(Boolean);
 
+    const slugBase = newEventTitle
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || `event-${Date.now()}`;
     const newEvt: FestEvent = {
-      id: `evt-${deptCode.toLowerCase()}-${Date.now().toString().slice(-4)}`,
-      slug: newEventTitle.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      title: newEventTitle.trim(),
+      // Supabase generates the durable UUID. This temporary client id is used
+      // only until the insert returns the authoritative row.
+      id: `draft-${deptCode.toLowerCase()}-${Date.now().toString(36)}`,
+      slug: `${slugBase}-${Date.now().toString(36)}`,
+      title,
       departmentId: deptInfo?.id || `dept-${deptCode.toLowerCase()}`,
       departmentCode: deptCode,
+      clusterCode,
       category: newEventCategory,
       format: newEventFormat,
       minTeamSize: minSize,
@@ -593,31 +782,35 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       deadline: newEventDeadline || 'April 22, 2026',
       date: newEventDate,
       time: newEventTime,
-      venue: newEventVenue,
-      description: newEventDesc || 'Exciting engineering challenge hosted by the department.',
+      venue,
+      description: description || 'Exciting engineering challenge hosted by the department.',
       rules: rulesArr.length > 0 ? rulesArr : ['Valid college ID required', 'Report 15 minutes before start'],
       prizes: { first: '₹15,000 Cash + Certificate', second: '₹8,000 Cash' },
       eligibility: 'All Engineering Students',
-      coordinatorName: newEventCoordinatorName.trim() || adminUser.fullName,
-      coordinatorPhone: newEventCoordinatorPhone.trim() || adminUser.phone || '+91 98480 12345',
-      coordinatorEmail: newEventCoordinatorEmail.trim() || adminUser.email,
+      coordinatorName,
+      coordinatorPhone,
+      coordinatorEmail,
       // Department-created events must go through SAC approval. Global admins
       // use the Dean console for direct publishing.
       status: 'pending_approval',
       approvalStatus: 'pending',
-      paymentInstructions: newEventPaymentInstructions.trim() || 'Pay via Festronix Central UPI or on-venue spot desk',
+      paymentInstructions: paymentInstructions || 'Pay via Festronix Central UPI or on-venue spot desk',
       bannerGradient: 'linear-gradient(135deg, #283B78 0%, #101A35 100%)'
     };
 
+    setIsCreatingEvent(true);
     try {
       await StorageService.addEvent(newEvt);
       setIsAddEventOpen(false);
+      setEventCreateError('');
       setNewEventTitle('');
       setNewEventDesc('');
       await refreshDeptData();
       confetti({ particleCount: 60, spread: 50 });
     } catch (error) {
-      window.alert((error as Error).message || 'Unable to create the event.');
+      setEventCreateError(error instanceof Error ? error.message : 'Unable to create the event in the backend.');
+    } finally {
+      setIsCreatingEvent(false);
     }
   };
 
@@ -806,9 +999,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     if (isEventCoord) {
       const belongsToAssignedEvent = visibleEvents.some(event =>
-        event.id === matchingReg!.eventId ||
-        event.slug === matchingReg!.eventId ||
-        event.title.toLowerCase() === matchingReg!.eventTitle.toLowerCase()
+        event.id === matchingReg!.eventId || event.slug === matchingReg!.eventId
       );
 
       if (!belongsToAssignedEvent) {
@@ -826,7 +1017,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     if (checkInEventFilter !== 'all') {
       const selectedEvent = visibleEvents.find(e => e.id === checkInEventFilter);
       const isMatchingEvent = matchingReg.eventId === checkInEventFilter ||
-        (selectedEvent && matchingReg.eventTitle.toLowerCase() === selectedEvent.title.toLowerCase());
+        (!isEventCoord && selectedEvent && matchingReg.eventTitle.toLowerCase() === selectedEvent.title.toLowerCase());
 
       if (!isMatchingEvent) {
         setCheckInResult({
@@ -1131,13 +1322,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Department Coordinators Directory (8.2 • Coordinate with Event Coordinators)
   const departmentCoordinatorsList = useMemo(() => {
-    return departmentStaff.map(admin => ({
-      ...admin,
-      phone: admin.phone || '+91 98480 12345',
-      assignedEvents: (admin.assignedEvents || []).map(eventId =>
-        events.find(event => event.id === eventId || event.slug === eventId)?.title || eventId
-      )
-    }));
+    return departmentStaff
+      .map(admin => {
+        const assignedEvents = (admin.assignedEvents || [])
+          .map(eventId => events.find(event => event.id === eventId || event.slug === eventId))
+          .filter((event): event is FestEvent => Boolean(event));
+        return { ...admin, assignedEventDetails: assignedEvents };
+      })
+      .filter(admin => admin.assignedEventDetails.length > 0);
   }, [departmentStaff, events]);
 
   const openCreateStaffForm = () => {
@@ -1190,6 +1382,28 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         return;
       }
     }
+    if (!editingStaffId && staffAccountMode === 'new') {
+      // This is only a fast UX check. The Edge Function and database guard
+      // remain authoritative so stale browser caches cannot bypass it.
+      const requestedUsername = staffForm.username.trim().toLowerCase();
+      const requestedEmail = staffForm.email.trim().toLowerCase();
+      const duplicate = AdminAuthService.getAllAdmins().find(admin =>
+        admin.username.trim().toLowerCase() === requestedUsername ||
+        admin.email.trim().toLowerCase() === requestedEmail
+      );
+      if (duplicate) {
+        const sameUsername = duplicate.username.trim().toLowerCase() === requestedUsername;
+        const sameEmail = duplicate.email.trim().toLowerCase() === requestedEmail;
+        setStaffError(
+          sameUsername && sameEmail
+            ? 'That username and email are already assigned to an active portal account.'
+            : sameUsername
+              ? 'That username is already assigned to an active portal account.'
+              : 'That email address is already assigned to an active portal account.'
+        );
+        return;
+      }
+    }
     if (assignedEvents.length === 0) {
       setStaffError('Select at least one department event for this coordinator account.');
       return;
@@ -1197,16 +1411,38 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     setStaffSaving(true);
     try {
+      // Never submit browser-cache event identifiers. The public event reader
+      // can fall back to old local data for resilience, but staff permissions
+      // are a backend write and must be based on the current Supabase rows.
+      const liveEvents = await StorageService.fetchLiveEvents();
+      const liveEventByKey = new Map<string, FestEvent>();
+      liveEvents.forEach(liveEvent => {
+        liveEventByKey.set(liveEvent.id.toLowerCase(), liveEvent);
+        liveEventByKey.set(liveEvent.slug.toLowerCase(), liveEvent);
+      });
+      const resolvedAssignedEvents = assignedEvents.map(identifier => {
+        const liveEvent = liveEventByKey.get(identifier.trim().toLowerCase());
+        if (!liveEvent) {
+          throw new Error(`The selected event “${identifier}” is not available in the live database. Refresh the event list and select an active department event.`);
+        }
+        if (!eventMatchesScope(liveEvent)) {
+          throw new Error(`The selected event “${liveEvent.title}” is outside your assigned ${scopeDisplayName} scope.`);
+        }
+        return liveEvent.id;
+      });
+      const uniqueAssignedEvents = [...new Set(resolvedAssignedEvents)];
+
       const payload = {
         fullName: staffForm.fullName.trim(),
         username: staffForm.username.trim().toLowerCase(),
         designation: staffForm.designation.trim(),
         role: staffForm.role as AdminRole,
         departmentCode: deptCode,
+        clusterCode,
         email: staffForm.email.trim().toLowerCase(),
         phone: staffForm.phone.trim(),
         accessBoundary: `${deptCode} department operations`,
-        assignedEvents,
+        assignedEvents: uniqueAssignedEvents,
         ...(staffForm.password.trim() ? { password: staffForm.password.trim() } : {})
       };
 
@@ -1218,9 +1454,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           identifier: existingStaffIdentifier,
           role: staffForm.role as AdminRole,
           departmentCode: deptCode,
+          clusterCode,
           designation: staffForm.designation.trim(),
           accessBoundary: `${deptCode} department operations`,
-          assignedEvents
+          assignedEvents: uniqueAssignedEvents
         });
         setStaffMessage('Existing account assigned to this department successfully. The person can sign in with their current password.');
       } else {
@@ -1228,9 +1465,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         setStaffMessage(`Account created. Share username “${payload.username}” and the password you entered with the staff member.`);
       }
       const refreshed = await AdminAuthService.fetchAdmins();
-      setDepartmentStaff(refreshed.filter(admin =>
-        admin.departmentCode?.toUpperCase() === deptCode.toUpperCase() && managedStaffRoles.has(admin.role as ManagedStaffRole)
-      ));
+      setDepartmentStaff(filterDepartmentStaffByEventScope(refreshed, events));
       setStaffFormOpen(false);
     } catch (error) {
       setStaffError(error instanceof Error ? error.message : 'Unable to save this staff account.');
@@ -1399,7 +1634,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           {/* Left: Scope Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.76rem', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Operational Scope:
+              {isEventCoord ? 'Event Access:' : 'Operational Scope:'}
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -1407,7 +1642,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 className={`admin-btn ${eventScope === 'assigned' ? 'admin-btn-emerald' : 'admin-btn-ghost'}`}
                 style={{ padding: '6px 14px', fontSize: '0.78rem' }}
               >
-                <span>🎯 Assigned to Me ({assignedEventsList.length})</span>
+                <span>{isEventCoord ? '🎯 My Assigned Events' : '🎯 Assigned to Me'} ({assignedEventsList.length})</span>
                 {isEventCoord && (
                   <span style={{ fontSize: '0.62rem', background: '#FFFFFF', color: '#000', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
                     DEFAULT
@@ -1421,7 +1656,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   className={`admin-btn ${eventScope === 'all' ? 'admin-btn-primary' : 'admin-btn-ghost'}`}
                   style={{ padding: '6px 14px', fontSize: '0.78rem' }}
                 >
-                  <span>🏢 All {deptCode} Events ({events.length})</span>
+                  <span>🏢 All {scopeDisplayName} Events ({events.length})</span>
                   <span style={{ fontSize: '0.62rem', background: '#38BDF8', color: '#000', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
                     DEPARTMENT COORDINATOR VIEW
                   </span>
@@ -1439,12 +1674,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 style={{ padding: '8px 16px', fontSize: '0.82rem', fontWeight: 700 }}
               >
                 <UserPlus size={16} />
-                <span>Manage Staff ({departmentStaff.length})</span>
+                <span>Manage Staff ({departmentCoordinatorsList.length})</span>
               </button>
             )}
             {isDeptChief && (
               <button
-                onClick={() => setIsAddEventOpen(true)}
+                onClick={() => {
+                  setEventCreateError('');
+                  setIsAddEventOpen(true);
+                }}
                 className="admin-btn admin-btn-emerald"
                 style={{ padding: '8px 18px', fontSize: '0.82rem', fontWeight: 700 }}
               >
@@ -1455,7 +1693,22 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         </div>
 
+        {isEventCoord && visibleEvents.length === 0 && (
+          <div className="admin-card" role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '22px', marginBottom: '24px' }}>
+            <AlertCircle size={22} color={eventAccessError ? '#F87171' : '#38BDF8'} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <h3 style={{ color: '#FFFFFF', margin: '0 0 6px', fontSize: '1rem' }}>
+                {eventAccessError ? 'Assigned event access could not be refreshed' : 'No events assigned to this account'}
+              </h3>
+              <p style={{ color: '#A8B3C2', margin: 0, fontSize: '0.84rem', lineHeight: 1.5 }}>
+                {eventAccessError || 'This portal shows analytics and check-in data only for explicitly assigned events. Ask an administrator to assign an event to this account.'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 4 Stat KPI Cards */}
+        {(!isEventCoord || visibleEvents.length > 0) && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '28px' }}>
           {/* Card 1: Registrations */}
           <div className="admin-kpi-card">
@@ -1572,6 +1825,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             </div>
           </div>
         </div>
+        )}
 
         {/* Active Module Canvas */}
 
@@ -1668,7 +1922,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div style={{ display: 'flex', gap: '10px' }}>
                 {isDeptChief && (
                   <button
-                    onClick={() => setIsAddEventOpen(true)}
+                    onClick={() => {
+                      setEventCreateError('');
+                      setIsAddEventOpen(true);
+                    }}
                     className="btn-cyber-primary"
                     style={{
                       padding: '9px 18px',
@@ -1708,7 +1965,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     className="btn-cyber-primary"
                     style={{ padding: '8px 20px', fontSize: '0.82rem' }}
                   >
-                    Switch to View All {deptCode} Events
+                    Switch to View All {scopeDisplayName} Events
                   </button>
                 )}
               </div>
@@ -1858,11 +2115,82 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 })}
               </div>
             )}
+
+            <section className="admin-card" style={{ padding: '22px', marginTop: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <div>
+                  <h3 className="font-title" style={{ display: 'flex', alignItems: 'center', gap: '9px', color: '#FFFFFF', fontSize: '1.1rem', margin: 0 }}>
+                    <Users size={19} color="#38BDF8" />
+                    Event Coordinators ({departmentCoordinatorsList.length})
+                  </h3>
+                  <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: '5px 0 0' }}>
+                    Coordinators assigned to events in your {scopeDisplayName} scope.
+                  </p>
+                </div>
+                {isDeptChief && (
+                  <button
+                    type="button"
+                    onClick={openCreateStaffForm}
+                    className="admin-btn admin-btn-primary"
+                    style={{ padding: '8px 14px', fontSize: '0.8rem', fontWeight: 700 }}
+                  >
+                    <UserPlus size={15} />
+                    Manage Event Coordinators
+                  </button>
+                )}
+              </div>
+
+              {departmentCoordinatorsList.length === 0 ? (
+                <div style={{ padding: '18px', border: '1px dashed rgba(148, 163, 184, 0.25)', borderRadius: '12px', color: '#94A3B8', fontSize: '0.82rem' }}>
+                  No event coordinators are currently assigned to events in this scope.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                  {departmentCoordinatorsList.map(coordinator => (
+                    <article key={coordinator.id} style={{ background: 'rgba(16, 26, 53, 0.8)', border: '1px solid rgba(56, 189, 248, 0.18)', borderRadius: '12px', padding: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <h4 style={{ color: '#FFFFFF', fontSize: '0.96rem', margin: 0, overflowWrap: 'anywhere' }}>{coordinator.fullName}</h4>
+                          <p style={{ color: '#A8B3C2', fontSize: '0.74rem', margin: '4px 0 0' }}>{coordinator.designation || 'Event Coordinator'}</p>
+                        </div>
+                        <span style={{ flexShrink: 0, color: '#38BDF8', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.22)', padding: '3px 7px', borderRadius: '999px', fontSize: '0.66rem', fontWeight: 800 }}>
+                          EVENT COORDINATOR
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gap: '6px', color: '#CBD5E1', fontSize: '0.76rem', overflowWrap: 'anywhere' }}>
+                        <a href={`mailto:${coordinator.email}`} style={{ display: 'flex', alignItems: 'center', gap: '7px', color: '#CBD5E1', textDecoration: 'none' }}>
+                          <Mail size={14} color="#789593" /> {coordinator.email}
+                        </a>
+                        {coordinator.phone && (
+                          <a href={`tel:${coordinator.phone}`} style={{ display: 'flex', alignItems: 'center', gap: '7px', color: '#CBD5E1', textDecoration: 'none' }}>
+                            <Phone size={14} color="#789593" /> {coordinator.phone}
+                          </a>
+                        )}
+                      </div>
+
+                      <div style={{ borderTop: '1px solid rgba(148, 163, 184, 0.14)', marginTop: '12px', paddingTop: '11px' }}>
+                        <div style={{ color: '#94A3B8', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '7px' }}>
+                          Assigned Events
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {coordinator.assignedEventDetails.map(event => (
+                            <span key={event.id} style={{ maxWidth: '100%', color: '#A7F3D0', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '4px 8px', borderRadius: '7px', fontSize: '0.72rem', overflowWrap: 'anywhere' }}>
+                              {event.title}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         )}
 
         {/* TAB: DEPARTMENT-SCOPED REVENUE ANALYSIS */}
-        {activeTab === 'revenue' && (
+        {activeTab === 'revenue' && (!isEventCoord || visibleEvents.length > 0) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Header & Export Bar */}
             <div
@@ -2237,7 +2565,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <TrendingUp size={18} color="#38BDF8" />
                   <h3 className="font-title" style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: 0 }}>
-                    {deptCode} Collections by Channel
+                    {isEventCoord ? 'Assigned Event Collections by Channel' : `${deptCode} Collections by Channel`}
                   </h3>
                 </div>
 
@@ -2283,7 +2611,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>Department Spot Desk</div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF' }}>{isEventCoord ? 'Event Spot Desk' : 'Department Spot Desk'}</div>
                       <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
                         {deptRevenueAnalytics.spotCount} registrations • On-campus walk-in delegates
                       </div>
@@ -2335,19 +2663,23 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <ShieldCheck size={18} color="#34D399" />
                   <h3 className="font-title" style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: 0 }}>
-                    {deptCode} Financial Security & Compliance
+                    {isEventCoord ? 'Event Financial Security & Compliance' : `${deptCode} Financial Security & Compliance`}
                   </h3>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.8rem', color: '#94A3B8' }}>
                   <div style={{ padding: '12px 14px', background: 'rgba(16, 26, 53, 0.9)', borderRadius: '10px', border: '1px solid rgba(220, 227, 229, 0.1)' }}>
-                    <div style={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}>Strict Department Privacy Boundary</div>
-                    <div>This view is strictly scoped to {deptCode}. Other departments&apos; financial ledgers and overall fest totals are inaccessible to maintain audit confidentiality.</div>
+                    <div style={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}>{isEventCoord ? 'Assigned Event Access' : 'Strict Department Privacy Boundary'}</div>
+                    <div>{isEventCoord
+                      ? 'This view contains registration and payment data only for events explicitly assigned to your coordinator account.'
+                      : `This view is strictly scoped to ${deptCode}. Other departments' financial ledgers and overall fest totals are inaccessible to maintain audit confidentiality.`}</div>
                   </div>
 
                   <div style={{ padding: '12px 14px', background: 'rgba(16, 26, 53, 0.9)', borderRadius: '10px', border: '1px solid rgba(220, 227, 229, 0.1)' }}>
                     <div style={{ color: '#FFFFFF', fontWeight: 700, marginBottom: '2px' }}>Payment Clearance Workflow</div>
-                    <div>Verification of online UPI transactions is authorized by Central Finance & Dean SAC. Once approved, funds reflect instantly as Verified in your departmental ledger.</div>
+                    <div>{isEventCoord
+                      ? 'Online payment verification is managed by Central Finance. Approved payments appear in the ledger for your assigned events.'
+                      : 'Verification of online UPI transactions is authorized by Central Finance & Dean SAC. Once approved, funds reflect instantly as Verified in your departmental ledger.'}</div>
                   </div>
 
                   <div style={{ padding: '12px 14px', background: 'rgba(16, 26, 53, 0.9)', borderRadius: '10px', border: '1px solid rgba(220, 227, 229, 0.1)' }}>
@@ -2370,10 +2702,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '14px' }}>
                 <div>
                   <h3 className="font-title" style={{ fontSize: '1.12rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
-                    {deptCode} Registration Ledger ({filteredDeptRevenueRegistrations.length})
+                    {isEventCoord ? 'Assigned Event Registration Ledger' : `${deptCode} Registration Ledger`} ({filteredDeptRevenueRegistrations.length})
                   </h3>
                   <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '3px 0 0' }}>
-                    Granular transaction records strictly for {deptCode} events.
+                    {isEventCoord ? 'Transaction records for explicitly assigned events only.' : `Granular transaction records strictly for ${deptCode} events.`}
                   </p>
                 </div>
 
@@ -2414,7 +2746,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                       maxWidth: '180px'
                     }}
                   >
-                    <option value="all">All {deptCode} Events</option>
+                    <option value="all">All {scopeDisplayName}</option>
                     {visibleEvents.map(ev => (
                       <option key={ev.id} value={ev.id}>
                         {ev.title}
@@ -2569,7 +2901,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             </div>
           </div>
         )}
-        {activeTab === 'checkin' && (
+        {activeTab === 'checkin' && (!isEventCoord || visibleEvents.length > 0) && (
           <div style={{ maxWidth: '960px', margin: '0 auto' }}>
             <div
               style={{
@@ -2597,10 +2929,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   <QrCode size={28} color="#FFFFFF" />
                 </div>
                 <h3 className="font-title" style={{ fontSize: '1.35rem', color: '#FFFFFF', margin: '0 0 6px' }}>
-                  {deptCode} Fast Gate Check-In & Attendance Desk
+                  {isEventCoord ? 'Assigned Event Gate Check-In & Attendance' : `${deptCode} Fast Gate Check-In & Attendance Desk`}
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: 0 }}>
-                  Select a specific event below or check in across all department arenas via QR scan or student Roll No
+                  {isEventCoord
+                    ? 'Scan passes or search attendee IDs for your assigned events only.'
+                    : 'Select a specific event below or check in across all department arenas via QR scan or student Roll No'}
                 </p>
               </div>
 
@@ -2629,9 +2963,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     boxShadow: '0 0 16px rgba(56, 189, 248, 0.12)'
                   }}
                 >
-                  <option value="all">🏢 All {deptCode} Department Events ({visibleEvents.length})</option>
+                  <option value="all">{isEventCoord ? '🎯 All assigned events' : `🏢 All ${scopeDisplayName} Events`} ({visibleEvents.length})</option>
                   {visibleEvents.map(event => {
-                    const eventRegsCount = registrations.filter(r => r.eventId === event.id || r.eventTitle.toLowerCase() === event.title.toLowerCase()).length;
+                    const eventRegsCount = scopedRegistrations.filter(r =>
+                      r.eventId === event.id || (!isEventCoord && r.eventTitle.toLowerCase() === event.title.toLowerCase())
+                    ).length;
                     return (
                       <option key={event.id} value={event.id}>
                         🎯 {event.title} • {event.date} ({eventRegsCount} registered)
@@ -2784,7 +3120,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>
-                  {checkInEventFilter === 'all' ? `Live Attendance (${deptCode} Department Total)` : `Live Attendance for "${visibleEvents.find(e => e.id === checkInEventFilter)?.title || 'Event'}"`}
+                  {checkInEventFilter === 'all'
+                    ? (isEventCoord ? 'Live Attendance · Assigned Events' : `Live Attendance (${deptCode} Department Total)`)
+                    : `Live Attendance for "${visibleEvents.find(e => e.id === checkInEventFilter)?.title || 'Event'}"`}
                 </h4>
                 {checkInRegistrations.length > 0 && (
                   <span style={{ fontSize: '0.78rem', color: '#34D399', fontWeight: 700 }}>
@@ -3491,7 +3829,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   onChange={e => setBroadcastScope(e.target.value as any)}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
                 >
-                  <option value="department">All {deptCode} Events & Delegates</option>
+                  <option value="department">All {scopeDisplayName} Events & Delegates</option>
                   <option value="event">Specific Assigned Event</option>
                 </select>
               </div>
@@ -3876,6 +4214,27 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             <h4 style={{ color: '#FFFFFF', margin: '0 0 16px', fontSize: '1.2rem', fontWeight: 800 }}>
               Create New {deptCode} Event
             </h4>
+            {eventCreateError && (
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  marginBottom: '16px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(248, 113, 113, 0.65)',
+                  background: 'rgba(127, 29, 29, 0.35)',
+                  color: '#FCA5A5',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.45
+                }}
+              >
+                <AlertCircle size={17} style={{ flex: '0 0 auto', marginTop: '1px' }} />
+                <span>{eventCreateError}</span>
+              </div>
+            )}
             <form onSubmit={handleCreateNewEvent} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Event Title *</label>
@@ -4084,17 +4443,20 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 />
               </div>
 
-              {/* SAC Approval Policy */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Publishing Policy</label>
-                <select
-                  value={newEventPublishPolicy}
-                  onChange={e => setNewEventPublishPolicy(e.target.value as any)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
-                >
-                  <option value="open">Direct Publishing (Open Gate immediately)</option>
-                  <option value="pending_approval">Submit for SAC Dean Approval (Pending status)</option>
-                </select>
+              {/* Department events are always reviewed by SAC before publishing. */}
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  background: 'rgba(14, 116, 144, 0.16)',
+                  color: '#BAE6FD',
+                  fontSize: '0.78rem',
+                  lineHeight: 1.45
+                }}
+              >
+                <strong style={{ color: '#38BDF8' }}>Publishing workflow:</strong>{' '}
+                this event will be saved to the backend as <strong>Pending SAC approval</strong>. It becomes visible for public registration only after an administrator approves it.
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
@@ -4107,10 +4469,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </button>
                 <button
                   type="submit"
+                  disabled={isCreatingEvent}
                   className="btn-cyber-primary"
-                  style={{ padding: '8px 20px', borderRadius: '8px', fontWeight: 700 }}
+                  style={{ padding: '8px 20px', borderRadius: '8px', fontWeight: 700, opacity: isCreatingEvent ? 0.7 : 1, cursor: isCreatingEvent ? 'wait' : 'pointer' }}
                 >
-                  Create & Save Event
+                  {isCreatingEvent ? 'Saving to backend…' : 'Create & Save Event'}
                 </button>
               </div>
             </form>

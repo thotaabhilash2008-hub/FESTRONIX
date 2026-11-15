@@ -12,6 +12,7 @@ const EVENT_ROLES = new Set(['event_coordinator', 'faculty_coord', 'student_coor
 const OPERATIONS_ROLES = new Set(['finance_reviewer', 'volunteer_checkin', 'checkin_staff']);
 
 type AdminRoleRow = {
+  id: string;
   user_id: string;
   username: string;
   full_name: string;
@@ -20,6 +21,7 @@ type AdminRoleRow = {
   role: string;
   designation: string | null;
   department_code: string | null;
+  cluster_code: string | null;
   access_boundary: string | null;
   active: boolean;
 };
@@ -47,11 +49,20 @@ function cleanDepartment(value: unknown): string | undefined {
   return value.trim().toUpperCase();
 }
 
-function roleMatchesPortal(row: AdminRoleRow, portal: string, departmentCode?: string): boolean {
+function cleanCluster(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const cluster = value.trim().toUpperCase();
+  return ['CSE-1', 'CSE-2', 'CSE-3'].includes(cluster) ? cluster : undefined;
+}
+
+function roleMatchesPortal(row: AdminRoleRow, portal: string, departmentCode?: string, clusterCode?: string): boolean {
   const role = row.role;
   const sameDepartment = !departmentCode || row.department_code?.toUpperCase() === departmentCode;
-  if (portal === 'department') return sameDepartment && DEPARTMENT_ROLES.has(role);
-  if (portal === 'event') return sameDepartment && EVENT_ROLES.has(role);
+  const sameCluster = !clusterCode || row.cluster_code?.toUpperCase() === clusterCode;
+  const scopedToRequestedDepartment = sameDepartment && sameCluster;
+  if (portal === 'auto') return true;
+  if (portal === 'department') return scopedToRequestedDepartment && DEPARTMENT_ROLES.has(role);
+  if (portal === 'event') return scopedToRequestedDepartment && EVENT_ROLES.has(role);
   if (portal === 'central') return GLOBAL_ROLES.has(role) || OPERATIONS_ROLES.has(role);
   return false;
 }
@@ -64,6 +75,7 @@ function toUser(row: AdminRoleRow, assignedEvents: string[]) {
     designation: row.designation || 'Administrator',
     role: canonicalRole(row.role),
     departmentCode: row.department_code || undefined,
+    clusterCode: row.cluster_code || undefined,
     email: row.email,
     phone: row.phone || undefined,
     accessBoundary: row.access_boundary || undefined,
@@ -102,8 +114,9 @@ Deno.serve(async (req: Request) => {
     if (!password) throw new Error('Enter your username or email and password.');
 
     const portal = typeof body.portal === 'string' ? body.portal : 'central';
-    if (!['central', 'department', 'event'].includes(portal)) return json({ error: 'The requested portal is not supported.' }, 400);
+    if (!['auto', 'central', 'department', 'event'].includes(portal)) return json({ error: 'The requested portal is not supported.' }, 400);
     const departmentCode = cleanDepartment(body.departmentCode);
+    const clusterCode = cleanCluster(body.clusterCode);
     const eventId = typeof body.eventId === 'string' && body.eventId.trim() ? body.eventId.trim() : undefined;
 
     const db = createClient(supabaseUrl, serviceRoleKey, {
@@ -126,6 +139,33 @@ Deno.serve(async (req: Request) => {
     });
     if (authError || !authData.user || !authData.session) return json({ error: 'Invalid login credentials.' }, 401);
 
+    // RLS authorizes the authenticated Supabase UUID, while older staff rows
+    // were sometimes created before that UUID was stored in admin_roles. Link
+    // only the role selected by the verified credentials, and only when this
+    // Auth account does not already own another active role. This repairs a
+    // stale identity without granting cross-department or cross-cluster access.
+    const { data: currentIdentityRoles, error: identityRolesError } = await db
+      .from('admin_roles')
+      .select('id')
+      .eq('user_id', authData.user.id)
+      .eq('active', true);
+    if (identityRolesError) throw identityRolesError;
+
+    if (!currentIdentityRoles || currentIdentityRoles.length === 0) {
+      const { error: linkError } = await db
+        .from('admin_roles')
+        .update({
+          user_id: authData.user.id,
+          email: (authData.user.email || roleRow.email).trim().toLowerCase()
+        })
+        .eq('id', roleRow.id)
+        .eq('active', true);
+      if (linkError) {
+        console.error('Could not reconcile admin role to Auth user:', linkError.message);
+        return json({ error: 'This staff account is not linked to its Supabase Auth identity. Ask an administrator to reconcile the role.' }, 409);
+      }
+    }
+
     const { data: allRoles, error: allRolesError } = await db
       .from('admin_roles')
       .select('*')
@@ -133,7 +173,7 @@ Deno.serve(async (req: Request) => {
       .eq('active', true);
     if (allRolesError) throw allRolesError;
 
-    const matchingRoles = ((allRoles || []) as AdminRoleRow[]).filter(row => roleMatchesPortal(row, portal, departmentCode));
+    const matchingRoles = ((allRoles || []) as AdminRoleRow[]).filter(row => roleMatchesPortal(row, portal, departmentCode, clusterCode));
     if (matchingRoles.length === 0) {
       return json({ error: 'This account is not authorized for the selected portal or department.' }, 403);
     }

@@ -31,6 +31,7 @@ type AdminRow = {
   role: string;
   designation: string | null;
   department_code: string | null;
+  cluster_code: string | null;
   access_boundary: string | null;
   active: boolean;
 };
@@ -57,12 +58,21 @@ class AdminRequestError extends Error {
 }
 
 function databaseErrorMessage(error: unknown, fallback: string): string {
-  const message = error instanceof Error ? error.message : '';
+  // Supabase/PostgREST errors are plain objects rather than `Error` instances.
+  // Reading only `error instanceof Error` used to discard the actual database
+  // reason and left the UI with the unhelpful "admin request failed" message.
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message?: unknown }).message || '')
+      : typeof error === 'string'
+        ? error
+        : '';
   const code = typeof error === 'object' && error !== null && 'code' in error
     ? String((error as { code?: unknown }).code || '')
     : '';
 
-  if (code === '23505' || /duplicate key|already exists|unique constraint/i.test(message)) {
+  if (code === '23505' || /duplicate key|already exists|already registered|unique constraint|email.*already|username.*already/i.test(message)) {
     return 'That username, email address, or account identifier is already in use.';
   }
   if (/database error creating new user/i.test(message)) {
@@ -90,12 +100,20 @@ function normalizeRolePayload(raw: Record<string, unknown>) {
   const fullName = requiredString(raw.fullName, 'Full name');
   const designation = requiredString(raw.designation, 'Designation');
   const departmentCode = typeof raw.departmentCode === 'string' ? raw.departmentCode.trim().toUpperCase() : '';
+  const clusterCode = typeof raw.clusterCode === 'string' ? raw.clusterCode.trim().toUpperCase() : '';
+  if (clusterCode && !['CSE-1', 'CSE-2', 'CSE-3'].includes(clusterCode)) {
+    throw new Error('Select a valid CSE cluster.');
+  }
+  if (clusterCode && departmentCode !== 'CSE') throw new Error('A cluster can only be assigned to CSE accounts and events.');
   // Event and department-coordinator accounts always require a department.
   // Other operational accounts may be central (for example the existing
   // FINANCE reviewer) or department-scoped. The authorization checks below
   // decide when a department is mandatory for the caller's operation.
   const departmentScoped = ['dept_chief_coordinator', 'dept_coordinator', 'event_coordinator', 'faculty_coord', 'student_coord'].includes(role);
   if (departmentScoped && !departmentCode) throw new Error('A department is required for this role.');
+  if (departmentScoped && departmentCode === 'CSE' && !clusterCode) {
+    throw new Error('A CSE cluster is required for this department-scoped account.');
+  }
 
   const assignedEvents = Array.isArray(raw.assignedEvents)
     ? [...new Set(raw.assignedEvents.filter((item): item is string => typeof item === 'string' && item.length > 0))]
@@ -114,11 +132,45 @@ function normalizeRolePayload(raw: Record<string, unknown>) {
     fullName,
     designation,
     departmentCode: departmentCode || null,
+    clusterCode: clusterCode || null,
     phone: typeof raw.phone === 'string' ? raw.phone.trim().slice(0, 40) : '',
     accessBoundary: typeof raw.accessBoundary === 'string' ? raw.accessBoundary.trim().slice(0, 240) : '',
     assignedEvents,
     password
   };
+}
+
+async function assertCseDepartmentCoordinatorClusterAvailable(
+  db: SupabaseClient,
+  role: string,
+  departmentCode: string | null,
+  clusterCode: string | null,
+  excludeUserId?: string
+): Promise<void> {
+  const canonicalRole = canonicalAdminRole(role);
+  if (canonicalRole !== 'dept_coordinator' || departmentCode?.toUpperCase() !== 'CSE' || !clusterCode) return;
+
+  let query = db
+    .from('admin_roles')
+    .select('user_id,username,full_name')
+    .eq('active', true)
+    .eq('department_code', 'CSE')
+    .eq('cluster_code', clusterCode.toUpperCase())
+    .in('role', ['dept_coordinator', 'dept_chief_coordinator'])
+    .limit(1);
+
+  if (excludeUserId) query = query.neq('user_id', excludeUserId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const existing = data?.[0] as { username?: string; full_name?: string } | undefined;
+  if (existing) {
+    throw new AdminRequestError(
+      `CSE cluster ${clusterCode.toUpperCase()} is already assigned to ${existing.full_name || existing.username || 'another department coordinator'}. Delete or edit that assignment before reusing this cluster.`,
+      409
+    );
+  }
 }
 
 function toAdminUser(row: AdminRow, assignedEvents: string[] = []) {
@@ -129,6 +181,7 @@ function toAdminUser(row: AdminRow, assignedEvents: string[] = []) {
     designation: row.designation || '',
     role: canonicalAdminRole(row.role) as AdminRow['role'],
     departmentCode: row.department_code || undefined,
+    clusterCode: row.cluster_code || undefined,
     email: row.email,
     phone: row.phone || undefined,
     accessBoundary: row.access_boundary || undefined,
@@ -152,6 +205,59 @@ async function getAssignments(db: SupabaseClient, userIds: string[]): Promise<Ma
     result.set(item.admin_user_id, values);
   }
   return result;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function inferLegacyCseCluster(identityValues: unknown[]): string {
+  const identity = identityValues.map(value => String(value || '').toLowerCase()).join(' ');
+  if (/\b(varma|bjv_varma)\b|varma@/.test(identity)) return 'CSE-1';
+  if (/\b(balu|ch bala|bala subramanyam)\b|balu1681@/.test(identity)) return 'CSE-2';
+  if (/\b(raghavendra|m raghavendra)\b|raghavendra1797@/.test(identity)) return 'CSE-3';
+  return '';
+}
+
+/**
+ * The UI can briefly hold a cached event slug while the live event list is
+ * refreshing. Resolve both UUIDs and slugs here so staff creation never
+ * inserts a stale/non-UUID identifier into admin_event_assignments.
+ */
+async function resolveEventAssignments(
+  db: SupabaseClient,
+  identifiers: string[],
+  departmentCode: string | null,
+  clusterCode: string | null
+): Promise<string[]> {
+  const resolved: string[] = [];
+
+  for (const identifier of [...new Set(identifiers)]) {
+    const cleanIdentifier = identifier.trim();
+    const baseQuery = db.from('events').select('id,slug,department_code,cluster_code').limit(1);
+    const { data, error } = isUuid(cleanIdentifier)
+      ? await baseQuery.eq('id', cleanIdentifier)
+      : await baseQuery.eq('slug', cleanIdentifier);
+    if (error) throw error;
+
+    const event = (data || [])[0] as { id: string; slug?: string | null; department_code?: string | null; cluster_code?: string | null } | undefined;
+    if (!event) {
+      throw new AdminRequestError('One or more selected events no longer exist. Refresh the event list and try again.', 409);
+    }
+
+    const eventDepartment = String(event.department_code || '').toUpperCase();
+    const eventCluster = String(event.cluster_code || '').toUpperCase();
+    if (departmentCode && eventDepartment !== departmentCode.toUpperCase()) {
+      throw new AdminRequestError('Event coordinators can only be assigned to events in their department.', 403);
+    }
+    if (clusterCode ? eventCluster !== clusterCode.toUpperCase() : Boolean(eventCluster)) {
+      throw new AdminRequestError('The selected event is outside this coordinator\'s CSE cluster.', 403);
+    }
+
+    resolved.push(event.id);
+  }
+
+  return resolved;
 }
 
 /**
@@ -212,11 +318,11 @@ Deno.serve(async (req: Request) => {
   const action = typeof body.action === 'string' ? body.action : '';
   const { data: callerRoles, error: roleError } = await db
     .from('admin_roles')
-    .select('role,active,department_code')
+    .select('role,active,department_code,cluster_code')
     .eq('user_id', caller.id);
   if (roleError) return response({ error: 'Unable to verify your admin role.' }, 500);
 
-  const activeRoleRows = (callerRoles || []).filter(row => row.active) as Array<{ role: string; active: boolean; department_code?: string | null }>;
+  const activeRoleRows = (callerRoles || []).filter(row => row.active) as Array<{ role: string; active: boolean; department_code?: string | null; cluster_code?: string | null }>;
   const activeRoles = activeRoleRows.map(row => row.role);
   const isGlobalAdmin = activeRoles.some(role => GLOBAL_ADMIN_ROLES.has(role));
   const isDepartmentCoordinator = activeRoles.some(role => DEPARTMENT_COORDINATOR_ROLES.has(role));
@@ -224,6 +330,17 @@ Deno.serve(async (req: Request) => {
   const callerDepartmentCode = activeRoleRows.find(row => DEPARTMENT_COORDINATOR_ROLES.has(row.role) && row.department_code)?.department_code?.toUpperCase()
     || activeRoleRows.find(row => ['event_coordinator', 'faculty_coord', 'student_coord'].includes(row.role) && row.department_code)?.department_code?.toUpperCase()
     || '';
+  const storedCallerClusterCode = activeRoleRows.find(row => DEPARTMENT_COORDINATOR_ROLES.has(row.role) && row.cluster_code)?.cluster_code?.toUpperCase()
+    || activeRoleRows.find(row => ['event_coordinator', 'faculty_coord', 'student_coord'].includes(row.role) && row.cluster_code)?.cluster_code?.toUpperCase()
+    || '';
+  const callerClusterCode = storedCallerClusterCode || (callerDepartmentCode === 'CSE'
+    ? inferLegacyCseCluster([
+      caller.email,
+      caller.user_metadata?.username,
+      caller.user_metadata?.full_name,
+      caller.user_metadata?.designation
+    ])
+    : '');
 
   if (action === 'me') {
     const { data, error } = await db.from('admin_roles').select('*').eq('user_id', caller.id).eq('active', true).limit(1).maybeSingle();
@@ -246,11 +363,52 @@ Deno.serve(async (req: Request) => {
     if (action === 'list') {
       const { data, error } = await db.from('admin_roles').select('*').eq('active', true).order('created_at', { ascending: true });
       if (error) throw error;
-      const rows = ((data || []) as AdminRow[]).filter(row => {
+      const allRows = (data || []) as AdminRow[];
+      const inProfileScope = (row: AdminRow) => {
         if (isGlobalAdmin) return true;
         if (!callerDepartmentCode) return false;
-        return row.department_code?.toUpperCase() === callerDepartmentCode;
-      });
+        return row.department_code?.toUpperCase() === callerDepartmentCode
+          && (!callerClusterCode || row.cluster_code?.toUpperCase() === callerClusterCode);
+      };
+
+      let assignedCoordinatorIds = new Set<string>();
+      // Older event-coordinator accounts may predate CSE cluster metadata.
+      // For those accounts, an explicit assignment to an event in the caller's
+      // department/cluster is the authoritative scope and must keep the person
+      // visible to that department coordinator.
+      if (isDepartmentCoordinator && callerDepartmentCode && (callerDepartmentCode !== 'CSE' || callerClusterCode)) {
+        const eventCoordinatorRows = allRows.filter(row =>
+          row.role === 'event_coordinator' && row.department_code?.toUpperCase() === callerDepartmentCode
+        );
+        const assignmentsByCoordinator = await getAssignments(db, eventCoordinatorRows.map(row => row.user_id));
+        const assignedEventIds = [...new Set(
+          [...assignmentsByCoordinator.values()].flat()
+        )];
+
+        if (assignedEventIds.length > 0) {
+          let scopedEventsQuery = db
+            .from('events')
+            .select('id')
+            .in('id', assignedEventIds)
+            .eq('department_code', callerDepartmentCode);
+          if (callerDepartmentCode === 'CSE' && callerClusterCode) {
+            scopedEventsQuery = scopedEventsQuery.eq('cluster_code', callerClusterCode);
+          }
+          const { data: scopedEvents, error: scopedEventsError } = await scopedEventsQuery;
+          if (scopedEventsError) throw scopedEventsError;
+
+          const scopedEventIds = new Set((scopedEvents || []).map(event => event.id));
+          for (const row of eventCoordinatorRows) {
+            if ((assignmentsByCoordinator.get(row.user_id) || []).some(eventId => scopedEventIds.has(eventId))) {
+              assignedCoordinatorIds.add(row.user_id);
+            }
+          }
+        }
+      }
+
+      const rows = allRows.filter(row =>
+        inProfileScope(row) || assignedCoordinatorIds.has(row.user_id)
+      );
       const assignments = await getAssignments(db, rows.map(row => row.user_id));
       return response(rows.map(row => toAdminUser(row, assignments.get(row.user_id) || [])));
     }
@@ -258,13 +416,17 @@ Deno.serve(async (req: Request) => {
     if (action === 'assign_existing') {
       const identifier = requiredString(body.identifier, 'Existing account email or username', 254).toLowerCase();
       const profileQuery = identifier.includes('@')
-        ? db.from('profiles').select('id,full_name,email,phone,username').eq('email', identifier).limit(1).maybeSingle()
-        : db.from('profiles').select('id,full_name,email,phone,username').eq('username', identifier).limit(1).maybeSingle();
-      const { data: profile, error: profileLookupError } = await profileQuery;
+        ? db.from('profiles').select('id,full_name,email,phone,username').ilike('email', identifier).limit(2)
+        : db.from('profiles').select('id,full_name,email,phone,username').ilike('username', identifier).limit(2);
+      const { data: profileRows, error: profileLookupError } = await profileQuery;
       if (profileLookupError) throw profileLookupError;
-      if (!profile) {
+      if (!profileRows || profileRows.length === 0) {
         throw new AdminRequestError('No existing account was found with that email address or username.', 404);
       }
+      if (profileRows.length > 1) {
+        throw new AdminRequestError('More than one profile matches that identifier. Use the account email address to select a unique existing account.', 409);
+      }
+      const profile = profileRows[0];
 
       const { data: existingRoles, error: existingRoleError } = await db
         .from('admin_roles')
@@ -293,8 +455,17 @@ Deno.serve(async (req: Request) => {
         departmentCode: body.departmentCode,
         phone: profile.phone || '',
         accessBoundary: body.accessBoundary,
-        assignedEvents: body.assignedEvents
+        assignedEvents: body.assignedEvents,
+        clusterCode: body.clusterCode || callerClusterCode || undefined
       });
+
+      if (!isGlobalAdmin) {
+        if (callerClusterCode && admin.clusterCode && admin.clusterCode !== callerClusterCode) {
+          throw new Error('This account must remain in your assigned CSE cluster.');
+        }
+        if (callerClusterCode) admin.clusterCode = callerClusterCode;
+        if (!callerClusterCode && admin.clusterCode) throw new Error('You cannot assign a CSE cluster from this portal.');
+      }
 
       if (!isGlobalAdmin) {
         if (!callerDepartmentCode || admin.departmentCode !== callerDepartmentCode) {
@@ -329,23 +500,35 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      await assertCseDepartmentCoordinatorClusterAvailable(
+        db,
+        admin.role,
+        admin.departmentCode,
+        admin.clusterCode
+      );
+
+      admin.assignedEvents = await resolveEventAssignments(
+        db,
+        admin.assignedEvents,
+        admin.departmentCode,
+        admin.clusterCode
+      );
+
       const { data: duplicateName, error: duplicateNameError } = await db
         .from('admin_roles')
         .select('user_id')
         .ilike('username', admin.username)
         .eq('active', true)
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
       if (duplicateNameError) throw duplicateNameError;
       const { data: duplicateEmail, error: duplicateEmailError } = await db
         .from('admin_roles')
         .select('user_id')
         .ilike('email', admin.email)
         .eq('active', true)
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
       if (duplicateEmailError) throw duplicateEmailError;
-      if (duplicateName || duplicateEmail) {
+      if ((duplicateName || []).length > 0 || (duplicateEmail || []).length > 0) {
         throw new AdminRequestError('This existing account is already assigned to another active portal role.', 409);
       }
 
@@ -356,10 +539,10 @@ Deno.serve(async (req: Request) => {
       }
 
       if (admin.assignedEvents.length > 0) {
-        const { data: events, error } = await db.from('events').select('id,department_code').in('id', admin.assignedEvents);
+        const { data: events, error } = await db.from('events').select('id,department_code,cluster_code').in('id', admin.assignedEvents);
         if (error) throw error;
         if ((events || []).length !== admin.assignedEvents.length) throw new Error('One or more selected events no longer exist. Refresh and try again.');
-        if (admin.departmentCode && (events || []).some(event => event.department_code !== admin.departmentCode)) {
+        if (admin.departmentCode && (events || []).some(event => event.department_code !== admin.departmentCode || (admin.clusterCode ? String(event.cluster_code || '').toUpperCase() !== admin.clusterCode : Boolean(event.cluster_code)))) {
           throw new Error('Portal staff can only be assigned to events in their department.');
         }
       }
@@ -372,6 +555,7 @@ Deno.serve(async (req: Request) => {
         phone: admin.phone,
         role: admin.role,
         department_code: admin.departmentCode,
+        cluster_code: admin.clusterCode,
         designation: admin.designation,
         access_boundary: admin.accessBoundary,
         active: true,
@@ -399,17 +583,25 @@ Deno.serve(async (req: Request) => {
         role: admin.role,
         designation: admin.designation,
         department_code: admin.departmentCode,
+        cluster_code: admin.clusterCode,
         access_boundary: admin.accessBoundary,
         active: true
       }, admin.assignedEvents));
     }
 
     if (action === 'create') {
-      const admin = normalizeRolePayload((body.admin || {}) as Record<string, unknown>);
+      const rawAdmin = { ...((body.admin || {}) as Record<string, unknown>) };
+      if (!rawAdmin.clusterCode && callerClusterCode) rawAdmin.clusterCode = callerClusterCode;
+      const admin = normalizeRolePayload(rawAdmin);
       if (!isGlobalAdmin) {
         if (!callerDepartmentCode || admin.departmentCode !== callerDepartmentCode) {
           throw new Error('Staff accounts must belong to the coordinator\'s department.');
         }
+        if (callerClusterCode && admin.clusterCode && admin.clusterCode !== callerClusterCode) {
+          throw new Error('Staff accounts must remain in the coordinator\'s CSE cluster.');
+        }
+        if (callerClusterCode) admin.clusterCode = callerClusterCode;
+        if (!callerClusterCode && admin.clusterCode) throw new Error('You cannot assign a CSE cluster from this portal.');
 
         if (isDepartmentCoordinator) {
           if (!DEPARTMENT_MANAGED_ROLES.has(admin.role)) {
@@ -442,23 +634,36 @@ Deno.serve(async (req: Request) => {
           }
         }
       }
+
+      await assertCseDepartmentCoordinatorClusterAvailable(
+        db,
+        admin.role,
+        admin.departmentCode,
+        admin.clusterCode
+      );
+
+      admin.assignedEvents = await resolveEventAssignments(
+        db,
+        admin.assignedEvents,
+        admin.departmentCode,
+        admin.clusterCode
+      );
+
       const { data: duplicateName, error: duplicateNameError } = await db
         .from('admin_roles')
         .select('user_id')
         .ilike('username', admin.username)
         .eq('active', true)
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
       if (duplicateNameError) throw duplicateNameError;
       const { data: duplicateEmail, error: duplicateEmailError } = await db
         .from('admin_roles')
         .select('user_id')
         .ilike('email', admin.email)
         .eq('active', true)
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
       if (duplicateEmailError) throw duplicateEmailError;
-      if (duplicateName || duplicateEmail) {
+      if ((duplicateName || []).length > 0 || (duplicateEmail || []).length > 0) {
         throw new AdminRequestError('That username or email is already assigned to an active admin account.', 409);
       }
 
@@ -494,10 +699,10 @@ Deno.serve(async (req: Request) => {
       }
 
       if (admin.assignedEvents.length > 0) {
-        const { data: events, error } = await db.from('events').select('id,department_code').in('id', admin.assignedEvents);
+        const { data: events, error } = await db.from('events').select('id,department_code,cluster_code').in('id', admin.assignedEvents);
         if (error) throw error;
         if ((events || []).length !== admin.assignedEvents.length) throw new Error('One or more selected events no longer exist. Refresh and try again.');
-        if (admin.departmentCode && (events || []).some(event => event.department_code !== admin.departmentCode)) {
+        if (admin.departmentCode && (events || []).some(event => event.department_code !== admin.departmentCode || (admin.clusterCode ? String(event.cluster_code || '').toUpperCase() !== admin.clusterCode : Boolean(event.cluster_code)))) {
           throw new Error('Event coordinators can only be assigned to events in their department.');
         }
       }
@@ -546,6 +751,7 @@ Deno.serve(async (req: Request) => {
           phone: admin.phone,
           role: admin.role,
           department_code: admin.departmentCode,
+          cluster_code: admin.clusterCode,
           designation: admin.designation,
           access_boundary: admin.accessBoundary,
           active: true,
@@ -574,6 +780,7 @@ Deno.serve(async (req: Request) => {
         role: admin.role,
         designation: admin.designation,
         department_code: admin.departmentCode,
+        cluster_code: admin.clusterCode,
         access_boundary: admin.accessBoundary,
         active: true
       }, admin.assignedEvents), inviteSent: !admin.password });
@@ -595,6 +802,7 @@ Deno.serve(async (req: Request) => {
         fullName: incoming.fullName ?? (existing.full_name || existing.email?.split('@')[0] || `Admin ${id.slice(0, 8)}`),
         designation: incoming.designation ?? existing.designation ?? 'Administrator',
         departmentCode: incoming.departmentCode ?? existing.department_code ?? '',
+        clusterCode: incoming.clusterCode ?? existing.cluster_code ?? callerClusterCode ?? null,
         phone: incoming.phone ?? existing.phone ?? '',
         accessBoundary: incoming.accessBoundary ?? existing.access_boundary ?? '',
         assignedEvents: incoming.assignedEvents ?? (assignmentRoles.has(String(nextRole)) ? currentAssignments.get(id) ?? [] : []),
@@ -602,8 +810,9 @@ Deno.serve(async (req: Request) => {
       });
 
       const existingDepartment = typeof existing.department_code === 'string' ? existing.department_code.toUpperCase() : '';
+      const existingCluster = typeof existing.cluster_code === 'string' ? existing.cluster_code.toUpperCase() : '';
       if (!isGlobalAdmin) {
-        if (!callerDepartmentCode || existingDepartment !== callerDepartmentCode || !DEPARTMENT_MANAGED_ROLES.has(canonicalAdminRole(existing.role))) {
+        if (!callerDepartmentCode || existingDepartment !== callerDepartmentCode || (callerClusterCode && existingCluster !== callerClusterCode) || !DEPARTMENT_MANAGED_ROLES.has(canonicalAdminRole(existing.role))) {
           if (isDepartmentCoordinator) {
             throw new Error('You can only edit managed staff accounts in your own department.');
           }
@@ -611,6 +820,8 @@ Deno.serve(async (req: Request) => {
             throw new Error('Event coordinators may only edit gate volunteer accounts assigned to them.');
           }
         }
+        if (callerClusterCode && updates.clusterCode !== callerClusterCode) throw new Error('Staff accounts must remain in your assigned CSE cluster.');
+        if (!callerClusterCode && updates.clusterCode) throw new Error('You cannot assign a CSE cluster from this portal.');
         if (isDepartmentCoordinator) {
           if (!DEPARTMENT_MANAGED_ROLES.has(updates.role) || updates.departmentCode !== callerDepartmentCode) {
             throw new Error('Department coordinators may only manage staff in their own department.');
@@ -635,6 +846,21 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      await assertCseDepartmentCoordinatorClusterAvailable(
+        db,
+        updates.role,
+        updates.departmentCode,
+        updates.clusterCode,
+        id
+      );
+
+      updates.assignedEvents = await resolveEventAssignments(
+        db,
+        updates.assignedEvents,
+        updates.departmentCode,
+        updates.clusterCode
+      );
+
       const existingIsGlobal = GLOBAL_ADMIN_ROLES.has(existing.role);
       const updateIsGlobal = GLOBAL_ADMIN_ROLES.has(updates.role);
       if (existingIsGlobal && !updateIsGlobal) {
@@ -643,11 +869,11 @@ Deno.serve(async (req: Request) => {
         if ((count || 0) <= 1) throw new Error('The last active super admin cannot be demoted. Create another super admin first.');
       }
 
-      const { data: duplicateName, error: duplicateNameError } = await db.from('admin_roles').select('user_id').eq('username', updates.username).eq('active', true).neq('user_id', id).maybeSingle();
+      const { data: duplicateName, error: duplicateNameError } = await db.from('admin_roles').select('user_id').ilike('username', updates.username).eq('active', true).neq('user_id', id).limit(1);
       if (duplicateNameError) throw duplicateNameError;
-      const { data: duplicateEmail, error: duplicateEmailError } = await db.from('admin_roles').select('user_id').eq('email', updates.email).eq('active', true).neq('user_id', id).maybeSingle();
+      const { data: duplicateEmail, error: duplicateEmailError } = await db.from('admin_roles').select('user_id').ilike('email', updates.email).eq('active', true).neq('user_id', id).limit(1);
       if (duplicateEmailError) throw duplicateEmailError;
-      if (duplicateName || duplicateEmail) throw new Error('That username or email is already assigned to another admin account.');
+      if ((duplicateName || []).length > 0 || (duplicateEmail || []).length > 0) throw new AdminRequestError('That username or email is already assigned to another admin account.', 409);
 
       if (updates.departmentCode) {
         const { data: department, error } = await db.from('departments').select('code').eq('code', updates.departmentCode).maybeSingle();
@@ -655,10 +881,10 @@ Deno.serve(async (req: Request) => {
         if (!department) throw new Error('Select an existing department.');
       }
       if (updates.assignedEvents.length > 0) {
-        const { data: events, error } = await db.from('events').select('id,department_code').in('id', updates.assignedEvents);
+        const { data: events, error } = await db.from('events').select('id,department_code,cluster_code').in('id', updates.assignedEvents);
         if (error) throw error;
         if ((events || []).length !== updates.assignedEvents.length) throw new Error('One or more selected events no longer exist.');
-        if (updates.departmentCode && (events || []).some(event => event.department_code !== updates.departmentCode)) {
+        if (updates.departmentCode && (events || []).some(event => event.department_code !== updates.departmentCode || (updates.clusterCode ? String(event.cluster_code || '').toUpperCase() !== updates.clusterCode : Boolean(event.cluster_code)))) {
           throw new Error('Event coordinators can only be assigned to events in their department.');
         }
       }
@@ -690,6 +916,7 @@ Deno.serve(async (req: Request) => {
         phone: updates.phone,
         role: updates.role,
         department_code: updates.departmentCode,
+        cluster_code: updates.clusterCode,
         designation: updates.designation,
         access_boundary: updates.accessBoundary
       }).eq('id', existing.id);
@@ -709,7 +936,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'delete') {
       const id = requiredString(body.id, 'Admin id', 64);
       if (id === caller.id) throw new Error('You cannot delete your own active account.');
-      const { data: target, error } = await db.from('admin_roles').select('id,role').eq('user_id', id).eq('active', true).maybeSingle();
+      const { data: target, error } = await db.from('admin_roles').select('id,role,department_code,cluster_code').eq('user_id', id).eq('active', true).maybeSingle();
       if (error) throw error;
       if (!target) throw new Error('The admin account no longer exists or has already been disabled.');
 
@@ -717,14 +944,15 @@ Deno.serve(async (req: Request) => {
       if (!isGlobalAdmin) {
         const { data: scopedTarget, error: scopedTargetError } = await db
           .from('admin_roles')
-          .select('department_code')
+          .select('department_code,cluster_code')
           .eq('user_id', id)
           .eq('active', true)
           .maybeSingle();
         if (scopedTargetError) throw scopedTargetError;
         const targetDepartment = scopedTarget?.department_code?.toUpperCase() || '';
+        const targetCluster = scopedTarget?.cluster_code?.toUpperCase() || '';
         if (isDepartmentCoordinator) {
-          if (targetDepartment !== callerDepartmentCode || !DEPARTMENT_MANAGED_ROLES.has(targetRole)) {
+          if (targetDepartment !== callerDepartmentCode || (callerClusterCode && targetCluster !== callerClusterCode) || !DEPARTMENT_MANAGED_ROLES.has(targetRole)) {
             throw new Error('You can only delete managed staff accounts in your own department.');
           }
         } else {

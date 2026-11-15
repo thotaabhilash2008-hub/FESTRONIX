@@ -40,6 +40,30 @@ const requiresDepartment = (role: AdminRole): boolean => DEPARTMENT_SCOPED_ROLES
 const departmentHandle = (code: string): string =>
   code.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'department';
 
+const CSE_CLUSTER_OPTIONS = [
+  { value: 'CSE-1', label: 'CSE-1 · 1st Cluster · Verma' },
+  { value: 'CSE-2', label: 'CSE-2 · 2nd Cluster · Balu' },
+  { value: 'CSE-3', label: 'CSE-3 · 3rd Cluster · Raghavendra' }
+] as const;
+
+const cseClusterLabel = (clusterCode?: string): string => {
+  const normalized = clusterCode?.trim().toUpperCase();
+  return CSE_CLUSTER_OPTIONS.find(option => option.value === normalized)?.label || normalized || 'Unassigned CSE cluster';
+};
+
+const coordinatorScopeBoundary = (departmentCode?: string, clusterCode?: string, role?: AdminRole): string => {
+  if (role && supportsEventAssignments(role)) {
+    if (departmentCode?.trim().toUpperCase() === 'CSE' && clusterCode) {
+      return `${cseClusterLabel(clusterCode)} assigned events only`;
+    }
+    return 'Assigned event(s) only unless separately authorised';
+  }
+  if (departmentCode?.trim().toUpperCase() === 'CSE' && clusterCode) {
+    return `${cseClusterLabel(clusterCode)} events`;
+  }
+  return departmentCode ? `${departmentCode.toUpperCase()} department events` : 'Assigned event(s) only unless separately authorised';
+};
+
 const toDateInputValue = (value?: string): string => {
   if (!value) return '';
   const parsed = new Date(value);
@@ -62,6 +86,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [coordinators, setCoordinators] = useState<Array<AdminUser & { assignedEvents?: string[] }>>(
     AdminAuthService.getCoordinators()
   );
+  const occupiedCseDepartmentCoordinatorClusters = useMemo(() => new Set(
+    coordinators
+      .filter(coordinator =>
+        coordinator.departmentCode?.trim().toUpperCase() === 'CSE' &&
+        ['dept_coordinator', 'dept_chief_coordinator'].includes(String(coordinator.role)) &&
+        Boolean(coordinator.clusterCode)
+      )
+      .map(coordinator => coordinator.clusterCode!.trim().toUpperCase())
+  ), [coordinators]);
 
   // Search & Filter States
   const [rosterSearch, setRosterSearch] = useState('');
@@ -80,6 +113,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // Coordinators Filters
   const [coordSearch, setCoordSearch] = useState('');
   const [coordDeptFilter, setCoordDeptFilter] = useState('all');
+  const [coordClusterFilter, setCoordClusterFilter] = useState('all');
   const [coordRoleFilter, setCoordRoleFilter] = useState('all');
 
   // Payment Verification Modal State & Filters
@@ -121,6 +155,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [evtSlug, setEvtSlug] = useState('');
   const [evtTagline, setEvtTagline] = useState('');
   const [evtDeptCode, setEvtDeptCode] = useState('CSE');
+  const [evtClusterCode, setEvtClusterCode] = useState('');
   const [evtCategory, setEvtCategory] = useState<EventCategory>('technical');
   const [evtFormat, setEvtFormat] = useState<EventFormat>('individual');
   const [evtMinTeamSize, setEvtMinTeamSize] = useState(1);
@@ -148,6 +183,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [coordExistingIdentifier, setCoordExistingIdentifier] = useState('');
   const [coordFullName, setCoordFullName] = useState('');
   const [coordDeptCode, setCoordDeptCode] = useState('CSE');
+  const [coordClusterCode, setCoordClusterCode] = useState('');
   const [coordRole, setCoordRole] = useState<AdminRole>('faculty_coord');
   const [coordDesignation, setCoordDesignation] = useState('Assistant Professor & Convener');
   const [coordEmail, setCoordEmail] = useState('');
@@ -165,6 +201,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [editingCoordinator, setEditingCoordinator] = useState<(AdminUser & { assignedEvents?: string[] }) | null>(null);
   const [editCoordFullName, setEditCoordFullName] = useState('');
   const [editCoordDeptCode, setEditCoordDeptCode] = useState('CSE');
+  const [editCoordClusterCode, setEditCoordClusterCode] = useState('');
   const [editCoordRole, setEditCoordRole] = useState<AdminRole>('faculty_coord');
   const [editCoordDesignation, setEditCoordDesignation] = useState('');
   const [editCoordEmail, setEditCoordEmail] = useState('');
@@ -621,6 +658,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setEventCreateError('Enter an event title before creating the event.');
       return;
     }
+    if (evtDeptCode === 'CSE' && !evtClusterCode) {
+      setEventCreateError('Select the CSE cluster that owns this event before creating it.');
+      return;
+    }
 
     const slugBase = (evtSlug.trim() || title)
       .normalize('NFKD')
@@ -659,6 +700,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       title,
       tagline: evtTagline.trim() || undefined,
       departmentCode: evtDeptCode,
+      clusterCode: evtDeptCode === 'CSE' ? (evtClusterCode || undefined) : undefined,
       category: evtCategory,
       format: evtFormat,
       minTeamSize,
@@ -696,6 +738,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setEvtTitle('');
       setEvtSlug('');
       setEvtTagline('');
+      setEvtClusterCode('');
       setEvtDescription('');
       setEventCreateError('');
       refreshAllData();
@@ -720,6 +763,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const handleSaveEditedEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEvent) return;
+    if (editingEvent.departmentCode === 'CSE' && !editingEvent.clusterCode) {
+      window.alert('Select the CSE cluster that owns this event before saving.');
+      return;
+    }
 
     try {
       await StorageService.updateEvent(editingEvent);
@@ -741,6 +788,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     // old coordinator's identity or email address.
     setCoordFullName('');
     setCoordDeptCode(event.departmentCode);
+    setCoordClusterCode(event.clusterCode || '');
     setCoordRole('event_coordinator');
     setCoordDesignation(`Event Operations Coordinator — ${event.title}`);
     setCoordEmail('');
@@ -758,6 +806,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setCreatedCredential(null);
     setCoordRole('event_coordinator');
     setCoordDeptCode(departments[0]?.code || 'CSE');
+    setCoordClusterCode('');
     setCoordDesignation('Event Operations Coordinator');
     setCoordFullName('');
     setCoordEmail('');
@@ -783,6 +832,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         setCoordFormError('Enter the designation for this portal assignment.');
         return;
       }
+      if (requiresDepartment(coordRole) && coordDeptCode.toUpperCase() === 'CSE' && !coordClusterCode) {
+        setCoordFormError('Select the exact CSE cluster before assigning this account.');
+        return;
+      }
       if (supportsEventAssignments(coordRole) && coordAssignedEvents.length === 0) {
         setCoordFormError('Select at least one event for this coordinator account.');
         return;
@@ -794,12 +847,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           identifier: coordExistingIdentifier,
           role: coordRole,
           departmentCode: requiresDepartment(coordRole) ? coordDeptCode : undefined,
+          clusterCode: requiresDepartment(coordRole) && coordDeptCode.toUpperCase() === 'CSE' ? coordClusterCode : undefined,
           designation: coordDesignation.trim(),
-          accessBoundary: (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
-            ? "Their department's events"
-            : 'Assigned event(s) only unless separately authorised',
+          accessBoundary: coordinatorScopeBoundary(requiresDepartment(coordRole) ? coordDeptCode : undefined, coordClusterCode, coordRole),
           assignedEvents: supportsEventAssignments(coordRole) ? coordAssignedEvents : []
         });
+        const requestedCluster = requiresDepartment(coordRole) && coordDeptCode.toUpperCase() === 'CSE'
+          ? coordClusterCode.trim().toUpperCase()
+          : '';
+        if (requestedCluster && assigned.clusterCode?.trim().toUpperCase() !== requestedCluster) {
+          throw new Error(
+            `The account assignment was not persisted with ${requestedCluster}. Do not retry yet; deploy the latest admin-users function and run the CSE cluster repair migration, then sign in again.`
+          );
+        }
         setCoordinators(previous => [
           ...previous.filter(coordinator => coordinator.id !== assigned.id && coordinator.email !== assigned.email),
           assigned
@@ -833,6 +893,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setCoordFormError('Portal passcodes must be at least 12 characters.');
       return;
     }
+    if (requiresDepartment(coordRole) && coordDeptCode.toUpperCase() === 'CSE' && !coordClusterCode) {
+      setCoordFormError('Select the exact CSE cluster before creating this account.');
+      return;
+    }
 
     const deptName = departments.find(d => d.code === coordDeptCode)?.name || coordDeptCode;
 
@@ -845,14 +909,22 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         designation: coordDesignation.trim(),
         role: coordRole,
         departmentCode: coordDeptCode,
+        clusterCode: requiresDepartment(coordRole) && coordDeptCode.toUpperCase() === 'CSE' ? coordClusterCode : undefined,
         departmentName: deptName,
         email: normalizedEmail,
         phone: coordPhone.trim(),
         assignedEvents: supportsEventAssignments(coordRole) ? coordAssignedEvents : [],
-        accessBoundary: (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator')
-          ? "Their department's events"
-          : 'Assigned event(s) only unless separately authorised'
+        accessBoundary: coordinatorScopeBoundary(requiresDepartment(coordRole) ? coordDeptCode : undefined, coordClusterCode, coordRole)
       });
+
+      const requestedCluster = requiresDepartment(coordRole) && coordDeptCode.toUpperCase() === 'CSE'
+        ? coordClusterCode.trim().toUpperCase()
+        : '';
+      if (requestedCluster && created.clusterCode?.trim().toUpperCase() !== requestedCluster) {
+        throw new Error(
+          `The account was created, but the backend did not persist ${requestedCluster}. Do not submit again; deploy the latest admin-users function and run the CSE cluster repair migration first.`
+        );
+      }
 
       setCoordinators(previous => [
         ...previous.filter(coordinator => coordinator.id !== created.id && coordinator.email !== created.email),
@@ -895,6 +967,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     setEditingCoordinator(coord);
     setEditCoordFullName(coord.fullName || '');
     setEditCoordDeptCode(coord.departmentCode || 'CSE');
+    setEditCoordClusterCode(coord.clusterCode || '');
     setEditCoordRole(coord.role);
     setEditCoordDesignation(coord.designation || '');
     setEditCoordEmail(coord.email || '');
@@ -916,6 +989,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setCoordFormError('Please fill out the name and username. Leave the passcode blank to keep the current password.');
       return;
     }
+    if (requiresDepartment(editCoordRole) && editCoordDeptCode.toUpperCase() === 'CSE' && !editCoordClusterCode) {
+      setCoordFormError('Select the exact CSE cluster before saving this account.');
+      return;
+    }
 
     const deptName = departments.find(d => d.code === editCoordDeptCode)?.name || editCoordDeptCode;
 
@@ -928,13 +1005,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         designation: editCoordDesignation.trim(),
         role: editCoordRole,
         departmentCode: editCoordDeptCode,
+        clusterCode: requiresDepartment(editCoordRole) && editCoordDeptCode.toUpperCase() === 'CSE' ? editCoordClusterCode : undefined,
         departmentName: deptName,
         email: editCoordEmail.trim(),
         phone: editCoordPhone.trim(),
         assignedEvents: supportsEventAssignments(editCoordRole) ? editCoordAssignedEvents : [],
-        accessBoundary: (editCoordRole === 'dept_chief_coordinator' || editCoordRole === 'dept_coordinator')
-          ? "Their department's events"
-          : 'Assigned event(s) only unless separately authorised'
+        accessBoundary: coordinatorScopeBoundary(requiresDepartment(editCoordRole) ? editCoordDeptCode : undefined, editCoordClusterCode, editCoordRole)
       });
 
       confetti({ particleCount: 70, spread: 50 });
@@ -1049,7 +1125,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
     const matchingAccounts = coordinators.filter(coordinator =>
       DEPARTMENT_SCOPED_ROLES.includes(coordinator.role) &&
-      (!coordinator.departmentCode || coordinator.departmentCode.toUpperCase() === editingEvent.departmentCode.toUpperCase())
+      (!coordinator.departmentCode || coordinator.departmentCode.toUpperCase() === editingEvent.departmentCode.toUpperCase()) &&
+      (editingEvent.departmentCode.toUpperCase() !== 'CSE' || !editingEvent.clusterCode || coordinator.clusterCode?.toUpperCase() === editingEvent.clusterCode.toUpperCase())
     );
 
     // Keep an event's existing coordinator selectable even when the event was
@@ -1062,6 +1139,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           designation: 'Current event coordinator',
           role: 'event_coordinator' as AdminRole,
           departmentCode: editingEvent.departmentCode,
+          clusterCode: editingEvent.clusterCode,
           departmentName: editingEvent.departmentCode,
           email: editingEvent.coordinatorEmail,
           phone: editingEvent.coordinatorPhone || '',
@@ -1163,18 +1241,21 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       c.username.toLowerCase().includes(coordSearch.toLowerCase()) ||
       c.designation.toLowerCase().includes(coordSearch.toLowerCase()) ||
       c.email.toLowerCase().includes(coordSearch.toLowerCase()) ||
-      (c.phone && c.phone.includes(coordSearch));
+      (c.phone && c.phone.includes(coordSearch)) ||
+      cseClusterLabel(c.clusterCode).toLowerCase().includes(coordSearch.toLowerCase());
     
     const matchDept = coordDeptFilter === 'all' || 
       (c.departmentCode && c.departmentCode.toUpperCase() === coordDeptFilter.toUpperCase()) ||
       (coordDeptFilter === 'SAC' && (!c.departmentCode || c.departmentCode === 'SAC'));
+
+    const matchCluster = coordClusterFilter === 'all' || c.clusterCode?.toUpperCase() === coordClusterFilter.toUpperCase();
 
     const matchRole = coordRoleFilter === 'all' ||
       (coordRoleFilter === 'dept_coordinator' && (c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator')) ||
       (coordRoleFilter === 'faculty_coord' && supportsEventAssignments(c.role)) ||
       (coordRoleFilter !== 'dept_coordinator' && coordRoleFilter !== 'dept_chief_coordinator' && coordRoleFilter !== 'faculty_coord' && c.role === coordRoleFilter);
 
-    return matchSearch && matchDept && matchRole;
+    return matchSearch && matchDept && matchCluster && matchRole;
   });
 
   // Super Admin Overall Revenue Calculations
@@ -2035,6 +2116,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               setCoordExistingIdentifier('');
                               setCoordRole('dept_coordinator');
                               setCoordDeptCode(dept.code);
+                              setCoordClusterCode('');
                               setCoordFullName(dept.chiefCoordinator);
                               setCoordDesignation(`Department Coordinator (${dept.code})`);
                               setCoordUsername('');
@@ -2880,6 +2962,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     const firstDept = departments[0]?.code || 'CSE';
                     setCoordRole('dept_coordinator');
                     setCoordDeptCode(firstDept);
+                    setCoordClusterCode('');
                     setCoordFullName('');
                     setCoordDesignation(`Department Coordinator (${firstDept})`);
                     setCoordEmail('');
@@ -2914,6 +2997,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordExistingIdentifier('');
                     setCoordRole('event_coordinator');
                     setCoordDeptCode(departments[0]?.code || 'CSE');
+                    setCoordClusterCode('');
                     setCoordFullName('');
                     setCoordDesignation('Lead Event Operations Coordinator');
                     setCoordEmail('');
@@ -2948,6 +3032,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     setCoordExistingIdentifier('');
                     setCoordRole('faculty_coord');
                     setCoordDeptCode(departments[0]?.code || 'CSE');
+                    setCoordClusterCode('');
                     setCoordFullName('');
                     setCoordDesignation('Faculty Event Convener');
                     setCoordEmail('');
@@ -3111,6 +3196,22 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               </select>
 
               <select
+                value={coordClusterFilter}
+                onChange={e => setCoordClusterFilter(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 26, 53, 0.9)',
+                  border: '1px solid rgba(220, 227, 229, 0.2)',
+                  color: '#FFFFFF',
+                  fontSize: '0.82rem'
+                }}
+              >
+                <option value="all">All CSE Clusters</option>
+                {CSE_CLUSTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+
+              <select
                 value={coordRoleFilter}
                 onChange={e => setCoordRoleFilter(e.target.value)}
                 style={{
@@ -3171,6 +3272,21 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           >
                             {coord.departmentCode || 'CENTRAL'}
                           </span>
+                          {coord.departmentCode?.toUpperCase() === 'CSE' && (
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                background: 'rgba(56, 189, 248, 0.14)',
+                                border: '1px solid rgba(56, 189, 248, 0.42)',
+                                color: '#7DD3FC'
+                              }}
+                            >
+                              {cseClusterLabel(coord.clusterCode)}
+                            </span>
+                          )}
                           <span
                             style={{
                               fontSize: '0.68rem',
@@ -3227,6 +3343,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <p style={{ fontSize: '0.78rem', color: isDeptCoordinator ? '#C084FC' : '#BACEBB', margin: '0 0 12px' }}>
                         {coord.designation}
                       </p>
+                      {coord.departmentCode?.toUpperCase() === 'CSE' && (
+                        <div style={{ fontSize: '0.72rem', color: '#7DD3FC', margin: '-6px 0 12px' }}>
+                          Access boundary: <strong>{cseClusterLabel(coord.clusterCode)}</strong>
+                        </div>
+                      )}
 
                       {/* Contact Info */}
                       <div
@@ -5340,7 +5461,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </label>
                   <select
                     value={evtDeptCode}
-                    onChange={e => setEvtDeptCode(e.target.value)}
+                    onChange={e => {
+                      const nextDepartment = e.target.value;
+                      setEvtDeptCode(nextDepartment);
+                      if (nextDepartment !== 'CSE') setEvtClusterCode('');
+                    }}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -5356,6 +5481,37 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     ))}
                     <option value="SAC">SAC Central Oversight</option>
                   </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                    CSE Cluster {evtDeptCode === 'CSE' ? '*' : '(not applicable)'}
+                  </label>
+                  <select
+                    value={evtDeptCode === 'CSE' ? evtClusterCode : ''}
+                    disabled={evtDeptCode !== 'CSE'}
+                    onChange={e => setEvtClusterCode(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(220, 227, 229, 0.25)',
+                      color: '#FFFFFF',
+                      fontSize: '0.84rem',
+                      opacity: evtDeptCode === 'CSE' ? 1 : 0.55
+                    }}
+                  >
+                    <option value="">Select CSE cluster</option>
+                    <option value="CSE-1">CSE-1 · Verma · 1st cluster</option>
+                    <option value="CSE-2">CSE-2 · Balu · 2nd cluster</option>
+                    <option value="CSE-3">CSE-3 · Raghavendra · 3rd cluster</option>
+                  </select>
+                  {evtDeptCode === 'CSE' && (
+                    <small style={{ display: 'block', marginTop: '5px', color: '#8FA3BC', fontSize: '0.7rem' }}>
+                      Cluster assignment controls which CSE coordinator can access this event.
+                    </small>
+                  )}
                 </div>
 
                 <div>
@@ -6007,7 +6163,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Department</label>
-                  <select value={editingEvent.departmentCode} onChange={e => setEditingEvent({ ...editingEvent, departmentCode: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem' }}>
+                  <select value={editingEvent.departmentCode} onChange={e => setEditingEvent({ ...editingEvent, departmentCode: e.target.value, clusterCode: e.target.value === 'CSE' ? editingEvent.clusterCode : undefined })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem' }}>
                     {departments.map(dept => <option key={dept.code} value={dept.code}>{dept.code}</option>)}
                   </select>
                 </div>
@@ -6023,6 +6179,28 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     {['individual', 'duo', 'team'].map(value => <option key={value} value={value}>{value.toUpperCase()}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
+                  CSE Cluster {editingEvent.departmentCode === 'CSE' ? '*' : '(not applicable)'}
+                </label>
+                <select
+                  value={editingEvent.departmentCode === 'CSE' ? (editingEvent.clusterCode || '') : ''}
+                  disabled={editingEvent.departmentCode !== 'CSE'}
+                  onChange={e => setEditingEvent({ ...editingEvent, clusterCode: e.target.value || undefined })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', opacity: editingEvent.departmentCode === 'CSE' ? 1 : 0.55 }}
+                >
+                  <option value="">Select CSE cluster</option>
+                  <option value="CSE-1">CSE-1 · Verma · 1st cluster</option>
+                  <option value="CSE-2">CSE-2 · Balu · 2nd cluster</option>
+                  <option value="CSE-3">CSE-3 · Raghavendra · 3rd cluster</option>
+                </select>
+                {editingEvent.departmentCode === 'CSE' && (
+                  <small style={{ display: 'block', marginTop: '5px', color: '#8FA3BC', fontSize: '0.7rem' }}>
+                    Only the coordinator assigned to this cluster can manage the event.
+                  </small>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
@@ -6425,6 +6603,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     onChange={e => {
                       const newDept = e.target.value;
                       setCoordDeptCode(newDept);
+                      setCoordClusterCode('');
                       if (coordRole === 'dept_chief_coordinator' || coordRole === 'dept_coordinator') {
                         const handle = departmentHandle(newDept);
                         setCoordDesignation(`Department Coordinator (${newDept})`);
@@ -6471,6 +6650,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         : coordDeptCode;
                       setCoordRole(newRole);
                       if (requiresDepartment(newRole)) setCoordDeptCode(nextDept);
+                      if (!requiresDepartment(newRole) || nextDept.toUpperCase() !== 'CSE') setCoordClusterCode('');
                       if (newRole === 'dept_chief_coordinator' || newRole === 'dept_coordinator') {
                         const handle = departmentHandle(nextDept);
                         setCoordDesignation(`Department Coordinator (${nextDept})`);
@@ -6499,6 +6679,41 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
+              {coordDeptCode.toUpperCase() === 'CSE' && requiresDepartment(coordRole) && (
+                <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(124, 58, 237, 0.12)', border: '1px solid rgba(167, 139, 250, 0.45)' }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#E9D5FF', marginBottom: '6px' }}>
+                    CSE Cluster Boundary *
+                  </label>
+                  <select
+                    value={coordClusterCode}
+                    onChange={e => {
+                      const nextCluster = e.target.value;
+                      setCoordClusterCode(nextCluster);
+                      setCoordAssignedEvents(previous => previous.filter(eventId => {
+                        const event = events.find(candidate => candidate.id === eventId);
+                        return event && (event.departmentCode.toUpperCase() !== 'CSE' || event.clusterCode?.toUpperCase() === nextCluster);
+                      }));
+                    }}
+                    required
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(167, 139, 250, 0.55)', color: '#FFFFFF', fontSize: '0.84rem' }}
+                  >
+                    <option value="">Select the CSE cluster</option>
+                    {CSE_CLUSTER_OPTIONS.map(option => {
+                      const isDepartmentCoordinator = ['dept_coordinator', 'dept_chief_coordinator'].includes(String(coordRole));
+                      const isOccupied = isDepartmentCoordinator && occupiedCseDepartmentCoordinatorClusters.has(option.value);
+                      return (
+                        <option key={option.value} value={option.value} disabled={isOccupied}>
+                          {option.label}{isOccupied ? ' · already assigned' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div style={{ color: '#D8B4FE', fontSize: '0.72rem', marginTop: '6px' }}>
+                    This account will only see and operate within the selected CSE cluster. Each CSE department-coordinator cluster can have one active owner; delete or edit the old assignment before reusing it.
+                  </div>
+                </div>
+              )}
+
               {supportsEventAssignments(coordRole) && (
                 <div style={{ background: 'rgba(16, 26, 53, 0.72)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '8px' }}>
@@ -6506,7 +6721,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     <span style={{ fontSize: '0.7rem', color: '#A8B3C2' }}>Optional now — can be changed later</span>
                   </div>
                   <div style={{ display: 'grid', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
-                    {events.filter(event => event.departmentCode.toUpperCase() === coordDeptCode.toUpperCase()).map(event => (
+                    {events.filter(event => event.departmentCode.toUpperCase() === coordDeptCode.toUpperCase() && (coordDeptCode.toUpperCase() !== 'CSE' || !coordClusterCode || event.clusterCode?.toUpperCase() === coordClusterCode)).map(event => (
                       <label key={event.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#DCE3E5', fontSize: '0.78rem', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
@@ -6516,8 +6731,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         <span>{event.title}</span>
                       </label>
                     ))}
-                    {events.filter(event => event.departmentCode.toUpperCase() === coordDeptCode.toUpperCase()).length === 0 && (
-                      <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>No events are available in this department yet.</span>
+                    {events.filter(event => event.departmentCode.toUpperCase() === coordDeptCode.toUpperCase() && (coordDeptCode.toUpperCase() !== 'CSE' || !coordClusterCode || event.clusterCode?.toUpperCase() === coordClusterCode)).length === 0 && (
+                      <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>{coordDeptCode.toUpperCase() === 'CSE' && !coordClusterCode ? 'Select a CSE cluster to view eligible events.' : 'No events are available in this department yet.'}</span>
                     )}
                   </div>
                 </div>
@@ -6802,8 +7017,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     onChange={e => {
                       const newDept = e.target.value;
                       setEditCoordDeptCode(newDept);
+                      setEditCoordClusterCode(newDept.toUpperCase() === 'CSE' ? editCoordClusterCode : '');
                       setEditCoordAssignedEvents(prev => prev.filter(eventId =>
-                        events.some(event => event.id === eventId && event.departmentCode.toUpperCase() === newDept.toUpperCase())
+                        events.some(event => event.id === eventId && event.departmentCode.toUpperCase() === newDept.toUpperCase() && (newDept.toUpperCase() !== 'CSE' || !editCoordClusterCode || event.clusterCode?.toUpperCase() === editCoordClusterCode))
                       ));
                     }}
                     style={{
@@ -6840,6 +7056,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         setEditCoordDeptCode(departments[0]?.code || 'CSE');
                       }
                       setEditCoordRole(newRole);
+                      if (!requiresDepartment(newRole) || editCoordDeptCode.toUpperCase() !== 'CSE') setEditCoordClusterCode('');
                       if (!supportsEventAssignments(newRole)) setEditCoordAssignedEvents([]);
                     }}
                     style={{
@@ -6861,6 +7078,33 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
+              {editCoordDeptCode.toUpperCase() === 'CSE' && requiresDepartment(editCoordRole) && (
+                <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(124, 58, 237, 0.12)', border: '1px solid rgba(167, 139, 250, 0.45)' }}>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#E9D5FF', marginBottom: '6px' }}>
+                    CSE Cluster Boundary *
+                  </label>
+                  <select
+                    value={editCoordClusterCode}
+                    onChange={e => {
+                      const nextCluster = e.target.value;
+                      setEditCoordClusterCode(nextCluster);
+                      setEditCoordAssignedEvents(previous => previous.filter(eventId => {
+                        const event = events.find(candidate => candidate.id === eventId);
+                        return event && (event.departmentCode.toUpperCase() !== 'CSE' || event.clusterCode?.toUpperCase() === nextCluster);
+                      }));
+                    }}
+                    required
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(167, 139, 250, 0.55)', color: '#FFFFFF', fontSize: '0.84rem' }}
+                  >
+                    <option value="">Select the CSE cluster</option>
+                    {CSE_CLUSTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                  <div style={{ color: '#D8B4FE', fontSize: '0.72rem', marginTop: '6px' }}>
+                    This account will only see and operate within the selected CSE cluster.
+                  </div>
+                </div>
+              )}
+
               {supportsEventAssignments(editCoordRole) && (
                 <div style={{ background: 'rgba(16, 26, 53, 0.72)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '8px' }}>
@@ -6868,7 +7112,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     <span style={{ fontSize: '0.7rem', color: '#A8B3C2' }}>Changes are saved with this profile</span>
                   </div>
                   <div style={{ display: 'grid', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
-                    {events.filter(event => event.departmentCode.toUpperCase() === editCoordDeptCode.toUpperCase()).map(event => (
+                    {events.filter(event => event.departmentCode.toUpperCase() === editCoordDeptCode.toUpperCase() && (editCoordDeptCode.toUpperCase() !== 'CSE' || !editCoordClusterCode || event.clusterCode?.toUpperCase() === editCoordClusterCode)).map(event => (
                       <label key={event.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#DCE3E5', fontSize: '0.78rem', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
@@ -6878,8 +7122,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         <span>{event.title}</span>
                       </label>
                     ))}
-                    {events.filter(event => event.departmentCode.toUpperCase() === editCoordDeptCode.toUpperCase()).length === 0 && (
-                      <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>No events are available in this department yet.</span>
+                    {events.filter(event => event.departmentCode.toUpperCase() === editCoordDeptCode.toUpperCase() && (editCoordDeptCode.toUpperCase() !== 'CSE' || !editCoordClusterCode || event.clusterCode?.toUpperCase() === editCoordClusterCode)).length === 0 && (
+                      <span style={{ fontSize: '0.75rem', color: '#A8B3C2' }}>{editCoordDeptCode.toUpperCase() === 'CSE' && !editCoordClusterCode ? 'Select a CSE cluster to view eligible events.' : 'No events are available in this department yet.'}</span>
                     )}
                   </div>
                 </div>

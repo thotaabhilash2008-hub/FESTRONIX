@@ -207,7 +207,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
               flexShrink: 0,
             }}
           >
-            <Building2 size={16} color="#FFFFFF" />
+            {isEventCoord ? <QrCode size={16} color="#FFFFFF" /> : <Building2 size={16} color="#FFFFFF" />}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
@@ -221,9 +221,9 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}
-              title={deptName ? `Department of ${deptName}` : `Dept of ${deptCode}`}
+              title={isEventCoord ? 'Assigned event operations' : deptName ? `Department of ${deptName}` : `Dept of ${deptCode}`}
             >
-              DEPT OF {deptCode}
+              {isEventCoord ? 'ASSIGNED EVENTS' : `DEPT OF ${deptCode}`}
             </div>
             <div
               style={{
@@ -235,7 +235,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
                 letterSpacing: '0.03em',
               }}
             >
-              {isDeptChief ? '🏛️ Department Coordinator Desk' : '🎯 Event Coordinator Desk'}
+              {isEventCoord ? '🎯 Event Coordinator Desk' : '🏛️ Department Coordinator Desk'}
             </div>
           </div>
         </div>
@@ -346,7 +346,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
   // Render a proper mobile drawer instead of relying on utility classes that may
   // not be present in the production bundle.
   const renderDrawer = (
-    <div className="admin-sidebar-mobile-shell" aria-label="Department sidebar">
+    <div className="admin-sidebar-mobile-shell" aria-label={isEventCoord ? 'Event coordinator navigation' : 'Department sidebar'}>
       {/* Overlay */}
       <div
         className="admin-sidebar-overlay is-open"
@@ -371,7 +371,7 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="admin-sidebar admin-sidebar-desktop admin-scrollbar" aria-label="Department navigation">
+      <aside className="admin-sidebar admin-sidebar-desktop admin-scrollbar" aria-label={isEventCoord ? 'Event coordinator navigation' : 'Department navigation'}>
         {sidebarContent()}
       </aside>
 

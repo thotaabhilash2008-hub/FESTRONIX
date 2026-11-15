@@ -83,10 +83,10 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         iconBg: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #789593 100%)'
       };
     }
-    if (role === 'event_coordinator') {
+    if (role === 'event_coordinator' || role === 'faculty_coord' || role === 'student_coord') {
       return {
-        title: titleOverride || `${adminUser.departmentCode || 'EVENT'} OPERATIONS & COORDINATOR DESK`,
-        badge: badgeOverride || `🎯 ${adminUser.departmentCode || ''} EVENT COORD`,
+        title: titleOverride || 'EVENT OPERATIONS & COORDINATOR DESK',
+        badge: badgeOverride || '🎯 ASSIGNED EVENT COORDINATOR',
         badgeBg: 'rgba(56, 189, 248, 0.15)',
         badgeBorder: 'rgba(56, 189, 248, 0.45)',
         badgeColor: '#38BDF8',
@@ -108,6 +108,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
   const config = getRoleConfig();
   const IconComponent = config.icon;
+  const isEventCoordinator = ['event_coordinator', 'faculty_coord', 'student_coord'].includes(adminUser.role);
 
   return (
     <header className="admin-exec-header">
@@ -193,7 +194,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             <p className="admin-header-subtitle" style={{ fontSize: '0.76rem', color: '#94A3B8', margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ color: '#E2E8F0', fontWeight: 600 }}>{adminUser.fullName}</span>
               <span>•</span>
-              <span>{adminUser.designation}</span>
+              <span>{isEventCoordinator ? 'Event Coordinator' : adminUser.designation}</span>
               <span>•</span>
               <span style={{ color: '#64748B' }}>Vardhaman College of Engineering</span>
             </p>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AdminAuthService, AdminUser, isDepartmentAdminRole, isSuperAdminRole } from '../../services/adminAuthService';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { AdminLoginView } from './AdminLoginView';
 import { DeanDashboard } from './DeanDashboard';
 import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
@@ -55,6 +56,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
   useEffect(() => {
     if (adminUser) AdminAuthService.initRealtime();
   }, [adminUser]);
+
+  // Never keep rendering a cached portal identity after Supabase has signed
+  // the browser out or failed to refresh its token. RLS-protected operations
+  // would otherwise fail while the dashboard still looks authenticated.
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setAdminUser(null);
+        localStorage.removeItem('festronix_admin_session_v1');
+      }
+    });
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     try {

@@ -103,6 +103,7 @@ export interface Database {
           access_boundary: string | null;
           active: boolean;
           department_code: string | null;
+          cluster_code: string | null;
           event_id: string | null;
           granted_by: string | null;
           designation: string | null;
@@ -131,6 +132,7 @@ export interface Database {
           access_boundary?: string | null;
           active?: boolean;
           department_code?: string | null;
+          cluster_code?: string | null;
           event_id?: string | null;
           granted_by?: string | null;
           designation?: string | null;
@@ -159,6 +161,7 @@ export interface Database {
           access_boundary?: string | null;
           active?: boolean;
           department_code?: string | null;
+          cluster_code?: string | null;
           event_id?: string | null;
           granted_by?: string | null;
           designation?: string | null;
@@ -193,6 +196,7 @@ export interface Database {
           tagline: string | null;
           department_id: string | null;
           department_code: string;
+          cluster_code: string | null;
           category: 'technical' | 'workshop' | 'hackathon' | 'non-technical' | 'gaming' | 'departmental';
           format: 'individual' | 'duo' | 'team';
           min_team_size: number;
@@ -229,6 +233,7 @@ export interface Database {
           tagline?: string | null;
           department_id?: string | null;
           department_code: string;
+          cluster_code?: string | null;
           category: 'technical' | 'workshop' | 'hackathon' | 'non-technical' | 'gaming' | 'departmental';
           format: 'individual' | 'duo' | 'team';
           min_team_size?: number;
@@ -265,6 +270,7 @@ export interface Database {
           tagline?: string | null;
           department_id?: string | null;
           department_code?: string;
+          cluster_code?: string | null;
           category?: 'technical' | 'workshop' | 'hackathon' | 'non-technical' | 'gaming' | 'departmental';
           format?: 'individual' | 'duo' | 'team';
           min_team_size?: number;
