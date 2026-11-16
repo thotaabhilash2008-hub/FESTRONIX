@@ -27,6 +27,10 @@ export interface SponsorProfile {
   mouStatus: 'Signed & Executed' | 'Under Review' | 'Draft Sent';
   invoiceStatus: 'Paid & Cleared' | 'Processing';
   deliverables: SponsorDeliverable[];
+  about?: string;
+  headquarters?: string;
+  awardHighlight?: string;
+  keyProjects?: string[];
   metrics: {
     stageKeynoteTime: string;
     brandedBannersAllocated: number;
@@ -207,6 +211,84 @@ export const SPONSOR_PROFILES: SponsorProfile[] = [
         status: 'scheduled',
         description: '20-minute keynote on scalable event infrastructure and modern collegiate platforms.',
         dueDate: 'Oct 29, 2026'
+      }
+    ]
+  },
+  {
+    id: 'sanvi_homes',
+    companyName: 'Sanvi Homes',
+    tagline: 'Building Spaces People Are Proud to Own • Premium Gated Communities',
+    tier: 'Platinum Partner',
+    tierBadgeColor: '#A855F7',
+    logo: '/sanvi_homes_logo.png',
+    website: 'https://sanvihomes.com/',
+    pocName: 'Sanjay Kumar (Corporate Desk)',
+    pocRole: 'VP of Marketing & Strategic Partnerships',
+    pocContact: '+91 91707 05999',
+    pocEmail: 'info@sanvihomes.com',
+    sacLeadName: 'Md. Asif (Dean SAC)',
+    sacLeadContact: '+91 98480 99112',
+    stallLocation: 'Central Block Promenade • Premium Real Estate Pavilion',
+    stallNumber: 'Pavilion #P-01',
+    mouStatus: 'Signed & Executed',
+    invoiceStatus: 'Paid & Cleared',
+    about: 'Sanvi Homes (Sanvi Properties India Pvt. Ltd.) was founded by NRIs in 2014, specializing in thoughtfully designed residential and gated communities across Hyderabad. Awarded the CREDAI Telangana Certificate of Excellence for "Best Standalone Apartment" (Cosmos), Sanvi Homes delivers modern architecture, lifestyle amenities, and long-term value.',
+    headquarters: 'The District, 9th Floor, Financial District, Puppalguda, Hyderabad',
+    awardHighlight: 'CREDAI Telangana "Best Standalone Apartment" Category Award Winner',
+    keyProjects: [
+      'One East (Hayathnagar) – 4.2 Acre Premium Gated Community, 7 Towers (G+9), 450 Luxury 2 & 3 BHK Flats',
+      'Tellapur – Upcoming Luxury Gated Community Development',
+      'Cosmos, Urbn, Meadows, Iris, Mayflower & Orchids (Kondapur & Gachibowli)',
+      'Crescent (Hayathnagar)'
+    ],
+    metrics: {
+      stageKeynoteTime: 'Day 1 • 2:30 PM (Sustainable Urban Architecture Keynote)',
+      brandedBannersAllocated: 16,
+      vipLoungePasses: 25,
+      estimatedReach: '40,000+ Footfall',
+      impressionsCount: '1.5M Digital Impressions'
+    },
+    deliverables: [
+      {
+        id: 'sh-1',
+        title: 'Official Platinum Partner Branding & Digital Presence',
+        category: 'digital',
+        status: 'completed',
+        description: 'Permanent official brand feature across Festronix 2026 portal, sponsors page, and digital credentials.',
+        dueDate: 'Immediate'
+      },
+      {
+        id: 'sh-2',
+        title: 'Central Promenade VIP Experiential Pavilion',
+        category: 'on_ground',
+        status: 'in_progress',
+        description: 'Dedicated double-bay interactive experience pavilion with 3D architectural walk-throughs and student/faculty offers.',
+        dueDate: 'Nov 28, 2026',
+        location: 'Pavilion #P-01, Central Promenade'
+      },
+      {
+        id: 'sh-3',
+        title: 'Main Auditorium LED Stage Backdrop Slot',
+        category: 'stage',
+        status: 'completed',
+        description: 'High-definition 4K brand video showcase during inaugurals, hackathon finals, and celebrity events.',
+        dueDate: 'Dec 1, 2026'
+      },
+      {
+        id: 'sh-4',
+        title: 'Sustainable Architecture & Urban Design Seminar',
+        category: 'stage',
+        status: 'scheduled',
+        description: 'Interactive session exploring smart sustainable cities, green building tech, and future urban living in Hyderabad.',
+        dueDate: 'Dec 2, 2026'
+      },
+      {
+        id: 'sh-5',
+        title: 'Official Lanyard & Delegate Kit Co-Branding',
+        category: 'branding',
+        status: 'in_progress',
+        description: 'Official Platinum Partner emblem printed across delegate passes, route directories, and VIP kits.',
+        dueDate: 'Nov 29, 2026'
       }
     ]
   }

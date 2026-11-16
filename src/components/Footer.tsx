@@ -227,6 +227,48 @@ export const Footer: React.FC<FooterProps> = ({
                   />
                   <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Vencorpia</span>
                 </a>
+
+                <a
+                  href="https://sanvihomes.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Sanvi Homes — Premium Gated Communities & Living Spaces"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    textDecoration: 'none',
+                    color: '#F3F0EA',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.45)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ background: '#FFFFFF', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                    <img
+                      src="/sanvi_homes_logo.png"
+                      alt="Sanvi Homes"
+                      style={{
+                        height: '16px',
+                        width: 'auto',
+                        objectFit: 'contain'
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Sanvi Homes</span>
+                </a>
               </div>
             </div>
 

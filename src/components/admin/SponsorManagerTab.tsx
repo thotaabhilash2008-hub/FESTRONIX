@@ -627,6 +627,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { key: 'all', label: 'All Tiers', count: sponsors.length },
+            { key: 'Platinum Partner', label: 'Platinum Partner', count: sponsors.filter(s => s.tier === 'Platinum Partner').length },
             { key: 'Official Event Partner', label: 'Official Event Partner', count: sponsors.filter(s => s.tier === 'Official Event Partner').length },
             { key: 'Official Tech Partner', label: 'Official Tech Partner', count: sponsors.filter(s => s.tier === 'Official Tech Partner').length },
             { key: 'Gold Sponsor', label: 'Gold Sponsor', count: sponsors.filter(s => s.tier === 'Gold Sponsor').length }

@@ -246,6 +246,43 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="navbar-partner-img-vencorpia"
               />
             </a>
+
+            {/* Sanvi Homes */}
+            <a
+              href="https://sanvihomes.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Sanvi Homes — Platinum Partner"
+              className="navbar-partner-badge"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '3px 6px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                transition: 'all 0.2s ease',
+                textDecoration: 'none'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <div style={{ background: '#FFFFFF', padding: '1px 5px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                <img
+                  src="/sanvi_homes_logo.png"
+                  alt="Sanvi Homes"
+                  style={{ height: '14px', width: 'auto', objectFit: 'contain' }}
+                />
+              </div>
+            </a>
           </div>
         </div>
 
@@ -699,7 +736,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   Official Event Partners
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                   <a
                     href="https://connectclub.in"
                     target="_blank"
@@ -713,7 +750,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       background: 'rgba(10, 13, 20, 0.85)',
                       border: '1px solid rgba(199, 203, 212, 0.16)',
                       borderRadius: '8px',
-                      padding: '10px 6px',
+                      padding: '10px 4px',
                       textDecoration: 'none',
                       color: '#F3F0EA'
                     }}
@@ -721,10 +758,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <img
                       src="/connect_club_transparent.png"
                       alt="Connect Club"
-                      style={{ height: '24px', width: 'auto', objectFit: 'contain' }}
+                      style={{ height: '22px', width: 'auto', objectFit: 'contain' }}
                     />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Connect Club</span>
-                    <span style={{ fontSize: '0.6rem', color: '#94A3B8' }}>Student Partner</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textAlign: 'center' }}>Connect Club</span>
+                    <span style={{ fontSize: '0.58rem', color: '#94A3B8' }}>Student Partner</span>
                   </a>
                   <a
                     href="https://vencorpia.com"
@@ -739,7 +776,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       background: 'rgba(10, 13, 20, 0.85)',
                       border: '1px solid rgba(199, 203, 212, 0.16)',
                       borderRadius: '8px',
-                      padding: '10px 6px',
+                      padding: '10px 4px',
                       textDecoration: 'none',
                       color: '#F3F0EA'
                     }}
@@ -747,10 +784,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <img
                       src="/vencorpia_transparent.png"
                       alt="Vencorpia"
-                      style={{ height: '22px', width: 'auto', objectFit: 'contain' }}
+                      style={{ height: '20px', width: 'auto', objectFit: 'contain' }}
                     />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Vencorpia</span>
-                    <span style={{ fontSize: '0.6rem', color: '#94A3B8' }}>Tech Partner</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textAlign: 'center' }}>Vencorpia</span>
+                    <span style={{ fontSize: '0.58rem', color: '#94A3B8' }}>Tech Partner</span>
+                  </a>
+                  <a
+                    href="https://sanvihomes.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      background: 'rgba(10, 13, 20, 0.85)',
+                      border: '1px solid rgba(199, 203, 212, 0.16)',
+                      borderRadius: '8px',
+                      padding: '10px 4px',
+                      textDecoration: 'none',
+                      color: '#F3F0EA'
+                    }}
+                  >
+                    <div style={{ background: '#FFFFFF', padding: '1px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                      <img
+                        src="/sanvi_homes_logo.png"
+                        alt="Sanvi Homes"
+                        style={{ height: '14px', width: 'auto', objectFit: 'contain' }}
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textAlign: 'center' }}>Sanvi Homes</span>
+                    <span style={{ fontSize: '0.58rem', color: '#C084FC' }}>Platinum</span>
                   </a>
                 </div>
               </div>

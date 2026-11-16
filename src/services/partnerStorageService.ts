@@ -47,6 +47,7 @@ export class PartnerStorageService {
   }
 
   private static fromRow(row: any): SponsorProfile {
+    const fallbackProfile = SPONSOR_PROFILES.find(s => s.id === row.id);
     return {
       id: row.id,
       companyName: row.company_name,
@@ -65,8 +66,12 @@ export class PartnerStorageService {
       stallNumber: row.stall_number,
       mouStatus: row.mou_status,
       invoiceStatus: row.invoice_status,
-      metrics: row.metrics || SPONSOR_PROFILES[0].metrics,
-      deliverables: Array.isArray(row.deliverables) ? row.deliverables : []
+      metrics: row.metrics || fallbackProfile?.metrics || SPONSOR_PROFILES[0].metrics,
+      deliverables: Array.isArray(row.deliverables) && row.deliverables.length > 0 ? row.deliverables : (fallbackProfile?.deliverables || []),
+      about: row.about || fallbackProfile?.about,
+      headquarters: row.headquarters || fallbackProfile?.headquarters,
+      awardHighlight: row.award_highlight || fallbackProfile?.awardHighlight,
+      keyProjects: row.key_projects || fallbackProfile?.keyProjects
     };
   }
 
@@ -110,19 +115,22 @@ export class PartnerStorageService {
   }
   static getSponsors(): SponsorProfile[] {
     if (typeof window === 'undefined') return SPONSOR_PROFILES;
-    const PURGE_FLAG = 'festronix_sponsors_demo_purged_v1';
+    const PURGE_FLAG = 'festronix_sponsors_demo_purged_v2';
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          if (localStorage.getItem(PURGE_FLAG) !== '1') {
-            const cleaned = parsed.filter((s: any) => s && s.id !== 'cybercore');
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+          const cleaned = parsed.filter((s: any) => s && s.id !== 'cybercore');
+          const existingIds = new Set(cleaned.map((s: any) => s?.id));
+          const missingDefaults = SPONSOR_PROFILES.filter(s => !existingIds.has(s.id));
+          if (missingDefaults.length > 0 || localStorage.getItem(PURGE_FLAG) !== '1') {
+            const merged = [...cleaned, ...missingDefaults];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
             localStorage.setItem(PURGE_FLAG, '1');
-            return cleaned;
+            return merged;
           }
-          return parsed;
+          return cleaned;
         }
       }
     } catch (e) {
