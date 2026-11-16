@@ -115,22 +115,39 @@ export class PartnerStorageService {
   }
   static getSponsors(): SponsorProfile[] {
     if (typeof window === 'undefined') return SPONSOR_PROFILES;
-    const PURGE_FLAG = 'festronix_sponsors_demo_purged_v2';
+    const PURGE_FLAG = 'festronix_sponsors_demo_purged_v3';
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const cleaned = parsed.filter((s: any) => s && s.id !== 'cybercore');
-          const existingIds = new Set(cleaned.map((s: any) => s?.id));
+          const isStale = localStorage.getItem(PURGE_FLAG) !== '1';
+          const updated = cleaned.map((s: any) => {
+            const def = SPONSOR_PROFILES.find(d => d.id === s.id);
+            if (def && isStale) {
+              return {
+                ...s,
+                pocName: def.pocName,
+                pocContact: def.pocContact,
+                pocRole: def.pocRole || s.pocRole,
+                about: def.about || s.about,
+                headquarters: def.headquarters || s.headquarters,
+                keyProjects: def.keyProjects || s.keyProjects,
+                awardHighlight: def.awardHighlight || s.awardHighlight
+              };
+            }
+            return s;
+          });
+          const existingIds = new Set(updated.map((s: any) => s?.id));
           const missingDefaults = SPONSOR_PROFILES.filter(s => !existingIds.has(s.id));
-          if (missingDefaults.length > 0 || localStorage.getItem(PURGE_FLAG) !== '1') {
-            const merged = [...cleaned, ...missingDefaults];
+          if (missingDefaults.length > 0 || isStale) {
+            const merged = [...updated, ...missingDefaults];
             localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
             localStorage.setItem(PURGE_FLAG, '1');
             return merged;
           }
-          return cleaned;
+          return updated;
         }
       }
     } catch (e) {

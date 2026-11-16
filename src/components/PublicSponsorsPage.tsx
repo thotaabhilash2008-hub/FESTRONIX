@@ -444,7 +444,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
                 </a>
 
                 <a
-                  href="tel:+919170705999"
+                  href="tel:+917670947089"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -469,7 +469,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
                   }}
                 >
                   <PhoneCall size={14} color="#A855F7" />
-                  <span>Call +91 91707 05999</span>
+                  <span>Call +91 76709 47089</span>
                 </a>
               </div>
             </div>
@@ -517,6 +517,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
               {/* Office Details */}
               <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '12px', fontSize: '0.76rem', color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div><strong style={{ color: '#E2E8F0' }}>Corporate HQ:</strong> The District, 9th Floor, Financial District, Puppalguda, Hyderabad – 500032</div>
+                <div><strong style={{ color: '#E2E8F0' }}>Partner POC:</strong> Himavardhan Reddy (<a href="tel:+917670947089" style={{ color: '#C084FC', textDecoration: 'none' }}>+91 76709 47089</a>)</div>
                 <div><strong style={{ color: '#E2E8F0' }}>Contact Email:</strong> info@sanvihomes.com</div>
               </div>
             </div>
@@ -681,6 +682,13 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
                     <Users size={16} color="#34D399" style={{ flexShrink: 0 }} />
                     <span>Audience Reach: <strong style={{ color: '#34D399' }}>{sponsor.metrics.estimatedReach}</strong></span>
                   </div>
+
+                  {sponsor.pocName && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.82rem', color: '#C7CBD4' }}>
+                      <PhoneCall size={16} color="#38BDF8" style={{ flexShrink: 0 }} />
+                      <span>Point of Contact: <strong style={{ color: '#FFFFFF' }}>{sponsor.pocName}</strong> ({sponsor.pocContact})</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Key Projects if present */}
