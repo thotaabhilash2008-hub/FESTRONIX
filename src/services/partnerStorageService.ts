@@ -115,7 +115,7 @@ export class PartnerStorageService {
   }
   static getSponsors(): SponsorProfile[] {
     if (typeof window === 'undefined') return SPONSOR_PROFILES;
-    const PURGE_FLAG = 'festronix_sponsors_demo_purged_v3';
+    const PURGE_FLAG = 'festronix_sponsors_demo_purged_v4';
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
