@@ -6123,8 +6123,16 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Event Date</label>
-                  <input type="text" value={editingEvent.date} onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Event Day</label>
+                  <select value={editingEvent.date} onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box', colorScheme: 'dark' }}>
+                    <option value="">Select event day</option>
+                    <option value="Dec 1, 2026">Dec 1 (Day 1)</option>
+                    <option value="Dec 2, 2026">Dec 2 (Day 2)</option>
+                    <option value="Dec 1-2, 2026">Dec 1 &amp; Dec 2 (Both days)</option>
+                    {editingEvent.date && !['Dec 1, 2026', 'Dec 2, 2026', 'Dec 1-2, 2026'].includes(editingEvent.date) && (
+                      <option value={editingEvent.date}>Current: {editingEvent.date}</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Registration Deadline</label>
