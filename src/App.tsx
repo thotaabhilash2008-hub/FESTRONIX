@@ -512,6 +512,7 @@ export const App: React.FC = () => {
     return (
       <DigitalPassModal
         registrations={registrations}
+        events={events}
         currentUser={currentUser}
         activePassId={activePassLookup}
         pageMode
@@ -681,6 +682,7 @@ export const App: React.FC = () => {
       {isPassesModalOpen && (
         <DigitalPassModal
           registrations={registrations}
+          events={events}
           currentUser={currentUser}
           activePassId={activePassId}
           onClose={() => {

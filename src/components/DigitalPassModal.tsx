@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag } from 'lucide-react';
-import { Registration, Team, User as UserType } from '../types/festronix';
+import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag, MessageCircle } from 'lucide-react';
+import { FestEvent, Registration, Team, User as UserType } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { EmailService } from '../services/emailService';
 
 interface DigitalPassModalProps {
   registrations: Registration[];
+  events: FestEvent[];
   currentUser?: UserType | null;
   activePassId?: string;
   pageMode?: boolean;
@@ -35,6 +36,7 @@ const mergePasses = (primary: Registration[], secondary: Registration[]): Regist
 
 export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   registrations: initialRegistrations,
+  events,
   currentUser,
   activePassId,
   pageMode = false,
@@ -356,11 +358,24 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   const reg = activeList[selectedIndex] || activeList[0];
+  const associatedEvent = reg
+    ? events.find(event => event.id === reg.eventId || event.slug === reg.eventId)
+    : undefined;
+  const whatsappGroupUrl = associatedEvent?.whatsappGroupLink?.trim();
+  const hasSecureWhatsAppGroupUrl = (() => {
+    if (!whatsappGroupUrl) return false;
+    try {
+      return new URL(whatsappGroupUrl).protocol === 'https:';
+    } catch {
+      return false;
+    }
+  })();
   const teamSummary = reg?.teamCode ? teamDashboards[normalizeTeamCode(reg.teamCode)] : undefined;
   const roster = teamSummary?.members?.length ? teamSummary.members : (reg?.teammates || []);
   const teamMemberCount = teamSummary?.totalMemberCount || (teamSummary ? 1 + (teamSummary.memberCount || roster.length) : undefined);
   const teamPaymentStatus = teamSummary?.paymentStatus || reg?.paymentStatus;
   const effectivePaymentStatus = teamPaymentStatus || reg?.paymentStatus;
+  const showWhatsAppGroupLink = effectivePaymentStatus === 'verified' && Boolean(reg?.qrToken) && hasSecureWhatsAppGroupUrl;
   const isTeamLeader = Boolean(
     teamSummary?.isCurrentUserLeader ||
     (currentUser && teamSummary?.leaderRoll && teamSummary.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase())
@@ -650,6 +665,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
         {/* Digital Ticket Container */}
         {reg ? (
+          <>
           <div
             id="festronix-pass-card"
             className="ticket-wrapper"
@@ -1003,6 +1019,50 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               )}
             </div>
           </div>
+          {showWhatsAppGroupLink && whatsappGroupUrl && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '14px',
+                flexWrap: 'wrap',
+                marginTop: '12px',
+                padding: '14px 16px',
+                borderRadius: '12px',
+                background: 'rgba(37, 211, 102, 0.08)',
+                border: '1px solid rgba(37, 211, 102, 0.35)'
+              }}
+            >
+              <div>
+                <div style={{ color: '#FFFFFF', fontWeight: 700 }}>Join the event WhatsApp group</div>
+                <div style={{ color: '#A8B3C2', fontSize: '0.78rem', marginTop: '3px' }}>
+                  Payment verified and pass generated.
+                </div>
+              </div>
+              <a
+                href={whatsappGroupUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Join the ${associatedEvent?.title || reg.eventTitle} WhatsApp group`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: '#25D366',
+                  color: '#06210F',
+                  fontWeight: 800,
+                  textDecoration: 'none'
+                }}
+              >
+                <MessageCircle size={18} />
+                Join WhatsApp Group
+              </a>
+            </div>
+          )}
+          </>
         ) : (
           <div className="pass-empty-state">
             <Ticket size={32} />

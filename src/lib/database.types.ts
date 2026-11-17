@@ -218,6 +218,7 @@ export interface Database {
           status: 'upcoming' | 'open' | 'full' | 'closed' | 'completed' | 'pending_approval';
           banner_gradient: string;
           payment_instructions: string | null;
+          whatsapp_group_link: string | null;
           faqs: Json;
           approval_status: 'approved' | 'pending' | 'rejected';
           is_deleted: boolean;
@@ -255,6 +256,7 @@ export interface Database {
           status?: 'upcoming' | 'open' | 'full' | 'closed' | 'completed' | 'pending_approval';
           banner_gradient?: string;
           payment_instructions?: string | null;
+          whatsapp_group_link?: string | null;
           faqs?: Json;
           approval_status?: 'approved' | 'pending' | 'rejected';
           is_deleted?: boolean;
@@ -292,6 +294,7 @@ export interface Database {
           status?: 'upcoming' | 'open' | 'full' | 'closed' | 'completed' | 'pending_approval';
           banner_gradient?: string;
           payment_instructions?: string | null;
+          whatsapp_group_link?: string | null;
           faqs?: Json;
           approval_status?: 'approved' | 'pending' | 'rejected';
           is_deleted?: boolean;

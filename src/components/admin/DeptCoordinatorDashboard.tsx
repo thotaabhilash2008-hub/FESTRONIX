@@ -252,6 +252,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [newEventDesc, setNewEventDesc] = useState('');
   const [newEventRules, setNewEventRules] = useState('Valid college ID required\nReport 15 minutes before start');
   const [newEventPaymentInstructions, setNewEventPaymentInstructions] = useState('Pay via Festronix Central UPI QR or spot desk');
+  const [newEventWhatsAppGroupLink, setNewEventWhatsAppGroupLink] = useState('');
   const [newEventCoordinatorName, setNewEventCoordinatorName] = useState(adminUser.fullName);
   const [newEventCoordinatorPhone, setNewEventCoordinatorPhone] = useState(adminUser.phone || '+91 98480 12345');
   const [newEventCoordinatorEmail, setNewEventCoordinatorEmail] = useState(adminUser.email);
@@ -806,6 +807,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       status: 'pending_approval',
       approvalStatus: 'pending',
       paymentInstructions: paymentInstructions || 'Pay via Festronix Central UPI or on-venue spot desk',
+      whatsappGroupLink: newEventWhatsAppGroupLink.trim() || undefined,
       bannerGradient: 'linear-gradient(135deg, #283B78 0%, #101A35 100%)'
     };
 
@@ -816,6 +818,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       setEventCreateError('');
       setNewEventTitle('');
       setNewEventDesc('');
+      setNewEventWhatsAppGroupLink('');
       await refreshDeptData();
       confetti({ particleCount: 60, spread: 50 });
     } catch (error) {
@@ -4140,6 +4143,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               </div>
 
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>WhatsApp Group Link</label>
+                <input type="url" value={editingEvent.whatsappGroupLink || ''} onChange={e => setEditingEvent({ ...editingEvent, whatsappGroupLink: e.target.value })} placeholder="https://chat.whatsapp.com/..." maxLength={2048} style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }} />
+              </div>
+
               {/* Coordinator Contact */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
@@ -4424,6 +4432,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>WhatsApp Group Link</label>
+                <input type="url" value={newEventWhatsAppGroupLink} onChange={e => setNewEventWhatsAppGroupLink(e.target.value)} placeholder="https://chat.whatsapp.com/..." maxLength={2048} style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }} />
               </div>
 
               {/* Assigned Coordinator */}

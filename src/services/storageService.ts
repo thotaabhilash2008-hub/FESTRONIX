@@ -76,6 +76,7 @@ function eventFromDb(row: EventRow): FestEvent {
     status: row.status,
     bannerGradient: row.banner_gradient,
     paymentInstructions: row.payment_instructions || undefined,
+    whatsappGroupLink: row.whatsapp_group_link || undefined,
     faqs: Array.isArray(row.faqs) ? row.faqs as { question: string; answer: string }[] : [],
     approvalStatus: row.approval_status
   };
@@ -113,6 +114,7 @@ function eventToDb(evt: FestEvent) {
     status: evt.status,
     banner_gradient: evt.bannerGradient || 'linear-gradient(135deg, #142042 0%, #283B78 50%, #789593 100%)',
     payment_instructions: evt.paymentInstructions || null,
+    whatsapp_group_link: evt.whatsappGroupLink?.trim() || null,
     faqs: (evt.faqs || []) as any,
     approval_status: evt.approvalStatus || 'approved'
   };

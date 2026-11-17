@@ -67,6 +67,7 @@ export interface FestEvent {
   status: EventState;
   bannerGradient?: string;
   paymentInstructions?: string; // FR-EVT-05
+  whatsappGroupLink?: string;
   faqs?: { question: string; answer: string }[]; // FR-EVT-07
   approvalStatus?: 'approved' | 'pending' | 'rejected'; // FR-EVT-08
 }

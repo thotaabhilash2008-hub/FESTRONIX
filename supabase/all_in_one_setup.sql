@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS public.events (
   coordinator_name TEXT DEFAULT '',
   coordinator_phone TEXT DEFAULT '',
   coordinator_email TEXT DEFAULT '',
+  whatsapp_group_link TEXT,
   status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN (
     'upcoming', 'open', 'full', 'closed', 'completed'
   )),

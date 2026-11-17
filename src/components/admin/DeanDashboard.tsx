@@ -169,6 +169,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [evtDescription, setEvtDescription] = useState('');
   const [evtRules, setEvtRules] = useState('• Valid college ID card required at entry.\n• Decision of event judges is final.\n• Malpractice leads to immediate disqualification.');
   const [evtPaymentInstructions, setEvtPaymentInstructions] = useState('Scan the SAC official QR code, pay the entry fee, and upload screenshot with UTR number.');
+  const [evtWhatsAppGroupLink, setEvtWhatsAppGroupLink] = useState('');
   const [evtCoordinatorChoice, setEvtCoordinatorChoice] = useState('custom');
   const [evtCoordinatorName, setEvtCoordinatorName] = useState('');
   const [evtCoordinatorPhone, setEvtCoordinatorPhone] = useState('');
@@ -724,7 +725,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         second: '₹5,000 + Certificate',
         third: '₹2,500 + Certificate'
       },
-      paymentInstructions: !evtIsFree ? evtPaymentInstructions.trim() : undefined
+      paymentInstructions: !evtIsFree ? evtPaymentInstructions.trim() : undefined,
+      whatsappGroupLink: evtWhatsAppGroupLink.trim() || undefined
     };
 
     setIsCreatingEvent(true);
@@ -740,6 +742,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       setEvtClusterCode('');
       setEvtDescription('');
       setEventCreateError('');
+      setEvtWhatsAppGroupLink('');
       refreshAllData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'The event could not be saved.';
@@ -5743,6 +5746,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               </div>
 
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>WhatsApp Group Link</label>
+                <input type="url" value={evtWhatsAppGroupLink} onChange={e => setEvtWhatsAppGroupLink(e.target.value)} placeholder="https://chat.whatsapp.com/..." maxLength={2048} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+              </div>
+
               {/* Venue & Schedule */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                 <div>
@@ -6141,6 +6149,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>WhatsApp Group Link</label>
+                <input type="url" value={editingEvent.whatsappGroupLink || ''} onChange={e => setEditingEvent({ ...editingEvent, whatsappGroupLink: e.target.value })} placeholder="https://chat.whatsapp.com/..." maxLength={2048} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+              </div>
+
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Event Slug</label>
                   <input type="text" value={editingEvent.slug} onChange={e => setEditingEvent({ ...editingEvent, slug: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
