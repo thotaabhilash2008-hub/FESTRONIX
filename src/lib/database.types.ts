@@ -615,6 +615,10 @@ export interface Database {
         Args: { p_event_id: string };
         Returns: Json;
       };
+      hard_delete_event: {
+        Args: { p_event_id: string };
+        Returns: Json;
+      };
       get_user_role: {
         Args: {
           p_user_id: string;

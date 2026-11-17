@@ -636,7 +636,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
   // Delete Event Handler
   const handleDeleteEvent = async (event: FestEvent) => {
-    const confirmed = window.confirm(`Are you sure you want to delete event "${event.title}"? This cannot be undone.`);
+    const confirmed = window.confirm(`Permanently delete "${event.title}"? Its registrations, tickets, and event assignments will also be deleted. Events with Razorpay order history must be reconciled before they can be removed. This cannot be undone.`);
     if (confirmed) {
       try {
         await StorageService.deleteEvent(event.id, event.slug);

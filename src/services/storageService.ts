@@ -396,15 +396,20 @@ export class StorageService {
   static getEvents(): FestEvent[] {
     this.purgeLegacyDemoData();
     const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
-    if (raw) {
+    if (raw !== null) {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       } catch {}
     }
-    // Always fall back to INITIAL_EVENTS so events are never 0
+
+    // Supabase is authoritative in connected environments. Never replace an
+    // empty or unavailable live event list with demo fixtures.
+    if (isSupabaseConfigured()) return [];
+
+    // Seed sample events only for standalone local development.
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS));
     return [...INITIAL_EVENTS];
   }
@@ -425,15 +430,13 @@ export class StorageService {
           .eq('is_deleted', false)
           .order('title', { ascending: true });
         if (error) {
-          console.warn('Unable to load events from Supabase, using defaults:', error.message);
+          console.warn('Unable to load events from Supabase, using the local cache:', error.message);
           return this.getEvents();
         }
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map(eventFromDb);
-          this.saveEvents(mapped);
-          window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: mapped }));
-          return mapped;
-        }
+        const mapped = Array.isArray(data) ? data.map(eventFromDb) : [];
+        this.saveEvents(mapped);
+        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: mapped }));
+        return mapped;
       } catch (err) {
         console.warn('Exception fetching events from Supabase:', err);
       }
@@ -597,22 +600,23 @@ export class StorageService {
 
   static async deleteEvent(eventId: string, slug?: string): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      try {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
-        let eventUuid = eventId;
-        if (!isUuid) {
-          const { data: event } = await supabase
-            .from('events').select('id').eq('slug', slug || eventId).maybeSingle();
-          if (event) eventUuid = event.id;
-        }
-        const { error } = await supabase.rpc('soft_delete_event', { p_event_id: eventUuid });
-        if (error) {
-          console.warn('Supabase deleteEvent warning, deleted locally:', error.message);
-        }
-      } catch (err) {
-        console.warn('Supabase deleteEvent exception, deleted locally:', err);
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+      let eventUuid = eventId;
+      if (!isUuid) {
+        const { data: event, error: lookupError } = await supabase
+          .from('events').select('id').eq('slug', slug || eventId).maybeSingle();
+        if (lookupError) throw new Error(`Unable to find the event in the database: ${lookupError.message}`);
+        if (!event) throw new Error('This event no longer exists in the database. Refresh the event list.');
+        eventUuid = event.id;
       }
-      const events = this.getEvents().filter(e => e.id !== eventId && e.slug !== (slug || eventId));
+
+      const { error } = await supabase.rpc('hard_delete_event', { p_event_id: eventUuid });
+      if (error) {
+        throw new Error(`Unable to permanently delete the event: ${error.message}`);
+      }
+
+      const eventKeys = new Set([eventId, eventUuid, slug || eventId]);
+      const events = this.getEvents().filter(e => !eventKeys.has(e.id) && !eventKeys.has(e.slug));
       this.saveEvents(events);
       window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
       return true;

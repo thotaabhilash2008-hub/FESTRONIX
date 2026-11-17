@@ -210,6 +210,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Edit Event Modal State (8.1 • Edit event details, rules, team limits, fee, capacity, deadline, schedule and venue)
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [eventCreateError, setEventCreateError] = useState('');
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -664,6 +665,25 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       confetti({ particleCount: 50, spread: 45 });
     } catch (error) {
       window.alert((error as Error).message || 'Unable to save event changes.');
+    }
+  };
+
+  const handleDeleteDepartmentEvent = async (event: FestEvent) => {
+    if (!isDeptChief) {
+      window.alert('Only the department coordinator can delete department events.');
+      return;
+    }
+    const confirmed = window.confirm(`Permanently delete "${event.title}"? Its registrations, tickets, and event-coordinator assignments will also be deleted. Events with Razorpay order history must be reconciled before they can be removed. This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingEventId(event.id);
+    try {
+      await StorageService.deleteEvent(event.id, event.slug);
+      await refreshDeptData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to permanently delete the event.');
+    } finally {
+      setDeletingEventId(null);
     }
   };
 
@@ -2108,6 +2128,30 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                             <Edit3 size={13} />
                             <span>Edit Event</span>
                           </button>
+                          {isDeptChief && (
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteDepartmentEvent(event)}
+                              disabled={deletingEventId === event.id}
+                              aria-label={`Permanently delete ${event.title}`}
+                              title="Permanently delete event"
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                borderRadius: '6px',
+                                padding: '6px 8px',
+                                color: '#FCA5A5',
+                                cursor: deletingEventId === event.id ? 'not-allowed' : 'pointer',
+                                opacity: deletingEventId === event.id ? 0.6 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Trash2 size={13} />
+                              <span>{deletingEventId === event.id ? 'Deleting…' : 'Delete'}</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
