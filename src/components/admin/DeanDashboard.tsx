@@ -6333,15 +6333,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>Prize Details</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {(['first', 'second', 'third', 'special'] as const).map(prize => (
-                    <input key={prize} type="text" value={editingEvent.prizes[prize] || ''} onChange={e => setEditingEvent({ ...editingEvent, prizes: { ...editingEvent.prizes, [prize]: e.target.value } })} placeholder={`${prize.charAt(0).toUpperCase() + prize.slice(1)} prize`} style={{ padding: '9px 10px', borderRadius: '7px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', fontSize: '0.8rem' }} />
-                  ))}
-                </div>
-              </div>
-
-              <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5' }}>Assigned Coordinator</label>
                   <button
