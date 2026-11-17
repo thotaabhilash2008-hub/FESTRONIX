@@ -249,7 +249,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [newEventVenue, setNewEventVenue] = useState('Auditorium Block A');
   const [newEventDate, setNewEventDate] = useState('April 24, 2026');
   const [newEventTime, setNewEventTime] = useState('10:00 AM');
-  const [newEventDeadline, setNewEventDeadline] = useState('April 22, 2026');
   const [newEventDesc, setNewEventDesc] = useState('');
   const [newEventRules, setNewEventRules] = useState('Valid college ID required\nReport 15 minutes before start');
   const [newEventPaymentInstructions, setNewEventPaymentInstructions] = useState('Pay via Festronix Central UPI QR or spot desk');
@@ -746,16 +745,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       setEventCreateError('Enter a valid coordinator email address.');
       return;
     }
-    if (!newEventDate.trim() || Number.isNaN(Date.parse(newEventDate))) {
-      setEventCreateError('Choose a valid event date.');
-      return;
-    }
-    if (!newEventDeadline.trim() || Number.isNaN(Date.parse(newEventDeadline))) {
-      setEventCreateError('Choose a valid registration deadline.');
-      return;
-    }
-    if (Date.parse(newEventDeadline) > Date.parse(newEventDate)) {
-      setEventCreateError('Registration deadline cannot be after the event date.');
+    if (!['Dec 1, 2026', 'Dec 2, 2026', 'Dec 1-2, 2026'].includes(newEventDate)) {
+      setEventCreateError('Select an event day.');
       return;
     }
 
@@ -799,7 +790,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       fee: Number(newEventFee),
       capacity: Number(newEventCapacity),
       registeredCount: 0,
-      deadline: newEventDeadline || 'April 22, 2026',
+      deadline: '',
       date: newEventDate,
       time: newEventTime,
       venue,
@@ -4380,40 +4371,33 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               </div>
 
-              {/* Capacity Slots & Deadline */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Capacity Slots</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={newEventCapacity}
-                    onChange={e => setNewEventCapacity(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Registration Deadline</label>
-                  <input
-                    type="text"
-                    value={newEventDeadline}
-                    onChange={e => setNewEventDeadline(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
-                  />
-                </div>
+              {/* Capacity Slots */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Capacity Slots</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={newEventCapacity}
+                  onChange={e => setNewEventCapacity(Number(e.target.value))}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
+                />
               </div>
 
               {/* Schedule & Venue */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Date</label>
-                  <input
-                    type="text"
+                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Event Day</label>
+                  <select
                     value={newEventDate}
                     onChange={e => setNewEventDate(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
-                  />
+                    required
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box', colorScheme: 'dark' }}
+                  >
+                    <option value="">Select event day</option>
+                    <option value="Dec 1, 2026">Dec 1 (Day 1)</option>
+                    <option value="Dec 2, 2026">Dec 2 (Day 2)</option>
+                    <option value="Dec 1-2, 2026">Dec 1 &amp; Dec 2 (Both days)</option>
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Time</label>

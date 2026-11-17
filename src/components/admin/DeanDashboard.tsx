@@ -163,7 +163,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [evtIsFree, setEvtIsFree] = useState(true);
   const [evtFee, setEvtFee] = useState(0);
   const [evtCapacity, setEvtCapacity] = useState(100);
-  const [evtDeadline, setEvtDeadline] = useState('2026-03-26');
   const [evtDate, setEvtDate] = useState('2026-03-27');
   const [evtTime, setEvtTime] = useState('10:00 AM - 01:00 PM');
   const [evtVenue, setEvtVenue] = useState('Main Auditorium');
@@ -708,7 +707,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       fee: evtIsFree ? 0 : Math.max(0, Number(evtFee) || 0),
       capacity: Math.max(5, Math.min(500, Number(evtCapacity) || 100)),
       registeredCount: 0,
-      deadline: evtDeadline,
+      deadline: '',
       date: evtDate,
       time: evtTime.trim(),
       venue: evtVenue.trim(),
@@ -5686,8 +5685,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
-              {/* Fee, Capacity & Deadline (FR-EVT-05, FR-EVT-06) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+              {/* Fee & Capacity (FR-EVT-05, FR-EVT-06) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
                     Entry Fee (₹ INR)
@@ -5742,37 +5741,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   />
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Registration Deadline *
-                  </label>
-                  <input
-                    type="date"
-                    value={evtDeadline}
-                    onChange={e => setEvtDeadline(e.target.value)}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(16, 26, 53, 0.9)',
-                      border: '1px solid rgba(220, 227, 229, 0.25)',
-                      color: '#FFFFFF',
-                      fontSize: '0.84rem',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
               </div>
 
               {/* Venue & Schedule */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Event Date *
+                    Event Day *
                   </label>
-                  <input
-                    type="date"
+                  <select
                     value={evtDate}
                     onChange={e => setEvtDate(e.target.value)}
                     required
@@ -5784,9 +5761,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       border: '1px solid rgba(220, 227, 229, 0.25)',
                       color: '#FFFFFF',
                       fontSize: '0.84rem',
-                      boxSizing: 'border-box'
+                      boxSizing: 'border-box',
+                      colorScheme: 'dark'
                     }}
-                  />
+                  >
+                    <option value="">Select event day</option>
+                    <option value="Dec 1, 2026">Dec 1 (Day 1)</option>
+                    <option value="Dec 2, 2026">Dec 2 (Day 2)</option>
+                    <option value="Dec 1-2, 2026">Dec 1 &amp; Dec 2 (Both days)</option>
+                  </select>
                 </div>
 
                 <div>
