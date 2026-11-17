@@ -49,7 +49,8 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
     return () => window.removeEventListener('festronix:sponsors-updated', handleUpdate);
   }, []);
 
-  const filteredSponsors = sponsors.filter(s => {
+  const publicSponsors = sponsors.filter(sponsor => sponsor.id !== 'connect_club');
+  const filteredSponsors = publicSponsors.filter(s => {
     if (activeTier === 'all') return true;
     if (activeTier === 'platinum') return s.tier.toLowerCase().includes('platinum');
     if (activeTier === 'gold') return s.tier.toLowerCase().includes('gold');
@@ -58,7 +59,7 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
     return s.tier.toLowerCase().includes(activeTier.toLowerCase());
   });
 
-  const officialSponsors = sponsors.filter(sponsor =>
+  const officialSponsors = publicSponsors.filter(sponsor =>
     ['Title Sponsor', 'Platinum Partner', 'Gold Sponsor', 'Official Event Partner', 'Official Tech Partner']
       .includes(sponsor.tier)
   ).slice(0, 6);
@@ -893,6 +894,25 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
               Includes tier deliverables, stall allocation layouts, and reach telemetry.
             </span>
           </div>
+        </div>
+      </section>
+
+      <section
+        aria-label="Website developer"
+        style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 40px', position: 'relative', zIndex: 10 }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', flexWrap: 'wrap', color: '#94A3B8', fontSize: '0.82rem' }}>
+          <span>Website developed by</span>
+          <a
+            href="https://connectclub.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#FFFFFF', fontWeight: 700, textDecoration: 'none' }}
+          >
+            <img src="/connect_club_transparent.png" alt="" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+            <span>Connect Club</span>
+            <ExternalLink size={13} />
+          </a>
         </div>
       </section>
 
