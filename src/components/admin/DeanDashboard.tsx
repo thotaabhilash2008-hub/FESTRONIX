@@ -6151,7 +6151,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>WhatsApp Group Link</label>
-                <input type="url" value={editingEvent.whatsappGroupLink || ''} onChange={e => setEditingEvent({ ...editingEvent, whatsappGroupLink: e.target.value })} placeholder="https://chat.whatsapp.com/..." maxLength={2048} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="url" value={editingEvent.whatsappGroupLink || ''} onChange={e => setEditingEvent({ ...editingEvent, whatsappGroupLink: e.target.value })} placeholder="https://chat.whatsapp.com/..." maxLength={2048} style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                  <button type="button" disabled={!editingEvent.whatsappGroupLink?.trim()} onClick={() => setEditingEvent({ ...editingEvent, whatsappGroupLink: '' })} style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.2)', color: editingEvent.whatsappGroupLink?.trim() ? '#FCA5A5' : '#738096', cursor: editingEvent.whatsappGroupLink?.trim() ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>Clear link</button>
+                </div>
               </div>
 
                 <div>

@@ -564,33 +564,27 @@ export class StorageService {
 
   static async updateEvent(updatedEvent: FestEvent): Promise<boolean> {
     if (isSupabaseConfigured()) {
-      try {
-        const query = supabase.from('events').update({ ...eventToDb(updatedEvent), updated_at: new Date().toISOString() });
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(updatedEvent.id);
-        const { data, error } = await (isUuid
-          ? query.eq('id', updatedEvent.id)
-          : query.eq('slug', updatedEvent.slug)).select('*').maybeSingle();
+      const query = supabase.from('events').update({ ...eventToDb(updatedEvent), updated_at: new Date().toISOString() });
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(updatedEvent.id);
+      const { data, error } = await (isUuid
+        ? query.eq('id', updatedEvent.id)
+        : query.eq('slug', updatedEvent.slug)).select('*').maybeSingle();
 
-        if (error) {
-          console.warn('Supabase updateEvent warning, applied locally:', error.message);
-          const events = this.getEvents().map(e => (e.id === updatedEvent.id || e.slug === updatedEvent.slug) ? updatedEvent : e);
-          this.saveEvents(events);
-          window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-          return true;
-        }
-
-        const saved = data ? eventFromDb(data) : updatedEvent;
-        const events = this.getEvents().map(e => (e.id === saved.id || e.slug === saved.slug) ? saved : e);
-        this.saveEvents(events);
-        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-        return true;
-      } catch (err: any) {
-        console.warn('Supabase updateEvent exception, applied locally:', err);
-        const events = this.getEvents().map(e => (e.id === updatedEvent.id || e.slug === updatedEvent.slug) ? updatedEvent : e);
-        this.saveEvents(events);
-        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-        return true;
+      if (error) throw new Error(`Unable to save event changes: ${error.message}`);
+      if (!data) {
+        throw new Error('The database did not update this event. Check that your account can manage it, then refresh and try again.');
       }
+
+      const saved = eventFromDb(data);
+      const expectedWhatsAppLink = updatedEvent.whatsappGroupLink?.trim() || undefined;
+      if ((saved.whatsappGroupLink?.trim() || undefined) !== expectedWhatsAppLink) {
+        throw new Error('The database did not save the WhatsApp group link. Refresh the event and try again.');
+      }
+
+      const events = this.getEvents().map(e => (e.id === saved.id || e.slug === saved.slug) ? saved : e);
+      this.saveEvents(events);
+      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
+      return true;
     }
 
     this.canUseLocalDevelopmentMode('Updating events');
