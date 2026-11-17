@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Shield, Lock, Eye, Server, UserCheck, HelpCircle, FileText, ArrowRight } from 'lucide-react';
 import { LegalHeader } from './LegalHeader';
+import { PUBLIC_CONTACTS } from '../../config/publicContact';
 
 interface PrivacyPolicyPageProps {
   onBackToHome: () => void;
@@ -174,8 +175,9 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
             </div>
             <div style={{ color: '#94A3B8', fontSize: '0.88rem', lineHeight: 1.7 }}>
               Vardhaman College of Engineering, Kacharam, Shamshabad, Hyderabad, Telangana 501218<br />
-              Dean SAC: <strong>Md. Asif</strong> • Email: <a href="mailto:sac@vardhaman.org" style={{ color: '#38BDF8' }}>sac@vardhaman.org</a><br />
-              Technical Queries: <a href="mailto:festronix@vardhaman.org" style={{ color: '#38BDF8' }}>festronix@vardhaman.org</a>
+              SAC Contact: <strong>{PUBLIC_CONTACTS.sac.name}</strong> • Email: <a href={`mailto:${PUBLIC_CONTACTS.sac.email}`} style={{ color: '#38BDF8' }}>{PUBLIC_CONTACTS.sac.email}</a> • {PUBLIC_CONTACTS.sac.phone}<br />
+              Associate Dean, Student Affairs: <strong>{PUBLIC_CONTACTS.associateDean.name}</strong> • <a href={`mailto:${PUBLIC_CONTACTS.associateDean.email}`} style={{ color: '#38BDF8' }}>{PUBLIC_CONTACTS.associateDean.email}</a> • {PUBLIC_CONTACTS.associateDean.phone}<br />
+              Institution: <a href={`mailto:${PUBLIC_CONTACTS.institution.email}`} style={{ color: '#38BDF8' }}>{PUBLIC_CONTACTS.institution.email}</a> • {PUBLIC_CONTACTS.institution.phone}
             </div>
           </div>
         </section>

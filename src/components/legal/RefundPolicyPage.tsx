@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { AlertCircle, Ban, RefreshCw, HelpCircle, CheckCircle, ArrowRight, ShieldCheck, CreditCard } from 'lucide-react';
 import { LegalHeader } from './LegalHeader';
+import { PUBLIC_CONTACTS } from '../../config/publicContact';
 
 interface RefundPolicyPageProps {
   onBackToHome: () => void;
@@ -193,7 +194,7 @@ export const RefundPolicyPage: React.FC<RefundPolicyPageProps> = ({
           </div>
           <div style={{ color: '#94A3B8', fontSize: '0.88rem', lineHeight: 1.7 }}>
             For queries concerning uncredited payment debits or technical errors:<br />
-            Email: <a href="mailto:payments@vardhaman.org" style={{ color: '#38BDF8' }}>payments@vardhaman.org</a> with your Razorpay Payment ID and screenshot.<br />
+            Email: <a href={`mailto:${PUBLIC_CONTACTS.associateDean.email}`} style={{ color: '#38BDF8' }}>{PUBLIC_CONTACTS.associateDean.email}</a> with your Razorpay Payment ID and transaction details. You can also call {PUBLIC_CONTACTS.associateDean.phone}.<br />
             Student Activity Council, Vardhaman College of Engineering, Hyderabad.
           </div>
         </div>

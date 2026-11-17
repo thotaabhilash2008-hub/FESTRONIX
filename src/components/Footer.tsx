@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, MapPin, Phone, Mail, Globe, Shield, Building2 } from 'lucide-react';
+import { PUBLIC_CONTACTS } from '../config/publicContact';
 
 interface FooterProps {
   onOpenAdmin?: () => void;
@@ -58,7 +59,7 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
           <p style={{ color: '#A8B3C2', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: '16px' }}>
             The official national-level technology festival of Vardhaman College of Engineering, Hyderabad.
-            Orchestrated by the Student Activity Council (SAC) under the leadership of Dean SAC Md. Asif.
+            Orchestrated by the Student Activity Council (SAC) at Vardhaman College of Engineering.
           </p>
           <div style={{ fontSize: '0.78rem', color: '#A8B3C2', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <ShieldCheck size={13} color="#BACEBB" />
@@ -110,19 +111,31 @@ export const Footer: React.FC<FooterProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.83rem', color: '#A8B3C2' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldCheck size={14} color="#BACEBB" />
-              <span>Dean, SAC: <strong style={{ color: '#FFFFFF' }}>Md. Asif</strong></span>
+              <span>SAC Contact: <strong style={{ color: '#FFFFFF' }}>{PUBLIC_CONTACTS.sac.name}</strong></span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Phone size={14} color="#BACEBB" />
-              <span>SAC Helpline: +91 98480 11001</span>
+              <a href={`tel:${PUBLIC_CONTACTS.sac.phone.replace(/\s+/g, '')}`} style={{ color: '#A8B3C2', textDecoration: 'none' }}>
+                SAC Helpline: {PUBLIC_CONTACTS.sac.phone}
+              </a>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={14} color="#789593" />
-              <span>festronix.support@vardhaman.org</span>
+              <a href={`mailto:${PUBLIC_CONTACTS.sac.email}`} style={{ color: '#A8B3C2', textDecoration: 'none' }}>
+                {PUBLIC_CONTACTS.sac.email}
+              </a>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Phone size={14} color="#BACEBB" />
+              <a href={`tel:${PUBLIC_CONTACTS.associateDean.phone.replace(/\s+/g, '')}`} style={{ color: '#A8B3C2', textDecoration: 'none' }}>
+                Payment & grievances: {PUBLIC_CONTACTS.associateDean.phone}
+              </a>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Globe size={14} color="#DCE3E5" />
-              <span>www.vardhaman.org</span>
+              <a href={PUBLIC_CONTACTS.institution.website} target="_blank" rel="noopener noreferrer" style={{ color: '#A8B3C2', textDecoration: 'none' }}>
+                vardhaman.org
+              </a>
             </div>
 
             {/* Official Event & Tech Partners */}
@@ -374,8 +387,14 @@ export const Footer: React.FC<FooterProps> = ({
           marginBottom: '20px'
         }}
       >
-        <button
-          onClick={onOpenPrivacy}
+        <a
+          href="/privacy"
+          onClick={event => {
+            if (onOpenPrivacy) {
+              event.preventDefault();
+              onOpenPrivacy();
+            }
+          }}
           style={{
             background: 'none',
             border: 'none',
@@ -389,12 +408,18 @@ export const Footer: React.FC<FooterProps> = ({
           onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
         >
           Privacy Policy
-        </button>
+        </a>
 
         <span style={{ color: 'rgba(148, 163, 184, 0.3)' }}>•</span>
 
-        <button
-          onClick={onOpenTerms}
+        <a
+          href="/terms"
+          onClick={event => {
+            if (onOpenTerms) {
+              event.preventDefault();
+              onOpenTerms();
+            }
+          }}
           style={{
             background: 'none',
             border: 'none',
@@ -408,12 +433,18 @@ export const Footer: React.FC<FooterProps> = ({
           onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; }}
         >
           Terms & Conditions
-        </button>
+        </a>
 
         <span style={{ color: 'rgba(148, 163, 184, 0.3)' }}>•</span>
 
-        <button
-          onClick={onOpenRefund}
+        <a
+          href="/refund"
+          onClick={event => {
+            if (onOpenRefund) {
+              event.preventDefault();
+              onOpenRefund();
+            }
+          }}
           style={{
             background: 'none',
             border: 'none',
@@ -428,7 +459,7 @@ export const Footer: React.FC<FooterProps> = ({
           onMouseLeave={e => { e.currentTarget.style.color = '#FBBF24'; }}
         >
           Refund Policy (No Refund)
-        </button>
+        </a>
       </div>
 
       {/* Bottom Copyright */}

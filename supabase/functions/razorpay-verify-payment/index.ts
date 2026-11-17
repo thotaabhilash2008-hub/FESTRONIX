@@ -92,8 +92,15 @@ Deno.serve(async request => {
 
   const keyId = clean(Deno.env.get('RAZORPAY_KEY_ID'));
   const keySecret = Deno.env.get('RAZORPAY_KEY_SECRET') || '';
-  if (!keyId || !keySecret) return respond({ error: 'Razorpay test credentials are not configured on the backend.' }, 503);
-  if (!keyId.startsWith('rzp_test_')) return respond({ error: 'Only Razorpay test-mode keys are enabled in this environment.' }, 503);
+  const configuredMode = (Deno.env.get('RAZORPAY_MODE') || '').trim().toLowerCase();
+  if (!keyId || !keySecret) return respond({ error: 'Razorpay credentials are not configured on the backend.' }, 503);
+  if (configuredMode !== '' && configuredMode !== 'test' && configuredMode !== 'live') {
+    return respond({ error: 'RAZORPAY_MODE must be set to either test or live.' }, 503);
+  }
+  const requiredKeyPrefix = configuredMode === 'live' ? 'rzp_live_' : configuredMode === 'test' ? 'rzp_test_' : '';
+  if (requiredKeyPrefix && !keyId.startsWith(requiredKeyPrefix)) {
+    return respond({ error: `Razorpay ${configuredMode}-mode credentials are not configured on the backend.` }, 503);
+  }
 
   try {
     const body = await request.json().catch(() => ({}));

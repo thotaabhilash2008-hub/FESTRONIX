@@ -1,14 +1,14 @@
 # FESTRONIX payment architecture
 
-## Current mode: Razorpay test checkout
+## Current mode: Razorpay checkout with explicit backend mode
 
-As of 2026-11-09, paid online registrations use Razorpay Checkout in test mode by default. The browser never receives the Razorpay Key Secret and never decides the amount or payment status.
+Paid online registrations use Razorpay Standard Checkout. The backend selects test or live credentials from Supabase Edge Function secrets; the browser never receives the Razorpay Key Secret and never decides the amount or payment status.
 
 The flow is:
 
 1. The registration UI sends the selected event and sanitized participant payload to `razorpay-create-order`.
 2. The Edge Function reads the event fee from Supabase, calculates the amount in paise, stores an order intent in `public.razorpay_orders`, and creates the Razorpay order server-side.
-3. The browser opens Razorpay Checkout with the public test Key ID and the server-created order ID.
+3. The browser opens Razorpay Checkout with the public Key ID for the configured backend mode and the server-created order ID.
 4. Razorpay returns `razorpay_order_id`, `razorpay_payment_id`, and `razorpay_signature`.
 5. `razorpay-verify-payment` validates the HMAC SHA-256 signature, fetches the order and payment from Razorpay, confirms the trusted amount/currency/order relationship, and requires a paid/captured state.
 6. The service-role-only `public.finalize_razorpay_order` RPC creates the registration records atomically, marks the passes `verified`, attaches the Razorpay IDs, and returns the generated passes.
@@ -44,17 +44,18 @@ Set these as Supabase Edge Function secrets; do not put either value in `.env`, 
 ```text
 RAZORPAY_KEY_ID=rzp_test_...
 RAZORPAY_KEY_SECRET=...
+RAZORPAY_MODE=test
 ```
 
 From the repository root, the deployment-safe CLI form is:
 
 ```powershell
-npx supabase secrets set RAZORPAY_KEY_ID=rzp_test_... RAZORPAY_KEY_SECRET=...
+npx supabase secrets set RAZORPAY_KEY_ID=rzp_test_... RAZORPAY_KEY_SECRET=... RAZORPAY_MODE=test
 ```
 
 Alternatively, add the same two names in Supabase Dashboard → Edge Functions → Secrets. Do not add them to the Vite `.env` file: Vite variables are browser-visible.
 
-The create-order function intentionally rejects a non-test Key ID. This prevents an accidental live-key charge while the prototype is being tested. The public Key ID is returned to the checkout only after the backend has validated the order; the Key Secret stays server-side.
+Set `RAZORPAY_MODE=test` while testing and `RAZORPAY_MODE=live` only after Razorpay approves the production website. Each function validates the Key ID prefix against that mode. If the mode is omitted, both prefixes are accepted for controlled migration, but production should set it explicitly. The public Key ID is returned to the checkout only after the backend has validated the order; the Key Secret stays server-side.
 
 ## Files added/changed for this integration
 
@@ -80,8 +81,9 @@ The create-order function intentionally rejects a non-test Key ID. This prevents
 
 ## Before production
 
-- Replace test credentials with live credentials only after a separate production review.
-- Remove or deliberately change the test-key guard in both functions.
+- Submit the deployed HTTPS website for Razorpay website/app approval and complete the account, KYC, business, bank, and settlement verification steps.
+- Replace the test secrets with live credentials and set `RAZORPAY_MODE=live` only after approval.
+- Deploy both Razorpay Edge Functions again and verify that the live Key ID starts with `rzp_live_`.
 - Configure Razorpay webhooks and persist webhook events for reconciliation; the synchronous verification above remains the immediate user-facing confirmation path.
 - Configure the Razorpay account, capture settings, settlement ownership, refunds, privacy policy, and operational support before accepting real money.
 - Keep the manual-proof fallback until payment reconciliation has been proven in production.

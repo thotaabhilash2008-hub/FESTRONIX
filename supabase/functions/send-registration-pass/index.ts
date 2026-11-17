@@ -467,7 +467,7 @@ Deno.serve(async request => {
   const eventTimeRaw = displayValue(event?.time_display);
   const venueRaw = displayValue(event?.venue);
   const transactionRaw = displayValue(registration.transaction_id, 'Not required');
-  const supportEmail = 'festronix.support@vardhaman.org';
+  const supportEmail = 'c.padmini@vardhaman.org';
   const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(eventTitleRaw)}&details=${encodeURIComponent(`FESTRONIX registration ${registration.display_id}`)}&location=${encodeURIComponent(venueRaw)}`;
   const templateValues: Record<string, string> = {
     ORDER_ID: escapeHtml(registration.display_id),

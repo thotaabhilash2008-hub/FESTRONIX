@@ -149,7 +149,7 @@ function registrationFromRazorpayPayload(payload: any, event: FestEvent): Regist
 }
 
 /**
- * Creates and verifies a Razorpay test-mode order. The browser only receives
+ * Creates and verifies a Razorpay order. The browser only receives
  * the public Key ID; order creation, amount validation, signature verification,
  * and registration writes happen inside Supabase Edge Functions.
  */
@@ -194,7 +194,7 @@ export async function completeRazorpayBatchCheckout(
   });
   if (orderError) throw new Error(await getEdgeFunctionErrorMessage(orderError, 'Unable to start Razorpay checkout.'));
   if (!orderData?.success || !orderData.keyId || !orderData.orderId || !orderData.amount) {
-    throw new Error(orderData?.error || 'Razorpay did not return a valid test order.');
+    throw new Error(orderData?.error || 'Razorpay did not return a valid order.');
   }
 
   await loadRazorpayScript();
@@ -229,7 +229,7 @@ export async function completeRazorpayBatchCheckout(
         contact: firstItem.leaderPhone
       },
       method: 'upi',
-      notes: { mode: 'test' },
+      notes: { fest: 'FESTRONIX 2026' },
       theme: {
         color: '#38BDF8',
         backdrop_color: '#080C16'
