@@ -375,7 +375,10 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const teamMemberCount = teamSummary?.totalMemberCount || (teamSummary ? 1 + (teamSummary.memberCount || roster.length) : undefined);
   const teamPaymentStatus = teamSummary?.paymentStatus || reg?.paymentStatus;
   const effectivePaymentStatus = teamPaymentStatus || reg?.paymentStatus;
-  const showWhatsAppGroupLink = effectivePaymentStatus === 'verified' && Boolean(reg?.qrToken) && hasSecureWhatsAppGroupUrl;
+  const hasCompletedPaymentOrFreePass = effectivePaymentStatus === 'verified' || (
+    effectivePaymentStatus === 'not_applicable' && (reg?.fee === 0 || associatedEvent?.fee === 0)
+  );
+  const showWhatsAppGroupLink = hasCompletedPaymentOrFreePass && Boolean(reg?.qrToken) && hasSecureWhatsAppGroupUrl;
   const isTeamLeader = Boolean(
     teamSummary?.isCurrentUserLeader ||
     (currentUser && teamSummary?.leaderRoll && teamSummary.leaderRoll.toLowerCase() === currentUser.rollNumber.toLowerCase())
