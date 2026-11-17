@@ -21,7 +21,7 @@ import {
 import { FestEvent } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
-import { isEventOnDay } from './EventCatalog';
+import { isEventBothDays, isEventOnDay } from './EventCatalog';
 import { Footer } from './Footer';
 
 interface AllEventsPageProps {
@@ -43,7 +43,7 @@ type LayoutMode = 'grid' | 'grouped' | 'list';
 function getDayText(dateStr: string | undefined): string {
   if (!dateStr) return 'Dec 1–2';
   const d = dateStr.toLowerCase();
-  if (d.includes('1-2') || d.includes('28-29') || d.includes('both')) return 'Day 1 & 2 (Dec 1–2)';
+  if (isEventBothDays(dateStr)) return 'Day 1 & 2 (Dec 1–2)';
   if (d.includes('dec 1') || d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1')) return 'Day 1 · Dec 1';
   if (d.includes('dec 2') || d.includes('29') || d.includes('day 2') || d.includes('day-2') || d.includes('day2')) return 'Day 2 · Dec 2';
   return dateStr.split(',')[0].trim();

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
+import { isEventOnDay } from './EventCatalog';
 
 interface EventsPageProps {
   events: FestEvent[];
@@ -40,7 +41,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 // Day filter
-const DAY_OPTIONS = [
+type DayFilter = 'all' | '1' | '2';
+
+const DAY_OPTIONS: { value: DayFilter; label: string }[] = [
   { value: 'all', label: 'Both Days' },
   { value: '1', label: 'Dec 1 (Day 1)' },
   { value: '2', label: 'Dec 2 (Day 2)' }
@@ -241,7 +244,7 @@ export const EventsPage: React.FC<EventsPageProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [dayFilter, setDayFilter] = useState('all');
+  const [dayFilter, setDayFilter] = useState<DayFilter>('all');
   const [formatFilter, setFormatFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
   const [feeFilter, setFeeFilter] = useState<'all' | 'free' | 'paid'>('all');
@@ -292,12 +295,7 @@ export const EventsPage: React.FC<EventsPageProps> = ({
 
     // Day
     if (dayFilter !== 'all') {
-      result = result.filter(e => {
-        const d = (e.date || '').toLowerCase();
-        if (dayFilter === '1') return d.includes('dec 1') || d.includes('day 1');
-        if (dayFilter === '2') return d.includes('dec 2') || d.includes('day 2');
-        return true;
-      });
+      result = result.filter(e => isEventOnDay(e.date, dayFilter));
     }
 
     // Fee
@@ -575,7 +573,10 @@ export const EventsPage: React.FC<EventsPageProps> = ({
               <span style={{ fontSize: '0.62rem', color: '#64748B', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Day</span>
               <select
                 value={dayFilter}
-                onChange={e => setDayFilter(e.target.value)}
+                onChange={e => {
+                  const selectedDay = DAY_OPTIONS.find(option => option.value === e.target.value);
+                  if (selectedDay) setDayFilter(selectedDay.value);
+                }}
                 className="events-page-select"
               >
                 {DAY_OPTIONS.map(d => (

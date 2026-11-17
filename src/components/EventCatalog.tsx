@@ -4,14 +4,23 @@ import { FestEvent } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
+export function isEventBothDays(dateStr: string | undefined): boolean {
+  if (!dateStr) return false;
+  const date = dateStr.toLowerCase().replace(/[\u2013\u2014]/g, '-');
+  return /\b(?:1\s*-\s*2|28\s*-\s*29)\b/.test(date)
+    || date.includes('both')
+    || (date.includes('dec 1') && date.includes('dec 2'));
+}
+
 export function isEventOnDay(dateStr: string | undefined, day: 'all' | '1' | '2'): boolean {
   if (day === 'all' || !dateStr) return true;
   const d = dateStr.toLowerCase();
+  if (isEventBothDays(dateStr)) return true;
   if (day === '1') {
-    return d.includes('dec 1') || d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1') || d.includes('both');
+    return d.includes('dec 1') || d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1');
   }
   if (day === '2') {
-    return d.includes('dec 2') || d.includes('29') || d.includes('day 2') || d.includes('day-2') || d.includes('day2') || d.includes('both');
+    return d.includes('dec 2') || d.includes('29') || d.includes('day 2') || d.includes('day-2') || d.includes('day2');
   }
   return true;
 }
@@ -19,7 +28,7 @@ export function isEventOnDay(dateStr: string | undefined, day: 'all' | '1' | '2'
 export function getEventDayBadge(dateStr: string | undefined): { label: string; color: string; bg: string; border: string } {
   if (!dateStr) return { label: 'Day 1 & 2', color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.1)', border: 'rgba(148, 163, 184, 0.25)' };
   const d = dateStr.toLowerCase();
-  if (d.includes('1-2') || d.includes('28-29') || d.includes('both')) {
+  if (isEventBothDays(dateStr)) {
     return { label: 'Day 1 & 2 (24H)', color: '#C084FC', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.35)' };
   }
   if (d.includes('dec 1') || d.includes('28') || d.includes('day 1') || d.includes('day-1') || d.includes('day1')) {
