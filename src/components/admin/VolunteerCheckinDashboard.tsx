@@ -93,7 +93,7 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
       return;
     }
 
-    if (reg.paymentStatus !== 'verified') {
+    if (reg.paymentStatus !== 'verified' && reg.paymentStatus !== 'not_applicable') {
       setCheckinStatus({
         type: 'pending_payment',
         message: `Payment status is ${reg.paymentStatus.toUpperCase().replace('_', ' ')}. Redirect participant to Accounts / Spot desk before gate entry.`

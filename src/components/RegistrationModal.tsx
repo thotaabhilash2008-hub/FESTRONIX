@@ -2051,7 +2051,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       <input
                         type="email"
                         className="cyber-input"
-                        placeholder="Email (Optional)"
+                        placeholder="Email for separate pass email (optional)"
                         value={tm.email || ''}
                         onChange={e => handleUpdateTeammate(idx, 'email', e.target.value)}
                       />
