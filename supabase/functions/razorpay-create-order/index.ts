@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
+import { resolveRazorpayMode } from '../_shared/razorpay.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,30 +57,40 @@ Deno.serve(async request => {
 
   const keyId = cleanText(Deno.env.get('RAZORPAY_KEY_ID'), 120);
   const keySecret = Deno.env.get('RAZORPAY_KEY_SECRET') || '';
-  const configuredMode = (Deno.env.get('RAZORPAY_MODE') || '').trim().toLowerCase();
   if (!keyId || !keySecret) {
     return respond({ error: 'Razorpay credentials are not configured on the backend.' }, 503);
   }
-  if (configuredMode !== '' && configuredMode !== 'test' && configuredMode !== 'live') {
-    return respond({ error: 'RAZORPAY_MODE must be set to either test or live.' }, 503);
-  }
-  const requiredKeyPrefix = configuredMode === 'live' ? 'rzp_live_' : configuredMode === 'test' ? 'rzp_test_' : '';
-  if (requiredKeyPrefix && !keyId.startsWith(requiredKeyPrefix)) {
-    return respond({ error: `Razorpay ${configuredMode}-mode credentials are not configured on the backend.` }, 503);
-  }
+  const mode = resolveRazorpayMode(keyId, Deno.env.get('RAZORPAY_MODE'));
+  if (!mode) return respond({ error: 'Razorpay credentials are invalid or do not match the configured payment mode.' }, 503);
 
   try {
     const body = await request.json().catch(() => ({}));
     const requestedEvent = cleanText(body.eventId, 160);
-    const items = Array.isArray(body.items) ? body.items : [];
+    const items: unknown[] = Array.isArray(body.items) ? body.items : [];
     if (!requestedEvent || items.length < 1 || items.length > 10) {
       return respond({ error: 'A valid event and between 1 and 10 registration items are required.' }, 400);
     }
 
-    const db = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || serviceRoleKey;
+    const db = createClient(supabaseUrl, serviceRoleKey);
+
+    // The endpoint supports guest checkout, so gateway JWT verification is
+    // disabled. If a real user access token is present, validate it ourselves
+    // and use only the verified identity when linking registrations.
+    const authorization = request.headers.get('authorization') || '';
+    const bearerToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || '';
+    const requestApiKey = request.headers.get('apikey')?.trim() || '';
+    let buyerUserId: string | null = null;
+    if (bearerToken && bearerToken !== anonKey && bearerToken !== requestApiKey && bearerToken !== serviceRoleKey) {
+      const authClient = createClient(supabaseUrl, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      });
+      const { data: authData, error: authError } = await authClient.auth.getUser(bearerToken);
+      if (authError || !authData.user) return respond({ error: 'Your sign-in session is invalid or expired. Sign in again and retry checkout.' }, 401);
+      buyerUserId = authData.user.id;
+    }
 
     // Each cart item carries its event ID. The first event remains the order's
     // index/anchor for compatibility with existing razorpay_orders rows.
@@ -112,9 +123,10 @@ Deno.serve(async request => {
       if (eventError) return respond({ error: `Unable to validate the event: ${eventError.message}` }, 400);
       if (!event || event.is_deleted) return respond({ error: 'One of the selected events could not be found.' }, 404);
       if (event.status !== 'open' && event.status !== 'upcoming') return respond({ error: `${event.title} is not accepting registrations.` }, 400);
-      if (event.approval_status && event.approval_status !== 'approved') return respond({ error: `${event.title} is not approved for registration.` }, 400);
+      if (event.approval_status !== 'approved') return respond({ error: `${event.title} is not approved for registration.` }, 400);
       if (event.deadline && new Date(event.deadline).getTime() < Date.now()) return respond({ error: `The registration deadline for ${event.title} has passed.` }, 400);
-      if ((Number(event.fee) || 0) <= 0) return respond({ error: `${event.title} does not require a Razorpay payment.` }, 400);
+      if (event.format !== 'individual') return respond({ error: `${event.title} requires its team registration flow.` }, 400);
+      if (!Number.isFinite(Number(event.fee)) || Number(event.fee) < 0) return respond({ error: `${event.title} has an invalid registration fee.` }, 400);
       eventsById.set(event.id, event);
       eventTitles.set(event.id, event.title);
     }
@@ -217,6 +229,7 @@ Deno.serve(async request => {
       id: internalId,
       receipt,
       event_id: primaryEventId,
+      buyer_user_id: buyerUserId,
       amount_paise: amountPaise,
       currency: 'INR',
       status: 'creating',
@@ -224,24 +237,34 @@ Deno.serve(async request => {
     }).select('id').single();
     if (insertError || !orderRow) return respond({ error: `Unable to create the payment order: ${insertError?.message || 'database error'}` }, 500);
 
-    const razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${btoa(`${keyId}:${keySecret}`)}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        amount: amountPaise,
-        currency: 'INR',
-        receipt,
-        notes: { fest: 'FESTRONIX 2026', event_id: primaryEventId, event_count: String(eventIds.length) }
-      })
-    });
+    let razorpayResponse: Response;
+    try {
+      razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${btoa(`${keyId}:${keySecret}`)}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: amountPaise,
+          currency: 'INR',
+          receipt,
+          notes: { fest: 'FESTRONIX 2026', event_id: primaryEventId, event_count: String(eventIds.length) }
+        })
+      });
+    } catch {
+      await db.from('razorpay_orders').update({
+        status: 'failed',
+        last_error: 'Razorpay order creation could not reach the payment gateway.',
+        updated_at: new Date().toISOString()
+      }).eq('id', internalId);
+      return respond({ error: 'Razorpay could not start checkout. Please try again.' }, 502);
+    }
 
     const razorpayBody = await razorpayResponse.json().catch(() => ({}));
     if (!razorpayResponse.ok || !razorpayBody.id) {
       await db.from('razorpay_orders').update({ status: 'failed', last_error: 'Razorpay order creation failed.', updated_at: new Date().toISOString() }).eq('id', internalId);
-      return respond({ error: 'Razorpay could not create the test payment order. Please try again.' }, 502);
+      return respond({ error: 'Razorpay could not create the payment order. Please try again.' }, 502);
     }
 
     const { error: updateError } = await db.from('razorpay_orders').update({
@@ -257,6 +280,7 @@ Deno.serve(async request => {
       orderId: razorpayBody.id,
       amount: amountPaise,
       currency: 'INR',
+      mode,
       eventTitle: eventIds.length === 1 ? eventTitles.get(primaryEventId) : `${normalizedItems.length} FESTRONIX passes`,
       receipt
     });

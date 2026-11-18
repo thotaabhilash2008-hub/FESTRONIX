@@ -106,6 +106,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   // Keep the legacy manual-proof state for recovery compatibility, but do not
   // expose it as a public payment choice. Paid registrations always open Razorpay.
   const [paymentMethod] = useState<'razorpay' | 'manual_proof'>('razorpay');
+  const [razorpayMode, setRazorpayMode] = useState<'test' | 'live' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -618,12 +619,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     if (isSubmitting) return;
     setIsSubmitting(true);
     setErrorMessage('');
+    setRazorpayMode(null);
     try {
       const batch = await buildRegistrationBatch(event.fee > 0 ? 'verification_pending' : 'not_applicable');
-      const created = await completeRazorpayCheckout(event, batch);
+      const created = await completeRazorpayCheckout(event, batch, setRazorpayMode);
       finishSuccessfulRegistration(created);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Razorpay payment could not be completed. No registration was created.');
+      setErrorMessage(err?.message || 'Razorpay payment could not be confirmed. If your bank shows a charge, check My Passes before retrying; the server will complete or refund it.');
     } finally {
       setIsSubmitting(false);
     }
@@ -2167,12 +2169,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 800, letterSpacing: '0.08em' }}>SECURE PAYMENT • RAZORPAY TEST MODE</div>
+                    <div style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 800, letterSpacing: '0.08em' }}>
+                      {razorpayMode === 'test' ? 'SECURE PAYMENT • RAZORPAY TEST MODE' : razorpayMode === 'live' ? 'SECURE PAYMENT • RAZORPAY LIVE' : 'SECURE PAYMENT • RAZORPAY'}
+                    </div>
                     <div style={{ color: '#FFFFFF', fontSize: '1.18rem', fontWeight: 800, marginTop: '5px' }}>
                       ₹{event.fee * passQuantity} <span style={{ color: '#BACEBB', fontSize: '0.78rem', fontWeight: 600 }}>INR</span>
                     </div>
                     <div style={{ color: '#DCE3E5', fontSize: '0.76rem', lineHeight: 1.45, marginTop: '5px' }}>
-                      Your registration stays in this flow while Razorpay securely collects the test payment. The pass is created only after our backend verifies it.
+                      Razorpay securely processes your payment. Your pass is created only after our backend verifies it.
                     </div>
                   </div>
                   <ShieldCheck size={28} color="#34D399" />

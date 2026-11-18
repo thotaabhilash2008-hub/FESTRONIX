@@ -20,6 +20,8 @@ interface CartItem {
   quantity: number;
 }
 
+const MAX_CART_PASSES = 10;
+
 export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   isOpen,
   onClose,
@@ -49,6 +51,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [razorpayMode, setRazorpayMode] = useState<'test' | 'live' | null>(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -78,6 +81,10 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   if (!isOpen) return null;
 
   const toggleEventSelection = (eventId: string) => {
+    if (!selectedItems[eventId] && totalPassCount >= MAX_CART_PASSES) {
+      setErrorMessage(`A single checkout can contain at most ${MAX_CART_PASSES} passes.`);
+      return;
+    }
     setSelectedItems(prev => {
       const copy = { ...prev };
       if (copy[eventId]) {
@@ -95,10 +102,14 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   };
 
   const updateQuantity = (eventId: string, delta: number) => {
+    if (delta > 0 && totalPassCount >= MAX_CART_PASSES) {
+      setErrorMessage(`A single checkout can contain at most ${MAX_CART_PASSES} passes.`);
+      return;
+    }
     let nextQty = 0;
     setSelectedItems(prev => {
       const current = prev[eventId] || 0;
-      nextQty = Math.max(0, Math.min(10, current + delta));
+      nextQty = Math.max(0, Math.min(MAX_CART_PASSES, current + delta));
       if (nextQty <= 0) {
         const copy = { ...prev };
         delete copy[eventId];
@@ -133,6 +144,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
   const totalPassCount = selectedEventEntries.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = selectedEventEntries.reduce((sum, item) => sum + item.event.fee * item.quantity, 0);
+  const freePassCount = selectedEventEntries.reduce((sum, item) => sum + (item.event.fee === 0 ? item.quantity : 0), 0);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -162,6 +174,10 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
     }
     if (!buyerInfo.name.trim() || !buyerInfo.rollNumber.trim() || !buyerInfo.email.trim() || !buyerInfo.phone.trim()) {
       setErrorMessage('Please fill in all buyer / student details.');
+      return;
+    }
+    if (!isSupabaseConfigured()) {
+      setErrorMessage('Registration is temporarily unavailable. Please try again later.');
       return;
     }
 
@@ -265,7 +281,8 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       const batchData: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>> = [];
       const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
-      for (const item of selectedEventEntries) {
+      const orderedEntries = [...selectedEventEntries].sort((left, right) => left.event.id.localeCompare(right.event.id));
+      for (const item of orderedEntries) {
         const extra = additionalMembersByEvent[item.event.id] || [];
         for (let i = 0; i < item.quantity; i++) {
           const isBuyer = i === 0;
@@ -296,7 +313,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
       const created = await StorageService.addMultipleRegistrations(batchData);
 
-      // Dispatch pass to attendee's email and track locally so passes are always visible on site
+      // Dispatch free passes to the buyer email and track the passes locally.
       try {
         const myPassIds = JSON.parse(localStorage.getItem('festronix_my_registered_pass_ids') || '[]');
         created.forEach(reg => {
@@ -334,6 +351,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
     setIsSubmitting(true);
     setErrorMessage(null);
+    setRazorpayMode(null);
 
     try {
       const batchData: Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>> = [];
@@ -369,14 +387,14 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
       const created = await completeRazorpayBatchCheckout(
         selectedEventEntries.map(item => item.event),
-        batchData
+        batchData,
+        setRazorpayMode
       );
 
       try {
         const myPassIds = JSON.parse(localStorage.getItem('festronix_my_registered_pass_ids') || '[]');
         created.forEach(reg => {
           if (!myPassIds.includes(reg.id)) myPassIds.push(reg.id);
-          sendRegistrationPassEmail(reg).catch(err => console.warn('Email send notice:', err));
         });
         localStorage.setItem('festronix_my_registered_pass_ids', JSON.stringify(myPassIds));
         localStorage.setItem('festronix_last_registered_email', buyerInfo.email.trim().toLowerCase());
@@ -389,7 +407,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
       onSuccess(created);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Razorpay payment could not be completed. No passes were issued.');
+      setErrorMessage(err?.message || 'Razorpay checkout did not finish. If your bank shows a successful charge, check the pass portal shortly before starting another payment.');
     } finally {
       setIsSubmitting(false);
     }
@@ -402,7 +420,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
     // Multi-pass checkout creates independent participant registrations. Team
     // and duo events must go through the team-code flow so the backend can
     // enforce roster size, reservation ownership, and team capacity.
-    return matchSearch && matchDept && e.status === 'open' && e.format === 'individual';
+    return matchSearch && matchDept && e.approvalStatus === 'approved' && ['open', 'upcoming'].includes(e.status) && e.format === 'individual';
   });
 
   return (
@@ -522,7 +540,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                   {currentUser.fullName} ({currentUser.rollNumber})
                 </span>
                 <span style={{ fontSize: '0.72rem', color: '#BACEBB', marginLeft: '6px' }}>
-                  • Passes will be linked to your account
+                  • Passes will be linked to your account and sent to the buyer email
                 </span>
               </div>
             </div>
@@ -694,6 +712,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleEventSelection(evt.id)}
+                        disabled={!isSelected && totalPassCount >= MAX_CART_PASSES}
                         style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#283B78' }}
                       />
                       <div>
@@ -760,6 +779,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                           <button
                             type="button"
                             onClick={() => updateQuantity(evt.id, 1)}
+                            disabled={totalPassCount >= MAX_CART_PASSES}
                             style={{
                               width: '28px',
                               height: '28px',
@@ -964,6 +984,9 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                 <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF' }}>
                   {totalPassCount} Pass{totalPassCount !== 1 ? 'es' : ''} across {selectedEventEntries.length} Event{selectedEventEntries.length !== 1 ? 's' : ''}
                 </div>
+                <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginTop: '3px' }}>
+                  Maximum {MAX_CART_PASSES} passes per checkout{freePassCount > 0 && totalAmount > 0 ? ` · ${freePassCount} free pass${freePassCount === 1 ? '' : 'es'} included` : ''}
+                </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
@@ -1009,13 +1032,13 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', color: '#38BDF8', fontWeight: 800, letterSpacing: '0.08em' }}>
-                    SECURE CHECKOUT • RAZORPAY TEST MODE
+                    {razorpayMode === 'test' ? 'SECURE CHECKOUT • RAZORPAY TEST MODE' : razorpayMode === 'live' ? 'SECURE CHECKOUT • RAZORPAY LIVE' : 'SECURE CHECKOUT • RAZORPAY'}
                   </div>
                   <div className="font-title" style={{ fontSize: '1.5rem', color: '#FFFFFF', fontWeight: 800, marginTop: '5px' }}>
                     ₹{totalAmount} <span style={{ fontSize: '0.82rem', color: '#BACEBB', fontFamily: 'inherit' }}>INR</span>
                   </div>
                   <div style={{ fontSize: '0.82rem', color: '#DCE3E5', marginTop: '8px', lineHeight: 1.45 }}>
-                    One Razorpay checkout covers {totalPassCount} pass{totalPassCount === 1 ? '' : 'es'} across {selectedEventEntries.length} event{selectedEventEntries.length === 1 ? '' : 's'}.
+                    One Razorpay checkout charges for paid passes{freePassCount > 0 ? ` and includes ${freePassCount} free pass${freePassCount === 1 ? '' : 'es'}` : ''} across {selectedEventEntries.length} event{selectedEventEntries.length === 1 ? '' : 's'}.
                   </div>
                 </div>
                 <Shield size={30} color="#34D399" />

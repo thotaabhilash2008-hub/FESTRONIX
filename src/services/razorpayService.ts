@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { FestEvent, Registration } from '../types/festronix';
-import { StorageService } from './storageService';
 
 type RegistrationInput = Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>;
 
@@ -10,6 +9,7 @@ interface RazorpayOrderResponse {
   orderId?: string;
   amount?: number;
   currency?: string;
+  mode?: 'test' | 'live';
   eventTitle?: string;
   error?: string;
 }
@@ -119,9 +119,10 @@ function loadRazorpayScript(): Promise<void> {
   return razorpayScriptPromise;
 }
 
-function registrationFromRazorpayPayload(payload: any, event: FestEvent): Registration {
+function registrationFromRazorpayPayload(payload: any, event: FestEvent, buyerUserId?: string): Registration {
   return {
     id: String(payload.id || ''),
+    userId: payload.userId || buyerUserId,
     eventId: String(payload.eventId || event.id),
     eventTitle: String(payload.eventTitle || event.title),
     departmentCode: event.departmentCode,
@@ -155,9 +156,10 @@ function registrationFromRazorpayPayload(payload: any, event: FestEvent): Regist
  */
 export async function completeRazorpayCheckout(
   event: FestEvent,
-  items: RegistrationInput[]
+  items: RegistrationInput[],
+  onModeResolved?: (mode: 'test' | 'live') => void
 ): Promise<Registration[]> {
-  return completeRazorpayBatchCheckout([event], items);
+  return completeRazorpayBatchCheckout([event], items, onModeResolved);
 }
 
 /**
@@ -168,18 +170,11 @@ export async function completeRazorpayCheckout(
  */
 export async function completeRazorpayBatchCheckout(
   events: FestEvent[],
-  items: RegistrationInput[]
+  items: RegistrationInput[],
+  onModeResolved?: (mode: 'test' | 'live') => void
 ): Promise<Registration[]> {
   if (!isSupabaseConfigured()) {
-    const created = await StorageService.addMultipleRegistrations(
-      items.map(item => ({
-        ...item,
-        paymentStatus: 'verified',
-        paymentMethod: 'razorpay',
-        transactionId: `TEST-PAY-${Date.now()}`
-      }))
-    );
-    return created;
+    throw new Error('Payments are temporarily unavailable because the registration service is not configured. Please try again later.');
   }
   if (items.length < 1) throw new Error('At least one registration is required for payment.');
   if (events.length < 1) throw new Error('At least one event is required for payment.');
@@ -196,6 +191,7 @@ export async function completeRazorpayBatchCheckout(
   if (!orderData?.success || !orderData.keyId || !orderData.orderId || !orderData.amount) {
     throw new Error(orderData?.error || 'Razorpay did not return a valid order.');
   }
+  if (orderData.mode === 'test' || orderData.mode === 'live') onModeResolved?.(orderData.mode);
 
   await loadRazorpayScript();
   const browserWindow = window as Window & { Razorpay?: RazorpayConstructor };
@@ -250,7 +246,8 @@ export async function completeRazorpayBatchCheckout(
           const registrations = Array.isArray(data.registrations)
             ? data.registrations.map(payload => registrationFromRazorpayPayload(
               payload,
-              eventById.get(String(payload.eventId || '')) || primaryEvent
+              eventById.get(String(payload.eventId || '')) || primaryEvent,
+              items.find(item => item.eventId === String(payload.eventId || ''))?.userId
             ))
             : [];
           if (registrations.length !== items.length) throw new Error('Payment was verified, but the server did not return every registration pass.');
@@ -262,7 +259,7 @@ export async function completeRazorpayBatchCheckout(
     });
 
     checkout.on?.('payment.failed', (response: { error?: { description?: string } }) => {
-      fail(new Error(response?.error?.description || 'Razorpay could not complete the test payment.'));
+      fail(new Error(response?.error?.description || 'Razorpay could not complete the payment.'));
     });
 
     try {

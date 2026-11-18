@@ -396,18 +396,36 @@ Deno.serve(async request => {
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const { data: delivery, error: deliveryError } = await db
     .from('registration_email_deliveries')
-    .select('id, registration_id, recipient_email, status, attempts')
+    .select('id, registration_id, recipient_email, status, attempts, updated_at')
     .eq('delivery_token', token)
     .maybeSingle();
   if (deliveryError || !delivery) return respond({ error: 'Registration email delivery was not found.' }, 404);
   if (delivery.status === 'sent') return respond({ sent: true, message: 'The pass email was already sent.' });
+
+  const staleSendingBefore = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { data: claimed, error: claimError } = await db
+    .from('registration_email_deliveries')
+    .update({ status: 'sending', attempts: delivery.attempts + 1, updated_at: new Date().toISOString() })
+    .eq('id', delivery.id)
+    .or(`status.eq.queued,status.eq.failed,and(status.eq.sending,updated_at.lt.${staleSendingBefore})`)
+    .select('id')
+    .maybeSingle();
+  if (claimError) return respond({ error: 'The pass email could not be claimed for delivery.' }, 500);
+  if (!claimed) {
+    const { data: latest } = await db.from('registration_email_deliveries').select('status').eq('id', delivery.id).maybeSingle();
+    if (latest?.status === 'sent') return respond({ sent: true, message: 'The pass email was already sent.' });
+    return respond({ sent: false, message: 'The pass email is already being sent. Retry later if it does not arrive.' }, 202);
+  }
 
   const { data: registration, error: registrationError } = await db
     .from('registrations')
     .select('display_id, event_id, event_title, leader_name, leader_email, leader_roll, leader_college, fee, payment_status, transaction_id, team_name, team_code, format, created_at, tickets(qr_token)')
     .eq('id', delivery.registration_id)
     .single();
-  if (registrationError || !registration) return respond({ error: 'The registration record was not found.' }, 404);
+  if (registrationError || !registration) {
+    await db.from('registration_email_deliveries').update({ status: 'failed', last_error: 'The registration record was not found.', updated_at: new Date().toISOString() }).eq('id', delivery.id);
+    return respond({ error: 'The registration record was not found.' }, 404);
+  }
 
   const { data: event } = registration.event_id
     ? await db
@@ -420,11 +438,9 @@ Deno.serve(async request => {
   const brevoKey = Deno.env.get('BREVO_API_KEY');
   const sender = parseSender(Deno.env.get('REGISTRATION_MAIL_FROM'));
   if (!brevoKey) {
-    await db.from('registration_email_deliveries').update({ status: 'failed', attempts: delivery.attempts + 1, last_error: 'BREVO_API_KEY is not configured.', updated_at: new Date().toISOString() }).eq('id', delivery.id);
+    await db.from('registration_email_deliveries').update({ status: 'failed', last_error: 'BREVO_API_KEY is not configured.', updated_at: new Date().toISOString() }).eq('id', delivery.id);
     return respond({ sent: false, error: 'Brevo email delivery is not configured on the backend yet.' }, 503);
   }
-
-  await db.from('registration_email_deliveries').update({ status: 'sending', attempts: delivery.attempts + 1, updated_at: new Date().toISOString() }).eq('id', delivery.id);
 
   const ticket = Array.isArray(registration.tickets) ? registration.tickets[0] : registration.tickets;
   const qrToken = String(ticket?.qr_token ?? '').trim();
