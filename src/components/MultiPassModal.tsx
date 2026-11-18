@@ -35,7 +35,6 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
     [eventId: string]: AdditionalMember[];
   }>({});
   const [searchFilter, setSearchFilter] = useState('');
-  const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
 
   // Buyer details state (auto-populated if user is logged in)
   const [buyerInfo, setBuyerInfo] = useState({
@@ -172,7 +171,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       setErrorMessage('Please select at least one event pass to proceed.');
       return;
     }
-    if (!buyerInfo.name.trim() || !buyerInfo.rollNumber.trim() || !buyerInfo.email.trim() || !buyerInfo.phone.trim()) {
+    if (!buyerInfo.name.trim() || !buyerInfo.rollNumber.trim() || !buyerInfo.email.trim() || !buyerInfo.phone.trim() || !buyerInfo.college.trim()) {
       setErrorMessage('Please fill in all buyer / student details.');
       return;
     }
@@ -183,6 +182,14 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
     // Validate additional members for any event with quantity > 1
     for (const item of selectedEventEntries) {
+      if (item.event.approvalStatus !== 'approved') {
+        setErrorMessage(`"${item.event.title}" is not approved for registration yet.`);
+        return;
+      }
+      if (item.event.format !== 'individual') {
+        setErrorMessage(`"${item.event.title}" requires the event's ${item.event.format} registration flow.`);
+        return;
+      }
       if (!['open', 'upcoming'].includes(item.event.status)) {
         setErrorMessage(`Registration for "${item.event.title}" is currently ${item.event.status}.`);
         return;
@@ -413,15 +420,28 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
     }
   };
 
-  // Filter events
-  const filteredEvents = events.filter(e => {
-    const matchSearch = e.title.toLowerCase().includes(searchFilter.toLowerCase()) || e.departmentCode.toLowerCase().includes(searchFilter.toLowerCase());
-    const matchDept = selectedDeptFilter === 'all' || e.departmentCode === selectedDeptFilter;
-    // Multi-pass checkout creates independent participant registrations. Team
-    // and duo events must go through the team-code flow so the backend can
-    // enforce roster size, reservation ownership, and team capacity.
-    return matchSearch && matchDept && e.approvalStatus === 'approved' && ['open', 'upcoming'].includes(e.status) && e.format === 'individual';
+  // Show every approved event in the cart, including events that cannot be
+  // purchased through this flow. The backend supports multi-pass only for
+  // individual events; team/duo events must use their roster checkout.
+  const getMultiPassUnavailableReason = (event: FestEvent): string | null => {
+    if (event.format !== 'individual') return 'Use event team registration';
+    if (event.status === 'full' || event.registeredCount >= event.capacity) return 'Full';
+    if (!['open', 'upcoming'].includes(event.status)) return 'Registration closed';
+    if (event.deadline) {
+      const deadline = new Date(event.deadline);
+      if (!Number.isNaN(deadline.getTime()) && Date.now() > deadline.getTime()) return 'Registration closed';
+    }
+    return null;
+  };
+
+  const normalizedSearch = searchFilter.trim().toLowerCase();
+  const filteredEvents = events.filter(event => {
+    if (event.approvalStatus !== 'approved') return false;
+    if (!normalizedSearch) return true;
+    return [event.title, event.departmentCode, event.category, event.venue]
+      .some(value => value?.toLowerCase().includes(normalizedSearch));
   });
+  const availableMultiPassCount = filteredEvents.filter(event => !getMultiPassUnavailableReason(event)).length;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -621,7 +641,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
               <div>
                 <label style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
-                  COLLEGE EMAIL *
+                  EMAIL FOR PASS DELIVERY *
                 </label>
                 <input
                   type="email"
@@ -646,35 +666,36 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                   onChange={e => setBuyerInfo({ ...buyerInfo, phone: e.target.value })}
                 />
               </div>
+
+              <div>
+                <label style={{ fontSize: '0.72rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                  COLLEGE / INSTITUTE NAME *
+                </label>
+                <input
+                  type="text"
+                  className="cyber-input"
+                  style={{ height: '36px', fontSize: '0.82rem' }}
+                  placeholder="College or institute name"
+                  value={buyerInfo.college}
+                  onChange={e => setBuyerInfo({ ...buyerInfo, college: e.target.value })}
+                  required
+                />
+              </div>
             </div>
 
-            {/* Filter toolbar */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+            {/* Search only; department remains searchable by its code. */}
+            <div style={{ marginBottom: '8px' }}>
               <input
                 type="text"
                 className="cyber-input"
-                style={{ height: '36px', fontSize: '0.8rem', flex: 1 }}
-                placeholder="Search event name or department code..."
+                style={{ height: '40px', fontSize: '0.82rem', width: '100%' }}
+                placeholder="Search by event name, department, category, or venue..."
                 value={searchFilter}
                 onChange={e => setSearchFilter(e.target.value)}
               />
-
-              <select
-                className="cyber-select"
-                style={{ height: '36px', fontSize: '0.8rem', width: '160px' }}
-                value={selectedDeptFilter}
-                onChange={e => setSelectedDeptFilter(e.target.value)}
-              >
-                <option value="all">All Depts</option>
-                <option value="CSE">CSE</option>
-                <option value="IT">IT</option>
-                <option value="ECE">ECE</option>
-                <option value="EEE">EEE</option>
-                <option value="MECH">MECH</option>
-                <option value="CIVIL">CIVIL</option>
-                <option value="CSM">CSM — Computer Science & Machine Learning</option>
-                <option value="CSD">CSD — Computer Science & Data Science</option>
-              </select>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#A8B3C2', marginBottom: '10px' }}>
+              {filteredEvents.length} approved event{filteredEvents.length === 1 ? '' : 's'} · {availableMultiPassCount} available for multi-pass checkout
             </div>
 
             {/* Event Selection Grid */}
@@ -689,9 +710,17 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                 marginBottom: '18px'
               }}
             >
-              {filteredEvents.map(evt => {
+              {filteredEvents.length === 0 ? (
+                <div style={{ padding: '18px', textAlign: 'center', color: '#A8B3C2', border: '1px dashed rgba(220, 227, 229, 0.2)', borderRadius: '10px' }}>
+                  {events.some(event => event.approvalStatus === 'approved')
+                    ? 'No approved events match your search.'
+                    : 'There are no approved events available right now.'}
+                </div>
+              ) : filteredEvents.map(evt => {
                 const qty = selectedItems[evt.id] || 0;
                 const isSelected = qty > 0;
+                const unavailableReason = getMultiPassUnavailableReason(evt);
+                const isUnavailable = Boolean(unavailableReason);
 
                 return (
                   <div
@@ -702,8 +731,9 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                       justifyContent: 'space-between',
                       padding: '12px 14px',
                       borderRadius: '10px',
-                      background: isSelected ? 'rgba(40, 59, 120, 0.35)' : 'rgba(16, 26, 53, 0.75)',
+                      background: isSelected ? 'rgba(40, 59, 120, 0.35)' : isUnavailable ? 'rgba(16, 26, 53, 0.45)' : 'rgba(16, 26, 53, 0.75)',
                       border: isSelected ? '1px solid rgba(120, 149, 147, 0.55)' : '1px solid rgba(220, 227, 229, 0.12)',
+                      opacity: isUnavailable ? 0.72 : 1,
                       transition: 'all 0.15s ease'
                     }}
                   >
@@ -712,8 +742,8 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleEventSelection(evt.id)}
-                        disabled={!isSelected && totalPassCount >= MAX_CART_PASSES}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#283B78' }}
+                        disabled={!isSelected && (isUnavailable || totalPassCount >= MAX_CART_PASSES)}
+                        style={{ width: '18px', height: '18px', cursor: isUnavailable && !isSelected ? 'not-allowed' : 'pointer', accentColor: '#283B78' }}
                       />
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -741,9 +771,15 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
 
                     {/* Quantity controls */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="font-title" style={{ fontSize: '0.95rem', fontWeight: 800, color: evt.fee === 0 ? '#BACEBB' : '#DCE3E5', marginRight: '6px' }}>
-                        {evt.fee === 0 ? 'FREE' : `₹${evt.fee * (qty || 1)}`}
-                      </span>
+                      {unavailableReason ? (
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#A8B3C2', textAlign: 'right', maxWidth: '140px' }}>
+                          {unavailableReason}
+                        </span>
+                      ) : (
+                        <span className="font-title" style={{ fontSize: '0.95rem', fontWeight: 800, color: evt.fee === 0 ? '#BACEBB' : '#DCE3E5', marginRight: '6px' }}>
+                          {evt.fee === 0 ? 'FREE' : `₹${evt.fee * (qty || 1)}`}
+                        </span>
+                      )}
 
                       {isSelected && (
                         <div
@@ -779,7 +815,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
                           <button
                             type="button"
                             onClick={() => updateQuantity(evt.id, 1)}
-                            disabled={totalPassCount >= MAX_CART_PASSES}
+                            disabled={isUnavailable || totalPassCount >= MAX_CART_PASSES}
                             style={{
                               width: '28px',
                               height: '28px',
