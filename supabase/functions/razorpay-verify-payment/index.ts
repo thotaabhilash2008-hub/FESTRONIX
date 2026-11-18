@@ -43,7 +43,7 @@ function removeDeliveryTokens(result: any): any {
 }
 
 async function dispatchEmails(result: any, supabaseUrl: string, serviceRoleKey: string) {
-  await sendPassEmails(result?.registrations, supabaseUrl, serviceRoleKey);
+  await sendPassEmails(result?.registrations, supabaseUrl, serviceRoleKey, result?.razorpayOrderId);
 }
 
 async function persistRefundOutcome(

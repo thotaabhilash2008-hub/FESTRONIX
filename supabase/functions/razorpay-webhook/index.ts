@@ -110,7 +110,7 @@ Deno.serve(async request => {
       if (Number(payment.amount) !== Number(order.amount_paise) || payment.currency !== order.currency) {
         return respond({ error: 'Captured payment details do not match the finalized order.' }, 409);
       }
-      await sendPassEmails(order.result_payload.registrations, supabaseUrl, serviceRoleKey);
+      await sendPassEmails(order.result_payload.registrations, supabaseUrl, serviceRoleKey, orderId);
       return respond({ received: true, processed: true, alreadyFinalized: true });
     }
 
@@ -157,7 +157,7 @@ Deno.serve(async request => {
         .eq('id', order.id)
         .maybeSingle();
       if (latestOrder?.status === 'paid' && latestOrder.razorpay_payment_id === paymentId && latestOrder.result_payload) {
-        await sendPassEmails(latestOrder.result_payload.registrations, supabaseUrl, serviceRoleKey);
+        await sendPassEmails(latestOrder.result_payload.registrations, supabaseUrl, serviceRoleKey, orderId);
         return respond({ received: true, processed: true, alreadyFinalized: true });
       }
       const orderForRefund = latestOrder?.status === 'paid'
@@ -192,7 +192,7 @@ Deno.serve(async request => {
       return respond({ received: true, processed: true, refunded: true });
     }
 
-    await sendPassEmails(result?.registrations, supabaseUrl, serviceRoleKey);
+    await sendPassEmails(result?.registrations, supabaseUrl, serviceRoleKey, orderId);
     return respond({ received: true, processed: true });
   } catch (error) {
     console.error('Razorpay webhook processing failed:', error instanceof Error ? error.message : 'unknown error');

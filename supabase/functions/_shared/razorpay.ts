@@ -76,16 +76,41 @@ export async function refundCapturedPayment(
 export async function sendPassEmails(
   registrations: unknown,
   supabaseUrl: string,
-  serviceRoleKey: string
+  serviceRoleKey: string,
+  razorpayOrderId?: string
 ): Promise<void> {
-  if (!Array.isArray(registrations)) return;
-
-  const tokens = registrations
+  const tokens = Array.isArray(registrations) ? registrations
     .map(item => item && typeof item === 'object' ? clean((item as Record<string, unknown>).emailDeliveryToken) : '')
-    .filter(token => /^[a-f0-9]{64}$/i.test(token));
-  if (tokens.length === 0) return;
+    .filter(token => /^[a-f0-9]{64}$/i.test(token)) : [];
 
-  await Promise.all(tokens.map(async deliveryToken => {
+  // Team checkout results contain the leader registration. Teammate passes
+  // are created by a database trigger, so load their delivery tokens by order.
+  if (razorpayOrderId) {
+    try {
+      const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/rpc/razorpay_order_email_delivery_tokens`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ p_razorpay_order_id: razorpayOrderId })
+      });
+      const result = await response.json().catch(() => null);
+      if (response.ok && Array.isArray(result)) {
+        tokens.push(...result.filter((token): token is string => typeof token === 'string' && /^[a-f0-9]{64}$/i.test(token)));
+      } else {
+        console.error('Unable to load all pass email deliveries for the paid order:', response.status);
+      }
+    } catch (error) {
+      console.error('Unable to load all pass email deliveries for the paid order:', error instanceof Error ? error.message : 'unknown error');
+    }
+  }
+
+  const uniqueTokens = [...new Set(tokens)];
+  if (uniqueTokens.length === 0) return;
+
+  await Promise.all(uniqueTokens.map(async deliveryToken => {
     try {
       const response = await fetch(`${supabaseUrl.replace(/\/+$/, '')}/functions/v1/send-registration-pass`, {
         method: 'POST',
