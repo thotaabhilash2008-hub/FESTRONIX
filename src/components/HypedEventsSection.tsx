@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Flame, Trophy, Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
-import { Tilt3DCard } from './3d';
+import { Tilt3DCard } from './3d/Tilt3DCard';
 import { ScrollReveal } from './animations';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 

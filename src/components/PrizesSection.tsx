@@ -1,6 +1,6 @@
 import React from 'react';
 import { Crown, Award } from 'lucide-react';
-import { Tilt3DCard } from './3d';
+import { Tilt3DCard } from './3d/Tilt3DCard';
 import { ScrollReveal } from './animations';
 
 export const PrizesSection: React.FC = () => {

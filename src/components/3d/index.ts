@@ -6,5 +6,4 @@ export * from './ParticleField';
 export * from './Scene3D';
 export * from './ScrollCanvas3D';
 export * from './KineticArtifact';
-export * from './KineticStage3D';
 export * from './Tilt3DCard';

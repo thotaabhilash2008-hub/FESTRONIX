@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { EventsGlimpseSection } from './components/EventsGlimpseSection';
@@ -6,23 +6,23 @@ import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
 import { Footer } from './components/Footer';
 import { FullscreenIntro } from './components/FullscreenIntro';
-import { EventDetailModal } from './components/EventDetailModal';
-import { RegistrationModal } from './components/RegistrationModal';
-import { DigitalPassModal } from './components/DigitalPassModal';
-import { MultiPassModal } from './components/MultiPassModal';
-import { AdminPortal } from './components/admin/AdminPortal';
-import { PublicSponsorsPage } from './components/PublicSponsorsPage';
-import { AllEventsPage } from './components/AllEventsPage';
-import { PrivacyPolicyPage } from './components/legal/PrivacyPolicyPage';
-import { TermsAndConditionsPage } from './components/legal/TermsAndConditionsPage';
-import { RefundPolicyPage } from './components/legal/RefundPolicyPage';
+const EventDetailModal = lazy(() => import('./components/EventDetailModal').then(module => ({ default: module.EventDetailModal })));
+const RegistrationModal = lazy(() => import('./components/RegistrationModal').then(module => ({ default: module.RegistrationModal })));
+const DigitalPassModal = lazy(() => import('./components/DigitalPassModal').then(module => ({ default: module.DigitalPassModal })));
+const MultiPassModal = lazy(() => import('./components/MultiPassModal').then(module => ({ default: module.MultiPassModal })));
+const AdminPortal = lazy(() => import('./components/admin/AdminPortal').then(module => ({ default: module.AdminPortal })));
+const PublicSponsorsPage = lazy(() => import('./components/PublicSponsorsPage').then(module => ({ default: module.PublicSponsorsPage })));
+const AllEventsPage = lazy(() => import('./components/AllEventsPage'));
+const PrivacyPolicyPage = lazy(() => import('./components/legal/PrivacyPolicyPage').then(module => ({ default: module.PrivacyPolicyPage })));
+const TermsAndConditionsPage = lazy(() => import('./components/legal/TermsAndConditionsPage').then(module => ({ default: module.TermsAndConditionsPage })));
+const RefundPolicyPage = lazy(() => import('./components/legal/RefundPolicyPage').then(module => ({ default: module.RefundPolicyPage })));
 
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
 import { isSupabaseConfigured } from './lib/supabase';
 import { ScrollAnimationsProvider } from './components/animations';
-import { KineticStage3D } from './components/3d';
+const KineticStage3D = lazy(() => import('./components/3d/KineticStage3D'));
 import { AboutSection } from './components/AboutSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
@@ -179,11 +179,37 @@ export const App: React.FC = () => {
 
   // Intro video & modals
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
+  const [isKineticStageReady, setIsKineticStageReady] = useState<boolean>(false);
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
   const [isPassesModalOpen, setIsPassesModalOpen] = useState<boolean>(false);
   const [activePassId, setActivePassId] = useState<string | undefined>(undefined);
   const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
+
+  // The 3D stage pulls in Three.js and is decorative. Wait until the intro has
+  // finished and the visitor is on the home view so it doesn't compete with
+  // the initial route and content for bandwidth or startup time.
+  useEffect(() => {
+    if (
+      isIntroOpen || isAdminView || isSponsorsPageOpen || isPassesPageOpen ||
+      isAllEventsPageOpen || isPrivacyPageOpen || isTermsPageOpen ||
+      isRefundPageOpen || isRegistrationPageOpen || isKineticStageReady
+    ) return;
+
+    const timer = window.setTimeout(() => setIsKineticStageReady(true), 0);
+    return () => window.clearTimeout(timer);
+  }, [
+    isIntroOpen,
+    isAdminView,
+    isSponsorsPageOpen,
+    isPassesPageOpen,
+    isAllEventsPageOpen,
+    isPrivacyPageOpen,
+    isTermsPageOpen,
+    isRefundPageOpen,
+    isRegistrationPageOpen,
+    isKineticStageReady,
+  ]);
 
 
   const refreshData = async () => {
@@ -437,48 +463,56 @@ export const App: React.FC = () => {
   // Render Legal Pages (/privacy, /terms, /refund)
   if (isPrivacyPageOpen) {
     return (
-      <PrivacyPolicyPage
-        onBackToHome={handleBackFromLegalPage}
-        onNavigateToTerms={handleOpenTermsPage}
-        onNavigateToRefund={handleOpenRefundPage}
-      />
+      <Suspense fallback={null}>
+        <PrivacyPolicyPage
+          onBackToHome={handleBackFromLegalPage}
+          onNavigateToTerms={handleOpenTermsPage}
+          onNavigateToRefund={handleOpenRefundPage}
+        />
+      </Suspense>
     );
   }
 
   if (isTermsPageOpen) {
     return (
-      <TermsAndConditionsPage
-        onBackToHome={handleBackFromLegalPage}
-        onNavigateToPrivacy={handleOpenPrivacyPage}
-        onNavigateToRefund={handleOpenRefundPage}
-      />
+      <Suspense fallback={null}>
+        <TermsAndConditionsPage
+          onBackToHome={handleBackFromLegalPage}
+          onNavigateToPrivacy={handleOpenPrivacyPage}
+          onNavigateToRefund={handleOpenRefundPage}
+        />
+      </Suspense>
     );
   }
 
   if (isRefundPageOpen) {
     return (
-      <RefundPolicyPage
-        onBackToHome={handleBackFromLegalPage}
-        onNavigateToPrivacy={handleOpenPrivacyPage}
-        onNavigateToTerms={handleOpenTermsPage}
-      />
+      <Suspense fallback={null}>
+        <RefundPolicyPage
+          onBackToHome={handleBackFromLegalPage}
+          onNavigateToPrivacy={handleOpenPrivacyPage}
+          onNavigateToTerms={handleOpenTermsPage}
+        />
+      </Suspense>
     );
   }
 
   // Render Public Sponsors Page if in #sponsors or #partners view
   if (isSponsorsPageOpen) {
     return (
-      <PublicSponsorsPage
-        onBackToHome={handleBackFromSponsorsPage}
-        onExploreEvents={handleOpenAllEventsPage}
-        onRegisterNow={handleStartMultiPass}
-      />
+      <Suspense fallback={null}>
+        <PublicSponsorsPage
+          onBackToHome={handleBackFromSponsorsPage}
+          onExploreEvents={handleOpenAllEventsPage}
+          onRegisterNow={handleStartMultiPass}
+        />
+      </Suspense>
     );
   }
 
   if (isAllEventsPageOpen && !isRegistrationPageOpen && !isPassesPageOpen && !isAdminView) {
     return (
-      <>
+      <Suspense fallback={null}>
         <AllEventsPage
           events={events}
           passesCount={registrations.length}
@@ -491,54 +525,62 @@ export const App: React.FC = () => {
           onOpenSponsors={handleOpenSponsorsPage}
         />
 
-        <EventDetailModal
-          event={detailEvent}
-          onClose={() => setDetailEvent(null)}
-          onRegister={handleStartEventRegistration}
-        />
+        {detailEvent && (
+          <EventDetailModal
+            event={detailEvent}
+            onClose={() => setDetailEvent(null)}
+            onRegister={handleStartEventRegistration}
+          />
+        )}
 
-        <MultiPassModal
-          isOpen={isMultiPassModalOpen}
-          onClose={() => setIsMultiPassModalOpen(false)}
-          events={events}
-          currentUser={currentUser}
-          onSuccess={handleMultiPassSuccess}
-        />
-      </>
+        {isMultiPassModalOpen && (
+          <MultiPassModal
+            isOpen={isMultiPassModalOpen}
+            onClose={() => setIsMultiPassModalOpen(false)}
+            events={events}
+            currentUser={currentUser}
+            onSuccess={handleMultiPassSuccess}
+          />
+        )}
+      </Suspense>
     );
   }
 
   if (isPassesPageOpen) {
     return (
-      <DigitalPassModal
-        registrations={registrations}
-        events={events}
-        currentUser={currentUser}
-        activePassId={activePassLookup}
-        pageMode
-        onClose={navigateHome}
-        onBrowseEvents={handleOpenAllEventsPage}
-        onOpenMultiPass={() => {
-          navigateHome();
-          setIsMultiPassModalOpen(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        <DigitalPassModal
+          registrations={registrations}
+          events={events}
+          currentUser={currentUser}
+          activePassId={activePassLookup}
+          pageMode
+          onClose={navigateHome}
+          onBrowseEvents={handleOpenAllEventsPage}
+          onOpenMultiPass={() => {
+            navigateHome();
+            setIsMultiPassModalOpen(true);
+          }}
+        />
+      </Suspense>
     );
   }
 
   if (isRegistrationPageOpen) {
     return registerEvent ? (
-      <RegistrationModal
-        event={registerEvent}
-        currentUser={currentUser}
-        pageMode
-        onClose={navigateHome}
-        onSuccess={handleRegistrationSuccess}
-        onOpenMultiPass={() => {
-          navigateHome();
-          setIsMultiPassModalOpen(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        <RegistrationModal
+          event={registerEvent}
+          currentUser={currentUser}
+          pageMode
+          onClose={navigateHome}
+          onSuccess={handleRegistrationSuccess}
+          onOpenMultiPass={() => {
+            navigateHome();
+            setIsMultiPassModalOpen(true);
+          }}
+        />
+      </Suspense>
     ) : (
       <div className="registration-page-shell registration-page-loading">
         <div>
@@ -553,7 +595,9 @@ export const App: React.FC = () => {
   // Render Admin Console if in #admin view
   if (isAdminView) {
     return (
-      <AdminPortal onBackToFest={handleBackFromAdmin} />
+      <Suspense fallback={null}>
+        <AdminPortal onBackToFest={handleBackFromAdmin} />
+      </Suspense>
     );
   }
 
@@ -561,7 +605,11 @@ export const App: React.FC = () => {
     <ScrollAnimationsProvider enableSmoothScroll={!isIntroOpen}>
       <div className="public-site-shell" style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Background Continuous Scroll-Driven 3D Kinetic Stage */}
-      <KineticStage3D />
+      {isKineticStageReady && (
+        <Suspense fallback={null}>
+          <KineticStage3D />
+        </Suspense>
+      )}
       {/* Subtle ambient depth */}
       <div
         style={{
@@ -651,50 +699,62 @@ export const App: React.FC = () => {
       />
 
       {/* User Modals */}
-      <EventDetailModal
-        event={detailEvent}
-        onClose={() => setDetailEvent(null)}
-        onRegister={handleStartEventRegistration}
-      />
-
-      {registerEvent && (
-        <RegistrationModal
-          event={registerEvent}
-          currentUser={currentUser}
-          onClose={() => setRegisterEvent(null)}
-          onSuccess={handleRegistrationSuccess}
-          onOpenMultiPass={() => {
-            setRegisterEvent(null);
-            handleStartMultiPass();
-          }}
-        />
+      {detailEvent && (
+        <Suspense fallback={null}>
+          <EventDetailModal
+            event={detailEvent}
+            onClose={() => setDetailEvent(null)}
+            onRegister={handleStartEventRegistration}
+          />
+        </Suspense>
       )}
 
-      <MultiPassModal
-        isOpen={isMultiPassModalOpen}
-        onClose={() => setIsMultiPassModalOpen(false)}
-        events={events}
-        currentUser={currentUser}
-        onSuccess={handleMultiPassSuccess}
-      />
+      {registerEvent && (
+        <Suspense fallback={null}>
+          <RegistrationModal
+            event={registerEvent}
+            currentUser={currentUser}
+            onClose={() => setRegisterEvent(null)}
+            onSuccess={handleRegistrationSuccess}
+            onOpenMultiPass={() => {
+              setRegisterEvent(null);
+              handleStartMultiPass();
+            }}
+          />
+        </Suspense>
+      )}
+
+      {isMultiPassModalOpen && (
+        <Suspense fallback={null}>
+          <MultiPassModal
+            isOpen={isMultiPassModalOpen}
+            onClose={() => setIsMultiPassModalOpen(false)}
+            events={events}
+            currentUser={currentUser}
+            onSuccess={handleMultiPassSuccess}
+          />
+        </Suspense>
+      )}
 
 
       {isPassesModalOpen && (
-        <DigitalPassModal
-          registrations={registrations}
-          events={events}
-          currentUser={currentUser}
-          activePassId={activePassId}
-          onClose={() => {
-            setIsPassesModalOpen(false);
-            setActivePassId(undefined);
-          }}
-          onBrowseEvents={handleNavigateExplore}
-          onOpenMultiPass={() => {
-            setIsPassesModalOpen(false);
-            setIsMultiPassModalOpen(true);
-          }}
-        />
+        <Suspense fallback={null}>
+          <DigitalPassModal
+            registrations={registrations}
+            events={events}
+            currentUser={currentUser}
+            activePassId={activePassId}
+            onClose={() => {
+              setIsPassesModalOpen(false);
+              setActivePassId(undefined);
+            }}
+            onBrowseEvents={handleNavigateExplore}
+            onOpenMultiPass={() => {
+              setIsPassesModalOpen(false);
+              setIsMultiPassModalOpen(true);
+            }}
+          />
+        </Suspense>
       )}
       </div>
     </ScrollAnimationsProvider>

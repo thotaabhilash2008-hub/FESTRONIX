@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { AdminAuthService, AdminUser, isDepartmentAdminRole, isSuperAdminRole } from '../../services/adminAuthService';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { AdminLoginView } from './AdminLoginView';
-import { DeanDashboard } from './DeanDashboard';
-import { DeptCoordinatorDashboard } from './DeptCoordinatorDashboard';
+const DeanDashboard = lazy(() => import('./DeanDashboard').then(module => ({ default: module.DeanDashboard })));
+const DeptCoordinatorDashboard = lazy(() => import('./DeptCoordinatorDashboard').then(module => ({ default: module.DeptCoordinatorDashboard })));
 import { GlitterBackground } from '../GlitterBackground';
 import './admin.css';
 
@@ -138,17 +138,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
             onBackToFest={onBackToFest}
           />
         ) : isSuperAdminRole(adminUser.role) ? (
-          <DeanDashboard
-            adminUser={adminUser}
-            onLogout={handleLogout}
-            onSwitchToFest={onBackToFest}
-          />
+          <Suspense fallback={<div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', color: '#DCE3E5' }}>Loading admin workspace…</div>}>
+            <DeanDashboard
+              adminUser={adminUser}
+              onLogout={handleLogout}
+              onSwitchToFest={onBackToFest}
+            />
+          </Suspense>
         ) : isDepartmentAdminRole(adminUser.role) ? (
-          <DeptCoordinatorDashboard
-            adminUser={adminUser}
-            onLogout={handleLogout}
-            onSwitchToFest={onBackToFest}
-          />
+          <Suspense fallback={<div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', color: '#DCE3E5' }}>Loading department workspace…</div>}>
+            <DeptCoordinatorDashboard
+              adminUser={adminUser}
+              onLogout={handleLogout}
+              onSwitchToFest={onBackToFest}
+            />
+          </Suspense>
         ) : (
           <div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', padding: '32px', color: '#FCA5A5', textAlign: 'center' }}>
             <div>

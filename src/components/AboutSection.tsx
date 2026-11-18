@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Layers, Award, Terminal, Info } from 'lucide-react';
-import { Tilt3DCard } from './3d';
+import { Tilt3DCard } from './3d/Tilt3DCard';
 import { ScrollReveal } from './animations';
 
 export const AboutSection: React.FC = () => {
