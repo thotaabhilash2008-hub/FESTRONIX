@@ -22,8 +22,21 @@ function normalizeRoll(value: unknown): string {
   return cleanText(value, 50).toUpperCase();
 }
 
-function cleanItem(item: Record<string, unknown>, event: Record<string, any>) {
-  const teammates = Array.isArray(item.teammates) ? item.teammates.slice(0, 10).map(member => {
+function normalizeTeamCode(value: unknown): string {
+  return cleanText(value, 40).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+function isValidEmail(value: unknown): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanText(value, 180));
+}
+
+function cleanItem(
+  item: Record<string, unknown>,
+  event: Record<string, any>,
+  team: Record<string, any> | null = null,
+  roster: Record<string, unknown>[] = []
+) {
+  const teammates = roster.slice(0, 10).map(member => {
     const value = (member && typeof member === 'object') ? member as Record<string, unknown> : {};
     return {
       name: cleanText(value.name, 120),
@@ -33,21 +46,21 @@ function cleanItem(item: Record<string, unknown>, event: Record<string, any>) {
       rollNumber: cleanText(value.rollNumber ?? value.roll_number, 50).toUpperCase(),
       deptSection: cleanText(value.deptSection ?? value.dept_section, 80).toUpperCase()
     };
-  }) : [];
+  });
 
   return {
     eventId: event.id,
-    buyerRoll: cleanText(item.buyerRoll ?? item.buyer_roll, 50).toUpperCase(),
-    leaderName: cleanText(item.leaderName ?? item.leader_name, 120),
-    leaderEmail: cleanText(item.leaderEmail ?? item.leader_email, 180).toLowerCase(),
-    leaderPhone: cleanText(item.leaderPhone ?? item.leader_phone, 40),
-    leaderCollege: cleanText(item.leaderCollege ?? item.leader_college, 180),
-    leaderRoll: cleanText(item.leaderRoll ?? item.leader_roll, 50).toUpperCase(),
+    buyerRoll: normalizeRoll(team?.leader_roll ?? item.buyerRoll ?? item.buyer_roll),
+    leaderName: cleanText(team?.leader_name ?? item.leaderName ?? item.leader_name, 120),
+    leaderEmail: cleanText(team?.leader_email ?? item.leaderEmail ?? item.leader_email, 180).toLowerCase(),
+    leaderPhone: cleanText(team?.leader_phone ?? item.leaderPhone ?? item.leader_phone, 40),
+    leaderCollege: cleanText(team?.leader_college ?? item.leaderCollege ?? item.leader_college, 180),
+    leaderRoll: normalizeRoll(team?.leader_roll ?? item.leaderRoll ?? item.leader_roll),
     format: event.format,
     fee: Number(event.fee) || 0,
     teammates,
-    teamName: cleanText(item.teamName ?? item.team_name, 120),
-    teamCode: cleanText(item.teamCode ?? item.team_code, 40).toUpperCase()
+    teamName: team ? cleanText(team.team_name, 120) : '',
+    teamCode: team ? cleanText(team.team_code, 40).toUpperCase() : ''
   };
 }
 
@@ -107,14 +120,14 @@ Deno.serve(async request => {
       let eventError: any = null;
       if (isUuid(eventRef)) {
         const result = await db.from('events')
-          .select('id, slug, title, fee, format, capacity, registered_count, status, deadline, approval_status, is_deleted')
+          .select('id, slug, title, fee, format, capacity, registered_count, min_team_size, max_team_size, status, deadline, approval_status, is_deleted')
           .eq('id', eventRef)
           .maybeSingle();
         event = result.data;
         eventError = result.error;
       } else {
         const result = await db.from('events')
-          .select('id, slug, title, fee, format, capacity, registered_count, status, deadline, approval_status, is_deleted')
+          .select('id, slug, title, fee, format, capacity, registered_count, min_team_size, max_team_size, status, deadline, approval_status, is_deleted')
           .eq('slug', eventRef)
           .maybeSingle();
         event = result.data;
@@ -125,23 +138,118 @@ Deno.serve(async request => {
       if (event.status !== 'open' && event.status !== 'upcoming') return respond({ error: `${event.title} is not accepting registrations.` }, 400);
       if (event.approval_status !== 'approved') return respond({ error: `${event.title} is not approved for registration.` }, 400);
       if (event.deadline && new Date(event.deadline).getTime() < Date.now()) return respond({ error: `The registration deadline for ${event.title} has passed.` }, 400);
-      if (event.format !== 'individual') return respond({ error: `${event.title} requires its team registration flow.` }, 400);
+      if (!['individual', 'duo', 'team'].includes(event.format)) return respond({ error: `${event.title} has an unsupported registration format.` }, 400);
       if (!Number.isFinite(Number(event.fee)) || Number(event.fee) < 0) return respond({ error: `${event.title} has an invalid registration fee.` }, 400);
       eventsById.set(event.id, event);
       eventTitles.set(event.id, event.title);
     }
 
-    const normalizedItems = items.map(item => {
+    const teamsByEventId = new Map<string, any[]>();
+    const normalizedItems = [];
+    for (const item of items) {
       const value = item && typeof item === 'object' ? item as Record<string, unknown> : {};
       const ref = cleanText(value.eventId ?? value.event_id ?? requestedEvent, 160);
       const event = eventsById.get(ref) || Array.from(eventsById.values()).find(candidate => candidate.slug === ref);
       if (!event) throw new Error('One of the selected events could not be validated.');
-      return cleanItem(value, event);
-    });
+      let team: Record<string, any> | null = null;
 
-    const itemCountsByEvent = new Map<string, number>();
-    for (const item of normalizedItems) itemCountsByEvent.set(item.eventId, (itemCountsByEvent.get(item.eventId) || 0) + 1);
-    for (const [eventId, count] of itemCountsByEvent) {
+      if (event.format !== 'individual') {
+        if (!buyerUserId) return respond({ error: 'Sign in with the team leader account before paying for a team event.' }, 401);
+        const requestedTeamCode = normalizeTeamCode(value.teamCode ?? value.team_code);
+        if (!requestedTeamCode) return respond({ error: 'Create or verify the team reservation before starting payment.' }, 400);
+
+        let eventTeams = teamsByEventId.get(event.id);
+        if (!eventTeams) {
+          const { data, error } = await db.from('teams')
+            .select('team_code, team_name, event_id, leader_id, leader_name, leader_roll, leader_email, leader_phone, leader_college, members, min_team_size, max_team_size')
+            .eq('event_id', event.id);
+          if (error) {
+            console.error('Razorpay team reservation lookup failed:', error.message);
+            return respond({ error: 'Unable to validate the team reservation before payment. Please try again.' }, 503);
+          }
+          eventTeams = data || [];
+          teamsByEventId.set(event.id, eventTeams);
+        }
+
+        team = eventTeams.find(candidate => normalizeTeamCode(candidate.team_code) === requestedTeamCode) || null;
+        if (!team || String(team.event_id) !== String(event.id)) {
+          return respond({ error: 'The team reservation could not be found for this event. Reopen the event and verify its team code.' }, 409);
+        }
+        if (String(team.leader_id || '') !== buyerUserId) {
+          return respond({ error: 'Only the account that created this team can pay for its registration.' }, 403);
+        }
+        if (normalizeRoll(value.leaderRoll ?? value.leader_roll) !== normalizeRoll(team.leader_roll) ||
+            cleanText(value.leaderEmail ?? value.leader_email, 180).toLowerCase() !== cleanText(team.leader_email, 180).toLowerCase()) {
+          return respond({ error: 'The checkout leader details do not match the team reservation. Refresh your details and try again.' }, 400);
+        }
+        if (Number(team.min_team_size) !== Number(event.min_team_size) ||
+            Number(team.max_team_size) !== Number(event.max_team_size)) {
+          return respond({ error: 'The team reservation no longer matches this event’s team-size rules. Recreate the team before paying.' }, 409);
+        }
+      }
+
+      let roster: Record<string, unknown>[] = [];
+      if (event.format !== 'individual' && team) {
+        const savedMembers = Array.isArray(team.members) ? team.members : [];
+        const rosterByRoll = new Map<string, Record<string, unknown>>();
+        for (const rawMember of savedMembers) {
+          const member = rawMember && typeof rawMember === 'object' ? rawMember as Record<string, unknown> : {};
+          const roll = normalizeRoll(member.rollNumber ?? member.roll_number);
+          if (!roll || rosterByRoll.has(roll)) {
+            return respond({ error: 'The saved team roster contains a missing or duplicate roll number. Update the roster before paying.' }, 409);
+          }
+          rosterByRoll.set(roll, member);
+        }
+
+        const submittedMembers = Array.isArray(value.teammates) ? value.teammates : [];
+        const submittedRolls = new Set<string>();
+        for (const rawMember of submittedMembers) {
+          const member = rawMember && typeof rawMember === 'object' ? rawMember as Record<string, unknown> : {};
+          const roll = normalizeRoll(member.rollNumber ?? member.roll_number);
+          if (!roll) return respond({ error: 'Each teammate needs a roll number before payment.' }, 400);
+          if (submittedRolls.has(roll)) return respond({ error: `Teammate roll number ${roll} appears more than once.` }, 400);
+          submittedRolls.add(roll);
+          // A joined member's server-saved profile wins over a copy sent by the browser.
+          if (!rosterByRoll.has(roll)) rosterByRoll.set(roll, member);
+        }
+        roster = Array.from(rosterByRoll.values());
+
+        const teamSize = 1 + roster.length;
+        const minTeamSize = Math.max(1, Number(event.min_team_size) || 1);
+        const maxTeamSize = Number(event.max_team_size);
+        if (teamSize < minTeamSize) {
+          return respond({ error: `This event requires at least ${minTeamSize} team members. Add or invite the remaining teammate(s) before paying.` }, 400);
+        }
+        if (!Number.isFinite(maxTeamSize) || teamSize > maxTeamSize) {
+          return respond({ error: `This event permits a maximum of ${event.max_team_size} team members.` }, 409);
+        }
+      }
+
+      const normalizedItem = cleanItem(value, event, team, roster);
+      if (!normalizedItem.leaderName || !isValidEmail(normalizedItem.leaderEmail) ||
+          !normalizedItem.leaderPhone || !normalizedItem.leaderRoll) {
+        return respond({ error: `Complete the participant name, valid email, phone number, and roll number for ${event.title} before payment.` }, 400);
+      }
+      for (const member of normalizedItem.teammates) {
+        if (!member.name || !member.rollNumber || !member.phone || (member.email && !isValidEmail(member.email))) {
+          return respond({ error: `The saved team roster for ${event.title} contains incomplete participant details. Update the roster before payment.` }, 409);
+        }
+      }
+      normalizedItems.push(normalizedItem);
+    }
+
+    if (normalizedItems.some(item => item.format !== 'individual') && normalizedItems.length > 1) {
+      return respond({ error: 'Team event checkout must be completed separately from individual passes.' }, 400);
+    }
+
+    const participantCountsByEvent = new Map<string, number>();
+    for (const item of normalizedItems) {
+      // Capacity is measured in participants. The event-locked finalizer checks
+      // the same full roster again after Razorpay captures the payment.
+      const participantCount = item.format === 'individual' ? 1 : 1 + item.teammates.length;
+      participantCountsByEvent.set(item.eventId, (participantCountsByEvent.get(item.eventId) || 0) + participantCount);
+    }
+    for (const [eventId, count] of participantCountsByEvent) {
       const event = eventsById.get(eventId)!;
       if (Number(event.registered_count || 0) + count > Number(event.capacity || 0)) {
         return respond({ error: `${event.title} does not have enough remaining seats for this order.` }, 409);
@@ -152,15 +260,18 @@ Deno.serve(async request => {
     // registration. Rolls are scoped to an event so one person can buy passes
     // for two different events in the same cart.
     const requestedRolls = new Map<string, string>();
+    const requestedTeamMemberCodes = new Map<string, string>();
     const duplicateRolls = new Set<string>();
     for (const item of normalizedItems) {
       const rolls = [item.leaderRoll, ...item.teammates.map(member => member.rollNumber)];
-      for (const roll of rolls) {
+      for (let index = 0; index < rolls.length; index += 1) {
+        const roll = rolls[index];
         const normalizedRoll = normalizeRoll(roll);
         if (!normalizedRoll) continue;
         const key = `${item.eventId}:${normalizedRoll}`;
         if (requestedRolls.has(key)) duplicateRolls.add(`${normalizedRoll} (${eventTitles.get(item.eventId) || 'event'})`);
         requestedRolls.set(key, normalizedRoll);
+        if (index > 0 && item.teamCode) requestedTeamMemberCodes.set(key, normalizeTeamCode(item.teamCode));
       }
     }
     if (duplicateRolls.size > 0) {
@@ -170,9 +281,9 @@ Deno.serve(async request => {
       }, 400);
     }
 
-    const eventIds = Array.from(itemCountsByEvent.keys());
+    const eventIds = Array.from(participantCountsByEvent.keys());
     const { data: existingRegistrations, error: existingRegistrationError } = await db.from('registrations')
-      .select('id, display_id, event_id, leader_roll')
+      .select('id, display_id, event_id, leader_roll, team_code')
       .in('event_id', eventIds)
       .neq('payment_status', 'rejected');
     if (existingRegistrationError) {
@@ -181,12 +292,20 @@ Deno.serve(async request => {
     }
 
     const existingRolls = new Map<string, string>();
+    const existingTeamCodes = new Map<string, Set<string>>();
     const registrationEventById = new Map<string, string>();
     const registrationIds = (existingRegistrations || []).map(registration => {
       const id = cleanText(registration.id, 80);
       const roll = normalizeRoll(registration.leader_roll);
-      if (id) registrationEventById.set(id, cleanText(registration.event_id, 80));
-      if (roll) existingRolls.set(`${registration.event_id}:${roll}`, cleanText(registration.display_id, 80));
+      const eventId = cleanText(registration.event_id, 80);
+      if (id) registrationEventById.set(id, eventId);
+      if (roll) {
+        const key = `${eventId}:${roll}`;
+        existingRolls.set(key, cleanText(registration.display_id, 80));
+        const teamCodes = existingTeamCodes.get(key) || new Set<string>();
+        teamCodes.add(normalizeTeamCode(registration.team_code));
+        existingTeamCodes.set(key, teamCodes);
+      }
       return id;
     }).filter(Boolean);
 
@@ -207,6 +326,9 @@ Deno.serve(async request => {
 
     for (const [key, roll] of requestedRolls) {
       if (existingRolls.has(key)) {
+        const requestedTeamCode = requestedTeamMemberCodes.get(key);
+        const existingCodes = existingTeamCodes.get(key);
+        if (requestedTeamCode && existingCodes?.size === 1 && existingCodes.has(requestedTeamCode)) continue;
         const eventId = key.split(':')[0];
         const eventTitle = eventTitles.get(eventId) || 'this event';
         const existingPass = existingRolls.get(key);
@@ -221,6 +343,25 @@ Deno.serve(async request => {
 
     const amountPaise = normalizedItems.reduce((sum, item) => sum + (Number(item.fee) || 0) * 100, 0);
     if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) return respond({ error: 'The payment amount is invalid.' }, 400);
+
+    // Persist the final, validated roster before creating a gateway order. The
+    // database finalizer uses this trusted roster to issue a ticket per member
+    // in the same transaction as the paid leader registration.
+    for (const item of normalizedItems) {
+      if (item.format === 'individual') continue;
+      const { error } = await db.rpc('sync_razorpay_team_roster', {
+        p_event_id: item.eventId,
+        p_team_code: item.teamCode,
+        p_leader_user_id: buyerUserId,
+        p_leader_roll: item.leaderRoll,
+        p_leader_email: item.leaderEmail,
+        p_members: item.teammates
+      });
+      if (error) {
+        console.error('Razorpay team roster sync failed:', error.message);
+        return respond({ error: 'The team roster could not be safely saved before payment. Please refresh the team and try again.' }, 409);
+      }
+    }
 
     const internalId = crypto.randomUUID();
     const receipt = `FEST26-${internalId.replaceAll('-', '').slice(0, 30)}`;

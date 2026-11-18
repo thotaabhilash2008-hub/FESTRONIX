@@ -9,7 +9,7 @@ The flow is:
 1. The registration UI sends the selected event and sanitized participant payload to `razorpay-create-order`.
 2. The Edge Function reads the event fee from Supabase, calculates the amount in paise, stores an order intent in `public.razorpay_orders`, and creates the Razorpay order server-side.
 3. A signed-in buyer's access token is validated server-side and stored as `buyer_user_id`; guest checkout remains supported. The browser opens Razorpay Checkout with the public Key ID and server-created order ID.
-4. One order supports up to 10 passes across multiple individual events. The backend calculates the total from event fees; free passes can be included in a paid cart without increasing the charge.
+4. One order supports up to 10 passes across multiple individual events. The backend calculates the total from event fees; free passes can be included in a paid cart without increasing the charge. A duo/team event is checked out separately: the signed-in leader and event are verified, the saved and manually entered roster is validated and persisted server-side, and team-size and capacity rules are checked before checkout.
 5. `razorpay-verify-payment` validates the HMAC signature before reading or returning any stored pass data, then fetches the payment from Razorpay and verifies the order, amount, currency, and captured state.
 6. The service-role-only `public.finalize_razorpay_order_safely` RPC locks all cart events in a consistent order and calls the idempotent finalizer, which creates one registration and QR ticket per pass in a single transaction, updates event counts, and links signed-in purchases to the verified buyer account.
 7. A signed `payment.captured` webhook calls the same idempotent finalizer. It recovers if the browser closes or loses connectivity after capture. Both paths dispatch pass email through an atomic delivery claim.
@@ -65,6 +65,7 @@ Set `RAZORPAY_MODE=test` while testing and `RAZORPAY_MODE=live` only after Razor
 - `supabase/migrations/20261113120000_razorpay_refund_review.sql` — staff-scoped read-only RPC so the finance console can see refund outcomes without exposing `razorpay_orders` to the browser.
 - `supabase/migrations/20261119100000_razorpay_multipass_hardening.sql` — validated buyer account linkage, refund-payment tracking, and strict finalization idempotency.
 - `supabase/migrations/20261119110000_razorpay_checkout_locking.sql` — deterministic event locking for concurrent multi-event carts.
+- `supabase/migrations/20261119120000_razorpay_team_roster_sync.sql` — service-only validation and persistence of the final team roster before checkout.
 - `supabase/functions/razorpay-create-order/` — trusted amount calculation and Razorpay order creation.
 - `supabase/functions/razorpay-verify-payment/` — signature, capture, finalization, safe retry, and failed-finalization refund handling.
 - `supabase/functions/razorpay-webhook/` — signed capture recovery when browser verification is interrupted.
@@ -84,12 +85,13 @@ Set `RAZORPAY_MODE=test` while testing and `RAZORPAY_MODE=live` only after Razor
 6. Confirm the order is `paid`, registrations are `verified`, QR tickets exist, account linkage works for signed-in buyers, emails send once, and each coordinator sees only the assigned event's registrations.
 7. Test mixed free/paid carts, exactly 10 and 11 passes, upcoming/closed/unapproved events, duplicate roll numbers, full capacity and concurrent checkouts, browser interruption after capture, repeated callbacks, partial refund retry, and email delivery retry.
 8. For duplicate registration, use an already registered roll number only in Razorpay Test Mode and confirm a refund is recorded; do not create a live duplicate charge.
+9. For duo/team events, verify team-code and leader ownership, minimum and maximum size, optional teammate email, duplicate rolls, and full capacity. Confirm each paid team member receives one registration and QR ticket.
 
 ## Before production
 
 - Submit the deployed HTTPS website for Razorpay website/app approval and complete the account, KYC, business, bank, and settlement verification steps.
-- Production Supabase is now set to `RAZORPAY_MODE=live`. The configured key pair failed the live-key check, so paid checkout is safely blocked until the intended merchant account's live `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are installed.
-- Deploy the Razorpay order, verify, and webhook Edge Functions and verify the live Key ID starts with `rzp_live_`.
-- Register `https://fbvztmttixmmqorvqtbb.supabase.co/functions/v1/razorpay-webhook` in that same live Razorpay account for `payment.captured`, then set its matching secret as `RAZORPAY_WEBHOOK_SECRET` in Supabase. The endpoint stays disabled until this secret exists.
+- Set production Supabase to `RAZORPAY_MODE=live` and install the intended merchant account's `rzp_live_` Key ID and Key Secret as Edge Function secrets. The backend rejects missing, malformed, or mode-mismatched credentials before creating an order.
+- Deploy the Razorpay order, verify, webhook, and registration-pass Edge Functions; confirm each is active and that no key secret is exposed in browser assets.
+- Register `https://fbvztmttixmmqorvqtbb.supabase.co/functions/v1/razorpay-webhook` in the same live Razorpay account for `payment.captured`, then set the exact matching secret as `RAZORPAY_WEBHOOK_SECRET` in Supabase. Confirm the secret with a signed Razorpay delivery; an unsigned request only proves the endpoint is reachable.
 - Configure the Razorpay account, capture settings, settlement ownership, refunds, privacy policy, and operational support before accepting real money.
-- Keep the manual-proof fallback until payment reconciliation has been proven in production.
+- Keep the manual-proof fallback until payment reconciliation has been proven in production. Use Razorpay Test Mode for end-to-end payment cases; do not use a real charge as a production smoke test.
