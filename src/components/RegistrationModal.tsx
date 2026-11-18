@@ -156,10 +156,43 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       const liveMembers = team.members || [];
 
       setTeammates(prev => {
-        // Find newly joined members not in prev state
-        const newlyAdded = liveMembers.filter(
-          lm => !prev.some(p => p.rollNumber && lm.rollNumber && p.rollNumber.trim().toLowerCase() === lm.rollNumber.trim().toLowerCase())
-        );
+        const merged = [...prev];
+        const newlyAdded: Teammate[] = [];
+        let changed = false;
+
+        liveMembers.forEach(member => {
+          const memberRoll = (member.rollNumber || '').trim().toUpperCase();
+          const existingIndex = merged.findIndex(
+            current => memberRoll && (current.rollNumber || '').trim().toUpperCase() === memberRoll
+          );
+
+          if (existingIndex < 0) {
+            merged.push(member);
+            newlyAdded.push(member);
+            changed = true;
+            return;
+          }
+
+          // Public dashboards redact contact fields. When the leader verifies
+          // their details, the checkout roster RPC returns the saved contacts;
+          // merge them into the existing name/roll entry instead of treating it
+          // as a duplicate and leaving the inputs blank.
+          const existing = merged[existingIndex];
+          const updated = {
+            ...existing,
+            ...member,
+            name: member.name?.trim() || existing.name,
+            rollNumber: member.rollNumber?.trim() || existing.rollNumber,
+            email: member.email?.trim() || existing.email || '',
+            phone: member.phone?.trim() || existing.phone || '',
+            college: member.college?.trim() || existing.college || leader.college
+          };
+          if (updated.name !== existing.name || updated.rollNumber !== existing.rollNumber ||
+              updated.email !== existing.email || updated.phone !== existing.phone || updated.college !== existing.college) {
+            merged[existingIndex] = updated;
+            changed = true;
+          }
+        });
 
         if (newlyAdded.length > 0) {
           const names = newlyAdded.map(m => `${m.name} (${m.rollNumber})`).join(', ');
@@ -170,9 +203,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             spread: 60,
             origin: { y: 0.65 }
           });
-          return [...prev, ...newlyAdded];
         }
-        return prev;
+        return changed ? merged : prev;
       });
     };
 
@@ -205,10 +237,21 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     // 4. Polling fallback every 1500ms
     const intervalId = setInterval(async () => {
-      const lookup = await StorageService.findTeamWithValidation(generatedTeamCode);
-      if (lookup.team) {
-        syncLiveMembers(lookup.team);
+      if (leader.rollNumber.trim() && leader.email.trim() && leader.phone.trim()) {
+        const checkoutTeam = await StorageService.fetchTeamCheckoutRoster(
+          generatedTeamCode,
+          leader.rollNumber,
+          leader.email,
+          leader.phone,
+          event?.id
+        ).catch(() => null);
+        if (checkoutTeam) {
+          syncLiveMembers(checkoutTeam);
+          return;
+        }
       }
+      const lookup = await StorageService.findTeamWithValidation(generatedTeamCode);
+      if (lookup.team) syncLiveMembers(lookup.team);
     }, 1500);
 
     return () => {
@@ -218,7 +261,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       }
       clearInterval(intervalId);
     };
-  }, [isTeamEvent, generatedTeamCode]);
+  }, [isTeamEvent, generatedTeamCode, leader.rollNumber, leader.email, leader.phone, leader.college, event?.id]);
 
   if (!event) return null;
 
@@ -467,8 +510,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const handleConfirmJoinTeam = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!leader.name.trim() || !leader.email.trim() || !leader.rollNumber.trim()) {
-      setErrorMessage('Please fill in your name, email, and roll number to join this team.');
+    if (!leader.name.trim() || !leader.email.trim() || !leader.phone.trim() || !leader.rollNumber.trim()) {
+      setErrorMessage('Please fill in your name, email, phone number, and roll number to join this team.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leader.email.trim())) {
+      setErrorMessage('Enter a valid email address so the team can contact you and deliver your pass.');
       return;
     }
 
@@ -526,7 +573,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     if (isTeamEvent && generatedTeamCode) {
       const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-      const liveTeam = await StorageService.fetchTeamDashboard(generatedTeamCode, event.id).catch(() =>
+      const liveTeam = await StorageService.fetchTeamCheckoutRoster(
+        generatedTeamCode,
+        leader.rollNumber,
+        leader.email,
+        leader.phone,
+        event.id
+      ).catch(() =>
         StorageService.getTeams().find(
           t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
         ) || null
@@ -1394,7 +1447,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '0.76rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
-                  COLLEGE EMAIL *
+                  EMAIL FOR YOUR PASS AND TEAM CONTACT *
                 </label>
                 <input
                   type="email"
@@ -1402,6 +1455,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   value={leader.email}
                   onChange={e => setLeader({ ...leader, email: e.target.value })}
                   placeholder="student@college.edu"
+                  required
                 />
               </div>
 
@@ -1415,6 +1469,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   value={leader.phone}
                   onChange={e => setLeader({ ...leader, phone: e.target.value })}
                   placeholder="+91 98765 43210"
+                  required
                 />
               </div>
             </div>
@@ -2061,6 +2116,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         placeholder="Phone Number *"
                         value={tm.phone || ''}
                         onChange={e => handleUpdateTeammate(idx, 'phone', e.target.value)}
+                        required
                       />
                     </div>
                   </div>

@@ -2338,6 +2338,44 @@ export class StorageService {
   }
 
   /**
+   * Fetch the saved contact details for a team roster when the caller proves
+   * the leader identity using the team code plus the leader's roll, email, and
+   * phone. The general team dashboard intentionally redacts these fields.
+   */
+  static async fetchTeamCheckoutRoster(
+    teamCode: string,
+    leaderRoll: string,
+    leaderEmail: string,
+    leaderPhone: string,
+    eventId?: string
+  ): Promise<Team | null> {
+    if (!teamCode.trim() || !leaderRoll.trim() || !leaderEmail.trim() || !leaderPhone.trim()) return null;
+
+    if (!isSupabaseConfigured()) return this.findTeamByCode(teamCode, eventId);
+
+    const { data, error } = await supabase.rpc('get_team_checkout_roster', {
+      p_code: teamCode.trim(),
+      p_leader_roll: leaderRoll.trim(),
+      p_leader_email: leaderEmail.trim(),
+      p_leader_phone: leaderPhone.trim(),
+      p_event_id: eventId || null
+    });
+    if (error) throw new Error(`Unable to load the saved team roster: ${error.message}`);
+    if (!(data as any)?.success || !(data as any)?.team) {
+      throw new Error((data as any)?.error || 'The team leader details did not match this team code.');
+    }
+
+    const team = teamFromDb((data as any).team);
+    if (eventId && team.eventId !== eventId && team.eventId !== this.getEvents().find(event => event.id === eventId || event.slug === eventId)?.id) {
+      return null;
+    }
+
+    // This response contains private member contact details. Keep it in the
+    // current form state only; the public team cache deliberately stays redacted.
+    return team;
+  }
+
+  /**
    * Instantly creates or reserves a squad so that the Team Code is LIVE and JOINABLE immediately!
    */
   static async reserveOrRegisterTeam(newTeamData: Omit<Team, 'id' | 'createdAt'>): Promise<Team> {

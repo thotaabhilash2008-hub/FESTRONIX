@@ -22,6 +22,10 @@ function normalizeRoll(value: unknown): string {
   return cleanText(value, 50).toUpperCase();
 }
 
+function normalizePhone(value: unknown): string {
+  return cleanText(value, 40).replace(/\D/g, '');
+}
+
 function normalizeTeamCode(value: unknown): string {
   return cleanText(value, 40).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 }
@@ -101,9 +105,11 @@ Deno.serve(async request => {
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
       });
       const { data: authData, error: authError } = await authClient.auth.getUser(bearerToken);
-      if (authError || !authData.user) return respond({ error: 'Your sign-in session is invalid or expired. Sign in again and retry checkout.' }, 401);
-      buyerUserId = authData.user.id;
+      // Public checkout must remain usable without an account. An expired
+      // browser session is treated as a guest session instead of blocking payment.
+      if (!authError && authData.user) buyerUserId = authData.user.id;
     }
+    let orderBuyerUserId = buyerUserId;
 
     // Each cart item carries its event ID. The first event remains the order's
     // index/anchor for compatibility with existing razorpay_orders rows.
@@ -154,7 +160,6 @@ Deno.serve(async request => {
       let team: Record<string, any> | null = null;
 
       if (event.format !== 'individual') {
-        if (!buyerUserId) return respond({ error: 'Sign in with the team leader account before paying for a team event.' }, 401);
         const requestedTeamCode = normalizeTeamCode(value.teamCode ?? value.team_code);
         if (!requestedTeamCode) return respond({ error: 'Create or verify the team reservation before starting payment.' }, 400);
 
@@ -175,11 +180,13 @@ Deno.serve(async request => {
         if (!team || String(team.event_id) !== String(event.id)) {
           return respond({ error: 'The team reservation could not be found for this event. Reopen the event and verify its team code.' }, 409);
         }
-        if (String(team.leader_id || '') !== buyerUserId) {
-          return respond({ error: 'Only the account that created this team can pay for its registration.' }, 403);
-        }
+        // Team access is validated with the invite code and saved leader
+        // details below. A remembered but different account must not force a
+        // public guest to sign in; also keep that unrelated account off the order.
+        if (buyerUserId && String(team.leader_id || '') !== buyerUserId) orderBuyerUserId = null;
         if (normalizeRoll(value.leaderRoll ?? value.leader_roll) !== normalizeRoll(team.leader_roll) ||
-            cleanText(value.leaderEmail ?? value.leader_email, 180).toLowerCase() !== cleanText(team.leader_email, 180).toLowerCase()) {
+            cleanText(value.leaderEmail ?? value.leader_email, 180).toLowerCase() !== cleanText(team.leader_email, 180).toLowerCase() ||
+            normalizePhone(value.leaderPhone ?? value.leader_phone) !== normalizePhone(team.leader_phone)) {
           return respond({ error: 'The checkout leader details do not match the team reservation. Refresh your details and try again.' }, 400);
         }
         if (Number(team.min_team_size) !== Number(event.min_team_size) ||
@@ -349,10 +356,13 @@ Deno.serve(async request => {
     // in the same transaction as the paid leader registration.
     for (const item of normalizedItems) {
       if (item.format === 'individual') continue;
-      const { error } = await db.rpc('sync_razorpay_team_roster', {
+      const savedTeam = teamsByEventId.get(item.eventId)?.find(
+        candidate => normalizeTeamCode(candidate.team_code) === normalizeTeamCode(item.teamCode)
+      );
+      const { error } = await db.rpc('sync_razorpay_team_roster_guest', {
         p_event_id: item.eventId,
         p_team_code: item.teamCode,
-        p_leader_user_id: buyerUserId,
+        p_leader_id: savedTeam?.leader_id ? String(savedTeam.leader_id) : null,
         p_leader_roll: item.leaderRoll,
         p_leader_email: item.leaderEmail,
         p_members: item.teammates
@@ -370,7 +380,7 @@ Deno.serve(async request => {
       id: internalId,
       receipt,
       event_id: primaryEventId,
-      buyer_user_id: buyerUserId,
+      buyer_user_id: orderBuyerUserId,
       amount_paise: amountPaise,
       currency: 'INR',
       status: 'creating',
