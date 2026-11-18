@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Flame, Trophy, Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
+import { Flame, Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { Tilt3DCard } from './3d';
 import { ScrollReveal } from './animations';
@@ -243,29 +243,6 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                         </span>
                       </div>
 
-                      {/* Prize Highlight */}
-                      {evt.prizes?.first && (
-                        <div
-                          style={{
-                            padding: '12px 16px',
-                            borderRadius: '10px',
-                            background: '#162238',
-                            border: '1px solid #1E293B',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            marginBottom: '20px'
-                          }}
-                        >
-                          <Trophy size={16} color="#FBBF24" />
-                          <span style={{ fontSize: '0.82rem', color: '#E2E8F0' }}>
-                            1st Prize:{' '}
-                            <strong style={{ color: '#FBBF24', fontWeight: 800 }}>
-                              {evt.prizes.first}
-                            </strong>
-                          </span>
-                        </div>
-                      )}
                     </div>
 
                     {/* Progress & Actions */}

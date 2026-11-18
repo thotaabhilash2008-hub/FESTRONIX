@@ -159,7 +159,7 @@ const EventCard: React.FC<{
         </div>
       </div>
 
-      {/* Prize & Fee */}
+      {/* Entry Fee */}
       <div
         style={{
           display: 'flex',
@@ -172,9 +172,8 @@ const EventCard: React.FC<{
           marginBottom: '12px'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#F59E0B', fontSize: '0.78rem', fontWeight: 700 }}>
-          <Trophy size={13} color="#F59E0B" />
-          <span>{event.prizes.first.replace(/Cash Prize|Worth Prizes/gi, '').trim()}</span>
+        <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#94A3B8', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          Entry Fee
         </div>
         <div style={{ fontSize: '0.78rem', fontWeight: 800, color: event.fee === 0 ? '#34D399' : '#38BDF8' }}>
           {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
@@ -684,7 +683,7 @@ export const EventsPage: React.FC<EventsPageProps> = ({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#94A3B8' }}>
             <Trophy size={13} color="#F59E0B" />
-            <span>Prize pool worth <strong style={{ color: '#F59E0B' }}>₹1,00,000+</strong></span>
+            <span><strong style={{ color: '#F59E0B' }}>Multi-track</strong> competitions</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#94A3B8' }}>
             <Rocket size={13} color="#A855F7" />

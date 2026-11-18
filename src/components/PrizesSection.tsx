@@ -27,7 +27,7 @@ export const PrizesSection: React.FC = () => {
             }}
           >
             <Crown size={14} color="#38BDF8" />
-            <span>PRIZES & RECOGNITION</span>
+            <span>RECOGNITION</span>
           </div>
 
           <h2
@@ -39,11 +39,11 @@ export const PrizesSection: React.FC = () => {
               display: 'inline-block'
             }}
           >
-            ₹1,00,000+ WORTH <span style={{ color: '#F59E0B' }}>PRIZE POOL</span>
+            FESTIVAL <span style={{ color: '#F59E0B' }}>HIGHLIGHTS</span>
           </h2>
 
           <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7 }}>
-            Cash rewards, official trophies, and merit certificates across all flagship events.
+            Competition stages, podium moments, and official recognition across flagship events.
           </p>
         </div>
       </ScrollReveal>
@@ -58,7 +58,6 @@ export const PrizesSection: React.FC = () => {
             margin: '0 auto'
           }}
         >
-          {/* Card 1: Direct Cash Rewards */}
           <Tilt3DCard maxTilt={5} scale={1.02}>
             <div
               className="cyber-card"
@@ -95,7 +94,7 @@ export const PrizesSection: React.FC = () => {
                   letterSpacing: '-0.02em'
                 }}
               >
-                Cash Rewards
+                Stage Spotlight
               </h3>
 
               <div
@@ -109,16 +108,15 @@ export const PrizesSection: React.FC = () => {
                   textShadow: 'none'
                 }}
               >
-                ₹1,00,000+
+                Spotlight
               </div>
 
               <p style={{ color: '#CBD5E1', fontSize: '0.92rem', lineHeight: 1.65 }}>
-                Direct disbursement to podium winners across competitive categories including Coding, Hackathons, RoboWars, and Technical championships.
+                High-energy competition arenas, flagship technical showcases, and podium moments across the festival.
               </p>
             </div>
           </Tilt3DCard>
 
-          {/* Card 2: SAC Certified Trophies */}
           <Tilt3DCard maxTilt={5} scale={1.02}>
             <div
               className="cyber-card"
@@ -155,7 +153,7 @@ export const PrizesSection: React.FC = () => {
                   letterSpacing: '-0.02em'
                 }}
               >
-                SAC Verified Honors
+                Official Recognition
               </h3>
 
               <div
@@ -169,11 +167,11 @@ export const PrizesSection: React.FC = () => {
                   textShadow: '0 0 16px rgba(52, 211, 153, 0.4)'
                 }}
               >
-                SAC Endorsed
+                Verified
               </div>
 
               <p style={{ color: '#CBD5E1', fontSize: '0.92rem', lineHeight: 1.65 }}>
-                Machined trophies for podium finishers, official merit certificates, and cryptographic verification on digital passes.
+                Official acclaim, merit recognition, and digital pass verification for standout participants and teams.
               </p>
             </div>
           </Tilt3DCard>

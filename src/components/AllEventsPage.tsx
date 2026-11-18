@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CalendarDays,
   Code2,
-  Crown,
   Gamepad2,
   Inbox,
   LayoutGrid,
@@ -284,24 +283,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             </div>
           </div>
 
-          {/* 1st Prize */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '9px 12px',
-              borderRadius: '8px',
-              background: '#162238',
-              border: '1px solid #1E293B',
-              marginBottom: '18px'
-            }}
-          >
-            <Crown size={14} color="#FBBF24" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: '0.78rem', color: '#FBBF24', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              1st Prize: {event.prizes?.first || 'Trophy & Certificate'}
-            </span>
-          </div>
         </div>
 
         {/* Bottom Pricing & Actions */}

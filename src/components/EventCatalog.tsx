@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, CalendarDays, MapPin, Users, Crown, ArrowRight, Inbox, Flame, Gamepad2, Code2, Wrench, Presentation, Building2, LayoutGrid, Filter, X } from 'lucide-react';
+import { Search, CalendarDays, MapPin, Users, ArrowRight, Inbox, Flame, Gamepad2, Code2, Wrench, Presentation, Building2, LayoutGrid, Filter, X } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { DEPARTMENTS } from '../data/mockData';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
@@ -931,23 +931,6 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                       </div>
                     </div>
 
-                    {/* 1st Prize Tag */}
-                    <div
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: '#162238', border: '1px solid #1E293B',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        marginBottom: '16px'
-                      }}
-                    >
-                      <Crown size={14} color="#FBBF24" />
-                      <span style={{ fontSize: '0.75rem', color: '#FBBF24', fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
-                        1st: {event.prizes.first}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Card Bottom Area: Pricing & Actions */}

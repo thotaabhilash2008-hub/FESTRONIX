@@ -3,7 +3,6 @@ import {
   Flame,
   Calendar,
   MapPin,
-  Trophy,
   Users,
   Zap,
   Rocket,
@@ -30,10 +29,6 @@ const CompactEventCard: React.FC<{
   onSelect: () => void;
   onRegister: () => void;
 }> = ({ event, onSelect, onRegister }) => {
-  const cleanPrize = (event.prizes?.first || 'Trophy')
-    .replace(/Cash Prize|Worth Prizes/gi, '')
-    .trim();
-
   return (
     <div className="event-glimpse-card">
       {/* Top Header: Dept & Format */}
@@ -62,11 +57,10 @@ const CompactEventCard: React.FC<{
         </div>
       </div>
 
-      {/* Prize & Fee Row */}
-      <div className="event-glimpse-prize-fee">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F59E0B', fontSize: '0.74rem', fontWeight: 700 }}>
-          <Trophy size={12} color="#F59E0B" />
-          <span>{cleanPrize}</span>
+      {/* Entry Fee */}
+      <div className="event-glimpse-prize-fee" style={{ justifyContent: 'space-between' }}>
+        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94A3B8', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          Entry
         </div>
         <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38BDF8' }}>
           {event.fee === 0 ? 'Free Entry' : `₹${event.fee}`}
