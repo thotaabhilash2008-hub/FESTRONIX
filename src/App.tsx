@@ -1,11 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
-import { EventsGlimpseSection } from './components/EventsGlimpseSection';
-import { DepartmentsSection } from './components/DepartmentsSection';
-import { PrizesSection } from './components/PrizesSection';
-import { Footer } from './components/Footer';
-import { FullscreenIntro } from './components/FullscreenIntro';
 const EventDetailModal = lazy(() => import('./components/EventDetailModal').then(module => ({ default: module.EventDetailModal })));
 const RegistrationModal = lazy(() => import('./components/RegistrationModal').then(module => ({ default: module.RegistrationModal })));
 const DigitalPassModal = lazy(() => import('./components/DigitalPassModal').then(module => ({ default: module.DigitalPassModal })));
@@ -19,14 +13,12 @@ const RefundPolicyPage = lazy(() => import('./components/legal/RefundPolicyPage'
 
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
-import { FestEvent, Registration, Announcement, User } from './types/festronix';
+import { FestEvent, Registration, User } from './types/festronix';
 import { isSupabaseConfigured } from './lib/supabase';
 import { ScrollAnimationsProvider } from './components/animations';
-const KineticStage3D = lazy(() => import('./components/3d/KineticStage3D'));
-import { AboutSection } from './components/AboutSection';
-import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
+const COMING_SOON_ONLY = true;
 
 const cachePassesOnDevice = (passes: Registration[]) => {
   if (typeof window === 'undefined' || passes.length === 0) return;
@@ -51,6 +43,31 @@ const cachePassesOnDevice = (passes: Registration[]) => {
     console.warn('Unable to cache guest pass on this device:', error);
   }
 };
+
+const ComingSoonPage: React.FC = () => (
+  <ScrollAnimationsProvider>
+    <div
+      className="public-site-shell coming-soon-shell"
+      style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
+    >
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+          background: 'radial-gradient(ellipse 70% 35% at 50% 0%, rgba(30, 58, 138, 0.16) 0%, transparent 80%)'
+        }}
+      />
+      <main
+        className="public-main coming-soon-main"
+        style={{ flex: 1, position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column' }}
+      >
+        <HeroSection />
+      </main>
+    </div>
+  </ScrollAnimationsProvider>
+);
 
 export const App: React.FC = () => {
   // Admin View State (supports #admin hash, /admin pathname, or portal button)
@@ -175,42 +192,12 @@ export const App: React.FC = () => {
   // State
   const [events, setEvents] = useState<FestEvent[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
-  // Intro video & modals
-  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
-  const [isKineticStageReady, setIsKineticStageReady] = useState<boolean>(false);
+  // Modal state
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
-  const [isPassesModalOpen, setIsPassesModalOpen] = useState<boolean>(false);
   const [activePassId, setActivePassId] = useState<string | undefined>(undefined);
   const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
-
-  // The 3D stage pulls in Three.js and is decorative. Wait until the intro has
-  // finished and the visitor is on the home view so it doesn't compete with
-  // the initial route and content for bandwidth or startup time.
-  useEffect(() => {
-    if (
-      isIntroOpen || isAdminView || isSponsorsPageOpen || isPassesPageOpen ||
-      isAllEventsPageOpen || isPrivacyPageOpen || isTermsPageOpen ||
-      isRefundPageOpen || isRegistrationPageOpen || isKineticStageReady
-    ) return;
-
-    const timer = window.setTimeout(() => setIsKineticStageReady(true), 0);
-    return () => window.clearTimeout(timer);
-  }, [
-    isIntroOpen,
-    isAdminView,
-    isSponsorsPageOpen,
-    isPassesPageOpen,
-    isAllEventsPageOpen,
-    isPrivacyPageOpen,
-    isTermsPageOpen,
-    isRefundPageOpen,
-    isRegistrationPageOpen,
-    isKineticStageReady,
-  ]);
-
 
   const refreshData = async () => {
     // The configured build is backend-only: never render an old browser cache
@@ -219,23 +206,19 @@ export const App: React.FC = () => {
     if (isSupabaseConfigured()) {
       setEvents([]);
       setRegistrations([]);
-      setAnnouncements([]);
     } else {
       setEvents(StorageService.getEvents());
       setRegistrations(StorageService.getRegistrations());
-      setAnnouncements(StorageService.getAnnouncements());
     }
 
     // 2. Fetch fresh data from Supabase backend in parallel
     try {
-      const [liveEvts, liveRegs, liveAnns] = await Promise.all([
+      const [liveEvts, liveRegs] = await Promise.all([
         StorageService.fetchEvents(),
-        StorageService.fetchRegistrations(),
-        StorageService.fetchAnnouncements()
+        StorageService.fetchRegistrations()
       ]);
       setEvents(liveEvts);
       setRegistrations(liveRegs);
-      setAnnouncements(liveAnns);
     } catch (err) {
       console.warn('Background sync warning:', err);
     }
@@ -253,11 +236,8 @@ export const App: React.FC = () => {
     // Reactive live data update listeners
     const handleEventsUpdate = (e: any) => setEvents(e.detail);
     const handleRegsUpdate = (e: any) => setRegistrations(e.detail);
-    const handleAnnsUpdate = (e: any) => setAnnouncements(e.detail);
-
     window.addEventListener('festronix:events-updated', handleEventsUpdate);
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
-    window.addEventListener('festronix:announcements-updated', handleAnnsUpdate);
 
     // Reactive listener for #admin, /admin, and back/forward navigation
     const handleLocationChange = () => {
@@ -279,7 +259,6 @@ export const App: React.FC = () => {
       window.removeEventListener('festronix:auth', handleAuthChange);
       window.removeEventListener('festronix:events-updated', handleEventsUpdate);
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
-      window.removeEventListener('festronix:announcements-updated', handleAnnsUpdate);
       window.removeEventListener('hashchange', handleLocationChange);
       window.removeEventListener('popstate', handleLocationChange);
     };
@@ -313,7 +292,6 @@ export const App: React.FC = () => {
     setIsRefundPageOpen(false);
     setRegistrationSlug('');
     setRegisterEvent(null);
-    setIsPassesModalOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -395,7 +373,6 @@ export const App: React.FC = () => {
     setIsPassesPageOpen(true);
     setIsAllEventsPageOpen(false);
     setIsRegistrationPageOpen(false);
-    setIsPassesModalOpen(false);
   };
 
   const handleBackFromSponsorsPage = () => {
@@ -434,16 +411,6 @@ export const App: React.FC = () => {
   };
 
   // Navigation handlers
-  const handleNavigateExplore = () => {
-    const el = document.getElementById('events');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleNavigateHyped = () => {
-    const el = document.getElementById('hyped-events');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const handleStartEventRegistration = (evt: FestEvent) => {
     setDetailEvent(null);
     window.history.pushState(null, '', `/register/${encodeURIComponent(evt.slug || evt.id)}`);
@@ -461,7 +428,7 @@ export const App: React.FC = () => {
     : activePassId;
 
   // Render Legal Pages (/privacy, /terms, /refund)
-  if (isPrivacyPageOpen) {
+  if (!COMING_SOON_ONLY && isPrivacyPageOpen) {
     return (
       <Suspense fallback={null}>
         <PrivacyPolicyPage
@@ -473,7 +440,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (isTermsPageOpen) {
+  if (!COMING_SOON_ONLY && isTermsPageOpen) {
     return (
       <Suspense fallback={null}>
         <TermsAndConditionsPage
@@ -485,7 +452,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (isRefundPageOpen) {
+  if (!COMING_SOON_ONLY && isRefundPageOpen) {
     return (
       <Suspense fallback={null}>
         <RefundPolicyPage
@@ -498,7 +465,7 @@ export const App: React.FC = () => {
   }
 
   // Render Public Sponsors Page if in #sponsors or #partners view
-  if (isSponsorsPageOpen) {
+  if (!COMING_SOON_ONLY && isSponsorsPageOpen) {
     return (
       <Suspense fallback={null}>
         <PublicSponsorsPage
@@ -510,7 +477,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (isAllEventsPageOpen && !isRegistrationPageOpen && !isPassesPageOpen && !isAdminView) {
+  if (!COMING_SOON_ONLY && isAllEventsPageOpen && !isRegistrationPageOpen && !isPassesPageOpen && !isAdminView) {
     return (
       <Suspense fallback={null}>
         <AllEventsPage
@@ -546,7 +513,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (isPassesPageOpen) {
+  if (!COMING_SOON_ONLY && isPassesPageOpen) {
     return (
       <Suspense fallback={null}>
         <DigitalPassModal
@@ -566,7 +533,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (isRegistrationPageOpen) {
+  if (!COMING_SOON_ONLY && isRegistrationPageOpen) {
     return registerEvent ? (
       <Suspense fallback={null}>
         <RegistrationModal
@@ -593,7 +560,7 @@ export const App: React.FC = () => {
   }
 
   // Render Admin Console if in #admin view
-  if (isAdminView) {
+  if (!COMING_SOON_ONLY && isAdminView) {
     return (
       <Suspense fallback={null}>
         <AdminPortal onBackToFest={handleBackFromAdmin} />
@@ -601,164 +568,7 @@ export const App: React.FC = () => {
     );
   }
 
-  return (
-    <ScrollAnimationsProvider enableSmoothScroll={!isIntroOpen}>
-      <div className="public-site-shell" style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Background Continuous Scroll-Driven 3D Kinetic Stage */}
-      {isKineticStageReady && (
-        <Suspense fallback={null}>
-          <KineticStage3D />
-        </Suspense>
-      )}
-      {/* Subtle ambient depth */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex: 0,
-          background: 'radial-gradient(ellipse 70% 35% at 50% 0%, rgba(30, 58, 138, 0.16) 0%, transparent 80%)'
-        }}
-      />
-
-      {/* FULLSCREEN INTRO VIDEO: Edge-to-edge with no headings, borders, or frames */}
-      <FullscreenIntro
-        isOpen={isIntroOpen}
-        onFinish={() => setIsIntroOpen(false)}
-      />
-
-      {/* Top Margin Obsidian Bar: Ensures 100% solid obsidian background above the floating navbar */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '14px',
-          backgroundColor: '#080C16',
-          zIndex: 49,
-          pointerEvents: 'none'
-        }}
-      />
-
-      {/* Floating Modern Navbar */}
-      <Navbar
-        onOpenIntro={() => setIsIntroOpen(true)}
-        onOpenPasses={() => handleOpenPassesPage()}
-        onOpenMultiPass={handleStartMultiPass}
-        announcements={announcements}
-        passesCount={registrations.length}
-        onNavigateExplore={handleNavigateExplore}
-        onNavigateHyped={handleNavigateHyped}
-        onOpenAdmin={handleOpenAdmin}
-        onOpenSponsors={handleOpenSponsorsPage}
-        onOpenAllEvents={handleOpenAllEventsPage}
-      />
-
-      {/* Main Experience View */}
-      <main className="public-main" style={{ flex: 1, position: 'relative', zIndex: 10 }}>
-        {/* HERO SECTION: Cinematic Introduction */}
-        <HeroSection
-          onExploreEvents={handleOpenAllEventsPage}
-          onViewAllEvents={handleOpenAllEventsPage}
-          onOpenIntro={() => setIsIntroOpen(true)}
-          onRegisterNow={handleStartMultiPass}
-        />
-
-        {/* ABOUT FESTRONIX: Scroll-Driven Transformation */}
-        <AboutSection />
-
-        {/* UNIFIED EVENTS GLIMPSE: Popular, Day 1, Day 2 Infinite Marquees */}
-        <EventsGlimpseSection
-          events={events}
-          onSelectEvent={evt => setDetailEvent(evt)}
-          onRegisterEvent={handleStartEventRegistration}
-          onViewAllEvents={handleOpenAllEventsPage}
-        />
-
-        {/* Engineering Departments Overview */}
-        <DepartmentsSection />
-
-        {/* Mega Cash Prizes & Perks */}
-        <PrizesSection />
-
-        {/* Closing Registration CTA: Final Cinematic Moment */}
-        <RegistrationCtaSection
-          onOpenMultiPass={handleStartMultiPass}
-          onExploreEvents={handleOpenAllEventsPage}
-        />
-      </main>
-
-      {/* Footer */}
-      <Footer
-        onOpenAdmin={handleOpenAdmin}
-        onOpenSponsors={handleOpenSponsorsPage}
-        onOpenPrivacy={handleOpenPrivacyPage}
-        onOpenTerms={handleOpenTermsPage}
-        onOpenRefund={handleOpenRefundPage}
-      />
-
-      {/* User Modals */}
-      {detailEvent && (
-        <Suspense fallback={null}>
-          <EventDetailModal
-            event={detailEvent}
-            onClose={() => setDetailEvent(null)}
-            onRegister={handleStartEventRegistration}
-          />
-        </Suspense>
-      )}
-
-      {registerEvent && (
-        <Suspense fallback={null}>
-          <RegistrationModal
-            event={registerEvent}
-            currentUser={currentUser}
-            onClose={() => setRegisterEvent(null)}
-            onSuccess={handleRegistrationSuccess}
-            onOpenMultiPass={() => {
-              setRegisterEvent(null);
-              handleStartMultiPass();
-            }}
-          />
-        </Suspense>
-      )}
-
-      {isMultiPassModalOpen && (
-        <Suspense fallback={null}>
-          <MultiPassModal
-            isOpen={isMultiPassModalOpen}
-            onClose={() => setIsMultiPassModalOpen(false)}
-            events={events}
-            currentUser={currentUser}
-            onSuccess={handleMultiPassSuccess}
-          />
-        </Suspense>
-      )}
-
-
-      {isPassesModalOpen && (
-        <Suspense fallback={null}>
-          <DigitalPassModal
-            registrations={registrations}
-            events={events}
-            currentUser={currentUser}
-            activePassId={activePassId}
-            onClose={() => {
-              setIsPassesModalOpen(false);
-              setActivePassId(undefined);
-            }}
-            onBrowseEvents={handleNavigateExplore}
-            onOpenMultiPass={() => {
-              setIsPassesModalOpen(false);
-              setIsMultiPassModalOpen(true);
-            }}
-          />
-        </Suspense>
-      )}
-      </div>
-    </ScrollAnimationsProvider>
-  );
+  return <ComingSoonPage />;
 };
 
 export default App;
