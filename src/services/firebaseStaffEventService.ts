@@ -30,8 +30,12 @@ async function call<TResponse>(name: string, data: Record<string, unknown> = {})
   } catch (error) {
     const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
     const message = error instanceof Error ? error.message : 'The Firebase operation failed.';
-    if (code.includes('unauthenticated')) throw new Error('Your staff session has expired. Sign in again.');
-    if (code.includes('permission-denied')) throw new Error('Your staff role does not have permission for this operation.');
+    if (code.includes('unauthenticated')) {
+      throw new Error('Firebase could not verify this staff sign-in. Sign out and sign in again; if it continues, ask the administrator to check that the website and server use the same Firebase project.');
+    }
+    if (code.includes('permission-denied')) {
+      throw new Error(message || 'Your staff role does not have permission for this operation.');
+    }
     if (code.includes('failed-precondition') || code.includes('already-exists') || code.includes('invalid-argument')) {
       throw new Error(message);
     }

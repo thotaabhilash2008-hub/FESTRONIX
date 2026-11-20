@@ -1,6 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { AdminAuthService, AdminUser, isCheckinAdminRole, isDepartmentAdminRole, isFinanceAdminRole, isSuperAdminRole } from '../../services/adminAuthService';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { firebaseAuth, isFirebaseConfigured } from '../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { AdminLoginView } from './AdminLoginView';
@@ -77,9 +76,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
     return () => AdminAuthService.setIdentityChangeHandler(null);
   }, []);
 
-  // Never keep rendering a cached portal identity after Supabase has signed
-  // the browser out or failed to refresh its token. RLS-protected operations
-  // would otherwise fail while the dashboard still looks authenticated.
+  // Never keep rendering a cached portal identity after Firebase has signed
+  // the browser out or failed to refresh its token. The Firebase backend
+  // re-checks staff authorization for each protected operation.
   useEffect(() => {
     if (isFirebaseConfigured && firebaseAuth) {
       return onAuthStateChanged(firebaseAuth, user => {
@@ -89,14 +88,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
         }
       });
     }
-    if (!isSupabaseConfigured()) return;
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setAdminUser(null);
-        localStorage.removeItem('festronix_admin_session_v1');
-      }
-    });
-    return () => authListener.subscription.unsubscribe();
+    return;
   }, []);
 
   const handleLogout = async () => {

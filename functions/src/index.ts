@@ -12,6 +12,7 @@ export { findPublicTeam } from './teamFunctions';
 
 if (getApps().length === 0) {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const isVercel = process.env.VERCEL === '1';
   if (serviceAccountJson) {
     let account: { project_id?: unknown; client_email?: unknown; private_key?: unknown };
     try {
@@ -23,6 +24,9 @@ if (getApps().length === 0) {
     const clientEmail = typeof account.client_email === 'string' ? account.client_email : '';
     const privateKey = typeof account.private_key === 'string' ? account.private_key : '';
     const expectedProjectId = process.env.FIREBASE_PROJECT_ID?.trim();
+    if (isVercel && !expectedProjectId) {
+      throw new Error('FIREBASE_PROJECT_ID is required for the Vercel deployment.');
+    }
     if (!projectId || !clientEmail || !privateKey || (expectedProjectId && expectedProjectId !== projectId)) {
       throw new Error('Firebase server credentials do not match the configured project.');
     }
@@ -31,7 +35,7 @@ if (getApps().length === 0) {
       projectId,
     });
   } else {
-    if (process.env.VERCEL === '1') {
+    if (isVercel) {
       throw new Error('Firebase server credentials are not configured for this Vercel deployment.');
     }
     initializeApp();

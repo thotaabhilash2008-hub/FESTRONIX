@@ -10,7 +10,6 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID?.trim(),
 };
 
-const STAGING_PROJECT_ID = 'festronix-migration-stg26';
 const requiredConfig = [
   firebaseConfig.apiKey,
   firebaseConfig.authDomain,
@@ -19,14 +18,10 @@ const requiredConfig = [
 ];
 const hasCompleteConfig = requiredConfig.every(Boolean);
 
-if (hasCompleteConfig && firebaseConfig.projectId !== STAGING_PROJECT_ID) {
-  throw new Error('This Firebase client is pinned to the migration staging project.');
-}
-
-export const isFirebaseConfigured = hasCompleteConfig && firebaseConfig.projectId === STAGING_PROJECT_ID;
+export const isFirebaseConfigured = hasCompleteConfig;
 
 if (import.meta.env.PROD && !isFirebaseConfigured) {
-  throw new Error('Production builds require the verified FESTRONIX Firebase project configuration.');
+  throw new Error('Production builds require complete Firebase client configuration.');
 }
 
 function getConfiguredApp(): FirebaseApp | null {
