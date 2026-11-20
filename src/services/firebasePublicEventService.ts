@@ -93,12 +93,12 @@ function publicEventFromDocument(id: string, raw: Record<string, unknown>): Fest
 }
 
 /**
- * Reads only the published event projection from the Firebase staging project.
+ * Reads only the published event projection from Firebase.
  * Display data is not authoritative for price, capacity, approval, or checkout;
  * a trusted registration backend must validate those values again.
  */
 export async function fetchFirebasePublicEvents(): Promise<FestEvent[]> {
-  if (!firestore) throw new Error('Firebase staging is not configured.');
+  if (!firestore) throw new Error('Firebase is not configured.');
 
   const eventsQuery = query(
     collection(firestore, 'publicEvents'),

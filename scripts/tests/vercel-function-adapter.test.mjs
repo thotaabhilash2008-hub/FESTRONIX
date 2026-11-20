@@ -53,6 +53,25 @@ test('Razorpay webhook receives the original request bytes and rejects missing s
   assert.match(String(response.payload), /Webhook signature or body is missing/);
 });
 
+test('pass-email resend endpoint is registered with the Vercel adapter', async () => {
+  const request = makeRequest('resendRegistrationPassEmail', {});
+  request.method = 'OPTIONS';
+  const response = new FakeResponse();
+  await handler(request, response);
+
+  assert.equal(response.statusCode, 204, String(response.payload));
+});
+
+test('pass-email resend endpoint rejects non-POST requests', async () => {
+  const request = makeRequest('resendRegistrationPassEmail', {});
+  request.method = 'GET';
+  const response = new FakeResponse();
+  await handler(request, response);
+
+  assert.equal(response.statusCode, 405);
+  assert.match(String(response.payload?.error || response.payload), /Method not allowed/);
+});
+
 test('unknown operations are rejected before dispatch', async () => {
   const request = makeRequest('deleteEverything', {});
   const response = new FakeResponse();

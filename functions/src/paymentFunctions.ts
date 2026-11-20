@@ -60,9 +60,13 @@ function sendJson(response: Response, status: number, body: unknown): void {
   response.status(status).set('Content-Type', 'application/json; charset=utf-8').send(JSON.stringify(body));
 }
 
+function publicSiteUrl(): string {
+  return (PUBLIC_SITE_URL.value().trim() || 'https://festronix.com').replace(/\/+$/, '');
+}
+
 function configureCors(request: Request, response: Response): boolean {
   const origin = clean(request.get('origin'), 300);
-  const configured = PUBLIC_SITE_URL.value().replace(/\/$/, '');
+  const configured = publicSiteUrl();
   const allowed = new Set([configured, configured.replace('://www.', '://'), 'https://www.festronix.com', 'https://festronix-fawn.vercel.app']);
   if (process.env.FUNCTIONS_EMULATOR === 'true') {
     allowed.add('http://localhost:3000');
@@ -192,7 +196,9 @@ function mapRegistration(registration: AnyRecord, event: AnyRecord, fee: number,
     transactionId: eventFee === 0 ? undefined : paymentId,
     razorpayOrderId: eventFee === 0 ? undefined : orderId,
     razorpayPaymentId: eventFee === 0 ? undefined : paymentId,
-    emailDeliveryToken: deliveryToken || undefined,
+    emailDeliveryToken: EMAIL_PATTERN.test(normalizeEmail(registration.leader_email))
+      ? deliveryToken || undefined
+      : undefined,
     qrToken: registration.qr_token,
     checkedIn: false,
     registrationDate: registration.created_at,
@@ -313,20 +319,25 @@ async function callRazorpay(path: string, keyId: string, keySecret: string, init
   return { response, body };
 }
 
-async function rateLimit(request: Request, route: string): Promise<boolean> {
+async function rateLimit(request: Request, route: string, subject = ''): Promise<boolean> {
   // Fall back to the socket address so local dev (no proxy headers) is not
   // treated as an attacker; Vercel and Cloud Functions set request.ip.
   const ip = clean(request.ip || request.get('x-forwarded-for')?.split(',')[0] || request.socket?.remoteAddress, 100);
   if (!ip) return false;
   const secret = REGISTRATION_ROLL_CLAIM_SECRET.value();
   const minuteBucket = Math.floor(Date.now() / 60_000);
-  const key = createHmac('sha256', secret).update(`${route}\0${ip}\0${minuteBucket}`).digest('hex');
+  const actor = subject ? `subject:${subject}` : `ip:${ip}`;
+  const key = createHmac('sha256', secret).update(`${route}\0${actor}\0${minuteBucket}`).digest('hex');
   const db = getFirestore();
   const ref = db.collection('publicRateLimits').doc(key);
   return db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     const next = Number(snapshot.get('count') || 0) + 1;
-    if (next > (route === 'create-order' ? 20 : 40)) return false;
+    const limit = route === 'create-order' ? 20
+      : route === 'resend-pass-email' ? 3
+        : route === 'resend-pass-email-recipient' ? 2
+        : route === 'pass-lookup' ? 20 : 40;
+    if (next > limit) return false;
     transaction.set(ref, { count: next, expires_at: Timestamp.fromMillis((minuteBucket + 10) * 60_000) });
     return true;
   });
@@ -933,17 +944,11 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
     return false;
   }
   const registration = registrationSnapshot.data() as AnyRecord;
-  const [eventSnapshot, ticketSnapshot] = await Promise.all([
-    db.collection('events').doc(clean(registration.event_id, 80)).get(),
-    db.collection('tickets').doc(registrationId).get(),
-  ]);
+  const eventSnapshot = await db.collection('events').doc(clean(registration.event_id, 80)).get();
   const event = eventSnapshot.exists ? eventSnapshot.data() as AnyRecord : {};
-  const ticket = ticketSnapshot.exists ? ticketSnapshot.data() as AnyRecord : {};
-  const qrToken = clean(ticket.qr_token, 200);
   const displayId = clean(registration.display_id, 80);
-  const site = PUBLIC_SITE_URL.value().replace(/\/$/, '');
+  const site = publicSiteUrl();
   const passUrl = `${site}/passes?registration=${encodeURIComponent(displayId)}`;
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&color=07111F&bgcolor=FFFFFF&data=${encodeURIComponent(qrToken || displayId)}`;
   const sender = parseSender(REGISTRATION_MAIL_FROM.value());
   const recipient = clean(delivery.recipient_email, 180) || clean(registration.leader_email, 180);
   if (!BREVO_API_KEY.value() || !sender || !EMAIL_PATTERN.test(recipient)) {
@@ -962,9 +967,9 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
     `Roll number: ${clean(registration.leader_roll, 50) || 'Not provided'}`, `Status: ${statusLabel}`,
     `Date: ${clean(event.date_display, 80)}`, `Time: ${clean(event.time_display, 80)}`, `Venue: ${clean(event.venue, 240)}`,
     `Fee: ₹${fee}`, `Transaction ID: ${clean(registration.transaction_id, 100) || 'Not required'}`,
-    `QR token: ${qrToken}`, `Open your live pass: ${passUrl}`,
+    `Open your live pass to display the entry QR: ${passUrl}`,
   ].join('\n');
-  const htmlContent = `<!doctype html><html><body style="margin:0;background:#080c16;color:#f8fafc;font-family:Arial,sans-serif;padding:24px"><main style="max-width:560px;margin:auto;background:#121d38;border:1px solid #334155;border-radius:18px;padding:28px"><div style="color:#38bdf8;font-weight:bold;letter-spacing:1px">FESTRONIX 2026 DIGITAL PASS</div><h1 style="font-size:24px">Your registration is confirmed</h1><p>Hello ${safe(participant)},</p><p><strong>${safe(eventTitle)}</strong><br>Registration ID: <strong>${safe(displayId)}</strong></p><div style="background:#fff;border-radius:12px;padding:14px;text-align:center"><img src="${safe(qrImageUrl)}" width="180" height="180" alt="Entry QR code"><div style="color:#334155;font-size:12px">TOKEN: ${safe(qrToken)}</div></div><p>Status: ${safe(statusLabel)}<br>Date: ${safe(event.date_display)} · ${safe(event.time_display)}<br>Venue: ${safe(event.venue)}<br>Fee: ₹${safe(fee)}</p><p><a href="${safe(passUrl)}" style="display:inline-block;background:#1684ef;color:white;padding:12px 18px;border-radius:8px;text-decoration:none">Open your pass</a></p><p style="color:#94a3b8;font-size:12px">Keep this QR private. Each ticket is valid for one check-in.</p></main></body></html>`;
+  const htmlContent = `<!doctype html><html><body style="margin:0;background:#080c16;color:#f8fafc;font-family:Arial,sans-serif;padding:24px"><main style="max-width:560px;margin:auto;background:#121d38;border:1px solid #334155;border-radius:18px;padding:28px"><div style="color:#38bdf8;font-weight:bold;letter-spacing:1px">FESTRONIX 2026 DIGITAL PASS</div><h1 style="font-size:24px">Your registration is confirmed</h1><p>Hello ${safe(participant)},</p><p><strong>${safe(eventTitle)}</strong><br>Registration ID: <strong>${safe(displayId)}</strong></p><p>Status: ${safe(statusLabel)}<br>Date: ${safe(event.date_display)} · ${safe(event.time_display)}<br>Venue: ${safe(event.venue)}<br>Fee: ₹${safe(fee)}</p><p>Your entry QR is available on your digital pass. Open it on your phone at the venue.</p><p><a href="${safe(passUrl)}" style="display:inline-block;background:#1684ef;color:white;padding:12px 18px;border-radius:8px;text-decoration:none">Open your pass</a></p><p style="color:#94a3b8;font-size:12px">Keep your pass private. Each ticket is valid for one check-in.</p></main></body></html>`;
   try {
     const providerResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -1010,6 +1015,74 @@ export const sendRegistrationPassEmail = onRequest({
     sendJson(response, sent ? 200 : 503, { sent, message: sent ? 'The registration pass was emailed successfully.' : 'The pass email could not be sent yet. Please retry or contact the fest desk.' });
   } catch {
     sendJson(response, 500, { sent: false, error: 'Unable to deliver the registration pass email right now.' });
+  }
+});
+
+/**
+ * Resend a pass email without exposing the durable delivery token to the
+ * browser. The attendee must provide the exact pass ID and the email stored
+ * on that individual pass; only confirmed registrations are eligible.
+ */
+export const resendRegistrationPassEmail = onRequest({
+  region: 'asia-south1', timeoutSeconds: 45, memory: '256MiB', maxInstances: 10,
+  secrets: [BREVO_API_KEY, REGISTRATION_ROLL_CLAIM_SECRET],
+}, async (request, response) => {
+  if (!configureCors(request, response)) return;
+  if (request.method === 'OPTIONS') { response.status(204).send(''); return; }
+  if (request.method !== 'POST') { sendJson(response, 405, { error: 'Method not allowed.' }); return; }
+  try {
+    if (!await rateLimit(request, 'resend-pass-email')) {
+      sendJson(response, 429, { success: false, sent: false, error: 'Too many email requests. Wait a minute and try again.' });
+      return;
+    }
+
+    const body = requestObject(request.body);
+    const displayId = clean(body.registrationId, 80).toUpperCase();
+    const email = normalizeEmail(body.email);
+    if (!displayId || !EMAIL_PATTERN.test(email)) {
+      sendJson(response, 400, { success: false, sent: false, error: 'Enter the pass ID and attendee email used during registration.' });
+      return;
+    }
+
+    const db = getFirestore();
+    const matches = await db.collection('registrations').where('display_id', '==', displayId).limit(1).get();
+    const registration = matches.docs[0];
+    if (!registration || normalizeEmail(registration.get('leader_email')) !== email ||
+        !['verified', 'not_applicable'].includes(clean(registration.get('payment_status'), 40))) {
+      sendJson(response, 404, { success: false, sent: false, error: 'No confirmed pass matched that ID and email.' });
+      return;
+    }
+    if (!await rateLimit(request, 'resend-pass-email-recipient', `${displayId}\0${email}`)) {
+      sendJson(response, 429, { success: false, sent: false, error: 'A pass email was requested recently. Wait a minute and try again.' });
+      return;
+    }
+
+    const token = emailToken();
+    const now = new Date().toISOString();
+    await db.collection('emailDeliveries').doc(token).create({
+      id: randomUUID(),
+      registration_id: registration.id,
+      recipient_email: email,
+      delivery_token: token,
+      status: 'queued',
+      attempts: 0,
+      trigger: 'participant_resend',
+      last_error: null,
+      sent_at: null,
+      created_at: now,
+      updated_at: now,
+    });
+
+    const sent = await sendPassEmail(db, token);
+    sendJson(response, sent ? 200 : 503, {
+      success: sent,
+      sent,
+      message: sent
+        ? 'The pass email was sent successfully.'
+        : 'The email could not be delivered right now. Please try again later.',
+    });
+  } catch {
+    sendJson(response, 503, { success: false, sent: false, error: 'The pass email could not be delivered right now. Please try again later.' });
   }
 });
 

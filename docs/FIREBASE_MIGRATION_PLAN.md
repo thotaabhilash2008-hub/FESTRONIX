@@ -2,6 +2,18 @@
 
 ## Status and safety boundary
 
+## Current status — 2026-11-21
+
+This section supersedes older deployment and billing statements elsewhere in this plan. The project owner reports that the Firebase plan was upgraded and that the migrated Firebase records are live data, even though the Firebase project ID and console name contain `stg26`. Treat this project as production data. Do not run staging import, stale-document cleanup, or data-purge commands against it.
+
+- The active server API path is the Vercel adapter in `api/functions/`, which runs the Firebase Admin handlers. Deploying Firebase Cloud Functions is not required for this architecture. Firebase Authentication and Firestore still require the Google project and billing account to remain active; the earlier billing warning has not been independently rechecked in this workspace.
+- Local `npm run build` passes. The Vercel adapter, Firestore REST, registration-roll-claim, and staff-scope checks pass; the Firestore emulator integration case is skipped because no emulator is running. `npm audit` reports no current dependency advisories. The build still emits chunk-size and ineffective dynamic-import warnings.
+- The attendee pass-email recovery flow now uses a Vercel/Firebase endpoint that validates pass ID plus registered email, checks confirmed payment state, and applies IP and pass/email rate limits. QR codes in the site are generated locally; the QR provider that previously received the check-in token was removed. These changes have not been deployed or tested against live Razorpay/Brevo accounts.
+- Vercel production deployment and the production environment-variable set are not verified from this workspace because the project is owned by a teammate account. Required server variables are listed in `.env.example`; the service-account JSON, payment secrets, mail-provider key, and roll-claim secret must stay server-side and must not use `VITE_` names.
+- The last documented source/destination comparison is the 2026-11-20 snapshot. There is no evidence in this checkout of a fresh comparison against all subsequent live source changes. Keep the Supabase source and export/sync tooling until that reconciliation is reviewed; the website bundle itself has no Supabase SDK or endpoint and the application’s Supabase compatibility client always fails closed.
+- Firestore rules deny browser writes to private collections. The new `publicRateLimits.expires_at` TTL setting is in the repository but must be deployed to Firestore indexes for automatic cleanup. Existing Firebase Storage rules deny all access; historical storage-object migration/reconciliation remains unverified.
+- Live end-to-end checks remain outstanding: representative staff login and department/cluster scopes; registration, capacity contention, Razorpay capture/verification/webhook replay/refund; Brevo delivery and retry; pass QR scan/check-in; and data reconciliation. Do not call production payment/email readiness verified until those checks are completed.
+
 - Migration branch: `codex/firebase-database-migration`.
 - The selected Firebase owner is the account already authenticated with the local Firebase CLI (the original account, not Connect Club).
 - Staging project `festronix-migration-stg26` (`FESTRONIX Migration Staging`) was created under that account. Its Standard Firestore `(default)` database is provisioned in `asia-south1` (Mumbai) with deletion protection enabled.

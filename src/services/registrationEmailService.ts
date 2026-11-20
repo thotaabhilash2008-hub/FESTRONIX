@@ -1,4 +1,3 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { firebaseApp, isFirebaseConfigured } from '../lib/firebase';
 import { Registration } from '../types/festronix';
 import { callFirebaseHttp } from './firebaseFunctionClient';
@@ -9,29 +8,43 @@ export interface RegistrationEmailResult {
 }
 
 export async function sendRegistrationPassEmail(registration: Registration): Promise<RegistrationEmailResult> {
-  if (!isFirebaseConfigured && !isSupabaseConfigured()) {
-    return { sent: false, message: 'Email delivery is unavailable in offline development mode.' };
+  if (!isFirebaseConfigured || !firebaseApp?.options.projectId) {
+    return { sent: false, message: 'Firebase email delivery is not configured for this website.' };
   }
-  if (!registration.emailDeliveryToken) {
-    return isFirebaseConfigured
-      ? { sent: true, message: 'The Firebase payment service sends pass emails automatically.' }
-      : { sent: false, message: 'The registration was created, but no email delivery token was returned.' };
+  if (!registration.leaderEmail?.trim()) {
+    return { sent: false, message: 'No attendee email was provided; the pass remains available on the website.' };
   }
 
-  if (isFirebaseConfigured && firebaseApp?.options.projectId) {
+  try {
+    const operation = registration.emailDeliveryToken
+      ? 'sendRegistrationPassEmail'
+      : 'resendRegistrationPassEmail';
+    const body = registration.emailDeliveryToken
+      ? { deliveryToken: registration.emailDeliveryToken }
+      : { registrationId: registration.id, email: registration.leaderEmail };
+    const result = await callFirebaseHttp<{ sent?: boolean; message?: string; error?: string }>(operation, body);
+    return { sent: Boolean(result.sent), message: String(result.message || result.error || 'The pass email could not be sent.') };
+  } catch (error) {
+    return {
+      sent: false,
+      message: error instanceof Error ? error.message : 'The pass email could not be sent.',
+    };
+  }
+}
+
+export async function resendRegistrationPassEmail(registrationId: string, email: string): Promise<RegistrationEmailResult> {
+  if (!isFirebaseConfigured || !firebaseApp?.options.projectId) {
+    return { sent: false, message: 'Firebase email delivery is not configured for this website.' };
+  }
+  try {
     const result = await callFirebaseHttp<{ sent?: boolean; message?: string; error?: string }>(
-      'sendRegistrationPassEmail', { deliveryToken: registration.emailDeliveryToken },
+      'resendRegistrationPassEmail', { registrationId, email },
     );
     return { sent: Boolean(result.sent), message: String(result.message || result.error || 'The pass email could not be sent.') };
+  } catch (error) {
+    return {
+      sent: false,
+      message: error instanceof Error ? error.message : 'The pass email could not be sent.',
+    };
   }
-
-  const { data, error } = await supabase.functions.invoke('send-registration-pass', {
-    body: { deliveryToken: registration.emailDeliveryToken }
-  });
-  if (error) return { sent: false, message: error.message || 'The pass email could not be sent.' };
-  const response = data as { sent?: boolean; message?: string; error?: string } | null;
-  return {
-    sent: Boolean(response?.sent),
-    message: String(response?.message || response?.error || 'The pass email could not be sent.')
-  };
 }

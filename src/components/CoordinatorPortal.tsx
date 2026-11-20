@@ -13,6 +13,7 @@ import {
 import { FestEvent, Registration, PaymentStatus, Teammate } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
+import { LocalQrCode } from './LocalQrCode';
 
 interface CoordinatorPortalProps {
   events: FestEvent[];
@@ -604,11 +605,7 @@ export const CoordinatorPortal: React.FC<CoordinatorPortalProps> = ({
                   marginBottom: '14px'
                 }}
               >
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(spotCreatedReg.qrToken)}`}
-                  alt="Spot Pass QR Code"
-                  style={{ width: '170px', height: '170px', display: 'block' }}
-                />
+                <LocalQrCode value={spotCreatedReg.qrToken} size={170} alt="Spot pass QR code" />
               </div>
 
               <div style={{ fontFamily: 'monospace', fontSize: '0.92rem', color: '#FFD700', fontWeight: 800, letterSpacing: '1px', marginBottom: '8px' }}>

@@ -7,7 +7,7 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { canReadStaffEvent, toStaffEvent } from './eventAccess';
 import { normalizeRegistrationRoll, normalizeRegistrationTeamCode, registrationRollClaimId } from './registrationClaims';
-export { createFreeRegistrations, createRazorpayOrder, verifyRazorpayPayment, razorpayWebhook, sendRegistrationPassEmail, lookupPublicPasses } from './paymentFunctions';
+export { createFreeRegistrations, createRazorpayOrder, verifyRazorpayPayment, razorpayWebhook, sendRegistrationPassEmail, resendRegistrationPassEmail, lookupPublicPasses } from './paymentFunctions';
 export { findPublicTeam } from './teamFunctions';
 
 if (getApps().length === 0) {

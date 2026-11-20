@@ -8,10 +8,10 @@ import { FestEvent, Teammate, Registration, User as UserType, AdditionalMember }
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { isFirebaseConfigured } from '../lib/firebase';
-import { EmailService } from '../services/emailService';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 import { sendRegistrationPassEmail } from '../services/registrationEmailService';
 import { completeRazorpayCheckout } from '../services/razorpayService';
+import { LocalQrCode } from './LocalQrCode';
 
 interface RegistrationModalProps {
   event: FestEvent | null;
@@ -1244,10 +1244,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             >
               {/* QR Code Presentation */}
               <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '12px', borderRadius: '10px' }}>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=festronix2026@vce%26pn=Festronix%20VCE%26am=${event.fee * passQuantity}%26cu=INR`}
-                  alt="UPI Payment QR"
-                  style={{ width: '135px', height: '135px', display: 'block', margin: '0 auto' }}
+                <LocalQrCode
+                  value={`upi://pay?pa=festronix2026@vce&pn=Festronix%20VCE&am=${event.fee * passQuantity}&cu=INR`}
+                  size={135}
+                  alt="UPI payment QR"
                 />
                 <div style={{ fontSize: '0.7rem', color: '#101A35', fontWeight: 800, marginTop: '6px' }}>
                   SCAN WITH ANY UPI APP

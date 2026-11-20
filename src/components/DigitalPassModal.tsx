@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, MessageCircle } from 'lucide-react';
 import { FestEvent, Registration, Team, User as UserType } from '../types/festronix';
 import { StorageService } from '../services/storageService';
-import { EmailService } from '../services/emailService';
+import { resendRegistrationPassEmail } from '../services/registrationEmailService';
+import { LocalQrCode } from './LocalQrCode';
 
 interface DigitalPassModalProps {
   registrations: Registration[];
@@ -230,7 +231,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
     if (!reg.leaderEmail) return;
     setResendStatus(prev => ({ ...prev, [reg.id]: 'Sending...' }));
     try {
-      await EmailService.sendPassEmail(reg);
+      const result = await resendRegistrationPassEmail(reg.id, reg.leaderEmail);
+      if (!result.sent) throw new Error(result.message);
       setResendStatus(prev => ({ ...prev, [reg.id]: '✓ Email Sent' }));
       setTimeout(() => {
         setResendStatus(prev => {
@@ -239,8 +241,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           return updated;
         });
       }, 4000);
-    } catch {
-      setResendStatus(prev => ({ ...prev, [reg.id]: 'Failed to send' }));
+    } catch (error) {
+      setResendStatus(prev => ({ ...prev, [reg.id]: error instanceof Error ? error.message : 'Failed to send' }));
     }
   };
 
@@ -973,11 +975,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '14px', borderRadius: '12px' }}>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(reg.qrToken || reg.id)}`}
-                    alt="Entry QR Pass"
-                    style={{ width: '120px', height: '120px', margin: '0 auto', display: 'block' }}
-                  />
+                  <LocalQrCode value={reg.qrToken || reg.id} size={120} alt="Entry QR pass" />
                   <div
                     style={{
                       fontFamily: 'monospace',

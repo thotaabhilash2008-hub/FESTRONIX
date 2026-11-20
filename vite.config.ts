@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { FirebaseApiRequest, FirebaseApiResponse } from './api/functions/handler.mjs'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 
@@ -19,7 +19,7 @@ function firebaseApiDevPlugin(): Plugin {
   return {
     name: 'festronix-firebase-api-dev',
     configureServer(server) {
-      type FirebaseApiHandler = (request: VercelRequest, response: VercelResponse) => Promise<void>
+      type FirebaseApiHandler = (request: FirebaseApiRequest, response: FirebaseApiResponse) => Promise<void>
       const handlerUrl = pathToFileURL(resolve(process.cwd(), 'api/functions/handler.mjs')).href
       let handlerPromise: Promise<FirebaseApiHandler> | undefined
       server.middlewares.use((request, response, next) => {
@@ -70,8 +70,8 @@ function firebaseApiDevPlugin(): Plugin {
           handlerPromise = loadNativeModule(handlerUrl).then(module => module.handleFirebaseFunctionRequest)
         }
         void handlerPromise.then(handler => handler(
-          request as unknown as VercelRequest,
-          expressResponse as unknown as VercelResponse,
+          request as unknown as FirebaseApiRequest,
+          expressResponse as unknown as FirebaseApiResponse,
         )).catch(error => {
           // Keep the browser response generic while exposing the local adapter error in dev logs.
           console.error('[local Firebase API] request handler failed:', error instanceof Error ? error.message : String(error))

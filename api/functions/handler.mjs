@@ -11,7 +11,7 @@ const callableFunctions = new Set([
 ]);
 
 const httpFunctions = new Set([
-  'createRazorpayOrder', 'lookupPublicPasses', 'razorpayWebhook',
+  'createRazorpayOrder', 'lookupPublicPasses', 'razorpayWebhook', 'resendRegistrationPassEmail',
   'sendRegistrationPassEmail', 'verifyRazorpayPayment',
 ]);
 
