@@ -274,7 +274,7 @@ async function buildCheckoutPayload(db: FirebaseFirestore.Firestore, requestBody
       teammates: roster,
       teamName,
       teamCode,
-      teamDocumentId: teamDocumentId || undefined,
+      ...(teamDocumentId ? { teamDocumentId } : {}),
     };
     validateParticipant(item, event.data);
     items.push(item);
@@ -314,7 +314,9 @@ async function callRazorpay(path: string, keyId: string, keySecret: string, init
 }
 
 async function rateLimit(request: Request, route: string): Promise<boolean> {
-  const ip = clean(request.ip || request.get('x-forwarded-for')?.split(',')[0], 100);
+  // Fall back to the socket address so local dev (no proxy headers) is not
+  // treated as an attacker; Vercel and Cloud Functions set request.ip.
+  const ip = clean(request.ip || request.get('x-forwarded-for')?.split(',')[0] || request.socket?.remoteAddress, 100);
   if (!ip) return false;
   const secret = REGISTRATION_ROLL_CLAIM_SECRET.value();
   const minuteBucket = Math.floor(Date.now() / 60_000);

@@ -41,6 +41,10 @@ if (getApps().length === 0) {
     initializeApp();
   }
 }
+// Optional fields (team id, Razorpay ids on free passes, etc.) are often
+// undefined. Firestore rejects undefined unless this is enabled, which made
+// every individual registration fail. Must run before the first read/write.
+getFirestore().settings({ ignoreUndefinedProperties: true });
 setGlobalOptions({ region: 'asia-south1', maxInstances: 10 });
 
 const GLOBAL_ROLES = new Set(['super_admin', 'dean_sac', 'connect_club', 'vencorpia']);

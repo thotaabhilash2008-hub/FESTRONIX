@@ -167,6 +167,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [evtTime, setEvtTime] = useState('10:00 AM - 01:00 PM');
   const [evtVenue, setEvtVenue] = useState('Main Auditorium');
   const [evtDescription, setEvtDescription] = useState('');
+  const [evtPrizeFirst, setEvtPrizeFirst] = useState('');
+  const [evtPrizeSecond, setEvtPrizeSecond] = useState('');
+  const [evtPrizeThird, setEvtPrizeThird] = useState('');
   const [evtRules, setEvtRules] = useState('• Valid college ID card required at entry.\n• Decision of event judges is final.\n• Malpractice leads to immediate disqualification.');
   const [evtPaymentInstructions, setEvtPaymentInstructions] = useState('Scan the SAC official QR code, pay the entry fee, and upload screenshot with UTR number.');
   const [evtWhatsAppGroupLink, setEvtWhatsAppGroupLink] = useState('');
@@ -721,9 +724,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       approvalStatus: evtPublishStatus === 'open' ? 'approved' : 'pending',
       bannerGradient: 'linear-gradient(135deg, #142042 0%, #283B78 50%, #789593 100%)',
       prizes: {
-        first: '₹10,000 + Merit Certificate',
-        second: '₹5,000 + Certificate',
-        third: '₹2,500 + Certificate'
+        first: evtPrizeFirst.trim(),
+        second: evtPrizeSecond.trim(),
+        third: evtPrizeThird.trim()
       },
       paymentInstructions: !evtIsFree ? evtPaymentInstructions.trim() : undefined,
       whatsappGroupLink: evtWhatsAppGroupLink.trim() || undefined
@@ -5935,6 +5938,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     boxSizing: 'border-box'
                   }}
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+                {([['1st Prize', evtPrizeFirst, setEvtPrizeFirst, 'e.g. ₹10,000 + Certificate'], ['2nd Prize', evtPrizeSecond, setEvtPrizeSecond, 'Optional'], ['3rd Prize', evtPrizeThird, setEvtPrizeThird, 'Optional']] as const).map(([label, value, setter, hint]) => (
+                  <div key={label}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>{label}</label>
+                    <input type="text" value={value} onChange={e => setter(e.target.value)} placeholder={hint} maxLength={300} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
+                  </div>
+                ))}
               </div>
 
               <div>
