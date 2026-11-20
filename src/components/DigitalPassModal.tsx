@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag, MessageCircle } from 'lucide-react';
+import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, MessageCircle } from 'lucide-react';
 import { FestEvent, Registration, Team, User as UserType } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { EmailService } from '../services/emailService';
@@ -12,7 +12,6 @@ interface DigitalPassModalProps {
   pageMode?: boolean;
   onClose: () => void;
   onBrowseEvents?: () => void;
-  onOpenMultiPass?: () => void;
 }
 
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
@@ -41,8 +40,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   activePassId,
   pageMode = false,
   onClose,
-  onBrowseEvents,
-  onOpenMultiPass
+  onBrowseEvents
 }) => {
   const normalizeTeamCode = (code?: string) => (code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   const visibleRegistrations = (source: Registration[]) => {
@@ -1077,33 +1075,6 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         {/* Action Controls */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {onOpenMultiPass && (
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenMultiPass();
-                }}
-                style={{
-                  background: 'rgba(40, 59, 120, 0.35)',
-                  border: '1px solid rgba(120, 149, 147, 0.45)',
-                  borderRadius: '6px',
-                  color: '#BACEBB',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  padding: '7px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  transition: 'all 0.2s'
-                }}
-              >
-                <ShoppingBag size={14} />
-                <span>+ Buy Multiple Passes</span>
-              </button>
-            )}
-
             {onBrowseEvents && (
               <button
                 onClick={() => {

@@ -1379,7 +1379,7 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
                     </button>
                     <button
                       type="button"
-                      onClick={() => setLogo('/vencorpia_transparent.png')}
+                      onClick={() => setLogo('/vencorpia_logo.png')}
                       style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#94A3B8', cursor: 'pointer' }}
                     >
                       Preset: Vencorpia

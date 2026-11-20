@@ -140,6 +140,14 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
               alt="Vardhaman Logo" 
               style={{ height: '36px', width: 'auto', objectFit: 'contain' }} 
             />
+            <span style={{ width: '1px', height: '28px', background: 'rgba(220, 227, 232, 0.3)' }} />
+            <div style={{ background: '#FFFFFF', padding: '3px 6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}>
+              <img
+                src="/sac-vmeg logo.jpeg"
+                alt="SAC VMEG"
+                style={{ height: '30px', width: 'auto', objectFit: 'contain' }}
+              />
+            </div>
             <div>
               <span style={{ fontSize: '1rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.04em' }}>
                 FESTRONIX '26

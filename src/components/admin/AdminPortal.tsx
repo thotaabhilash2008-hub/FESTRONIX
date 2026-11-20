@@ -1,9 +1,11 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
-import { AdminAuthService, AdminUser, isDepartmentAdminRole, isSuperAdminRole } from '../../services/adminAuthService';
+import { AdminAuthService, AdminUser, isCheckinAdminRole, isDepartmentAdminRole, isFinanceAdminRole, isSuperAdminRole } from '../../services/adminAuthService';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { AdminLoginView } from './AdminLoginView';
 const DeanDashboard = lazy(() => import('./DeanDashboard').then(module => ({ default: module.DeanDashboard })));
 const DeptCoordinatorDashboard = lazy(() => import('./DeptCoordinatorDashboard').then(module => ({ default: module.DeptCoordinatorDashboard })));
+const FinanceReviewerDashboard = lazy(() => import('./FinanceReviewerDashboard').then(module => ({ default: module.FinanceReviewerDashboard })));
+const VolunteerCheckinDashboard = lazy(() => import('./VolunteerCheckinDashboard').then(module => ({ default: module.VolunteerCheckinDashboard })));
 import { GlitterBackground } from '../GlitterBackground';
 import './admin.css';
 
@@ -23,13 +25,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       event.preventDefault();
       const reason = event.reason;
-      const message = reason instanceof Error
-        ? reason.message
-        : typeof reason === 'string'
-          ? reason
-          : 'The operation could not be completed. Refresh and try again.';
+      // Raw RLS/PostgREST messages can expose schema details. Keep them in the
+      // console for diagnosis and show operators a safe, actionable message.
       console.error('Unhandled admin portal action:', reason);
-      setActionError(message);
+      setActionError('An action could not be completed. Check the details in your browser console or refresh and try again.');
     };
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
@@ -56,6 +55,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
   useEffect(() => {
     if (adminUser) AdminAuthService.initRealtime();
   }, [adminUser]);
+
+  // Roles and event assignments can change while the portal is open. Re-resolve
+  // the signed-in identity on those events so the UI never keeps a stale scope
+  // that the backend has already revoked.
+  useEffect(() => {
+    AdminAuthService.setIdentityChangeHandler(() => {
+      void AdminAuthService.restoreCurrentAdmin()
+        .then(fresh => {
+          setAdminUser(previous => {
+            if (JSON.stringify(previous) !== JSON.stringify(fresh)) {
+              window.setTimeout(() => setActionError('Your role or assignments changed. The portal was refreshed with your current access.'), 0);
+            }
+            return fresh;
+          });
+        })
+        .catch(error => console.warn('Admin identity refresh failed:', error));
+    });
+    return () => AdminAuthService.setIdentityChangeHandler(null);
+  }, []);
 
   // Never keep rendering a cached portal identity after Supabase has signed
   // the browser out or failed to refresh its token. RLS-protected operations
@@ -145,6 +163,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
               onSwitchToFest={onBackToFest}
             />
           </Suspense>
+        ) : isFinanceAdminRole(adminUser.role) ? (
+          <Suspense fallback={<div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', color: '#DCE3E5' }}>Loading finance workspace…</div>}>
+            <FinanceReviewerDashboard
+              adminUser={adminUser}
+              onLogout={handleLogout}
+              onSwitchToFest={onBackToFest}
+            />
+          </Suspense>
+        ) : isCheckinAdminRole(adminUser.role) ? (
+          <Suspense fallback={<div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', color: '#DCE3E5' }}>Loading gate check-in workspace…</div>}>
+            <VolunteerCheckinDashboard
+              adminUser={adminUser}
+              onLogout={handleLogout}
+              onSwitchToFest={onBackToFest}
+            />
+          </Suspense>
         ) : isDepartmentAdminRole(adminUser.role) ? (
           <Suspense fallback={<div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', color: '#DCE3E5' }}>Loading department workspace…</div>}>
             <DeptCoordinatorDashboard
@@ -157,7 +191,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
           <div style={{ minHeight: '65vh', display: 'grid', placeItems: 'center', padding: '32px', color: '#FCA5A5', textAlign: 'center' }}>
             <div>
               <h2 style={{ color: '#FFFFFF', marginBottom: '8px' }}>Access denied</h2>
-              <p>This account has no active portal role assigned. Contact the Dean SAC administrator.</p>
+              <p>Your role has no configured portal. Contact the Dean SAC administrator.</p>
               <button onClick={handleLogout} style={{ marginTop: '18px', padding: '10px 18px', borderRadius: '8px', border: '1px solid rgba(248,113,113,0.45)', background: 'rgba(248,113,113,0.12)', color: '#FCA5A5', cursor: 'pointer' }}>Sign out</button>
             </div>
           </div>

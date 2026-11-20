@@ -227,7 +227,7 @@ export async function completeRazorpayBatchCheckout(
       method: 'upi',
       notes: { fest: 'FESTRONIX 2026' },
       theme: {
-        color: '#38BDF8',
+        color: '#2E4E8C',
         backdrop_color: '#080C16'
       },
       modal: {

@@ -1,3 +1,9 @@
+/**
+ * @deprecated Not reachable from the active AdminPortal routes. This legacy
+ * component has no role/assignment props and exposes privileged payment,
+ * check-in and export actions without authorization checks. Do not wire it
+ * into the portal; use DeptCoordinatorDashboard instead.
+ */
 import React, { useEffect, useState } from 'react';
 import { 
   Users, CheckCircle2, XCircle, Search, QrCode, FileSpreadsheet, 

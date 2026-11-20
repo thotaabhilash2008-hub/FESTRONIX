@@ -29,7 +29,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   onLogout,
   onSwitchToFest
 }) => {
-  const deptCode = adminUser.departmentCode || 'CSE';
+  // Never infer a department from a malformed account. An empty code fails
+  // closed: no events, registrations or announcements fall into scope.
+  const deptCode = (adminUser.departmentCode || '').trim().toUpperCase();
   const clusterCode = adminUser.clusterCode?.toUpperCase();
   const clusterLabel = clusterCode
     ? ({ 'CSE-1': '1st Cluster · Verma', 'CSE-2': '2nd Cluster · Balu', 'CSE-3': '3rd Cluster · Raghavendra' } as Record<string, string>)[clusterCode] || clusterCode
@@ -41,7 +43,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const isDeptChief = adminUser.role === 'dept_chief_coordinator' || adminUser.role === 'dept_coordinator';
   const scopeDisplayName = isEventCoord
     ? 'Assigned Events'
-    : clusterLabel ? `${deptCode} · ${clusterLabel}` : deptCode;
+    : !deptCode
+      ? 'Unassigned department'
+      : clusterLabel ? `${deptCode} · ${clusterLabel}` : deptCode;
   const [assignedEventIds, setAssignedEventIds] = useState<string[]>(() =>
     [...new Set((adminUser.assignedEvents || []).map(value => String(value).trim()).filter(Boolean))]
   );
@@ -61,11 +65,18 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       ? true
       : Boolean(clusterCode) && event.clusterCode?.toUpperCase() === clusterCode);
 
-  const registrationMatchesEvents = (registration: Registration, scopedEvents: FestEvent[]): boolean => {
-    const ids = new Set(scopedEvents.map(event => event.id));
-    const slugs = new Set(scopedEvents.map(event => event.slug));
-    const titles = new Set(scopedEvents.map(event => event.title.toLowerCase()));
-    return ids.has(registration.eventId) || slugs.has(registration.eventId) || titles.has(registration.eventTitle.toLowerCase());
+  // Only the authoritative event UUID may scope a registration. Titles and
+  // slugs can be renamed or duplicated and would attach another event's roster.
+  const registrationMatchesEvents = (registration: Registration, scopedEvents: FestEvent[]): boolean =>
+    scopedEvents.some(event => event.id === registration.eventId);
+
+  // Department announcements must match both the department and the exact CSE
+  // cluster. A cluster coordinator must never see another cluster's notice.
+  const announcementMatchesScope = (announcement: { scope: string; departmentCode?: string; clusterCode?: string }): boolean => {
+    if (announcement.scope === 'fest-wide') return true;
+    if (announcement.scope !== 'department') return false;
+    if ((announcement.departmentCode || '').toUpperCase() !== deptCode.toUpperCase()) return false;
+    return (announcement.clusterCode || '').toUpperCase() === (clusterCode || '').toUpperCase();
   };
 
   const initialScopedEvents = StorageService.getEvents().filter(event =>
@@ -101,6 +112,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [events, setEvents] = useState<FestEvent[]>(() => isSupabaseConfigured() ? [] : initialScopedEvents);
   const [registrations, setRegistrations] = useState<Registration[]>(() => isSupabaseConfigured() ? [] : initialScopedRegistrations);
   const [eventAccessError, setEventAccessError] = useState<string | null>(null);
+  const [deptSyncError, setDeptSyncError] = useState<string | null>(null);
+  const [lastSuccessfulSync, setLastSuccessfulSync] = useState<Date | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
     isEventCoord ? [] : StorageService.getAnnouncements().filter(a =>
       a.scope === 'fest-wide' ||
@@ -294,12 +307,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           totalCapacity: scopedEvts.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
           checkedInCount: localRegs.filter(r => r.checkedIn).length
         });
-        setAnnouncements(isEventCoord ? [] :
-          StorageService.getAnnouncements().filter(a =>
-            a.scope === 'fest-wide' ||
-            (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-          )
-        );
+        setAnnouncements(isEventCoord ? [] : StorageService.getAnnouncements().filter(announcementMatchesScope));
       }
 
       try {
@@ -330,13 +338,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               registrationMatchesEvents(registration, updatedScopedEvents)
             );
         setRegistrations(updatedScopedRegistrations);
-        setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(a =>
-          a.scope === 'fest-wide' ||
-          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-        ));
+        setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(announcementMatchesScope));
         if (isDeptChief) {
           setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
         }
+        setDeptSyncError(null);
+        setLastSuccessfulSync(new Date());
         setDeptStats({
           totalRegistrations: updatedScopedRegistrations.length,
           verifiedCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verified').length,
@@ -358,6 +365,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           setEvents([]);
           setRegistrations([]);
           setAnnouncements([]);
+        } else {
+          // Department coordinators previously kept stale rows with no warning.
+          setDeptSyncError('Live sync failed. The data below may be out of date.');
         }
       }
     })();
@@ -387,12 +397,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     };
 
     const handleAnnouncementsUpdate = () => {
-      setAnnouncements(isEventCoord ? [] :
-        StorageService.getAnnouncements().filter(a =>
-          a.scope === 'fest-wide' ||
-          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-        )
-      );
+      setAnnouncements(isEventCoord ? [] : StorageService.getAnnouncements().filter(announcementMatchesScope));
     };
 
     const handleStorageChange = (e: StorageEvent) => {
@@ -427,9 +432,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
     if (eventScope === 'assigned') {
       const assignedIds = new Set(assignedEventsList.map(e => e.id));
-      const assignedSlugs = new Set(assignedEventsList.map(e => e.slug));
-      const assignedTitles = new Set(assignedEventsList.map(e => e.title.toLowerCase()));
-      return registrations.filter(r => assignedIds.has(r.eventId) || assignedSlugs.has(r.eventId) || assignedTitles.has(r.eventTitle.toLowerCase()));
+      return registrations.filter(r => assignedIds.has(r.eventId));
     }
     return registrations.filter(registration => registrationMatchesEvents(registration, events));
   }, [eventScope, assignedEventsList, registrations, events, isEventCoord]);
@@ -437,11 +440,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Registrations scoped to the specific event chosen in the check-in dropdown
   const checkInRegistrations = useMemo(() => {
     if (checkInEventFilter === 'all') return scopedRegistrations;
-    const targetEvent = visibleEvents.find(e => e.id === checkInEventFilter);
-    return scopedRegistrations.filter(r =>
-      r.eventId === checkInEventFilter ||
-      (!isEventCoord && targetEvent && r.eventTitle.toLowerCase() === targetEvent.title.toLowerCase())
-    );
+    return scopedRegistrations.filter(r => r.eventId === checkInEventFilter);
   }, [checkInEventFilter, scopedRegistrations, visibleEvents, isEventCoord]);
 
   // Filtered attendees for the check-in attendee directory table
@@ -523,9 +522,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     // Event-wise revenue breakdown (ONLY for this coordinator's visible events)
     const eventBreakdown = visibleEvents.map(ev => {
-      const evRegs = scopedRegistrations.filter(r =>
-        r.eventId === ev.id || (!isEventCoord && r.eventTitle?.toLowerCase() === ev.title.toLowerCase())
-      );
+      const evRegs = scopedRegistrations.filter(r => r.eventId === ev.id);
       const verifiedRegs = evRegs.filter(r => r.paymentStatus === 'verified');
       const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
       const verifiedRev = verifiedRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
@@ -640,6 +637,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       window.alert('Only the department coordinator can update event settings.');
       return;
     }
+    if (event.status !== 'open' && event.approvalStatus !== 'approved') {
+      window.alert('This event must be approved by SAC before it can be opened for registrations.');
+      return;
+    }
     try {
       const nextStatus = event.status === 'open' ? 'closed' : 'open';
       const updated = { ...event, status: nextStatus as any };
@@ -658,8 +659,17 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       return;
     }
     if (!editingEvent) return;
+    if (editingEvent.status === 'open' && editingEvent.approvalStatus !== 'approved') {
+      window.alert('This event must be approved by SAC before it can be opened for registrations.');
+      return;
+    }
     try {
-      await StorageService.updateEvent(editingEvent);
+      // Unapproved events may only remain in the submitted state. The DB
+      // trigger rejects other status values for department accounts.
+      const payload = editingEvent.approvalStatus === 'approved'
+        ? editingEvent
+        : { ...editingEvent, status: 'pending_approval' as any };
+      await StorageService.updateEvent(payload);
       setEditingEvent(null);
       await refreshDeptData();
       confetti({ particleCount: 50, spread: 45 });
@@ -976,13 +986,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     cleanVal = cleanVal.replace(/^(token|id|registration|pass):\s*/i, '').trim();
     const query = cleanVal.toLowerCase();
 
-    // Check in scopedRegistrations / department registrations / master pool
-    const allRegs = StorageService.getRegistrations();
-    const primaryPool = isEventCoord
-      ? scopedRegistrations
-      : (registrations.length > 0 ? registrations : scopedRegistrations);
+    // Only ever search the server-scoped roster. Falling back to the master
+    // local pool could display another department's participant PII before the
+    // event-mismatch guard runs.
+    const primaryPool = registrations.length > 0 ? registrations : scopedRegistrations;
 
-    let matchingReg = primaryPool.find(
+    const matchingReg = primaryPool.find(
       r => (r.id && r.id.toLowerCase() === query) ||
            (r.qrToken && r.qrToken.toLowerCase() === query) ||
            (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
@@ -990,17 +999,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
            (r.teamCode && r.teamCode.toLowerCase() === query) ||
            (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase() === query))
     );
-
-    if (!matchingReg && !isEventCoord) {
-      matchingReg = allRegs.find(
-        r => (r.id && r.id.toLowerCase() === query) ||
-             (r.qrToken && r.qrToken.toLowerCase() === query) ||
-             (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
-             (r.buyerRoll && r.buyerRoll.toLowerCase() === query) ||
-             (r.teamCode && r.teamCode.toLowerCase() === query) ||
-             (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase() === query))
-      );
-    }
 
     if (!matchingReg) {
       setCheckInResult({
@@ -1012,16 +1010,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
 
     if (isEventCoord) {
-      const belongsToAssignedEvent = visibleEvents.some(event =>
-        event.id === matchingReg!.eventId || event.slug === matchingReg!.eventId
-      );
+      const belongsToAssignedEvent = visibleEvents.some(event => event.id === matchingReg!.eventId);
 
       if (!belongsToAssignedEvent) {
         setCheckInResult({
           success: false,
           status: 'EVENT_MISMATCH',
           message: 'This pass is not for an event assigned to your coordinator account.',
-          registration: matchingReg,
         });
         return;
       }
@@ -1029,16 +1024,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     // Event-specific validation when a specific event dropdown is selected
     if (checkInEventFilter !== 'all') {
-      const selectedEvent = visibleEvents.find(e => e.id === checkInEventFilter);
-      const isMatchingEvent = matchingReg.eventId === checkInEventFilter ||
-        (!isEventCoord && selectedEvent && matchingReg.eventTitle.toLowerCase() === selectedEvent.title.toLowerCase());
+      const isMatchingEvent = matchingReg.eventId === checkInEventFilter;
 
       if (!isMatchingEvent) {
         setCheckInResult({
           success: false,
           status: 'EVENT_MISMATCH',
-          message: `Notice: This pass is for "${matchingReg.eventTitle}", but your desk is filtered for "${selectedEvent?.title || 'Selected Event'}". Switch the dropdown to validate this student.`,
-          registration: matchingReg
+          message: `Notice: This pass is for "${matchingReg.eventTitle}", but your desk is filtered for a different event. Switch the dropdown to validate this student.`
         });
         return;
       }
@@ -1238,7 +1230,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       message: broadcastMessage.trim(),
       type: broadcastType,
       scope: 'department',
-      departmentCode: deptCode
+      departmentCode: deptCode,
+      clusterCode: isCseDepartment ? clusterCode : undefined
     });
 
     setIsBroadcastOpen(false);
@@ -1258,7 +1251,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Export Dept / Filtered CSV (8.1 • Export event data)
   const handleExportCSV = (scopeName: 'filtered' | 'all') => {
-    const targetList = scopeName === 'filtered' ? filteredRoster : registrations;
+    const targetList = scopeName === 'filtered' ? filteredRoster : scopedRegistrations;
     const headers = [
       'Reg ID', 'Event Title', 'Student Name', 'Roll Number', 'Team Name',
       'Team Code', 'Email', 'Phone', 'College', 'Fee (INR)', 'Payment Status',
@@ -1299,7 +1292,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       'Checked-In (Turnout)', 'Turnout %'
     ];
     const rows = events.map(evt => {
-      const evtRegs = registrations.filter(r => r.eventId === evt.id || r.eventTitle.toLowerCase() === evt.title.toLowerCase());
+      const evtRegs = registrations.filter(r => r.eventId === evt.id);
       const verifiedRegs = evtRegs.filter(r => r.paymentStatus === 'verified');
       const checkedInCount = evtRegs.filter(r => r.checkedIn).length;
       const totalRev = verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
@@ -1606,6 +1599,18 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
         {/* Main Content Area */}
         <main className="admin-content-container" style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
+
+        {deptSyncError && (
+          <div role="alert" style={{ marginBottom: '18px', padding: '12px 16px', borderRadius: '10px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.45)', color: '#FCD34D', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <span>
+              {deptSyncError}
+              {lastSuccessfulSync ? ` Last successful sync: ${lastSuccessfulSync.toLocaleString()}.` : ' No successful sync this session.'}
+            </span>
+            <button type="button" onClick={() => void refreshDeptData()} style={{ background: 'transparent', border: '1px solid rgba(245,158,11,0.5)', borderRadius: '6px', color: '#FCD34D', padding: '5px 10px', cursor: 'pointer', fontWeight: 700 }}>
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Copy Feedback Toast */}
         {copyFeedback && (
@@ -1986,7 +1991,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '18px' }}>
                 {visibleEvents.map(event => {
-                  const eventRegs = registrations.filter(r => r.eventId === event.id || r.eventTitle.toLowerCase() === event.title.toLowerCase());
+                  const eventRegs = registrations.filter(r => r.eventId === event.id);
                   const fillPct = event.capacity > 0 ? Math.round((eventRegs.length / event.capacity) * 100) : 0;
                   const isAssigned = isEventAssigned(event);
 
@@ -3003,9 +3008,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 >
                   <option value="all">{isEventCoord ? '🎯 All assigned events' : `🏢 All ${scopeDisplayName} Events`} ({visibleEvents.length})</option>
                   {visibleEvents.map(event => {
-                    const eventRegsCount = scopedRegistrations.filter(r =>
-                      r.eventId === event.id || (!isEventCoord && r.eventTitle.toLowerCase() === event.title.toLowerCase())
-                    ).length;
+                    const eventRegsCount = scopedRegistrations.filter(r => r.eventId === event.id).length;
                     return (
                       <option key={event.id} value={event.id}>
                         🎯 {event.title} • {event.date} ({eventRegsCount} registered)
@@ -4203,12 +4206,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   value={editingEvent.status}
                   onChange={e => setEditingEvent({
                     ...editingEvent,
-                    status: e.target.value as any,
-                    approvalStatus: e.target.value === 'open' ? 'approved' : editingEvent.approvalStatus
+                    // Approval status is global-admin only; never mutate it here.
+                    status: e.target.value as any
                   })}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
                 >
-                  <option value="open">Open (Published & Accepting Registrations)</option>
+                  {editingEvent.approvalStatus === 'approved' && (
+                    <option value="open">Open (Published & Accepting Registrations)</option>
+                  )}
                   <option value="closed">Closed (Registrations Paused)</option>
                   <option value="pending_approval">Pending SAC Approval</option>
                 </select>

@@ -4,12 +4,10 @@ import { Tilt3DCard } from './3d/Tilt3DCard';
 import { ScrollReveal } from './animations';
 
 interface RegistrationCtaSectionProps {
-  onOpenMultiPass: () => void;
   onExploreEvents: () => void;
 }
 
 export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
-  onOpenMultiPass,
   onExploreEvents
 }) => {
   return (
@@ -143,7 +141,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               <button
-                onClick={onOpenMultiPass}
+                onClick={onExploreEvents}
                 className="btn-cyber-gold cta-btn-primary"
                 style={{
                   padding: '16px 38px',
@@ -154,7 +152,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 }}
               >
                 <Ticket size={18} />
-                <span>Book All-Access Multi-Pass</span>
+                <span>Register for an Event</span>
                 <ArrowRight size={16} />
               </button>
 

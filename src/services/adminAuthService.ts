@@ -25,6 +25,12 @@ export const isDepartmentAdminRole = (role: AdminRole): boolean =>
   role === 'faculty_coord' ||
   role === 'student_coord';
 
+export const isFinanceAdminRole = (role: AdminRole): boolean =>
+  role === 'finance_reviewer';
+
+export const isCheckinAdminRole = (role: AdminRole): boolean =>
+  role === 'volunteer_checkin' || role === 'checkin_staff';
+
 export interface AdminUser {
   id: string;
   username: string;
@@ -499,6 +505,12 @@ async function invokeAdminAuth<T>(body: Record<string, unknown>): Promise<T> {
 
 export class AdminAuthService {
   private static realtimeInitialized = false;
+  private static identityChangeHandler: (() => void) | null = null;
+
+  /** Lets the portal re-resolve the signed-in identity when roles change. */
+  static setIdentityChangeHandler(handler: (() => void) | null): void {
+    this.identityChangeHandler = handler;
+  }
 
   static initRealtime(): void {
     if (this.realtimeInitialized || !isSupabaseConfigured()) return;
@@ -508,9 +520,11 @@ export class AdminAuthService {
         .channel('festronix_admin_directory_live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_roles' }, () => {
           void this.fetchAdmins().catch(error => console.warn('Admin directory realtime refresh failed:', error));
+          this.identityChangeHandler?.();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_event_assignments' }, () => {
           void this.fetchAdmins().catch(error => console.warn('Admin assignment realtime refresh failed:', error));
+          this.identityChangeHandler?.();
         })
         .subscribe();
     } catch (error) {
@@ -567,14 +581,22 @@ export class AdminAuthService {
     const emailLower = (user.email || fallbackEmail || '').trim().toLowerCase();
     const userMeta = user.user_metadata || {};
 
-    // 1. Try querying Supabase admin_roles table directly
+    // 1. Try querying Supabase admin_roles table directly. Ambiguous accounts
+    // are rejected rather than resolving to an arbitrary first role, which
+    // could silently widen or narrow the operator's visible scope.
     try {
-      const { data: roleRow } = await supabase
+      const { data: roleRows, error: roleError } = await supabase
         .from('admin_roles')
         .select('*')
         .eq('user_id', user.id)
         .eq('active', true)
-        .maybeSingle();
+        .order('created_at', { ascending: true })
+        .limit(2);
+      if (roleError) throw roleError;
+      if ((roleRows?.length || 0) > 1) {
+        throw new Error('Multiple active portal roles are assigned to this account. Ask an administrator to keep exactly one active role.');
+      }
+      const roleRow = roleRows?.[0];
 
       if (roleRow) {
         // Keep the authenticated portal session aligned with the database
@@ -608,6 +630,7 @@ export class AdminAuthService {
         };
       }
     } catch (e) {
+      if (e instanceof Error && e.message.startsWith('Multiple active portal roles')) throw e;
       console.warn('Could not query admin_roles table:', e);
     }
 

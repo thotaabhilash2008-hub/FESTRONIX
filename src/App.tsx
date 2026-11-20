@@ -9,7 +9,6 @@ import { FullscreenIntro } from './components/FullscreenIntro';
 const EventDetailModal = lazy(() => import('./components/EventDetailModal').then(module => ({ default: module.EventDetailModal })));
 const RegistrationModal = lazy(() => import('./components/RegistrationModal').then(module => ({ default: module.RegistrationModal })));
 const DigitalPassModal = lazy(() => import('./components/DigitalPassModal').then(module => ({ default: module.DigitalPassModal })));
-const MultiPassModal = lazy(() => import('./components/MultiPassModal').then(module => ({ default: module.MultiPassModal })));
 const AdminPortal = lazy(() => import('./components/admin/AdminPortal').then(module => ({ default: module.AdminPortal })));
 const PublicSponsorsPage = lazy(() => import('./components/PublicSponsorsPage').then(module => ({ default: module.PublicSponsorsPage })));
 const AllEventsPage = lazy(() => import('./components/AllEventsPage'));
@@ -184,7 +183,6 @@ export const App: React.FC = () => {
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
   const [isPassesModalOpen, setIsPassesModalOpen] = useState<boolean>(false);
   const [activePassId, setActivePassId] = useState<string | undefined>(undefined);
-  const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
 
   // The 3D stage pulls in Three.js and is decorative. Wait until the intro has
   // finished and the visitor is on the home view so it doesn't compete with
@@ -426,13 +424,6 @@ export const App: React.FC = () => {
     handleOpenPassesPage(newReg.id);
   };
 
-  const handleMultiPassSuccess = (newRegs: Registration[]) => {
-    cachePassesOnDevice(newRegs);
-    setIsMultiPassModalOpen(false);
-    refreshData();
-    handleOpenPassesPage(newRegs[newRegs.length - 1]?.id);
-  };
-
   // Navigation handlers
   const handleNavigateExplore = () => {
     const el = document.getElementById('events');
@@ -450,10 +441,6 @@ export const App: React.FC = () => {
     setRegistrationSlug(evt.slug || evt.id);
     setIsRegistrationPageOpen(true);
     setRegisterEvent(evt);
-  };
-
-  const handleStartMultiPass = () => {
-    setIsMultiPassModalOpen(true);
   };
 
   const activePassLookup = typeof window !== 'undefined'
@@ -504,7 +491,7 @@ export const App: React.FC = () => {
         <PublicSponsorsPage
           onBackToHome={handleBackFromSponsorsPage}
           onExploreEvents={handleOpenAllEventsPage}
-          onRegisterNow={handleStartMultiPass}
+          onRegisterNow={handleOpenAllEventsPage}
         />
       </Suspense>
     );
@@ -519,7 +506,6 @@ export const App: React.FC = () => {
           onBackToHome={handleBackFromAllEventsPage}
           onSelectEvent={evt => setDetailEvent(evt)}
           onRegisterEvent={handleStartEventRegistration}
-          onOpenMultiPass={handleStartMultiPass}
           onOpenPasses={() => handleOpenPassesPage()}
           onOpenAdmin={handleOpenAdmin}
           onOpenSponsors={handleOpenSponsorsPage}
@@ -530,16 +516,6 @@ export const App: React.FC = () => {
             event={detailEvent}
             onClose={() => setDetailEvent(null)}
             onRegister={handleStartEventRegistration}
-          />
-        )}
-
-        {isMultiPassModalOpen && (
-          <MultiPassModal
-            isOpen={isMultiPassModalOpen}
-            onClose={() => setIsMultiPassModalOpen(false)}
-            events={events}
-            currentUser={currentUser}
-            onSuccess={handleMultiPassSuccess}
           />
         )}
       </Suspense>
@@ -557,10 +533,6 @@ export const App: React.FC = () => {
           pageMode
           onClose={navigateHome}
           onBrowseEvents={handleOpenAllEventsPage}
-          onOpenMultiPass={() => {
-            navigateHome();
-            setIsMultiPassModalOpen(true);
-          }}
         />
       </Suspense>
     );
@@ -575,10 +547,6 @@ export const App: React.FC = () => {
           pageMode
           onClose={navigateHome}
           onSuccess={handleRegistrationSuccess}
-          onOpenMultiPass={() => {
-            navigateHome();
-            setIsMultiPassModalOpen(true);
-          }}
         />
       </Suspense>
     ) : (
@@ -645,7 +613,6 @@ export const App: React.FC = () => {
       <Navbar
         onOpenIntro={() => setIsIntroOpen(true)}
         onOpenPasses={() => handleOpenPassesPage()}
-        onOpenMultiPass={handleStartMultiPass}
         announcements={announcements}
         passesCount={registrations.length}
         onNavigateExplore={handleNavigateExplore}
@@ -662,7 +629,7 @@ export const App: React.FC = () => {
           onExploreEvents={handleOpenAllEventsPage}
           onViewAllEvents={handleOpenAllEventsPage}
           onOpenIntro={() => setIsIntroOpen(true)}
-          onRegisterNow={handleStartMultiPass}
+          onRegisterNow={handleOpenAllEventsPage}
         />
 
         {/* ABOUT FESTRONIX: Scroll-Driven Transformation */}
@@ -684,7 +651,6 @@ export const App: React.FC = () => {
 
         {/* Closing Registration CTA: Final Cinematic Moment */}
         <RegistrationCtaSection
-          onOpenMultiPass={handleStartMultiPass}
           onExploreEvents={handleOpenAllEventsPage}
         />
       </main>
@@ -716,26 +682,9 @@ export const App: React.FC = () => {
             currentUser={currentUser}
             onClose={() => setRegisterEvent(null)}
             onSuccess={handleRegistrationSuccess}
-            onOpenMultiPass={() => {
-              setRegisterEvent(null);
-              handleStartMultiPass();
-            }}
           />
         </Suspense>
       )}
-
-      {isMultiPassModalOpen && (
-        <Suspense fallback={null}>
-          <MultiPassModal
-            isOpen={isMultiPassModalOpen}
-            onClose={() => setIsMultiPassModalOpen(false)}
-            events={events}
-            currentUser={currentUser}
-            onSuccess={handleMultiPassSuccess}
-          />
-        </Suspense>
-      )}
-
 
       {isPassesModalOpen && (
         <Suspense fallback={null}>
@@ -749,10 +698,6 @@ export const App: React.FC = () => {
               setActivePassId(undefined);
             }}
             onBrowseEvents={handleNavigateExplore}
-            onOpenMultiPass={() => {
-              setIsPassesModalOpen(false);
-              setIsMultiPassModalOpen(true);
-            }}
           />
         </Suspense>
       )}

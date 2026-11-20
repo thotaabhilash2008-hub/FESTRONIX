@@ -131,6 +131,7 @@ function announcementFromDb(row: AnnouncementRow): Announcement {
     type: row.type,
     scope: row.scope === 'event' ? 'department' : row.scope,
     departmentCode: row.department_code || undefined,
+    clusterCode: row.cluster_code || undefined,
     date: row.date_display || new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 }
@@ -1525,6 +1526,7 @@ export class StorageService {
         type: data.type,
         scope: data.scope,
         department_code: data.departmentCode || null,
+        cluster_code: data.clusterCode || null,
         published_by: authData.user?.id || null,
         date_display: dateDisplay
       }).select('*').single();

@@ -19,7 +19,6 @@ interface RegistrationModalProps {
   pageMode?: boolean;
   onClose: () => void;
   onSuccess: (registration: Registration) => void;
-  onOpenMultiPass?: () => void;
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({
@@ -28,7 +27,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   pageMode = false,
   onClose,
   onSuccess,
-  onOpenMultiPass,
 }) => {
   const isTeamEvent = event ? event.format !== 'individual' : false;
 
@@ -795,46 +793,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         {!currentUser && (
           <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.10)', border: '1px solid rgba(56, 189, 248, 0.32)', color: '#DCE3E5', fontSize: '0.82rem', lineHeight: 1.45 }}>
             Guest registration is enabled. Enter your details manually; your registration pass and status updates will be sent to your Gmail.
-          </div>
-        )}
-
-        {/* Multi-Pass Shortcut (Only for solo passes) */}
-        {!isTeamEvent && onOpenMultiPass && (
-          <div
-            style={{
-              padding: '10px 14px',
-              background: 'rgba(40, 59, 120, 0.25)',
-              border: '1px solid rgba(120, 149, 147, 0.35)',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '0.78rem'
-            }}
-          >
-            <span style={{ color: '#DCE3E5' }}>
-              Want to buy passes for multiple solo events simultaneously?
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenMultiPass();
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#BACEBB',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <span>Open Multi-Pass Desk →</span>
-            </button>
           </div>
         )}
 

@@ -159,7 +159,7 @@ export const SPONSOR_PROFILES: SponsorProfile[] = [
     tagline: 'One Stop for Effortless Events & Digital Ticketing',
     tier: 'Official Tech Partner',
     tierBadgeColor: '#00C2FF',
-    logo: '/vencorpia_transparent.png',
+    logo: '/vencorpia_logo.png',
     website: 'https://vencorpia.com',
     pocName: 'Himavardhan Reddy',
     pocRole: 'VP of Technology & Operations',

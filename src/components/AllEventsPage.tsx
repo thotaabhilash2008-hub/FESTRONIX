@@ -30,7 +30,6 @@ interface AllEventsPageProps {
   onBackToHome: () => void;
   onSelectEvent: (event: FestEvent) => void;
   onRegisterEvent: (event: FestEvent) => void;
-  onOpenMultiPass: () => void;
   onOpenPasses: () => void;
   onOpenAdmin?: () => void;
   onOpenSponsors?: () => void;
@@ -74,7 +73,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   onBackToHome,
   onSelectEvent,
   onRegisterEvent,
-  onOpenMultiPass,
   onOpenPasses,
   onOpenAdmin,
   onOpenSponsors
@@ -513,16 +511,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={onOpenMultiPass}
-            className="btn-cyber-secondary"
-            style={{ padding: '8px 14px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
-          >
-            <Layers size={14} color="#38BDF8" />
-            <span>Multiple Passes</span>
-          </button>
-
           <button
             type="button"
             onClick={onOpenPasses}

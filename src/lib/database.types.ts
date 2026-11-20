@@ -500,6 +500,7 @@ export interface Database {
           type: 'urgent' | 'general' | 'prize' | 'workshop';
           scope: 'fest-wide' | 'department' | 'event';
           department_code: string | null;
+          cluster_code: string | null;
           published_by: string | null;
           date_display: string;
           created_at: string;
@@ -512,6 +513,7 @@ export interface Database {
           type: 'urgent' | 'general' | 'prize' | 'workshop';
           scope: 'fest-wide' | 'department' | 'event';
           department_code?: string | null;
+          cluster_code?: string | null;
           published_by?: string | null;
           date_display?: string;
           created_at?: string;
@@ -524,6 +526,7 @@ export interface Database {
           type?: 'urgent' | 'general' | 'prize' | 'workshop';
           scope?: 'fest-wide' | 'department' | 'event';
           department_code?: string | null;
+          cluster_code?: string | null;
           published_by?: string | null;
           date_display?: string;
           created_at?: string;

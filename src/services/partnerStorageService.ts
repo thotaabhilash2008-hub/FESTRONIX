@@ -4,8 +4,18 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 const STORAGE_KEY = 'festronix_sponsors_v1';
 const SPONSOR_TABLE = 'sponsor_profiles';
 
+// Official brand assets must win over stale cached/DB logo paths.
+const OFFICIAL_LOGO_PATHS: Record<string, string> = {
+  vencorpia: '/vencorpia_logo.png'
+};
+
 export class PartnerStorageService {
   private static realtimeInitialized = false;
+
+  private static withOfficialLogo(sponsor: SponsorProfile): SponsorProfile {
+    const officialLogo = OFFICIAL_LOGO_PATHS[sponsor.id];
+    return officialLogo ? { ...sponsor, logo: officialLogo } : sponsor;
+  }
 
   static initRealtime(): void {
     if (PartnerStorageService.realtimeInitialized || !isSupabaseConfigured()) return;
@@ -48,7 +58,7 @@ export class PartnerStorageService {
 
   private static fromRow(row: any): SponsorProfile {
     const fallbackProfile = SPONSOR_PROFILES.find(s => s.id === row.id);
-    return {
+    return PartnerStorageService.withOfficialLogo({
       id: row.id,
       companyName: row.company_name,
       tagline: row.tagline,
@@ -72,7 +82,7 @@ export class PartnerStorageService {
       headquarters: row.headquarters || fallbackProfile?.headquarters,
       awardHighlight: row.award_highlight || fallbackProfile?.awardHighlight,
       keyProjects: row.key_projects || fallbackProfile?.keyProjects
-    };
+    });
   }
 
   static async fetchSponsors(): Promise<SponsorProfile[]> {
@@ -85,7 +95,8 @@ export class PartnerStorageService {
     const databaseSponsors: SponsorProfile[] = (data || []).map((row: any) => PartnerStorageService.fromRow(row));
     const existingIds = new Set(databaseSponsors.map(sponsor => sponsor.id));
     const missingOfficialSponsors = SPONSOR_PROFILES.filter(sponsor => !existingIds.has(sponsor.id));
-    const sponsors = [...databaseSponsors, ...missingOfficialSponsors];
+    const sponsors = [...databaseSponsors, ...missingOfficialSponsors]
+      .map(sponsor => PartnerStorageService.withOfficialLogo(sponsor));
 
     if (sponsors.length > 0) {
       PartnerStorageService.saveSponsors(sponsors);
@@ -125,9 +136,10 @@ export class PartnerStorageService {
           const isStale = localStorage.getItem(PURGE_FLAG) !== '1';
           const updated = cleaned.map((s: any) => {
             const def = SPONSOR_PROFILES.find(d => d.id === s.id);
+            const normalized = PartnerStorageService.withOfficialLogo(s);
             if (def && isStale) {
               return {
-                ...s,
+                ...normalized,
                 pocName: def.pocName,
                 pocContact: def.pocContact,
                 pocRole: def.pocRole || s.pocRole,
@@ -137,7 +149,7 @@ export class PartnerStorageService {
                 awardHighlight: def.awardHighlight || s.awardHighlight
               };
             }
-            return s;
+            return normalized;
           });
           const existingIds = new Set(updated.map((s: any) => s?.id));
           const missingDefaults = SPONSOR_PROFILES.filter(s => !existingIds.has(s.id));
@@ -163,9 +175,10 @@ export class PartnerStorageService {
 
   static saveSponsors(sponsors: SponsorProfile[]): void {
     if (typeof window === 'undefined') return;
+    const normalized = sponsors.map(sponsor => PartnerStorageService.withOfficialLogo(sponsor));
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sponsors));
-      window.dispatchEvent(new CustomEvent('festronix:sponsors-updated', { detail: sponsors }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      window.dispatchEvent(new CustomEvent('festronix:sponsors-updated', { detail: normalized }));
     } catch (e) {
       console.error('Failed to save sponsors:', e);
     }

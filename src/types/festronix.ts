@@ -193,6 +193,7 @@ export interface Announcement {
   type: 'urgent' | 'general' | 'prize' | 'workshop';
   scope: 'fest-wide' | 'department';
   departmentCode?: string;
+  clusterCode?: string;
   date: string;
 }
 

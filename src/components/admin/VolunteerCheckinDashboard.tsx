@@ -29,9 +29,12 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
   }>({ type: 'idle', message: '' });
 
   const [registrations, setRegistrations] = useState<Registration[]>(() => StorageService.getRegistrations());
-  const scopedRegistrations = adminUser.assignedEvents && adminUser.assignedEvents.length > 0
-    ? registrations.filter(r => adminUser.assignedEvents!.includes(r.eventId) || adminUser.assignedEvents!.includes(r.eventTitle))
-    : registrations;
+  // Fail closed: gate staff may only ever see passes for their assigned event
+  // UUIDs. An empty assignment list must never expose the full registration pool.
+  const assignedEventIds = adminUser.assignedEvents || [];
+  const scopedRegistrations = assignedEventIds.length > 0
+    ? registrations.filter(r => assignedEventIds.includes(r.eventId))
+    : [];
   const checkedInCount = scopedRegistrations.filter(r => r.checkedIn).length;
   const totalCount = scopedRegistrations.length;
 
@@ -78,7 +81,20 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
     if (!reg) {
       setCheckinStatus({
         type: 'not_found',
-        message: `No registration record found matching "${query}". Verify Roll Number or Token.`
+        message: assignedEventIds.length === 0
+          ? 'No events are assigned to this gate account. Contact the Dean SAC administrator.'
+          : `No pass assigned to your gate matches "${query}". Verify Roll Number or Token.`
+      });
+      setLastCheckedIn(null);
+      return;
+    }
+
+    // Defence in depth: never check in a pass outside the assigned event list,
+    // even if a stale local cache contains it.
+    if (!assignedEventIds.includes(reg.eventId)) {
+      setCheckinStatus({
+        type: 'not_found',
+        message: 'This pass is not assigned to your gate. Redirect the participant to the correct gate.'
       });
       setLastCheckedIn(null);
       return;
@@ -134,6 +150,12 @@ export const VolunteerCheckinDashboard: React.FC<VolunteerCheckinDashboardProps>
       />
 
       <main className="admin-content-container admin-content-container-compact" style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 20px' }}>
+        {assignedEventIds.length === 0 && (
+          <div role="alert" style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '10px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.4)', color: '#FECACA', fontSize: '0.85rem' }}>
+            No events are assigned to this gate account. Ask an administrator to assign events before using the scanner.
+          </div>
+        )}
+
         {/* KPI Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
           {/* Card 1: Admitted Footfall */}
