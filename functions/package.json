@@ -1,0 +1,22 @@
+{
+  "name": "festronix-firebase-functions",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test:scope": "npm run build && node scripts/test-event-scope.mjs",
+    "test:registration-claims": "npm run build && node scripts/test-registration-claims.mjs",
+    "test:emulator": "node scripts/verify-staff-scope-emulator.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.1",
+    "firebase-functions": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "~6.0.2"
+  }
+}

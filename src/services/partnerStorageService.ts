@@ -1,8 +1,15 @@
 import { SponsorProfile, SPONSOR_PROFILES } from '../components/partners/partnerData';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { isFirebaseConfigured } from '../lib/firebase';
+import { FirebaseSponsorService } from './firebaseSponsorService';
 
 const STORAGE_KEY = 'festronix_sponsors_v1';
 const SPONSOR_TABLE = 'sponsor_profiles';
+const PUBLIC_STORAGE_KEY = 'festronix_public_sponsors_firebase_staging_v1';
+
+function sponsorStorageKey(): string {
+  return isFirebaseConfigured ? 'festronix_sponsors_firebase_staging_private_v1' : STORAGE_KEY;
+}
 
 // Official brand assets must win over stale cached/DB logo paths.
 const OFFICIAL_LOGO_PATHS: Record<string, string> = {
@@ -18,6 +25,7 @@ export class PartnerStorageService {
   }
 
   static initRealtime(): void {
+    if (isFirebaseConfigured) return;
     if (PartnerStorageService.realtimeInitialized || !isSupabaseConfigured()) return;
     PartnerStorageService.realtimeInitialized = true;
     try {
@@ -86,6 +94,11 @@ export class PartnerStorageService {
   }
 
   static async fetchSponsors(): Promise<SponsorProfile[]> {
+    if (isFirebaseConfigured) {
+      const sponsors = await FirebaseSponsorService.listStaff();
+      PartnerStorageService.saveSponsors(sponsors);
+      return sponsors;
+    }
     if (!isSupabaseConfigured()) return PartnerStorageService.getSponsors();
     const { data, error } = await (supabase as any)
       .from(SPONSOR_TABLE)
@@ -113,6 +126,15 @@ export class PartnerStorageService {
     return fallback;
   }
 
+  static async fetchPublicSponsors(): Promise<SponsorProfile[]> {
+    if (isFirebaseConfigured) {
+      const sponsors = await FirebaseSponsorService.listPublic();
+      PartnerStorageService.savePublicSponsors(sponsors);
+      return sponsors;
+    }
+    return PartnerStorageService.fetchSponsors();
+  }
+
   private static async persistSponsor(sponsor: SponsorProfile): Promise<void> {
     if (!isSupabaseConfigured()) return;
     const { error } = await (supabase as any).from(SPONSOR_TABLE).upsert(PartnerStorageService.toRow(sponsor));
@@ -125,10 +147,20 @@ export class PartnerStorageService {
     if (error) throw error;
   }
   static getSponsors(): SponsorProfile[] {
-    if (typeof window === 'undefined') return SPONSOR_PROFILES;
+    if (typeof window === 'undefined') return isFirebaseConfigured ? [] : SPONSOR_PROFILES;
+    if (isFirebaseConfigured) {
+      try {
+        const stored = localStorage.getItem(sponsorStorageKey());
+        const parsed = stored ? JSON.parse(stored) : null;
+        return Array.isArray(parsed) ? parsed as SponsorProfile[] : [];
+      } catch (error) {
+        console.warn('Failed to parse Firebase sponsor cache:', error);
+        return [];
+      }
+    }
     const PURGE_FLAG = 'festronix_sponsors_demo_purged_v4';
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(sponsorStorageKey());
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -155,7 +187,7 @@ export class PartnerStorageService {
           const missingDefaults = SPONSOR_PROFILES.filter(s => !existingIds.has(s.id));
           if (missingDefaults.length > 0 || isStale) {
             const merged = [...updated, ...missingDefaults];
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            localStorage.setItem(sponsorStorageKey(), JSON.stringify(merged));
             localStorage.setItem(PURGE_FLAG, '1');
             return merged;
           }
@@ -165,6 +197,7 @@ export class PartnerStorageService {
     } catch (e) {
       console.warn('Failed to parse stored sponsors:', e);
     }
+    if (isFirebaseConfigured) return [];
     try {
       localStorage.setItem(PURGE_FLAG, '1');
     } catch {}
@@ -177,21 +210,49 @@ export class PartnerStorageService {
     if (typeof window === 'undefined') return;
     const normalized = sponsors.map(sponsor => PartnerStorageService.withOfficialLogo(sponsor));
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      localStorage.setItem(sponsorStorageKey(), JSON.stringify(normalized));
       window.dispatchEvent(new CustomEvent('festronix:sponsors-updated', { detail: normalized }));
     } catch (e) {
       console.error('Failed to save sponsors:', e);
     }
   }
 
-  static addSponsor(sponsor: SponsorProfile): void {
+  static getPublicSponsors(): SponsorProfile[] {
+    if (typeof window === 'undefined') return isFirebaseConfigured ? [] : SPONSOR_PROFILES.filter(profile => profile.id !== 'connect_club');
+    try {
+      const stored = localStorage.getItem(isFirebaseConfigured ? PUBLIC_STORAGE_KEY : STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : null;
+      if (Array.isArray(parsed)) return parsed as SponsorProfile[];
+    } catch (error) {
+      console.warn('Failed to parse public sponsor cache:', error);
+    }
+    return isFirebaseConfigured ? [] : SPONSOR_PROFILES.filter(profile => profile.id !== 'connect_club');
+  }
+
+  static savePublicSponsors(sponsors: SponsorProfile[]): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(isFirebaseConfigured ? PUBLIC_STORAGE_KEY : STORAGE_KEY, JSON.stringify(sponsors));
+      window.dispatchEvent(new CustomEvent('festronix:sponsors-updated', { detail: sponsors }));
+    } catch (error) {
+      console.error('Failed to save public sponsors:', error);
+    }
+  }
+
+  static async addSponsor(sponsor: SponsorProfile): Promise<SponsorProfile> {
+    if (isFirebaseConfigured) {
+      const created = await FirebaseSponsorService.create(sponsor);
+      PartnerStorageService.saveSponsors([created, ...PartnerStorageService.getSponsors().filter(item => item.id !== created.id)]);
+      return created;
+    }
     const list = PartnerStorageService.getSponsors();
     const updated = [sponsor, ...list];
     PartnerStorageService.saveSponsors(updated);
-    void PartnerStorageService.persistSponsor(sponsor).catch(error => console.error('Failed to persist sponsor:', error));
+    await PartnerStorageService.persistSponsor(sponsor);
+    return sponsor;
   }
 
-  static updateSponsor(id: string, updates: Partial<SponsorProfile>): void {
+  static async updateSponsor(id: string, updates: Partial<SponsorProfile>): Promise<void> {
     const list = PartnerStorageService.getSponsors();
     const updated = list.map(s => {
       if (s.id === id) {
@@ -206,23 +267,39 @@ export class PartnerStorageService {
       }
       return s;
     });
-    PartnerStorageService.saveSponsors(updated);
     const saved = updated.find(s => s.id === id);
-    if (saved) void PartnerStorageService.persistSponsor(saved).catch(error => console.error('Failed to persist sponsor:', error));
+    if (!saved) throw new Error('Sponsor profile was not found.');
+    if (isFirebaseConfigured) {
+      const persisted = await FirebaseSponsorService.update(id, saved);
+      PartnerStorageService.saveSponsors(updated.map(profile => profile.id === id ? persisted : profile));
+      return;
+    }
+    await PartnerStorageService.persistSponsor(saved);
+    PartnerStorageService.saveSponsors(updated);
   }
 
-  static deleteSponsor(id: string): void {
+  static async deleteSponsor(id: string): Promise<void> {
+    if (isFirebaseConfigured) {
+      await FirebaseSponsorService.delete(id);
+      PartnerStorageService.saveSponsors(PartnerStorageService.getSponsors().filter(sponsor => sponsor.id !== id));
+      return;
+    }
     const list = PartnerStorageService.getSponsors();
     const updated = list.filter(s => s.id !== id);
+    await PartnerStorageService.deleteSponsorFromBackend(id);
     PartnerStorageService.saveSponsors(updated);
-    void PartnerStorageService.deleteSponsorFromBackend(id).catch(error => console.error('Failed to delete sponsor:', error));
   }
 
-  static resetToDefaults(): void {
+  static async resetToDefaults(): Promise<void> {
+    if (isFirebaseConfigured) {
+      await FirebaseSponsorService.reset(SPONSOR_PROFILES);
+      PartnerStorageService.saveSponsors(SPONSOR_PROFILES);
+      return;
+    }
     PartnerStorageService.saveSponsors(SPONSOR_PROFILES);
     if (isSupabaseConfigured()) {
-      void (supabase as any).from(SPONSOR_TABLE).upsert(SPONSOR_PROFILES.map(PartnerStorageService.toRow))
-        .then(({ error }: { error: any }) => { if (error) console.error('Failed to reset sponsors:', error); });
+      const { error } = await (supabase as any).from(SPONSOR_TABLE).upsert(SPONSOR_PROFILES.map(PartnerStorageService.toRow));
+      if (error) throw error;
     }
   }
 }

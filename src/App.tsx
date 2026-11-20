@@ -20,6 +20,7 @@ import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { FestEvent, Registration, Announcement, User } from './types/festronix';
 import { isSupabaseConfigured } from './lib/supabase';
+import { isFirebaseConfigured } from './lib/firebase';
 import { ScrollAnimationsProvider } from './components/animations';
 const KineticStage3D = lazy(() => import('./components/3d/KineticStage3D'));
 import { AboutSection } from './components/AboutSection';
@@ -173,6 +174,7 @@ export const App: React.FC = () => {
 
   // State
   const [events, setEvents] = useState<FestEvent[]>([]);
+  const [publicEvents, setPublicEvents] = useState<FestEvent[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
@@ -214,17 +216,21 @@ export const App: React.FC = () => {
     // The configured build is backend-only: never render an old browser cache
     // as if it were current public/admin data. Offline localStorage mode is
     // retained only for an explicitly unconfigured development build.
-    if (isSupabaseConfigured()) {
+    if (isFirebaseConfigured || isSupabaseConfigured()) {
       setEvents([]);
+      setPublicEvents([]);
       setRegistrations([]);
       setAnnouncements([]);
     } else {
-      setEvents(StorageService.getEvents());
+      const localEvents = StorageService.getEvents();
+      setEvents(localEvents);
+      setPublicEvents(localEvents);
       setRegistrations(StorageService.getRegistrations());
       setAnnouncements(StorageService.getAnnouncements());
     }
 
-    // 2. Fetch fresh data from Supabase backend in parallel
+    // Fetch event data from the selected backend and keep the public event
+    // projection separate from staff-only event details.
     try {
       const [liveEvts, liveRegs, liveAnns] = await Promise.all([
         StorageService.fetchEvents(),
@@ -232,6 +238,25 @@ export const App: React.FC = () => {
         StorageService.fetchAnnouncements()
       ]);
       setEvents(liveEvts);
+      if (isFirebaseConfigured) {
+        try {
+          const { fetchFirebasePublicEvents } = await import('./services/firebasePublicEventService');
+          setPublicEvents(await fetchFirebasePublicEvents());
+        } catch (firebaseError) {
+          console.warn('Firebase public event read failed; public events remain unavailable until Firebase recovers.', firebaseError);
+          setPublicEvents([]);
+        }
+      } else if (import.meta.env.VITE_FIREBASE_PUBLIC_EVENTS_READS === 'true') {
+        try {
+          const { fetchFirebasePublicEvents } = await import('./services/firebasePublicEventService');
+          setPublicEvents(await fetchFirebasePublicEvents());
+        } catch (firebaseError) {
+          console.warn('Firebase public event read failed; public events remain unavailable until Firebase recovers.', firebaseError);
+          setPublicEvents([]);
+        }
+      } else {
+        setPublicEvents(liveEvts);
+      }
       setRegistrations(liveRegs);
       setAnnouncements(liveAnns);
     } catch (err) {
@@ -436,11 +461,14 @@ export const App: React.FC = () => {
   };
 
   const handleStartEventRegistration = (evt: FestEvent) => {
+    // Checkout uses the event from the Firebase catalog; the trusted Firebase
+    // payment/registration backend revalidates price, status, and capacity.
+    const registrationEvent = events.find(event => event.id === evt.id || event.slug === evt.slug) ?? evt;
     setDetailEvent(null);
-    window.history.pushState(null, '', `/register/${encodeURIComponent(evt.slug || evt.id)}`);
-    setRegistrationSlug(evt.slug || evt.id);
+    window.history.pushState(null, '', `/register/${encodeURIComponent(registrationEvent.slug || registrationEvent.id)}`);
+    setRegistrationSlug(registrationEvent.slug || registrationEvent.id);
     setIsRegistrationPageOpen(true);
-    setRegisterEvent(evt);
+    setRegisterEvent(registrationEvent);
   };
 
   const activePassLookup = typeof window !== 'undefined'
@@ -501,7 +529,7 @@ export const App: React.FC = () => {
     return (
       <Suspense fallback={null}>
         <AllEventsPage
-          events={events}
+          events={publicEvents}
           passesCount={registrations.length}
           onBackToHome={handleBackFromAllEventsPage}
           onSelectEvent={evt => setDetailEvent(evt)}
@@ -637,7 +665,7 @@ export const App: React.FC = () => {
 
         {/* UNIFIED EVENTS GLIMPSE: Popular, Day 1, Day 2 Infinite Marquees */}
         <EventsGlimpseSection
-          events={events}
+          events={publicEvents}
           onSelectEvent={evt => setDetailEvent(evt)}
           onRegisterEvent={handleStartEventRegistration}
           onViewAllEvents={handleOpenAllEventsPage}

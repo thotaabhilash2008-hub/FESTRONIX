@@ -1068,7 +1068,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           <div className="pass-empty-state">
             <Ticket size={32} />
             <h2>{pageMode ? 'Your live pass will appear here' : 'No pass selected'}</h2>
-            <p>{pageMode ? 'Enter a lookup value above to retrieve the latest registration state from Supabase.' : 'Search for a pass to view its latest status.'}</p>
+            <p>{pageMode ? 'Enter a lookup value above to retrieve the latest registration state from Firebase.' : 'Search for a pass to view its latest status.'}</p>
           </div>
         )}
 

@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Keep all migrated files private until bucket paths and access rules have
+    // been reviewed against staff scopes and participant privacy requirements.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1034,7 +1034,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       return;
     }
     const confirmed = window.confirm(
-      `Are you sure you want to permanently delete ${roleName || 'coordinator'} "${name}"?\n\nThis permanently removes the Supabase Auth account, profile, portal role, and event assignments. The action cannot be undone.`
+      `Are you sure you want to permanently delete ${roleName || 'coordinator'} "${name}"?\n\nThis permanently removes the Firebase Authentication account, profile, portal role, and event assignments. The action cannot be undone.`
     );
     if (confirmed) {
       try {
@@ -6528,7 +6528,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               {coordAccountMode === 'existing' && (
                 <div style={{ padding: '13px 14px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
-                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Supabase account</div>
+                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Firebase staff account</div>
                   <div style={{ color: '#BAE6FD', fontSize: '0.75rem', lineHeight: 1.45, marginBottom: '10px' }}>Enter the account email or username. This reuses the existing login and password; it does not create a duplicate Auth user.</div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '10px' }}>
                     Existing account email or username *
@@ -7512,7 +7512,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               {deptChief.trim() && (
                 <div style={{ background: 'rgba(124, 58, 237, 0.12)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.76rem', color: '#C084FC' }}>
-                  💡 The department is created first. Assign its coordinator from the staff registry, where the account is provisioned through Supabase Auth.
+                  💡 The department is created first. Assign its coordinator from the staff registry, where the account is provisioned through Firebase Authentication.
                 </div>
               )}
 

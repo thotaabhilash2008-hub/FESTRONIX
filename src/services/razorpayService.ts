@@ -1,5 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { firebaseApp, isFirebaseConfigured } from '../lib/firebase';
 import { FestEvent, Registration } from '../types/festronix';
+import { callFirebaseHttp } from './firebaseFunctionClient';
 
 type RegistrationInput = Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>;
 
@@ -91,6 +93,18 @@ async function getEdgeFunctionErrorMessage(error: unknown, fallback: string): Pr
   return fallback;
 }
 
+function firebasePaymentEndpoint(name: 'createRazorpayOrder' | 'verifyRazorpayPayment'): string {
+  if (!isFirebaseConfigured || !firebaseApp?.options.projectId) {
+    throw new Error('Firebase payments are not configured for this environment.');
+  }
+  return `/api/functions/${name}`;
+}
+
+async function callFirebasePayment<T>(name: 'createRazorpayOrder' | 'verifyRazorpayPayment', body: unknown): Promise<T> {
+  firebasePaymentEndpoint(name);
+  return callFirebaseHttp<T>(name, body);
+}
+
 function loadRazorpayScript(): Promise<void> {
   if (typeof window === 'undefined') return Promise.reject(new Error('Razorpay checkout is only available in a browser.'));
   const browserWindow = window as Window & { Razorpay?: RazorpayConstructor };
@@ -152,7 +166,7 @@ function registrationFromRazorpayPayload(payload: any, event: FestEvent, buyerUs
 /**
  * Creates and verifies a Razorpay order. The browser only receives
  * the public Key ID; order creation, amount validation, signature verification,
- * and registration writes happen inside Supabase Edge Functions.
+ * and registration writes happen inside the configured server backend.
  */
 export async function completeRazorpayCheckout(
   event: FestEvent,
@@ -173,7 +187,7 @@ export async function completeRazorpayBatchCheckout(
   items: RegistrationInput[],
   onModeResolved?: (mode: 'test' | 'live') => void
 ): Promise<Registration[]> {
-  if (!isSupabaseConfigured()) {
+  if (!isFirebaseConfigured && !isSupabaseConfigured()) {
     throw new Error('Payments are temporarily unavailable because the registration service is not configured. Please try again later.');
   }
   if (items.length < 1) throw new Error('At least one registration is required for payment.');
@@ -184,10 +198,20 @@ export async function completeRazorpayBatchCheckout(
   const unknownEvent = items.find(item => !eventById.has(item.eventId));
   if (unknownEvent) throw new Error('One or more selected events could not be validated. Please refresh and try again.');
 
-  const { data: orderData, error: orderError } = await supabase.functions.invoke<RazorpayOrderResponse>('razorpay-create-order', {
-    body: { eventId: primaryEvent.id, items }
-  });
-  if (orderError) throw new Error(await getEdgeFunctionErrorMessage(orderError, 'Unable to start Razorpay checkout.'));
+  let orderData: RazorpayOrderResponse | null;
+  if (isFirebaseConfigured) {
+    orderData = await callFirebasePayment<RazorpayOrderResponse>('createRazorpayOrder', {
+      eventId: primaryEvent.id,
+      requestId: crypto.randomUUID(),
+      items,
+    });
+  } else {
+    const { data, error } = await supabase.functions.invoke<RazorpayOrderResponse>('razorpay-create-order', {
+      body: { eventId: primaryEvent.id, items }
+    });
+    if (error) throw new Error(await getEdgeFunctionErrorMessage(error, 'Unable to start Razorpay checkout.'));
+    orderData = data;
+  }
   if (!orderData?.success || !orderData.keyId || !orderData.orderId || !orderData.amount) {
     throw new Error(orderData?.error || 'Razorpay did not return a valid order.');
   }
@@ -238,10 +262,16 @@ export async function completeRazorpayBatchCheckout(
       },
       handler: async response => {
         try {
-          const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string; registrations?: any[] }>('razorpay-verify-payment', {
-            body: response
-          });
-          if (error) throw new Error(await getEdgeFunctionErrorMessage(error, 'Unable to verify the Razorpay payment.'));
+          let data: { success?: boolean; error?: string; registrations?: any[] } | null;
+          if (isFirebaseConfigured) {
+            data = await callFirebasePayment('verifyRazorpayPayment', response);
+          } else {
+            const result = await supabase.functions.invoke<{ success?: boolean; error?: string; registrations?: any[] }>('razorpay-verify-payment', {
+              body: response
+            });
+            if (result.error) throw new Error(await getEdgeFunctionErrorMessage(result.error, 'Unable to verify the Razorpay payment.'));
+            data = result.data;
+          }
           if (!data?.success) throw new Error(data?.error || 'Razorpay payment verification failed.');
           const registrations = Array.isArray(data.registrations)
             ? data.registrations.map(payload => registrationFromRazorpayPayload(
@@ -250,7 +280,10 @@ export async function completeRazorpayBatchCheckout(
               items.find(item => item.eventId === String(payload.eventId || ''))?.userId
             ))
             : [];
-          if (registrations.length !== items.length) throw new Error('Payment was verified, but the server did not return every registration pass.');
+          const expectedPassCount = items.reduce((count, item) => count + 1 + (item.teammates?.length || 0), 0);
+          if (registrations.length !== expectedPassCount) {
+            throw new Error('Payment was verified, but the server did not return every participant pass. Check My Passes before retrying.');
+          }
           complete(registrations);
         } catch (error) {
           fail(error);

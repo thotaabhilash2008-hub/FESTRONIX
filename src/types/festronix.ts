@@ -83,6 +83,7 @@ export interface Teammate {
   qrGenerated?: boolean;
   registeredAt?: string;
   isLeader?: boolean;
+  joinedViaInvite?: boolean;
 }
 
 export interface AdditionalMember {

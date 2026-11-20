@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only the explicit, server-generated public event projection is readable
+    // without sign-in. Queries must constrain isPublished to true. Client writes
+    // stay denied, and all operational/participant data remains server-only.
+    match /publicEvents/{eventId} {
+      allow get, list: if resource.data.isPublished == true;
+      allow create, update, delete: if false;
+    }
+
+    // These projections contain only fields intended for the public website.
+    match /publicAnnouncements/{announcementId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    // Department directory entries (name, code, contact and icon) are public.
+    match /departments/{departmentId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    // Trusted server code must still enforce authorization because the Admin
+    // SDK bypasses these rules. All non-public collections remain closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

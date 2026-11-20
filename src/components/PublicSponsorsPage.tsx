@@ -31,13 +31,13 @@ export const PublicSponsorsPage: React.FC<PublicSponsorsPageProps> = ({
   onExploreEvents, 
   onRegisterNow 
 }) => {
-  const [sponsors, setSponsors] = useState<SponsorProfile[]>(() => PartnerStorageService.getSponsors());
+  const [sponsors, setSponsors] = useState<SponsorProfile[]>(() => PartnerStorageService.getPublicSponsors());
   const [activeTier, setActiveTier] = useState<string>('all');
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     PartnerStorageService.initRealtime();
-    void PartnerStorageService.fetchSponsors()
+    void PartnerStorageService.fetchPublicSponsors()
       .then(setSponsors)
       .catch(error => console.warn('Public sponsor sync warning:', error));
 

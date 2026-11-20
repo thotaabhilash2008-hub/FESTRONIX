@@ -27,9 +27,9 @@ interface SponsorDashboardProps {
 }
 
 export const SponsorDashboard: React.FC<SponsorDashboardProps> = ({ onBackToFest }) => {
-  const [sponsors, setSponsors] = useState<SponsorProfile[]>(() => PartnerStorageService.getSponsors());
+  const [sponsors, setSponsors] = useState<SponsorProfile[]>(() => PartnerStorageService.getPublicSponsors());
   const [selectedProfileId, setSelectedProfileId] = useState<string>(() => {
-    const list = PartnerStorageService.getSponsors();
+    const list = PartnerStorageService.getPublicSponsors();
     return list[0]?.id || 'connect_club';
   });
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
@@ -38,7 +38,7 @@ export const SponsorDashboard: React.FC<SponsorDashboardProps> = ({ onBackToFest
 
   useEffect(() => {
     PartnerStorageService.initRealtime();
-    void PartnerStorageService.fetchSponsors()
+    void PartnerStorageService.fetchPublicSponsors()
       .then(setSponsors)
       .catch(error => console.warn('Sponsor dashboard sync warning:', error));
     const handleUpdate = (e: any) => {

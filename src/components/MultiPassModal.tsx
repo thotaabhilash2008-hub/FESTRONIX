@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import { FestEvent, Registration, User as UserType, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { isFirebaseConfigured } from '../lib/firebase';
 import { sendRegistrationPassEmail } from '../services/registrationEmailService';
 import { completeRazorpayBatchCheckout } from '../services/razorpayService';
 
@@ -175,7 +176,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
       setErrorMessage('Please fill in all buyer / student details.');
       return;
     }
-    if (!isSupabaseConfigured()) {
+    if (!isFirebaseConfigured && !isSupabaseConfigured()) {
       setErrorMessage('Registration is temporarily unavailable. Please try again later.');
       return;
     }
@@ -265,7 +266,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
         setErrorMessage('Please upload your payment screenshot.');
         return;
       }
-      if (isSupabaseConfigured() && !screenshotFile) {
+      if (!isFirebaseConfigured && isSupabaseConfigured() && !screenshotFile) {
         setErrorMessage('Select the payment screenshot file so it can be uploaded securely.');
         return;
       }

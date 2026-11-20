@@ -12,6 +12,7 @@ import confetti from 'canvas-confetti';
 import { AdminRole, AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
 import { isSupabaseConfigured } from '../../lib/supabase';
+import { isFirebaseConfigured } from '../../lib/firebase';
 import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
 import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { DEPARTMENTS } from '../../data/mockData';
@@ -109,8 +110,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   });
   // A configured Supabase project is authoritative for department operations.
   // Do not render cached demo events while the first live read is in flight.
-  const [events, setEvents] = useState<FestEvent[]>(() => isSupabaseConfigured() ? [] : initialScopedEvents);
-  const [registrations, setRegistrations] = useState<Registration[]>(() => isSupabaseConfigured() ? [] : initialScopedRegistrations);
+  const [events, setEvents] = useState<FestEvent[]>(() => isFirebaseConfigured || isSupabaseConfigured() ? [] : initialScopedEvents);
+  const [registrations, setRegistrations] = useState<Registration[]>(() => isFirebaseConfigured || isSupabaseConfigured() ? [] : initialScopedRegistrations);
   const [eventAccessError, setEventAccessError] = useState<string | null>(null);
   const [deptSyncError, setDeptSyncError] = useState<string | null>(null);
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<Date | null>(null);
@@ -320,7 +321,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         const [liveEvts, liveRegs, liveAnnouncements, liveAdmins] = await Promise.all([
           isEventCoord
             ? StorageService.fetchLiveEventsForIds(refreshedAssignedIds)
-            : isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
+            : isFirebaseConfigured || isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
           isEventCoord
             ? StorageService.fetchRegistrationsForEvents(refreshedAssignedIds)
             : StorageService.fetchRegistrations(),
@@ -1483,7 +1484,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   const handleStaffDelete = async (staff: AdminUser) => {
     if (!managedStaffRoles.has(staff.role as ManagedStaffRole)) return;
-    if (!window.confirm(`Permanently delete ${staff.fullName}'s account? This removes their Supabase Auth account, profile, portal role, and event assignments. The action cannot be undone.`)) return;
+    if (!window.confirm(`Permanently delete ${staff.fullName}'s account? This removes their Firebase Authentication account, profile, portal role, and event assignments. The action cannot be undone.`)) return;
     setStaffError('');
     setStaffMessage('');
     try {
@@ -1855,7 +1856,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 Security & Access
               </h3>
               <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: '5px 0 0' }}>
-                Change the password for {adminUser.email}. Your current password is verified securely by Supabase Auth.
+                Change the password for {adminUser.email}. Your current password is verified securely by Firebase Authentication.
               </p>
             </div>
 
@@ -3354,7 +3355,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
               {!editingStaffId && staffAccountMode === 'existing' && (
                 <div style={{ padding: '13px 14px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(56,189,248,0.4)' }}>
-                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Supabase account</div>
+                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Firebase staff account</div>
                   <div style={{ color: '#BAE6FD', fontSize: '0.75rem', lineHeight: 1.45, marginBottom: '10px' }}>Enter the account email or username. No duplicate login is created and the existing password remains unchanged.</div>
                   <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
                     Existing account email or username *

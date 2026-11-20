@@ -1,5 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { firebaseApp, isFirebaseConfigured } from '../lib/firebase';
 import { Registration } from '../types/festronix';
+import { callFirebaseHttp } from './firebaseFunctionClient';
 
 export interface RegistrationEmailResult {
   sent: boolean;
@@ -7,11 +9,20 @@ export interface RegistrationEmailResult {
 }
 
 export async function sendRegistrationPassEmail(registration: Registration): Promise<RegistrationEmailResult> {
-  if (!isSupabaseConfigured()) {
+  if (!isFirebaseConfigured && !isSupabaseConfigured()) {
     return { sent: false, message: 'Email delivery is unavailable in offline development mode.' };
   }
   if (!registration.emailDeliveryToken) {
-    return { sent: false, message: 'The registration was created, but no email delivery token was returned.' };
+    return isFirebaseConfigured
+      ? { sent: true, message: 'The Firebase payment service sends pass emails automatically.' }
+      : { sent: false, message: 'The registration was created, but no email delivery token was returned.' };
+  }
+
+  if (isFirebaseConfigured && firebaseApp?.options.projectId) {
+    const result = await callFirebaseHttp<{ sent?: boolean; message?: string; error?: string }>(
+      'sendRegistrationPassEmail', { deliveryToken: registration.emailDeliveryToken },
+    );
+    return { sent: Boolean(result.sent), message: String(result.message || result.error || 'The pass email could not be sent.') };
   }
 
   const { data, error } = await supabase.functions.invoke('send-registration-pass', {

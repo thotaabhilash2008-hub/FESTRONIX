@@ -1,6 +1,8 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { AdminAuthService, AdminUser, isCheckinAdminRole, isDepartmentAdminRole, isFinanceAdminRole, isSuperAdminRole } from '../../services/adminAuthService';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { firebaseAuth, isFirebaseConfigured } from '../../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { AdminLoginView } from './AdminLoginView';
 const DeanDashboard = lazy(() => import('./DeanDashboard').then(module => ({ default: module.DeanDashboard })));
 const DeptCoordinatorDashboard = lazy(() => import('./DeptCoordinatorDashboard').then(module => ({ default: module.DeptCoordinatorDashboard })));
@@ -79,6 +81,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
   // the browser out or failed to refresh its token. RLS-protected operations
   // would otherwise fail while the dashboard still looks authenticated.
   useEffect(() => {
+    if (isFirebaseConfigured && firebaseAuth) {
+      return onAuthStateChanged(firebaseAuth, user => {
+        if (!user) {
+          setAdminUser(null);
+          localStorage.removeItem('festronix_admin_session_v1');
+        }
+      });
+    }
     if (!isSupabaseConfigured()) return;
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {

@@ -1,4 +1,14 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updatePassword as firebaseUpdatePassword,
+} from 'firebase/auth';
+import { firebaseAuth, isFirebaseConfigured } from '../lib/firebase';
+import { FirebaseStaffEventService } from './firebaseStaffEventService';
+import { FirebaseAdminUserService } from './firebaseAdminUserService';
 import { StorageService } from './storageService';
 
 export type AdminRole =
@@ -273,7 +283,7 @@ const inferCseClusterCode = (record: Record<string, unknown>): string | undefine
 const normalizeManagedAdmin = (admin: Record<string, any>): ManagedAdmin => ({
   ...admin,
   departmentCode: admin.departmentCode || admin.department_code || undefined,
-  clusterCode: inferCseClusterCode(admin),
+  clusterCode: admin.clusterCode || admin.cluster_code || inferCseClusterCode(admin),
   assignedEvents: Array.isArray(admin.assignedEvents) ? admin.assignedEvents : undefined
 } as ManagedAdmin);
 
@@ -512,7 +522,80 @@ export class AdminAuthService {
     this.identityChangeHandler = handler;
   }
 
+  private static async authenticateWithFirebase(
+    identifier: string,
+    password: string,
+    portal: 'auto' | 'central' | 'department' | 'event' = 'auto',
+    departmentCode?: string,
+    clusterCode?: string,
+    eventId?: string
+  ): Promise<AdminUser> {
+    if (!isFirebaseConfigured || !firebaseAuth) {
+      throw new Error('Firebase staff authentication is not configured.');
+    }
+
+    const cleanIdentifier = identifier.trim().toLowerCase();
+    const directoryMatch = this.getAllAdmins().find(admin =>
+      admin.username.toLowerCase() === cleanIdentifier || admin.email.toLowerCase() === cleanIdentifier
+    );
+    const email = resolveTargetEmail(directoryMatch?.email || cleanIdentifier);
+    if (!email.includes('@')) {
+      throw new Error('Sign in with the email address assigned to your staff account.');
+    }
+
+    let signedIn = false;
+    try {
+      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      signedIn = true;
+      const access = await FirebaseStaffEventService.getAccess();
+      const user = normalizeManagedAdmin(access.user as unknown as Record<string, any>);
+      const role = user.role;
+      const requestedDepartment = departmentCode?.trim().toUpperCase();
+      const requestedCluster = clusterCode?.trim().toUpperCase();
+
+      if (portal === 'central' && !(
+        ['super_admin', 'dean_sac', 'connect_club', 'vencorpia', 'finance_reviewer'].includes(role)
+      )) {
+        throw new Error('This account is not authorized for the central admin portal.');
+      }
+      if (portal === 'department') {
+        if (!['dept_chief_coordinator', 'dept_coordinator'].includes(role)) {
+          throw new Error('This account is not authorized for the department coordinator portal.');
+        }
+        if (requestedDepartment && user.departmentCode?.toUpperCase() !== requestedDepartment) {
+          throw new Error(`These credentials belong to the ${user.departmentCode || 'another'} department.`);
+        }
+        if (requestedCluster && user.clusterCode?.toUpperCase() !== requestedCluster) {
+          throw new Error(user.clusterCode
+            ? `These credentials belong to the ${user.clusterCode} CSE cluster, not ${requestedCluster}.`
+            : `This account is not assigned to ${requestedCluster}. Ask an administrator to assign its cluster.`);
+        }
+      }
+      if (portal === 'event') {
+        if (!['event_coordinator', 'faculty_coord', 'student_coord'].includes(role)) {
+          throw new Error('This account is not an event coordinator.');
+        }
+        if (requestedDepartment && user.departmentCode?.toUpperCase() !== requestedDepartment) {
+          throw new Error(`These credentials belong to the ${user.departmentCode || 'another'} department.`);
+        }
+        if (eventId) {
+          const assigned = await FirebaseStaffEventService.fetchEvents();
+          if (!assigned.some(event => event.id === eventId || event.slug === eventId)) {
+            throw new Error('This coordinator is not assigned to the selected event.');
+          }
+        }
+      }
+
+      localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+      return user;
+    } catch (error) {
+      if (signedIn) await firebaseSignOut(firebaseAuth).catch(() => undefined);
+      throw error;
+    }
+  }
+
   static initRealtime(): void {
+    if (isFirebaseConfigured) return;
     if (this.realtimeInitialized || !isSupabaseConfigured()) return;
     this.realtimeInitialized = true;
     try {
@@ -538,6 +621,10 @@ export class AdminAuthService {
   }
 
   static async fetchCurrentAdminEventAssignments(): Promise<string[]> {
+    if (isFirebaseConfigured) {
+      const access = await FirebaseStaffEventService.getAccess();
+      return [...new Set(access.user.assignedEvents.map(id => String(id).trim()).filter(Boolean))];
+    }
     if (!isSupabaseConfigured()) {
       return this.getCurrentAdmin()?.assignedEvents || [];
     }
@@ -652,6 +739,25 @@ export class AdminAuthService {
 
   static async restoreCurrentAdmin(): Promise<AdminUser | null> {
     const cached = this.getCurrentAdmin();
+
+    if (isFirebaseConfigured && firebaseAuth) {
+      const currentUser = firebaseAuth.currentUser;
+      if (!currentUser) {
+        localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+        return null;
+      }
+      try {
+        await currentUser.getIdToken(true);
+        const access = await FirebaseStaffEventService.getAccess();
+        const fresh = normalizeManagedAdmin(access.user as unknown as Record<string, any>);
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(fresh));
+        return fresh;
+      } catch {
+        await firebaseSignOut(firebaseAuth).catch(() => undefined);
+        localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);
+        return null;
+      }
+    }
 
     if (isSupabaseConfigured()) {
       try {
@@ -814,6 +920,15 @@ export class AdminAuthService {
       };
     }
 
+    if (isFirebaseConfigured) {
+      try {
+        const user = await this.authenticateWithFirebase(rawIdentifier, cleanPassword);
+        return { success: true, user };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Invalid staff login credentials.' };
+      }
+    }
+
     if (isSupabaseConfigured()) {
       try {
         const user = await this.authenticateViaAdminFunction(rawIdentifier, cleanPassword, 'auto');
@@ -867,6 +982,15 @@ export class AdminAuthService {
     }
 
     const targetEmail = resolveTargetEmail(rawInput);
+
+    if (isFirebaseConfigured) {
+      try {
+        const user = await this.authenticateWithFirebase(rawInput, cleanPass, 'central');
+        return { success: true, user };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Invalid login credentials.' };
+      }
+    }
 
     // Supabase is authoritative whenever configured. The preset directory is
     // only a local-development fallback; using it in production would render
@@ -937,6 +1061,23 @@ export class AdminAuthService {
 
     if (!cleanPass) {
       return { success: false, error: `Enter passcode for ${cleanDept} department coordinator.` };
+    }
+
+    if (isFirebaseConfigured) {
+      try {
+        const user = await this.authenticateWithFirebase(
+          rawEmail,
+          cleanPass,
+          'department',
+          (isCse1 || isCse2 || isCse3) ? 'CSE' : cleanDept,
+          requestedClusterCode,
+        );
+        if (coordinatorName?.trim()) user.fullName = coordinatorName.trim();
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+        return { success: true, user };
+      } catch (err: any) {
+        return { success: false, error: err?.message || `Authentication failed for ${cleanDept}.` };
+      }
     }
 
     // 1. Check department and coordinator preset passwords
@@ -1078,6 +1219,17 @@ export class AdminAuthService {
       return { success: false, error: `Enter passcode for event coordinator.` };
     }
 
+    if (isFirebaseConfigured) {
+      try {
+        const user = await this.authenticateWithFirebase(rawEmail, cleanPass, 'event', effectiveDeptCode, undefined, eventId);
+        if (coordinatorName?.trim()) user.fullName = coordinatorName.trim();
+        localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(user));
+        return { success: true, user };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Authentication failed for this event coordinator.' };
+      }
+    }
+
     const isMatch =
       cleanPass === 'eventcoord2026' ||
       cleanPass === 'festcoord2026' ||
@@ -1159,6 +1311,12 @@ export class AdminAuthService {
   }
 
   static async fetchAdmins(): Promise<ManagedAdmin[]> {
+    if (isFirebaseConfigured) {
+      const admins = (await FirebaseAdminUserService.list()).map(admin => normalizeManagedAdmin(admin as Record<string, any>));
+      localStorage.setItem(STORAGE_KEY_ADMIN_DIRECTORY, JSON.stringify(admins));
+      window.dispatchEvent(new CustomEvent('festronix:admins-updated', { detail: admins }));
+      return admins;
+    }
     if (isSupabaseConfigured()) {
       try {
         const admins = await invokeAdminApi<ManagedAdmin[]>({ action: 'list' });
@@ -1209,6 +1367,11 @@ export class AdminAuthService {
   static async addAdmin(
     admin: Omit<AdminUser, 'id'> & { password?: string; assignedEvents?: string[] }
   ): Promise<AdminUser> {
+    if (isFirebaseConfigured) {
+      const created = await FirebaseAdminUserService.create(admin);
+      await this.fetchAdmins();
+      return normalizeManagedAdmin(created as Record<string, any>);
+    }
     if (isSupabaseConfigured()) {
       const created = await invokeAdminApi<AdminUser>({ action: 'create', admin });
       await this.fetchAdmins();
@@ -1244,6 +1407,11 @@ export class AdminAuthService {
     accessBoundary?: string;
     assignedEvents?: string[];
   }): Promise<AdminUser> {
+    if (isFirebaseConfigured) {
+      const assigned = await FirebaseAdminUserService.assignExisting(options);
+      await this.fetchAdmins();
+      return normalizeManagedAdmin(assigned as Record<string, any>);
+    }
     const assigned = await invokeAdminApi<AdminUser>({
       action: 'assign_existing',
       identifier: options.identifier.trim(),
@@ -1262,6 +1430,13 @@ export class AdminAuthService {
     id: string,
     updated: Partial<AdminUser> & { password?: string }
   ): Promise<boolean> {
+    if (isFirebaseConfigured) {
+      const updatedAdmin = await FirebaseAdminUserService.update(id, updated);
+      const current = this.getCurrentAdmin();
+      if (current?.id === id) localStorage.setItem(STORAGE_KEY_ADMIN_SESSION, JSON.stringify(normalizeManagedAdmin(updatedAdmin as Record<string, any>)));
+      await this.fetchAdmins();
+      return true;
+    }
     if (isSupabaseConfigured()) {
       await invokeAdminApi({ action: 'update', id, updates: updated });
       const current = this.getCurrentAdmin();
@@ -1292,6 +1467,11 @@ export class AdminAuthService {
   }
 
   static async deleteAdmin(id: string): Promise<boolean> {
+    if (isFirebaseConfigured) {
+      await FirebaseAdminUserService.delete(id);
+      await this.fetchAdmins();
+      return true;
+    }
     if (isSupabaseConfigured()) {
       await invokeAdminApi({ action: 'delete', id });
       await this.fetchAdmins();
@@ -1311,6 +1491,27 @@ export class AdminAuthService {
     const current = currentPassword.trim();
     if (!current) throw new Error('Enter your current password.');
     if (newPassword.length < 8) throw new Error('New password must be at least 8 characters.');
+
+    if (isFirebaseConfigured && firebaseAuth?.currentUser?.email) {
+      const user = firebaseAuth.currentUser;
+      const email = user.email;
+      if (!email) throw new Error('The signed-in Firebase account has no email address.');
+      const credential = EmailAuthProvider.credential(email, current);
+      try {
+        await reauthenticateWithCredential(user, credential);
+        await firebaseUpdatePassword(user, newPassword);
+        return;
+      } catch (error) {
+        const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+        if (code.includes('wrong-password') || code.includes('invalid-credential')) {
+          throw new Error('Current password is incorrect.');
+        }
+        if (code.includes('requires-recent-login')) {
+          throw new Error('Sign out and sign in again, then retry changing your password.');
+        }
+        throw new Error(error instanceof Error ? error.message : 'Unable to change your Firebase password.');
+      }
+    }
 
     if (isSupabaseConfigured()) {
       try {
@@ -1342,7 +1543,10 @@ export class AdminAuthService {
   }
 
   static async logout(): Promise<void> {
-    if (isSupabaseConfigured()) {
+    if (isFirebaseConfigured && firebaseAuth) {
+      await firebaseSignOut(firebaseAuth).catch(() => undefined);
+    }
+    if (!isFirebaseConfigured && isSupabaseConfigured()) {
       await supabase.auth.signOut().catch(() => {});
     }
     localStorage.removeItem(STORAGE_KEY_ADMIN_SESSION);

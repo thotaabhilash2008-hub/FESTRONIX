@@ -150,16 +150,17 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
   };
 
   // Save (Create or Update) Sponsor
-  const handleSaveSponsor = (e: React.FormEvent) => {
+  const handleSaveSponsor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyName.trim()) {
       alert('Please enter a company or partner name.');
       return;
     }
 
+    try {
     if (editingSponsor) {
       // Update existing
-      PartnerStorageService.updateSponsor(editingSponsor.id, {
+      await PartnerStorageService.updateSponsor(editingSponsor.id, {
         companyName: companyName.trim(),
         tagline: tagline.trim(),
         tier,
@@ -231,8 +232,13 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
           }
         ]
       };
-      PartnerStorageService.addSponsor(newSponsor);
+      await PartnerStorageService.addSponsor(newSponsor);
       confetti({ particleCount: 100, spread: 70 });
+    }
+
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to save the sponsor profile.');
+      return;
     }
 
     setIsModalOpen(false);
@@ -240,15 +246,19 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
   };
 
   // Delete Sponsor
-  const handleDeleteSponsor = (sponsorId: string, name: string) => {
+  const handleDeleteSponsor = async (sponsorId: string, name: string) => {
     if (window.confirm(`Are you sure you want to permanently remove sponsor "${name}"?\n\nThis will remove their profile from the Sponsor Lounge and deliverables tracking.`)) {
-      PartnerStorageService.deleteSponsor(sponsorId);
-      refreshList();
+      try {
+        await PartnerStorageService.deleteSponsor(sponsorId);
+        refreshList();
+      } catch (error) {
+        window.alert((error as Error).message || 'Unable to delete sponsor profile.');
+      }
     }
   };
 
   // Toggle Deliverable Status
-  const handleToggleDeliverableStatus = (sponsorId: string, delId: string) => {
+  const handleToggleDeliverableStatus = async (sponsorId: string, delId: string) => {
     const sponsor = sponsors.find(s => s.id === sponsorId);
     if (!sponsor) return;
 
@@ -263,12 +273,16 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
       return d;
     });
 
-    PartnerStorageService.updateSponsor(sponsorId, { deliverables: updated });
-    refreshList();
+    try {
+      await PartnerStorageService.updateSponsor(sponsorId, { deliverables: updated });
+      refreshList();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update deliverable.');
+    }
   };
 
   // Add Deliverable inline
-  const handleAddDeliverable = (sponsorId: string) => {
+  const handleAddDeliverable = async (sponsorId: string) => {
     if (!newDeliverableTitle.trim()) {
       alert('Please enter a deliverable title.');
       return;
@@ -286,29 +300,41 @@ export const SponsorManagerTab: React.FC<SponsorManagerTabProps> = ({ adminUser 
     };
 
     const updated = [...sponsor.deliverables, newDel];
-    PartnerStorageService.updateSponsor(sponsorId, { deliverables: updated });
-    setNewDeliverableTitle('');
-    setNewDeliverableDesc('');
-    refreshList();
-    confetti({ particleCount: 40, spread: 50 });
+    try {
+      await PartnerStorageService.updateSponsor(sponsorId, { deliverables: updated });
+      setNewDeliverableTitle('');
+      setNewDeliverableDesc('');
+      refreshList();
+      confetti({ particleCount: 40, spread: 50 });
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to add deliverable.');
+    }
   };
 
   // Delete Deliverable
-  const handleDeleteDeliverable = (sponsorId: string, delId: string) => {
+  const handleDeleteDeliverable = async (sponsorId: string, delId: string) => {
     const sponsor = sponsors.find(s => s.id === sponsorId);
     if (!sponsor) return;
 
     const updated = sponsor.deliverables.filter(d => d.id !== delId);
-    PartnerStorageService.updateSponsor(sponsorId, { deliverables: updated });
-    refreshList();
+    try {
+      await PartnerStorageService.updateSponsor(sponsorId, { deliverables: updated });
+      refreshList();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to delete deliverable.');
+    }
   };
 
   // Reset to Defaults
-  const handleResetDefaults = () => {
+  const handleResetDefaults = async () => {
     if (window.confirm('Reset all sponsors and partners back to default profiles (Connect Club, Vencorpia, CyberCore)?')) {
-      PartnerStorageService.resetToDefaults();
-      refreshList();
-      confetti({ particleCount: 50, spread: 45 });
+      try {
+        await PartnerStorageService.resetToDefaults();
+        refreshList();
+        confetti({ particleCount: 50, spread: 45 });
+      } catch (error) {
+        window.alert((error as Error).message || 'Unable to reset sponsor profiles.');
+      }
     }
   };
 
