@@ -17,8 +17,9 @@ const TermsAndConditionsPage = lazy(() => import('./components/legal/TermsAndCon
 const RefundPolicyPage = lazy(() => import('./components/legal/RefundPolicyPage').then(module => ({ default: module.RefundPolicyPage })));
 
 import { StorageService } from './services/storageService';
+import { fetchFirebasePublicEvents } from './services/firebasePublicEventService';
 import { AuthService } from './services/authService';
-import { FestEvent, Registration, Announcement, User } from './types/festronix';
+import { FestEvent, Registration, Announcement, Department, User } from './types/festronix';
 import { isSupabaseConfigured } from './lib/supabase';
 import { isFirebaseConfigured } from './lib/firebase';
 import { ScrollAnimationsProvider } from './components/animations';
@@ -177,6 +178,7 @@ export const App: React.FC = () => {
   const [publicEvents, setPublicEvents] = useState<FestEvent[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   // Intro video & modals
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
@@ -213,6 +215,35 @@ export const App: React.FC = () => {
 
 
   const refreshData = async () => {
+    if (isFirebaseConfigured) {
+      // The public site must not request staff-only event/registration lists.
+      // Load each public Firebase projection independently so a problem with
+      // announcements or departments cannot hide approved public events.
+      setEvents([]);
+      setPublicEvents([]);
+      setRegistrations([]);
+      setAnnouncements([]);
+      setDepartments([]);
+
+      const [eventsResult, announcementsResult, departmentsResult] = await Promise.allSettled([
+        fetchFirebasePublicEvents(),
+        StorageService.fetchAnnouncements(),
+        StorageService.fetchDepartments(),
+      ]);
+
+      if (eventsResult.status === 'fulfilled') {
+        setEvents(eventsResult.value);
+        setPublicEvents(eventsResult.value);
+      } else {
+        console.error('Firebase public events could not be loaded.', eventsResult.reason);
+      }
+      if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
+      else console.warn('Firebase public announcements could not be loaded.', announcementsResult.reason);
+      if (departmentsResult.status === 'fulfilled') setDepartments(departmentsResult.value);
+      else console.warn('Firebase public departments could not be loaded.', departmentsResult.reason);
+      return;
+    }
+
     // The configured build is backend-only: never render an old browser cache
     // as if it were current public/admin data. Offline localStorage mode is
     // retained only for an explicitly unconfigured development build.
@@ -227,36 +258,21 @@ export const App: React.FC = () => {
       setPublicEvents(localEvents);
       setRegistrations(StorageService.getRegistrations());
       setAnnouncements(StorageService.getAnnouncements());
+      setDepartments(StorageService.getDepartments());
     }
 
     // Fetch event data from the selected backend and keep the public event
     // projection separate from staff-only event details.
     try {
-      const [liveEvts, liveRegs, liveAnns] = await Promise.all([
+      const [liveEvts, liveRegs, liveAnns, liveDepartments] = await Promise.all([
         StorageService.fetchEvents(),
         StorageService.fetchRegistrations(),
-        StorageService.fetchAnnouncements()
+        StorageService.fetchAnnouncements(),
+        StorageService.fetchDepartments()
       ]);
       setEvents(liveEvts);
-      if (isFirebaseConfigured) {
-        try {
-          const { fetchFirebasePublicEvents } = await import('./services/firebasePublicEventService');
-          setPublicEvents(await fetchFirebasePublicEvents());
-        } catch (firebaseError) {
-          console.warn('Firebase public event read failed; public events remain unavailable until Firebase recovers.', firebaseError);
-          setPublicEvents([]);
-        }
-      } else if (import.meta.env.VITE_FIREBASE_PUBLIC_EVENTS_READS === 'true') {
-        try {
-          const { fetchFirebasePublicEvents } = await import('./services/firebasePublicEventService');
-          setPublicEvents(await fetchFirebasePublicEvents());
-        } catch (firebaseError) {
-          console.warn('Firebase public event read failed; public events remain unavailable until Firebase recovers.', firebaseError);
-          setPublicEvents([]);
-        }
-      } else {
-        setPublicEvents(liveEvts);
-      }
+      setDepartments(liveDepartments);
+      setPublicEvents(liveEvts);
       setRegistrations(liveRegs);
       setAnnouncements(liveAnns);
     } catch (err) {
@@ -530,6 +546,7 @@ export const App: React.FC = () => {
       <Suspense fallback={null}>
         <AllEventsPage
           events={publicEvents}
+          departments={departments}
           passesCount={registrations.length}
           onBackToHome={handleBackFromAllEventsPage}
           onSelectEvent={evt => setDetailEvent(evt)}
@@ -672,7 +689,7 @@ export const App: React.FC = () => {
         />
 
         {/* Engineering Departments Overview */}
-        <DepartmentsSection />
+        <DepartmentsSection departments={departments} />
 
         {/* Mega Cash Prizes & Perks */}
         <PrizesSection />

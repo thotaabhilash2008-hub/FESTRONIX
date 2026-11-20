@@ -1,11 +1,11 @@
 import React from 'react';
 import { X, Shield, DollarSign, Users, Award, RefreshCw, BarChart3, CheckCircle2, Clock } from 'lucide-react';
 import { FestStats, Department, FestEvent, Registration } from '../types/festronix';
-import { DEPARTMENTS } from '../data/mockData';
 import { StorageService } from '../services/storageService';
 
 interface SACOverviewModalProps {
   stats: FestStats;
+  departments?: Department[];
   events: FestEvent[];
   registrations: Registration[];
   onClose: () => void;
@@ -14,6 +14,7 @@ interface SACOverviewModalProps {
 
 export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
   stats,
+  departments = [],
   events,
   registrations,
   onClose,
@@ -122,7 +123,7 @@ export const SACOverviewModal: React.FC<SACOverviewModalProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {DEPARTMENTS.map(dept => {
+                {departments.map(dept => {
                   const deptEvents = events.filter(e => e.departmentCode === dept.code);
                   const deptEventIds = deptEvents.map(e => e.id);
                   const deptRegs = registrations.filter(r => deptEventIds.includes(r.eventId));

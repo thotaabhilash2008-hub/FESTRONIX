@@ -72,6 +72,18 @@ test('pass-email resend endpoint rejects non-POST requests', async () => {
   assert.match(String(response.payload?.error || response.payload), /Method not allowed/);
 });
 
+test('public Firebase catalog endpoints are registered without executing a database read', async () => {
+  for (const name of ['listPublicEvents', 'listPublicDepartments']) {
+    const request = makeRequest(name, {});
+    request.method = 'GET';
+    const response = new FakeResponse();
+    await handler(request, response);
+
+    assert.equal(response.statusCode, 405, `${name} should be recognized by the Vercel adapter`);
+    assert.match(String(response.payload?.error || response.payload), /Method not allowed/);
+  }
+});
+
 test('unknown operations are rejected before dispatch', async () => {
   const request = makeRequest('deleteEverything', {});
   const response = new FakeResponse();

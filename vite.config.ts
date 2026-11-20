@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { FirebaseApiRequest, FirebaseApiResponse } from './api/functions/handler.mjs'
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 
 type QueryRequest = IncomingMessage & {
   query: Record<string, string | string[]>
@@ -89,11 +89,33 @@ function firebaseApiDevPlugin(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), firebaseApiDevPlugin()],
-  server: {
-    host: '0.0.0.0',
-    port: 3000,
-    allowedHosts: true,
-  },
+export default defineConfig(({ mode }) => {
+  // Load only server-side credentials into the Node process used by the local
+  // Firebase API adapter. These values are deliberately not added to Vite's
+  // client `define` or `envPrefix`, so they cannot enter the browser bundle.
+  const env = loadEnv(mode, process.cwd(), '')
+  const serverOnlyKeys = [
+    'FIREBASE_PROJECT_ID',
+    'FIREBASE_SERVICE_ACCOUNT_JSON',
+    'REGISTRATION_ROLL_CLAIM_SECRET',
+    'RAZORPAY_MODE',
+    'RAZORPAY_KEY_ID',
+    'RAZORPAY_KEY_SECRET',
+    'RAZORPAY_WEBHOOK_SECRET',
+    'BREVO_API_KEY',
+    'PUBLIC_SITE_URL',
+    'REGISTRATION_MAIL_FROM',
+  ]
+  for (const key of serverOnlyKeys) {
+    if (process.env[key] === undefined && env[key]) process.env[key] = env[key]
+  }
+
+  return {
+    plugins: [react(), firebaseApiDevPlugin()],
+    server: {
+      host: '0.0.0.0',
+      port: 3000,
+      allowedHosts: true,
+    },
+  }
 })

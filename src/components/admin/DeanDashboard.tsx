@@ -16,7 +16,8 @@ import {
   FestEvent, Registration, Announcement, FestStats, PaymentStatus, 
   EventCategory, EventFormat, Department
 } from '../../types/festronix';
-import { DEPARTMENTS, ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
+import { ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
+import { isFirebaseConfigured } from '../../lib/firebase';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar, AdminNavTab } from './AdminSidebar';
 import { AdminTopNav } from './AdminTopNav';
@@ -45,6 +46,18 @@ const CSE_CLUSTER_OPTIONS = [
   { value: 'CSE-2', label: 'CSE-2 · 2nd Cluster · Balu' },
   { value: 'CSE-3', label: 'CSE-3 · 3rd Cluster · Raghavendra' }
 ] as const;
+
+const EMPTY_STATS: FestStats = {
+  totalRegistrations: 0,
+  verifiedCount: 0,
+  pendingCount: 0,
+  rejectedCount: 0,
+  spotCount: 0,
+  onlineCount: 0,
+  totalCollected: 0,
+  totalCapacity: 0,
+  checkedInCount: 0,
+};
 
 const cseClusterLabel = (clusterCode?: string): string => {
   const normalized = clusterCode?.trim().toUpperCase();
@@ -78,13 +91,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [globalSearch, setGlobalSearch] = useState('');
   const [selectedTimeScope, setSelectedTimeScope] = useState<'day' | 'week' | 'month' | 'year'>('day');
   
-  const [stats, setStats] = useState<FestStats>(StorageService.getStats());
-  const [events, setEvents] = useState<FestEvent[]>(StorageService.getEvents());
-  const [registrations, setRegistrations] = useState<Registration[]>(StorageService.getRegistrations());
-  const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
-  const [departments, setDepartments] = useState<Department[]>(StorageService.getDepartments());
+  const [stats, setStats] = useState<FestStats>(() => isFirebaseConfigured ? EMPTY_STATS : StorageService.getStats());
+  const [events, setEvents] = useState<FestEvent[]>(() => isFirebaseConfigured ? [] : StorageService.getEvents());
+  const [registrations, setRegistrations] = useState<Registration[]>(() => isFirebaseConfigured ? [] : StorageService.getRegistrations());
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => isFirebaseConfigured ? [] : StorageService.getAnnouncements());
+  const [departments, setDepartments] = useState<Department[]>(() => isFirebaseConfigured ? [] : StorageService.getDepartments());
+  const [departmentLoadFailed, setDepartmentLoadFailed] = useState(false);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(isFirebaseConfigured);
   const [coordinators, setCoordinators] = useState<Array<AdminUser & { assignedEvents?: string[] }>>(
-    AdminAuthService.getCoordinators()
+    () => isFirebaseConfigured ? [] : AdminAuthService.getCoordinators()
   );
   const occupiedCseDepartmentCoordinatorClusters = useMemo(() => new Set(
     coordinators
@@ -234,29 +249,50 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [editDeptIcon, setEditDeptIcon] = useState('Cpu');
 
   const refreshAllData = async () => {
-    setStats(StorageService.getStats());
-    setEvents(StorageService.getEvents());
-    setRegistrations(StorageService.getRegistrations());
-    setAnnouncements(StorageService.getAnnouncements());
-    setDepartments(StorageService.getDepartments());
-    setCoordinators(AdminAuthService.getCoordinators());
-
-    try {
-      const [liveEvts, liveRegs, liveAnns, liveDepts, liveAdmins] = await Promise.all([
-        StorageService.fetchEvents(),
-        StorageService.fetchRegistrations(),
-        StorageService.fetchAnnouncements(),
-        StorageService.fetchDepartments(),
-        AdminAuthService.fetchAdmins()
-      ]);
-      setEvents(liveEvts);
-      setRegistrations(liveRegs);
-      setAnnouncements(liveAnns);
-      setDepartments(liveDepts);
+    setIsLoadingDepartments(true);
+    if (isFirebaseConfigured) {
+      setStats(EMPTY_STATS);
+      setEvents([]);
+      setRegistrations([]);
+      setAnnouncements([]);
+      setDepartments([]);
+      setCoordinators([]);
+    } else {
       setStats(StorageService.getStats());
-      setCoordinators(liveAdmins);
-    } catch (err) {
-      console.warn('Dashboard sync warning:', err);
+      setEvents(StorageService.getEvents());
+      setRegistrations(StorageService.getRegistrations());
+      setAnnouncements(StorageService.getAnnouncements());
+      setDepartments(StorageService.getDepartments());
+      setCoordinators(AdminAuthService.getCoordinators());
+    }
+
+    const results = await Promise.allSettled([
+      StorageService.fetchEvents(),
+      StorageService.fetchRegistrations(),
+      StorageService.fetchAnnouncements(),
+      StorageService.fetchDepartments(),
+      AdminAuthService.fetchAdmins(),
+    ] as const);
+    const [eventsResult, registrationsResult, announcementsResult, departmentsResult, coordinatorsResult] = results;
+
+    if (eventsResult.status === 'fulfilled') setEvents(eventsResult.value);
+    else console.warn('Firebase staff events could not be loaded.', eventsResult.reason);
+    if (registrationsResult.status === 'fulfilled') setRegistrations(registrationsResult.value);
+    else console.warn('Firebase staff registrations could not be loaded.', registrationsResult.reason);
+    if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
+    else console.warn('Firebase announcements could not be loaded.', announcementsResult.reason);
+    if (departmentsResult.status === 'fulfilled') {
+      setDepartments(departmentsResult.value);
+      setDepartmentLoadFailed(false);
+    } else {
+      setDepartmentLoadFailed(true);
+      console.error('Firebase departments could not be loaded.', departmentsResult.reason);
+    }
+    setIsLoadingDepartments(false);
+    if (coordinatorsResult.status === 'fulfilled') setCoordinators(coordinatorsResult.value);
+    else console.warn('Firebase coordinator directory could not be loaded.', coordinatorsResult.reason);
+    if (eventsResult.status === 'fulfilled' && registrationsResult.status === 'fulfilled') {
+      setStats(StorageService.getStats());
     }
   };
 
@@ -2011,6 +2047,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               </div>
             </div>
 
+            {departmentLoadFailed && (
+              <div role="alert" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.22)', color: '#FCA5A5', fontSize: '0.84rem' }}>
+                Firebase could not load departments. Use “Refresh Matrix” to retry; the rest of the dashboard loads independently.
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px' }}>
               {departments.map(dept => {
                 const deptStats = StorageService.getDepartmentStats(dept.code);
@@ -2239,6 +2281,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 );
               })}
                 </div>
+            {!departmentLoadFailed && departments.length === 0 && (
+              <div role="status" style={{ marginTop: '16px', padding: '18px', borderRadius: '12px', border: '1px dashed rgba(148, 163, 184, 0.35)', color: '#A8B3C2', textAlign: 'center' }}>
+                {isLoadingDepartments ? 'Loading departments from Firebase…' : 'No departments are currently stored in Firebase.'}
+              </div>
+            )}
           </div>
         )}
 

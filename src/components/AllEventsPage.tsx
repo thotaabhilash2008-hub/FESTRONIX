@@ -18,14 +18,14 @@ import {
   Wrench,
   X
 } from 'lucide-react';
-import { FestEvent } from '../types/festronix';
-import { DEPARTMENTS } from '../data/mockData';
+import { Department, FestEvent } from '../types/festronix';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 import { isEventBothDays, isEventOnDay } from './EventCatalog';
 import { Footer } from './Footer';
 
 interface AllEventsPageProps {
   events: FestEvent[];
+  departments: Department[];
   passesCount: number;
   onBackToHome: () => void;
   onSelectEvent: (event: FestEvent) => void;
@@ -69,6 +69,7 @@ function getCategoryLabel(category: FestEvent['category']): string {
 
 export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   events,
+  departments,
   passesCount,
   onBackToHome,
   onSelectEvent,
@@ -86,19 +87,19 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
 
   const departmentOptions = useMemo(() => {
-    const knownCodes = new Set(DEPARTMENTS.map(d => d.code.toUpperCase()));
+    const knownCodes = new Set(departments.map(d => d.code.toUpperCase()));
     const extraCodes = [...new Set(events.map(e => e.departmentCode.trim()).filter(Boolean))]
       .filter(code => !knownCodes.has(code.toUpperCase()))
       .sort((a, b) => a.localeCompare(b));
 
     return [
-      ...DEPARTMENTS.map(d => ({ code: d.code, name: d.name })),
+      ...departments.map(d => ({ code: d.code, name: d.name })),
       ...extraCodes.map(code => ({
         code,
         name: code.toUpperCase() === 'SAC' ? 'Student Activity Council' : `${code} Events`
       }))
     ];
-  }, [events]);
+  }, [departments, events]);
 
   const categories = [
     { key: 'all', label: 'All', icon: <LayoutGrid size={14} /> },

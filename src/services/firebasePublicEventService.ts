@@ -1,6 +1,6 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import type { FestEvent } from '../types/festronix';
-import { firestore } from '../lib/firebase';
+import { firebaseApp } from '../lib/firebase';
+import { callFirebaseCallable } from './firebaseFunctionClient';
 
 const EVENT_CATEGORIES = new Set([
   'technical',
@@ -98,14 +98,16 @@ function publicEventFromDocument(id: string, raw: Record<string, unknown>): Fest
  * a trusted registration backend must validate those values again.
  */
 export async function fetchFirebasePublicEvents(): Promise<FestEvent[]> {
-  if (!firestore) throw new Error('Firebase is not configured.');
-
-  const eventsQuery = query(
-    collection(firestore, 'publicEvents'),
-    where('isPublished', '==', true),
-  );
-  const result = await getDocs(eventsQuery);
-  return result.docs
-    .map(document => publicEventFromDocument(document.id, document.data()))
+  if (!firebaseApp) throw new Error('Firebase is not configured.');
+  const result = await callFirebaseCallable<{ events: Array<Record<string, unknown> & { id: string }> }>('listPublicEvents', {});
+  return (Array.isArray(result.events) ? result.events : [])
+    .flatMap(event => {
+      try {
+        return [publicEventFromDocument(event.id, event)];
+      } catch (error) {
+        console.warn('Ignoring an invalid Firebase public event projection.', error);
+        return [];
+      }
+    })
     .sort((left, right) => left.title.localeCompare(right.title));
 }

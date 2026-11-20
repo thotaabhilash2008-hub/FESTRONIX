@@ -14,8 +14,7 @@ import { StorageService } from '../../services/storageService';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { isFirebaseConfigured } from '../../lib/firebase';
 import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
-import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
-import { DEPARTMENTS } from '../../data/mockData';
+import { Department, FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { AdminHeader } from './AdminHeader';
 import { DeptSidebar } from './DeptSidebar';
 
@@ -50,8 +49,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [assignedEventIds, setAssignedEventIds] = useState<string[]>(() =>
     [...new Set((adminUser.assignedEvents || []).map(value => String(value).trim()).filter(Boolean))]
   );
-  const deptInfo = StorageService.getDepartments().find(d => d.code.toUpperCase() === deptCode.toUpperCase()) ||
-                   DEPARTMENTS.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
+  const [departments, setDepartments] = useState<Department[]>(() =>
+    isFirebaseConfigured ? [] : StorageService.getDepartments()
+  );
+  const deptInfo = departments.find(department => department.code.toUpperCase() === deptCode);
 
   const eventMatchesAssignments = (event: FestEvent, eventIds: string[]): boolean =>
     eventIds.some(id => id.toLowerCase() === event.id.toLowerCase());
@@ -284,7 +285,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
 
     const refresh = (async () => {
-      if (!isSupabaseConfigured()) {
+      if (!isFirebaseConfigured && !isSupabaseConfigured()) {
         const all = StorageService.getEvents();
         const scopedEvts = all.filter(event => isEventCoord
           ? eventMatchesAssignments(event, assignedEventIds)
@@ -318,7 +319,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           : [];
         if (isEventCoord) setAssignedEventIds(refreshedAssignedIds);
 
-        const [liveEvts, liveRegs, liveAnnouncements, liveAdmins] = await Promise.all([
+        const [eventsResult, registrationsResult, announcementsResult, adminsResult] = await Promise.allSettled([
           isEventCoord
             ? StorageService.fetchLiveEventsForIds(refreshedAssignedIds)
             : isFirebaseConfigured || isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
@@ -328,6 +329,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           isEventCoord ? Promise.resolve([] as Announcement[]) : StorageService.fetchAnnouncements(),
           isDeptChief ? AdminAuthService.fetchAdmins() : Promise.resolve([] as AdminUser[])
         ]);
+        if (eventsResult.status === 'rejected') throw eventsResult.reason;
+        const liveEvts = eventsResult.value;
+        const liveRegs = registrationsResult.status === 'fulfilled' ? registrationsResult.value : [];
+        const liveAnnouncements = announcementsResult.status === 'fulfilled' ? announcementsResult.value : [];
+        const liveAdmins = adminsResult.status === 'fulfilled' ? adminsResult.value : [];
+        if (registrationsResult.status === 'rejected') console.warn('Scoped registrations could not be loaded.', registrationsResult.reason);
+        if (announcementsResult.status === 'rejected') console.warn('Scoped announcements could not be loaded.', announcementsResult.reason);
+        if (adminsResult.status === 'rejected') console.warn('Department staff directory could not be loaded.', adminsResult.reason);
         const updatedScopedEvents = isEventCoord
           ? liveEvts.filter(event => eventMatchesAssignments(event, refreshedAssignedIds))
           : liveEvts.filter(eventMatchesScope);
@@ -340,7 +349,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             );
         setRegistrations(updatedScopedRegistrations);
         setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(announcementMatchesScope));
-        if (isDeptChief) {
+        if (isDeptChief && adminsResult.status === 'fulfilled') {
           setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
         }
         setDeptSyncError(null);
@@ -386,6 +395,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   };
 
   useEffect(() => {
+    if (!isEventCoord) {
+      void StorageService.fetchDepartments()
+        .then(setDepartments)
+        .catch(error => console.warn('Department details could not be loaded from Firebase.', error));
+    }
     refreshDeptData();
 
     // Listen to real-time local updates and cross-tab storage changes

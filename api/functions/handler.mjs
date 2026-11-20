@@ -3,7 +3,7 @@ import * as firebaseHandlers from '../../functions/lib/index.js';
 const callableFunctions = new Set([
   'approveStaffEvent', 'checkInStaffRegistration', 'createFreeRegistrations', 'createStaffEvent',
   'createStaffSpotRegistration', 'deleteStaffEvent', 'findPublicTeam',
-  'getStaffAccess', 'getStaffEvent', 'listPublicAnnouncements',
+  'getStaffAccess', 'getStaffEvent', 'listPublicAnnouncements', 'listPublicDepartments', 'listPublicEvents',
   'listPublicSponsorProfiles', 'listStaffEvents', 'listStaffRazorpayRefundOrders',
   'listStaffRegistrations', 'listStaffTeams', 'manageAnnouncement', 'manageDepartment',
   'manageSponsorProfile', 'manageStaffAccount',

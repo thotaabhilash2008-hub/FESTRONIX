@@ -1,6 +1,5 @@
-import { collection, getDocs } from 'firebase/firestore';
 import type { Announcement, Department } from '../types/festronix';
-import { firebaseApp, firestore } from '../lib/firebase';
+import { firebaseApp } from '../lib/firebase';
 import { callFirebaseCallable } from './firebaseFunctionClient';
 
 async function call<T>(name: string, data: Record<string, unknown>): Promise<T> {
@@ -50,9 +49,9 @@ function mapAnnouncement(id: string, data: Record<string, unknown>): Announcemen
 
 export const FirebaseContentService = {
   async departments(): Promise<Department[]> {
-    if (!firestore) throw new Error('Firebase Firestore is not configured.');
-    const snapshot = await getDocs(collection(firestore, 'departments'));
-    return snapshot.docs.map(document => mapDepartment(document.id, document.data()))
+    const result = await call<{ departments: Array<Record<string, unknown> & { id: string }> }>('listPublicDepartments', {});
+    return (Array.isArray(result.departments) ? result.departments : [])
+      .map(department => mapDepartment(department.id, department))
       .sort((left, right) => left.name.localeCompare(right.name));
   },
 
@@ -72,9 +71,9 @@ export const FirebaseContentService = {
   },
 
   async announcements(): Promise<Announcement[]> {
-    if (!firestore) throw new Error('Firebase Firestore is not configured.');
-    const snapshot = await getDocs(collection(firestore, 'publicAnnouncements'));
-    return snapshot.docs.map(document => mapAnnouncement(document.id, document.data()))
+    const result = await call<{ announcements: Array<Record<string, unknown> & { id: string }> }>('listPublicAnnouncements', {});
+    return (Array.isArray(result.announcements) ? result.announcements : [])
+      .map(announcement => mapAnnouncement(announcement.id, announcement))
       .sort((left, right) => right.date.localeCompare(left.date));
   },
 

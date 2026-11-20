@@ -1277,6 +1277,86 @@ export const listPublicAnnouncements = onCall(async () => {
   return { announcements: snapshot.docs.map(document => announcementPayload(document.id, document.data())) };
 });
 
+/**
+ * Public catalog data is served from the trusted Firebase runtime. Keep the
+ * response limited to the published projection; never expose private event
+ * documents, registrations, payment data, or staff role records here.
+ */
+export const listPublicEvents = onCall({ enforceAppCheck: false }, async () => {
+  const snapshot = await getFirestore().collection('publicEvents')
+    .where('isPublished', '==', true)
+    .limit(500)
+    .get();
+
+  const events = snapshot.docs.flatMap(document => {
+    const data = document.data() as Record<string, unknown>;
+    if (data.id !== document.id || data.status !== 'open' || data.approvalStatus !== 'approved') return [];
+    if (!EVENT_CATEGORIES.has(String(data.category)) || !EVENT_FORMATS.has(String(data.format))) return [];
+
+    const deadlineValue = data.deadline as { toDate?: () => Date } | Date | string | null | undefined;
+    const deadline = deadlineValue && typeof deadlineValue === 'object' && 'toDate' in deadlineValue && typeof deadlineValue.toDate === 'function'
+      ? deadlineValue.toDate().toISOString()
+      : deadlineValue instanceof Date
+        ? deadlineValue.toISOString()
+        : typeof deadlineValue === 'string' ? deadlineValue : '';
+    const prizes = data.prizes && typeof data.prizes === 'object' && !Array.isArray(data.prizes)
+      ? data.prizes as Record<string, unknown>
+      : {};
+    const faqs = Array.isArray(data.faqs)
+      ? data.faqs.flatMap(value => {
+          if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+          const faq = value as Record<string, unknown>;
+          return typeof faq.question === 'string' && typeof faq.answer === 'string'
+            ? [{ question: faq.question, answer: faq.answer }]
+            : [];
+        })
+      : [];
+
+    return [{
+      id: document.id,
+      isPublished: true,
+      slug: textField(data.slug) || '',
+      title: textField(data.title) || '',
+      tagline: textField(data.tagline),
+      departmentId: textField(data.departmentId),
+      departmentCode: textField(data.departmentCode) || '',
+      category: data.category,
+      format: data.format,
+      minTeamSize: Number(data.minTeamSize) || 0,
+      maxTeamSize: Number(data.maxTeamSize) || 0,
+      fee: Number(data.fee) || 0,
+      capacity: Number(data.capacity) || 0,
+      registeredCount: Number(data.registeredCount) || 0,
+      deadline,
+      date: textField(data.date) || '',
+      time: textField(data.time) || '',
+      venue: textField(data.venue) || '',
+      description: textField(data.description) || '',
+      rules: Array.isArray(data.rules) ? data.rules.filter((rule): rule is string => typeof rule === 'string') : [],
+      prizes: {
+        first: textField(prizes.first) || 'Trophy',
+        second: textField(prizes.second),
+        third: textField(prizes.third),
+        special: textField(prizes.special),
+      },
+      eligibility: textField(data.eligibility),
+      coordinatorName: textField(data.coordinatorName) || '',
+      coordinatorPhone: textField(data.coordinatorPhone) || '',
+      coordinatorEmail: textField(data.coordinatorEmail) || '',
+      status: 'open',
+      faqs,
+      approvalStatus: 'approved',
+    }];
+  }).sort((left, right) => String(left.title).localeCompare(String(right.title)));
+
+  return { events };
+});
+
+export const listPublicDepartments = onCall({ enforceAppCheck: false }, async () => {
+  const snapshot = await getFirestore().collection('departments').limit(100).get();
+  return { departments: snapshot.docs.map(document => departmentPayload(document.id, document.data())) };
+});
+
 function sponsorProfilePayload(id: string, raw: Record<string, unknown>, publicOnly = false) {
   const projectValues = raw.keyProjects ?? raw.key_projects;
   const deliverables = Array.isArray(raw.deliverables) ? raw.deliverables.slice(0, 100).map(value => {
