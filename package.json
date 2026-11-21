@@ -11,6 +11,7 @@
     "firebase:test-registration-roll-claims": "node scripts/tests/registration-roll-claims.test.mjs",
     "firebase:ensure-registration-roll-claim-secret": "node scripts/ensure-registration-roll-claim-secret.mjs",
     "firebase:sync-staging-public-events": "node scripts/sync-firebase-staging-public-events.mjs",
+    "firebase:sync-whatsapp-links": "node scripts/sync-firebase-whatsapp-links-from-supabase.mjs",
     "build": "npm --prefix functions run build && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
