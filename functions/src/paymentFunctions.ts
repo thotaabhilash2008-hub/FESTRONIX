@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { create, toBuffer } from 'qrcode';
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { defineSecret, defineString } from 'firebase-functions/params';
 import { HttpsError, onCall, onRequest, type Request, type Response } from 'firebase-functions/v2/https';
@@ -968,21 +969,49 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
   const paymentStatus = String(registration.payment_status || '');
   const statusLabel = paymentStatus === 'verified' ? 'PAID · CONFIRMED' : paymentStatus === 'not_applicable' ? 'CONFIRMED' : paymentStatus.toUpperCase();
   const safe = (value: unknown) => escapeHtml(value);
-  // Use a hosted PNG instead of a CID attachment: several mail clients (notably
-  // Gmail) strip or fail to render CID images, which produced a black square.
-  const qrImageUrl = qrToken ? `${site}/api/qr/${encodeURIComponent(qrToken)}.png` : '';
-  const qrBlock = qrImageUrl
-    ? `<div style="margin:22px 0;text-align:center"><div style="display:inline-block;background:#fff;padding:12px;border-radius:12px"><img src="${safe(qrImageUrl)}" alt="FESTRONIX entry QR" width="220" height="220" style="display:block;width:220px;height:220px;background:#fff"></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`
-    : qrToken
-      ? `<p><strong>Entry QR token:</strong> ${safe(qrToken)}</p>`
-      : '';
+  // Draw the QR with HTML table cells so it is visible even when Gmail blocks
+  // remote images and ignores CID/base64 images. A real PNG is attached too.
+  let qrBlock = qrToken ? `<p><strong>Entry QR token:</strong> ${safe(qrToken)}</p>` : '';
+  if (qrToken) {
+    try {
+      const matrix = create(qrToken, { errorCorrectionLevel: 'M' }).modules;
+      const cell = 8;
+      const rows: string[] = [];
+      for (let y = 0; y < matrix.size; y += 1) {
+        const cells: string[] = [];
+        for (let x = 0; x < matrix.size; x += 1) {
+          cells.push(`<td style="width:${cell}px;height:${cell}px;background:${matrix.data[y * matrix.size + x] ? '#07111F' : '#FFFFFF'}"></td>`);
+        }
+        rows.push(`<tr style="height:${cell}px">${cells.join('')}</tr>`);
+      }
+      qrBlock = `<div style="margin:22px 0;text-align:center"><div style="display:inline-block;background:#fff;padding:12px;border-radius:12px"><table role="img" aria-label="FESTRONIX entry QR" style="border-collapse:collapse"><tbody>${rows.join('')}</tbody></table></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`;
+    } catch {
+      // The attached PNG and token text remain available.
+    }
+  }
+  // Attach the QR as a real PNG: Gmail can hide remote images, so the
+  // attachment guarantees the pass is usable from the email itself.
+  let qrAttachment: { name: string; content: string } | null = null;
+  if (qrToken) {
+    try {
+      const png = await toBuffer(qrToken, {
+        width: 420,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#07111F', light: '#FFFFFF' },
+      });
+      qrAttachment = { name: `festronix-qr-${qrToken}.png`, content: png.toString('base64') };
+    } catch {
+      // The hosted image and token text below remain available.
+    }
+  }
   const textContent = [
     'FESTRONIX 2026 DIGITAL PASS', '', `Hello ${participant},`, '', 'Your registration is confirmed.',
     `Event: ${eventTitle}`, `Registration ID: ${displayId}`, `Participant: ${participant}`,
     `Roll number: ${clean(registration.leader_roll, 50) || 'Not provided'}`, `Status: ${statusLabel}`,
     `Date: ${clean(event.date_display, 80)}`, `Time: ${clean(event.time_display, 80)}`, `Venue: ${clean(event.venue, 240)}`,
     `Fee: ₹${fee}`, `Transaction ID: ${clean(registration.transaction_id, 100) || 'Not required'}`,
-    ...(qrToken ? [`Entry QR token: ${qrToken}`, 'Your entry QR image is included in this email.'] : []),
+    ...(qrToken ? [`Entry QR token: ${qrToken}`, 'Your entry QR is attached as a PNG and included in this email.'] : []),
     `Open your live pass to display the entry QR: ${passUrl}`,
   ].join('\n');
   const htmlContent = `<!doctype html><html><body style="margin:0;background:#080c16;color:#f8fafc;font-family:Arial,sans-serif;padding:24px"><main style="max-width:560px;margin:auto;background:#121d38;border:1px solid #334155;border-radius:18px;padding:28px"><div style="color:#38bdf8;font-weight:bold;letter-spacing:1px">FESTRONIX 2026 DIGITAL PASS</div><h1 style="font-size:24px">Your registration is confirmed</h1><p>Hello ${safe(participant)},</p><p><strong>${safe(eventTitle)}</strong><br>Registration ID: <strong>${safe(displayId)}</strong></p><p>Status: ${safe(statusLabel)}<br>Date: ${safe(event.date_display)} · ${safe(event.time_display)}<br>Venue: ${safe(event.venue)}<br>Fee: ₹${safe(fee)}</p>${qrBlock}<p>Your entry QR is included in this email and on your digital pass. Show either at the venue.</p><p><a href="${safe(passUrl)}" style="display:inline-block;background:#1684ef;color:white;padding:12px 18px;border-radius:8px;text-decoration:none">Open your pass</a></p><p style="color:#94a3b8;font-size:12px">Keep your pass private. Each ticket is valid for one check-in.</p></main></body></html>`;
@@ -996,6 +1025,7 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
         subject: `Your FESTRONIX pass — ${eventTitle}`,
         textContent,
         htmlContent,
+        ...(qrAttachment ? { attachment: [qrAttachment] } : {}),
       }),
       signal: AbortSignal.timeout(15_000),
     });
