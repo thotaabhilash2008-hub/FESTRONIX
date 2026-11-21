@@ -6,6 +6,10 @@
     "api/functions/[name].ts": {
       "regions": ["bom1"],
       "maxDuration": 60
+    },
+    "api/qr/[token].ts": {
+      "regions": ["bom1"],
+      "maxDuration": 30
     }
   },
   "rewrites": [

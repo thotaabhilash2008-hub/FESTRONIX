@@ -1,5 +1,4 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { toDataURL } from 'qrcode';
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { defineSecret, defineString } from 'firebase-functions/params';
 import { HttpsError, onCall, onRequest, type Request, type Response } from 'firebase-functions/v2/https';
@@ -969,23 +968,11 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
   const paymentStatus = String(registration.payment_status || '');
   const statusLabel = paymentStatus === 'verified' ? 'PAID · CONFIRMED' : paymentStatus === 'not_applicable' ? 'CONFIRMED' : paymentStatus.toUpperCase();
   const safe = (value: unknown) => escapeHtml(value);
-  let inlineImage: { cid: string; content: string; name: string } | null = null;
-  if (qrToken) {
-    try {
-      const qrDataUrl = await toDataURL(qrToken, {
-        width: 360,
-        margin: 1,
-        errorCorrectionLevel: 'M',
-        color: { dark: '#07111F', light: '#FFFFFF' },
-      });
-      const content = qrDataUrl.split(',')[1];
-      if (content) inlineImage = { cid: 'festronix-pass-qr', content, name: 'festronix-pass-qr.png' };
-    } catch {
-      // The token text below keeps the pass usable if QR rendering fails.
-    }
-  }
-  const qrBlock = inlineImage
-    ? `<div style="margin:22px 0;text-align:center"><div style="display:inline-block;background:#fff;padding:12px;border-radius:12px"><img src="cid:${inlineImage.cid}" alt="FESTRONIX entry QR" width="220" height="220" style="display:block;width:220px;height:220px"></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`
+  // Use a hosted PNG instead of a CID attachment: several mail clients (notably
+  // Gmail) strip or fail to render CID images, which produced a black square.
+  const qrImageUrl = qrToken ? `${site}/api/qr/${encodeURIComponent(qrToken)}.png` : '';
+  const qrBlock = qrImageUrl
+    ? `<div style="margin:22px 0;text-align:center"><div style="display:inline-block;background:#fff;padding:12px;border-radius:12px"><img src="${safe(qrImageUrl)}" alt="FESTRONIX entry QR" width="220" height="220" style="display:block;width:220px;height:220px;background:#fff"></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`
     : qrToken
       ? `<p><strong>Entry QR token:</strong> ${safe(qrToken)}</p>`
       : '';
@@ -1009,7 +996,6 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
         subject: `Your FESTRONIX pass — ${eventTitle}`,
         textContent,
         htmlContent,
-        ...(inlineImage ? { inlineImage: [inlineImage] } : {}),
       }),
       signal: AbortSignal.timeout(15_000),
     });
