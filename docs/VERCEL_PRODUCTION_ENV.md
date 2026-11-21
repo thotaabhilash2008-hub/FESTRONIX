@@ -26,10 +26,9 @@ VITE_FIREBASE_AUTH_DOMAIN=festronix-migration-stg26.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=festronix-migration-stg26
 VITE_FIREBASE_APP_ID=<Firebase web app ID>
 VITE_FIREBASE_MESSAGING_SENDER_ID=<Firebase messaging sender ID>
-VITE_REGISTRATIONS_OPEN=false
 ```
 
-Keep `VITE_REGISTRATIONS_OPEN=false` until registrations are officially opened. The public gate is a build-time flag; changing it requires a redeploy.
+The public coming-soon page is controlled by `COMING_SOON_ONLY` in `src/App.tsx`, using the exact page code from the repository's `coming-soon` branch.
 
 ### Server-only variables
 
@@ -73,6 +72,6 @@ The `/api/functions/*` Firebase adapter is included automatically.
 
 When you explicitly approve it:
 
-1. Change `VITE_REGISTRATIONS_OPEN` to `true` in Vercel Production.
-2. Redeploy the same `codex/firebase-database-migration` branch.
-3. Verify the gate is gone on `https://www.festronix.com`.
+1. Change `COMING_SOON_ONLY` to `false` in `src/App.tsx`.
+2. Commit and redeploy the same `codex/firebase-database-migration` branch.
+3. Verify the normal site is back on `https://www.festronix.com`, with its original background and intro animation.

@@ -1846,3 +1846,15 @@ html, body, #root, .public-site-shell {
     padding: 28px 16px 48px !important;
   }
 }
+
+.coming-soon-hero {
+  min-height: 100svh !important;
+  padding: clamp(1.25rem, 3vh, 2.5rem) 1rem !important;
+}
+
+@media (max-width: 768px) {
+  .coming-soon-hero {
+    min-height: 100svh !important;
+    padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(1.25rem, env(safe-area-inset-bottom)) !important;
+  }
+}
