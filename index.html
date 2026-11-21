@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Firebase staff sign-in is verified on the canonical www origin. Keep the
+      // apex domain as a clean alias so admin login behaves identically everywhere.
+      if (window.location.hostname === 'festronix.com') {
+        window.location.replace(
+          'https://www.festronix.com' + window.location.pathname + window.location.search + window.location.hash
+        );
+      }
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
