@@ -92,8 +92,16 @@ export async function handleFirebaseFunctionRequest(request, response) {
     return;
   }
 
-  await target(
-    attachExpressCompatibility(request, rawBody, body),
-    attachExpressResponseCompatibility(response),
-  );
+  try {
+    await target(
+      attachExpressCompatibility(request, rawBody, body),
+      attachExpressResponseCompatibility(response),
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Firebase operation ${name} failed:`, error);
+    if (!response.headersSent) {
+      response.status(500).json({ error: { status: 'INTERNAL', message } });
+    }
+  }
 }
