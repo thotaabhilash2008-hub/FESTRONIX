@@ -15,7 +15,14 @@ type ApiResponse<T> = {
 
 function apiUrl(name: string): string {
   if (!/^[A-Za-z][A-Za-z0-9]*$/.test(name)) throw new Error('Invalid Firebase API operation.');
-  return `/api/functions/${encodeURIComponent(name)}`;
+  const path = `/api/functions/${encodeURIComponent(name)}`;
+  // The apex domain has its own browser storage and edge cache. Firebase
+  // callable verification is identical on www, so route apex API traffic there
+  // while keeping the visitor on the address they opened.
+  if (typeof window !== 'undefined' && window.location.hostname === 'festronix.com') {
+    return `https://www.festronix.com${path}`;
+  }
+  return path;
 }
 
 function toCallableError(payload: ApiResponse<unknown>, fallback: string, statusCode: number): Error & { code: string } {

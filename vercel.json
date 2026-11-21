@@ -12,16 +12,6 @@
       "maxDuration": 30
     }
   },
-  "redirects": [
-    {
-      "source": "/:path((?!api/).*)",
-      "has": [
-        { "type": "host", "value": "^festronix\\.com$" }
-      ],
-      "destination": "https://www.festronix.com/:path",
-      "permanent": false
-    }
-  ],
   "rewrites": [
     {
       "source": "/:path((?!api/).*)",

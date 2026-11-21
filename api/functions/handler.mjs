@@ -34,6 +34,15 @@ function requestHeader(request, name) {
   return Array.isArray(value) ? value.join(', ') : value;
 }
 
+function allowApexOrigin(request, response) {
+  const origin = requestHeader(request, 'origin');
+  if (origin !== 'https://festronix.com') return;
+  response.setHeader('Access-Control-Allow-Origin', origin);
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.setHeader('Vary', 'Origin');
+}
+
 function attachExpressCompatibility(request, rawBody, body) {
   const facade = Object.create(request);
   const forwardedFor = requestHeader(request, 'x-vercel-forwarded-for') || requestHeader(request, 'x-forwarded-for');
@@ -58,6 +67,12 @@ function attachExpressResponseCompatibility(response) {
 }
 
 export async function handleFirebaseFunctionRequest(request, response) {
+  allowApexOrigin(request, response);
+  if (request.method === 'OPTIONS') {
+    response.status(204).end();
+    return;
+  }
+
   const requestedName = request.query?.name;
   const name = Array.isArray(requestedName) ? requestedName[0] : requestedName;
   if (!name || !allowedFunctions.has(name)) {
