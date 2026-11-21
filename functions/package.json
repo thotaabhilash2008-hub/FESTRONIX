@@ -20,5 +20,8 @@
     "@types/node": "^22.19.0",
     "@types/qrcode": "^1.5.5",
     "typescript": "~6.0.2"
+  },
+  "overrides": {
+    "jose": "^5.10.0"
   }
 }
