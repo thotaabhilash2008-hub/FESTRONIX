@@ -253,6 +253,11 @@ export const App: React.FC = () => {
       setAnnouncements([]);
       setDepartments([]);
 
+      // The coming-soon page is intentionally independent of event and
+      // registration data. Skipping these public reads keeps the Firebase read
+      // budget available for staff sign-in on every device.
+      if (COMING_SOON_ONLY) return;
+
       const [eventsResult, announcementsResult, departmentsResult] = await Promise.allSettled([
         fetchFirebasePublicEvents(),
         StorageService.fetchAnnouncements(),
