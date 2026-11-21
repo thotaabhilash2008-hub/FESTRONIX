@@ -39,6 +39,9 @@ async function call<TResponse>(name: string, data: Record<string, unknown> = {})
     if (code.includes('failed-precondition') || code.includes('already-exists') || code.includes('invalid-argument')) {
       throw new Error(message);
     }
+    if (code.includes('resource-exhausted')) {
+      throw new Error(message || 'Firebase read quota is temporarily exhausted. Please retry shortly.');
+    }
     throw new Error('Firebase could not complete the operation. Please retry; if it continues, contact the administrator.');
   }
 }

@@ -116,6 +116,15 @@ export async function handleFirebaseFunctionRequest(request, response) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`Firebase operation ${name} failed:`, error);
     if (!response.headersSent) {
+      if (/RESOURCE_EXHAUSTED|Quota exceeded/i.test(message)) {
+        response.status(503).json({
+          error: {
+            status: 'RESOURCE_EXHAUSTED',
+            message: 'Firebase read quota is temporarily exhausted. Please retry shortly; if it continues, an administrator must raise the Firestore quota.',
+          },
+        });
+        return;
+      }
       response.status(500).json({ error: { status: 'INTERNAL', message } });
     }
   }
