@@ -26,6 +26,7 @@ import { ScrollAnimationsProvider } from './components/animations';
 const KineticStage3D = lazy(() => import('./components/3d/KineticStage3D'));
 import { AboutSection } from './components/AboutSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
+import { RegistrationComingSoonOverlay } from './components/RegistrationComingSoonOverlay';
 
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
 
@@ -169,6 +170,22 @@ export const App: React.FC = () => {
   const [isRegistrationPageOpen, setIsRegistrationPageOpen] = useState<boolean>(() => Boolean(getRegistrationSlug()));
   const [registrationSlug, setRegistrationSlug] = useState<string>(getRegistrationSlug);
 
+  // Public registration gate. Closed is the safe default; set
+  // VITE_REGISTRATIONS_OPEN=true only when registrations are officially opened.
+  const registrationsOpen = import.meta.env.VITE_REGISTRATIONS_OPEN === 'true';
+  const showRegistrationGate = !registrationsOpen && (
+    isAllEventsPageOpen ||
+    isRegistrationPageOpen ||
+    (!isAdminView && !isSponsorsPageOpen && !isPassesPageOpen &&
+      !isPrivacyPageOpen && !isTermsPageOpen && !isRefundPageOpen)
+  );
+
+  const withRegistrationGate = (content: React.ReactNode) => (
+    <>
+      {content}
+      {showRegistrationGate ? <RegistrationComingSoonOverlay /> : null}
+    </>
+  );
 
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
@@ -181,7 +198,7 @@ export const App: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
 
   // Intro video & modals
-  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
+  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(!showRegistrationGate);
   const [isKineticStageReady, setIsKineticStageReady] = useState<boolean>(false);
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
@@ -193,7 +210,7 @@ export const App: React.FC = () => {
   // the initial route and content for bandwidth or startup time.
   useEffect(() => {
     if (
-      isIntroOpen || isAdminView || isSponsorsPageOpen || isPassesPageOpen ||
+      showRegistrationGate || isIntroOpen || isAdminView || isSponsorsPageOpen || isPassesPageOpen ||
       isAllEventsPageOpen || isPrivacyPageOpen || isTermsPageOpen ||
       isRefundPageOpen || isRegistrationPageOpen || isKineticStageReady
     ) return;
@@ -201,6 +218,7 @@ export const App: React.FC = () => {
     const timer = window.setTimeout(() => setIsKineticStageReady(true), 0);
     return () => window.clearTimeout(timer);
   }, [
+    showRegistrationGate,
     isIntroOpen,
     isAdminView,
     isSponsorsPageOpen,
@@ -542,7 +560,7 @@ export const App: React.FC = () => {
   }
 
   if (isAllEventsPageOpen && !isRegistrationPageOpen && !isPassesPageOpen && !isAdminView) {
-    return (
+    return withRegistrationGate(
       <Suspense fallback={null}>
         <AllEventsPage
           events={publicEvents}
@@ -584,7 +602,7 @@ export const App: React.FC = () => {
   }
 
   if (isRegistrationPageOpen) {
-    return registerEvent ? (
+    return withRegistrationGate(registerEvent ? (
       <Suspense fallback={null}>
         <RegistrationModal
           event={registerEvent}
@@ -602,7 +620,7 @@ export const App: React.FC = () => {
           <p>Loading the current event details from the backend.</p>
         </div>
       </div>
-    );
+    ));
   }
 
   // Render Admin Console if in #admin view
@@ -614,8 +632,8 @@ export const App: React.FC = () => {
     );
   }
 
-  return (
-    <ScrollAnimationsProvider enableSmoothScroll={!isIntroOpen}>
+  return withRegistrationGate(
+    <ScrollAnimationsProvider enableSmoothScroll={!isIntroOpen && !showRegistrationGate}>
       <div className="public-site-shell" style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Background Continuous Scroll-Driven 3D Kinetic Stage */}
       {isKineticStageReady && (
@@ -636,7 +654,7 @@ export const App: React.FC = () => {
 
       {/* FULLSCREEN INTRO VIDEO: Edge-to-edge with no headings, borders, or frames */}
       <FullscreenIntro
-        isOpen={isIntroOpen}
+        isOpen={isIntroOpen && !showRegistrationGate}
         onFinish={() => setIsIntroOpen(false)}
       />
 
@@ -656,7 +674,7 @@ export const App: React.FC = () => {
 
       {/* Floating Modern Navbar */}
       <Navbar
-        onOpenIntro={() => setIsIntroOpen(true)}
+        onOpenIntro={() => { if (!showRegistrationGate) setIsIntroOpen(true); }}
         onOpenPasses={() => handleOpenPassesPage()}
         announcements={announcements}
         passesCount={registrations.length}
@@ -673,7 +691,7 @@ export const App: React.FC = () => {
         <HeroSection
           onExploreEvents={handleOpenAllEventsPage}
           onViewAllEvents={handleOpenAllEventsPage}
-          onOpenIntro={() => setIsIntroOpen(true)}
+          onOpenIntro={() => { if (!showRegistrationGate) setIsIntroOpen(true); }}
           onRegisterNow={handleOpenAllEventsPage}
         />
 
