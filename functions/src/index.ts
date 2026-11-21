@@ -108,55 +108,106 @@ type StaffContext = {
   assignedEventIds: string[];
 };
 
-async function loadStaffContext(uid: string): Promise<StaffContext> {
+function isFirestoreQuotaError(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  const message = error instanceof Error ? error.message : String(error);
+  return code === 8 || code === 'RESOURCE_EXHAUSTED' || /RESOURCE_EXHAUSTED|Quota exceeded/i.test(message);
+}
+
+// Emergency staff-access snapshot. Used only when Firestore itself returns a
+// quota error, and only for a uid+email pair captured from a successful
+// authoritative read. Firestore remains authoritative whenever it is available.
+function fallbackStaffContext(
+  uid: string,
+  email: string | undefined,
+  db: FirebaseFirestore.Firestore,
+): StaffContext | null {
+  const raw = process.env.STAFF_ACCESS_FALLBACK_JSON;
+  if (!raw) return null;
+
+  let snapshot: Record<string, { email?: unknown; record?: RoleRecord; assignedEventIds?: unknown }>;
+  try {
+    snapshot = JSON.parse(raw) as typeof snapshot;
+  } catch {
+    return null;
+  }
+
+  const entry = snapshot[uid];
+  if (!entry?.record || entry.record.active !== true) return null;
+  const expectedEmail = textField(entry.email);
+  if (expectedEmail && email && expectedEmail.toLowerCase() !== email.toLowerCase()) return null;
+
+  const role = textField(entry.record.role)?.toLowerCase();
+  if (!role || !VALID_ROLES.has(role)) return null;
+  const departmentCode = textField(entry.record.department_code)?.toUpperCase();
+  const clusterCode = textField(entry.record.cluster_code)?.toUpperCase();
+  if (clusterCode && (departmentCode !== 'CSE' || !CSE_CLUSTERS.has(clusterCode))) return null;
+  if ((DEPARTMENT_ROLES.has(role) || EVENT_ROLES.has(role)) && !departmentCode) return null;
+  if (DEPARTMENT_ROLES.has(role) && departmentCode === 'CSE' && !clusterCode) return null;
+
+  const assignedEventIds = Array.isArray(entry.assignedEventIds)
+    ? entry.assignedEventIds.filter((eventId): eventId is string => typeof eventId === 'string')
+    : [];
+  return { uid, db, roleRecord: entry.record, role, departmentCode, clusterCode, assignedEventIds };
+}
+
+async function loadStaffContext(uid: string, email?: string): Promise<StaffContext> {
   // Callable auth has already verified the Firebase ID token. Keep this read
   // path dependent only on Firestore so sign-in does not require Auth Admin
   // user.get permission from the server credential.
   const db = getFirestore();
-  const roleSnapshot = await db.collection('adminRoles')
-    .where('user_id', '==', uid)
-    .get();
-  const activeRoles = roleSnapshot.docs
-    .map(document => document.data() as RoleRecord)
-    .filter(record => record.active === true && record.user_id === uid);
+  try {
+    const roleSnapshot = await db.collection('adminRoles')
+      .where('user_id', '==', uid)
+      .get();
+    const activeRoles = roleSnapshot.docs
+      .map(document => document.data() as RoleRecord)
+      .filter(record => record.active === true && record.user_id === uid);
 
-  if (activeRoles.length === 0) {
-    throw new HttpsError('permission-denied', 'This Firebase account has no active staff role.');
-  }
-  if (activeRoles.length !== 1) {
-    throw new HttpsError('failed-precondition', 'This account has multiple active staff roles and needs administrator review.');
-  }
+    if (activeRoles.length === 0) {
+      throw new HttpsError('permission-denied', 'This Firebase account has no active staff role.');
+    }
+    if (activeRoles.length !== 1) {
+      throw new HttpsError('failed-precondition', 'This account has multiple active staff roles and needs administrator review.');
+    }
 
-  const roleRecord = activeRoles[0];
-  const role = textField(roleRecord.role)?.toLowerCase();
-  if (!role || !VALID_ROLES.has(role)) {
-    throw new HttpsError('failed-precondition', 'This staff role is not supported.');
-  }
+    const roleRecord = activeRoles[0];
+    const role = textField(roleRecord.role)?.toLowerCase();
+    if (!role || !VALID_ROLES.has(role)) {
+      throw new HttpsError('failed-precondition', 'This staff role is not supported.');
+    }
 
-  const departmentCode = textField(roleRecord.department_code)?.toUpperCase();
-  const clusterCode = textField(roleRecord.cluster_code)?.toUpperCase();
-  if (clusterCode && (departmentCode !== 'CSE' || !CSE_CLUSTERS.has(clusterCode))) {
-    throw new HttpsError('failed-precondition', 'This staff account has an invalid department cluster assignment.');
-  }
-  if ((DEPARTMENT_ROLES.has(role) || EVENT_ROLES.has(role)) && !departmentCode) {
-    throw new HttpsError('failed-precondition', 'This staff account is missing its department assignment.');
-  }
-  if (DEPARTMENT_ROLES.has(role) && departmentCode === 'CSE' && !clusterCode) {
-    throw new HttpsError('failed-precondition', 'This CSE coordinator account is missing its cluster assignment.');
-  }
+    const departmentCode = textField(roleRecord.department_code)?.toUpperCase();
+    const clusterCode = textField(roleRecord.cluster_code)?.toUpperCase();
+    if (clusterCode && (departmentCode !== 'CSE' || !CSE_CLUSTERS.has(clusterCode))) {
+      throw new HttpsError('failed-precondition', 'This staff account has an invalid department cluster assignment.');
+    }
+    if ((DEPARTMENT_ROLES.has(role) || EVENT_ROLES.has(role)) && !departmentCode) {
+      throw new HttpsError('failed-precondition', 'This staff account is missing its department assignment.');
+    }
+    if (DEPARTMENT_ROLES.has(role) && departmentCode === 'CSE' && !clusterCode) {
+      throw new HttpsError('failed-precondition', 'This CSE coordinator account is missing its cluster assignment.');
+    }
 
-  const assignmentSnapshot = await db.collection('adminEventAssignments')
-    .where('admin_user_id', '==', uid)
-    .limit(MAX_STAFF_EVENT_RESULTS + 1)
-    .get();
-  if (assignmentSnapshot.size > MAX_STAFF_EVENT_RESULTS) {
-    throw new HttpsError('failed-precondition', 'This account has too many event assignments and needs administrator review.');
-  }
-  const assignedEventIds = [...new Set(assignmentSnapshot.docs
-    .map(document => textField(document.data().event_id))
-    .filter((eventId): eventId is string => Boolean(eventId)))];
+    const assignmentSnapshot = await db.collection('adminEventAssignments')
+      .where('admin_user_id', '==', uid)
+      .limit(MAX_STAFF_EVENT_RESULTS + 1)
+      .get();
+    if (assignmentSnapshot.size > MAX_STAFF_EVENT_RESULTS) {
+      throw new HttpsError('failed-precondition', 'This account has too many event assignments and needs administrator review.');
+    }
+    const assignedEventIds = [...new Set(assignmentSnapshot.docs
+      .map(document => textField(document.data().event_id))
+      .filter((eventId): eventId is string => Boolean(eventId)))];
 
-  return { uid, db, roleRecord, role, departmentCode, clusterCode, assignedEventIds };
+    return { uid, db, roleRecord, role, departmentCode, clusterCode, assignedEventIds };
+  } catch (error) {
+    if (isFirestoreQuotaError(error)) {
+      const fallback = fallbackStaffContext(uid, email, db);
+      if (fallback) return fallback;
+    }
+    throw error;
+  }
 }
 
 function staffAccessPayload(context: StaffContext) {
@@ -193,7 +244,7 @@ function staffAccessPayload(context: StaffContext) {
 export const getStaffAccess = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  return staffAccessPayload(await loadStaffContext(uid));
+  return staffAccessPayload(await loadStaffContext(uid, request.auth?.token?.email));
 });
 
 export const getStaffEvent = onCall({ enforceAppCheck: false }, async request => {
@@ -204,7 +255,7 @@ export const getStaffEvent = onCall({ enforceAppCheck: false }, async request =>
     throw new HttpsError('invalid-argument', 'A valid event ID is required.');
   }
 
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const eventRef = context.db.collection('events').doc(eventId);
   const eventSnapshot = await eventRef.get();
   if (!eventSnapshot.exists) throw new HttpsError('not-found', 'The event was not found.');
@@ -220,7 +271,7 @@ export const listStaffEvents = onCall({ enforceAppCheck: false }, async request 
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
 
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const events = context.db.collection('events');
   let snapshots: FirebaseFirestore.DocumentSnapshot[];
 
@@ -363,7 +414,7 @@ function staffRegistrationPayload(
 export const listStaffRegistrations = onCall({ enforceAppCheck: false, timeoutSeconds: 120 }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const eventMap = await readableEventsForStaff(context, request.data?.eventIds);
   const eventIds = [...eventMap.keys()];
   if (eventIds.length === 0) return { registrations: [] };
@@ -414,7 +465,7 @@ export const listStaffRegistrations = onCall({ enforceAppCheck: false, timeoutSe
 export const listStaffTeams = onCall({ enforceAppCheck: false, timeoutSeconds: 120 }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const eventMap = await readableEventsForStaff(context, request.data?.eventIds);
   const eventIds = [...eventMap.keys()];
   if (eventIds.length === 0) return { teams: [] };
@@ -466,7 +517,7 @@ export const createStaffSpotRegistration = onCall({
 }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role) && !DEPARTMENT_ROLES.has(context.role) && !EVENT_ROLES.has(context.role)) {
     throw new HttpsError('permission-denied', 'This staff role cannot create spot registrations.');
   }
@@ -748,7 +799,7 @@ export const reviewStaffRegistrationPayment = onCall({ enforceAppCheck: false },
   }
   const reason = textField(request.data?.rejectionReason)?.slice(0, 500);
   if (status === 'rejected' && !reason) throw new HttpsError('invalid-argument', 'Provide a reason when rejecting a payment.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role) && context.role !== 'finance_reviewer' &&
       !DEPARTMENT_ROLES.has(context.role) && !EVENT_ROLES.has(context.role)) {
     throw new HttpsError('permission-denied', 'This staff role cannot review payment records.');
@@ -819,7 +870,7 @@ export const reviewStaffRegistrationPayment = onCall({ enforceAppCheck: false },
 export const listStaffRazorpayRefundOrders = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role) && context.role !== 'finance_reviewer') {
     throw new HttpsError('permission-denied', 'Only finance reviewers and central administrators can view refund records.');
   }
@@ -857,7 +908,7 @@ export const checkInStaffRegistration = onCall({ enforceAppCheck: false }, async
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
   const query = requiredText(request.data?.query, 'Pass ID or QR token', 200);
   const staffName = textField(request.data?.staffName) || 'Check-in staff';
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role) && !DEPARTMENT_ROLES.has(context.role) &&
       !EVENT_ROLES.has(context.role) && !['volunteer_checkin', 'checkin_staff'].includes(context.role)) {
     throw new HttpsError('permission-denied', 'This staff role cannot check in participants.');
@@ -902,7 +953,7 @@ export const toggleStaffCheckIn = onCall({ enforceAppCheck: false }, async reque
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
   const query = requiredText(request.data?.query, 'Pass ID or QR token', 200);
   const staffName = textField(request.data?.staffName) || 'Check-in staff';
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role) && !DEPARTMENT_ROLES.has(context.role) &&
       !EVENT_ROLES.has(context.role) && !['volunteer_checkin', 'checkin_staff'].includes(context.role)) {
     throw new HttpsError('permission-denied', 'This staff role cannot change participant check-in.');
@@ -1043,7 +1094,7 @@ async function managedRoleRows(context: StaffContext): Promise<Array<{
 export const manageStaffAccount = onCall({ enforceAppCheck: false, timeoutSeconds: 120 }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const action = textField(request.data?.action)?.toLowerCase();
   const auth = getAuth();
   const roles = context.db.collection('adminRoles');
@@ -1464,7 +1515,7 @@ export const listPublicSponsorProfiles = onCall(async () => {
 export const manageSponsorProfile = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role)) throw new HttpsError('permission-denied', 'Only central administrators can manage sponsor profiles.');
   const sponsors = context.db.collection('sponsorProfiles');
   const projections = context.db.collection('publicSponsorProfiles');
@@ -1548,7 +1599,7 @@ export const manageSponsorProfile = onCall({ enforceAppCheck: false }, async req
 export const manageAnnouncement = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const action = textField(request.data?.action)?.toLowerCase();
   const announcements = context.db.collection('announcements');
   const projections = context.db.collection('publicAnnouncements');
@@ -1625,7 +1676,7 @@ export const manageAnnouncement = onCall({ enforceAppCheck: false }, async reque
 export const manageDepartment = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role)) throw new HttpsError('permission-denied', 'Only central administrators can manage departments.');
   const action = textField(request.data?.action)?.toLowerCase();
   const departments = context.db.collection('departments');
@@ -1868,7 +1919,7 @@ function canManageEvent(context: StaffContext, eventId: string, event: Record<st
 export const createStaffEvent = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const input = request.data?.event;
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpsError('invalid-argument', 'Event details are required.');
   if (!GLOBAL_ROLES.has(context.role) && !DEPARTMENT_ROLES.has(context.role)) {
@@ -1937,7 +1988,7 @@ export const updateStaffEvent = onCall({ enforceAppCheck: false }, async request
   if (!eventId || !EVENT_ID_PATTERN.test(eventId) || !input || typeof input !== 'object' || Array.isArray(input)) {
     throw new HttpsError('invalid-argument', 'A valid event ID and event changes are required.');
   }
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const patchInput = input as Record<string, unknown>;
   if (patchInput.id || patchInput.registeredCount !== undefined || patchInput.approvalStatus !== undefined ||
       patchInput.departmentCode !== undefined || patchInput.clusterCode !== undefined) {
@@ -2035,7 +2086,7 @@ export const approveStaffEvent = onCall({ enforceAppCheck: false }, async reques
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
   const eventId = textField(request.data?.eventId);
   if (!eventId || !EVENT_ID_PATTERN.test(eventId)) throw new HttpsError('invalid-argument', 'A valid event ID is required.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   if (!GLOBAL_ROLES.has(context.role)) throw new HttpsError('permission-denied', 'Only central administrators can approve events.');
   const eventRef = context.db.collection('events').doc(eventId);
   const projectionRef = context.db.collection('publicEvents').doc(eventId);
@@ -2131,7 +2182,7 @@ export const deleteStaffEvent = onCall({ enforceAppCheck: false }, async request
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
   const eventId = textField(request.data?.eventId);
   if (!eventId || !EVENT_ID_PATTERN.test(eventId)) throw new HttpsError('invalid-argument', 'A valid event ID is required.');
-  const context = await loadStaffContext(uid);
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
   const db = context.db;
   const eventRef = db.collection('events').doc(eventId);
   const eventSnapshot = await eventRef.get();
