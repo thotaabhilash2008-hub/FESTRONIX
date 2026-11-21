@@ -206,7 +206,7 @@ function registrationFromDb(row: any): Registration {
     rejectionReason: row.rejection_reason || undefined,
     verifiedBy: row.verified_by || undefined,
     verifiedAt: row.verified_at || undefined,
-    qrToken: ticket?.qr_token || `FEST26-${(row.display_id || row.id).slice(-4)}`,
+    qrToken: ticket?.qr_token || '',
     checkedIn: Boolean(ticket?.checked_in ?? row.checked_in),
     checkedInAt: ticket?.checked_in_at || row.checked_in_at || undefined,
     checkedInBy: ticket?.checked_in_by || row.checked_in_by || undefined

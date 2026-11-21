@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { toDataURL } from 'qrcode';
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { defineSecret, defineString } from 'firebase-functions/params';
 import { HttpsError, onCall, onRequest, type Request, type Response } from 'firebase-functions/v2/https';
@@ -778,7 +779,7 @@ async function finalizeCapturedOrder(db: FirebaseFirestore.Firestore, orderRef: 
  * Razorpay payments, but never creates a Razorpay payment/order identifier.
  */
 export const createFreeRegistrations = onCall({
-  region: 'asia-south1', timeoutSeconds: 120, secrets: [REGISTRATION_ROLL_CLAIM_SECRET],
+  region: 'asia-south1', timeoutSeconds: 120, secrets: [REGISTRATION_ROLL_CLAIM_SECRET, BREVO_API_KEY],
 }, async request => {
   if (!await rateLimit(request.rawRequest, 'free-registration')) {
     throw new HttpsError('resource-exhausted', 'Too many registration attempts. Wait a minute and try again.');
@@ -823,7 +824,12 @@ export const createFreeRegistrations = onCall({
         updated_at: now,
       });
     });
-    return await finalizeCapturedOrder(db, orderRef, '', '', REGISTRATION_ROLL_CLAIM_SECRET.value(), true);
+    const result = await finalizeCapturedOrder(db, orderRef, '', '', REGISTRATION_ROLL_CLAIM_SECRET.value(), true);
+    const registrationIds = Array.isArray(result.registrations)
+      ? result.registrations.map((registration: AnyRecord) => clean(registration.uuid, 80)).filter(Boolean)
+      : [];
+    await dispatchRegistrationEmails(db, registrationIds);
+    return result;
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError('failed-precondition', error instanceof Error ? error.message : 'The free registration could not be completed. Check My Passes before retrying.');
@@ -879,7 +885,7 @@ async function processCapturedPayment(razorpayOrderId: string, paymentId: string
 
 export const verifyRazorpayPayment = onRequest({
   region: 'asia-south1', timeoutSeconds: 120, memory: '512MiB', maxInstances: 20,
-  secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, REGISTRATION_ROLL_CLAIM_SECRET],
+  secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, REGISTRATION_ROLL_CLAIM_SECRET, BREVO_API_KEY],
 }, async (request, response) => {
   if (!configureCors(request, response)) return;
   if (request.method === 'OPTIONS') { response.status(204).send(''); return; }
@@ -944,6 +950,8 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
     return false;
   }
   const registration = registrationSnapshot.data() as AnyRecord;
+  const ticketSnapshot = await db.collection('tickets').doc(registrationId).get();
+  const qrToken = clean(ticketSnapshot.get('qr_token'), 200);
   const eventSnapshot = await db.collection('events').doc(clean(registration.event_id, 80)).get();
   const event = eventSnapshot.exists ? eventSnapshot.data() as AnyRecord : {};
   const displayId = clean(registration.display_id, 80);
@@ -961,20 +969,48 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
   const paymentStatus = String(registration.payment_status || '');
   const statusLabel = paymentStatus === 'verified' ? 'PAID · CONFIRMED' : paymentStatus === 'not_applicable' ? 'CONFIRMED' : paymentStatus.toUpperCase();
   const safe = (value: unknown) => escapeHtml(value);
+  let inlineImage: { cid: string; content: string; name: string } | null = null;
+  if (qrToken) {
+    try {
+      const qrDataUrl = await toDataURL(qrToken, {
+        width: 360,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#07111F', light: '#FFFFFF' },
+      });
+      const content = qrDataUrl.split(',')[1];
+      if (content) inlineImage = { cid: 'festronix-pass-qr', content, name: 'festronix-pass-qr.png' };
+    } catch {
+      // The token text below keeps the pass usable if QR rendering fails.
+    }
+  }
+  const qrBlock = inlineImage
+    ? `<div style="margin:22px 0;text-align:center"><div style="display:inline-block;background:#fff;padding:12px;border-radius:12px"><img src="cid:${inlineImage.cid}" alt="FESTRONIX entry QR" width="220" height="220" style="display:block;width:220px;height:220px"></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`
+    : qrToken
+      ? `<p><strong>Entry QR token:</strong> ${safe(qrToken)}</p>`
+      : '';
   const textContent = [
     'FESTRONIX 2026 DIGITAL PASS', '', `Hello ${participant},`, '', 'Your registration is confirmed.',
     `Event: ${eventTitle}`, `Registration ID: ${displayId}`, `Participant: ${participant}`,
     `Roll number: ${clean(registration.leader_roll, 50) || 'Not provided'}`, `Status: ${statusLabel}`,
     `Date: ${clean(event.date_display, 80)}`, `Time: ${clean(event.time_display, 80)}`, `Venue: ${clean(event.venue, 240)}`,
     `Fee: ₹${fee}`, `Transaction ID: ${clean(registration.transaction_id, 100) || 'Not required'}`,
+    ...(qrToken ? [`Entry QR token: ${qrToken}`, 'Your entry QR image is included in this email.'] : []),
     `Open your live pass to display the entry QR: ${passUrl}`,
   ].join('\n');
-  const htmlContent = `<!doctype html><html><body style="margin:0;background:#080c16;color:#f8fafc;font-family:Arial,sans-serif;padding:24px"><main style="max-width:560px;margin:auto;background:#121d38;border:1px solid #334155;border-radius:18px;padding:28px"><div style="color:#38bdf8;font-weight:bold;letter-spacing:1px">FESTRONIX 2026 DIGITAL PASS</div><h1 style="font-size:24px">Your registration is confirmed</h1><p>Hello ${safe(participant)},</p><p><strong>${safe(eventTitle)}</strong><br>Registration ID: <strong>${safe(displayId)}</strong></p><p>Status: ${safe(statusLabel)}<br>Date: ${safe(event.date_display)} · ${safe(event.time_display)}<br>Venue: ${safe(event.venue)}<br>Fee: ₹${safe(fee)}</p><p>Your entry QR is available on your digital pass. Open it on your phone at the venue.</p><p><a href="${safe(passUrl)}" style="display:inline-block;background:#1684ef;color:white;padding:12px 18px;border-radius:8px;text-decoration:none">Open your pass</a></p><p style="color:#94a3b8;font-size:12px">Keep your pass private. Each ticket is valid for one check-in.</p></main></body></html>`;
+  const htmlContent = `<!doctype html><html><body style="margin:0;background:#080c16;color:#f8fafc;font-family:Arial,sans-serif;padding:24px"><main style="max-width:560px;margin:auto;background:#121d38;border:1px solid #334155;border-radius:18px;padding:28px"><div style="color:#38bdf8;font-weight:bold;letter-spacing:1px">FESTRONIX 2026 DIGITAL PASS</div><h1 style="font-size:24px">Your registration is confirmed</h1><p>Hello ${safe(participant)},</p><p><strong>${safe(eventTitle)}</strong><br>Registration ID: <strong>${safe(displayId)}</strong></p><p>Status: ${safe(statusLabel)}<br>Date: ${safe(event.date_display)} · ${safe(event.time_display)}<br>Venue: ${safe(event.venue)}<br>Fee: ₹${safe(fee)}</p>${qrBlock}<p>Your entry QR is included in this email and on your digital pass. Show either at the venue.</p><p><a href="${safe(passUrl)}" style="display:inline-block;background:#1684ef;color:white;padding:12px 18px;border-radius:8px;text-decoration:none">Open your pass</a></p><p style="color:#94a3b8;font-size:12px">Keep your pass private. Each ticket is valid for one check-in.</p></main></body></html>`;
   try {
     const providerResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { accept: 'application/json', 'api-key': BREVO_API_KEY.value(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sender, to: [{ email: recipient, name: participant }], subject: `Your FESTRONIX pass — ${eventTitle}`, textContent, htmlContent }),
+      body: JSON.stringify({
+        sender,
+        to: [{ email: recipient, name: participant }],
+        subject: `Your FESTRONIX pass — ${eventTitle}`,
+        textContent,
+        htmlContent,
+        ...(inlineImage ? { inlineImage: [inlineImage] } : {}),
+      }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!providerResponse.ok) {
@@ -989,13 +1025,31 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
   }
 }
 
+async function deliverPassEmailWithRetry(db: FirebaseFirestore.Firestore, deliveryId: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (await sendPassEmail(db, deliveryId)) return true;
+    const latest = await db.collection('emailDeliveries').doc(deliveryId).get();
+    if (latest.get('status') === 'sent') return true;
+    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1)));
+  }
+  return false;
+}
+
+async function dispatchRegistrationEmails(db: FirebaseFirestore.Firestore, registrationIds: string[]): Promise<void> {
+  try {
+    const ids = [...new Set(registrationIds.map(id => clean(id, 80)).filter(Boolean))].slice(0, 30);
+    if (!ids.length) return;
+    const deliveries = await db.collection('emailDeliveries').where('registration_id', 'in', ids).limit(30).get();
+    await Promise.all(deliveries.docs.map(delivery => deliverPassEmailWithRetry(db, delivery.id).catch(() => false)));
+  } catch (error) {
+    console.error('Pass email dispatch is queued for retry:', error instanceof Error ? error.message : 'unknown error');
+  }
+}
+
 async function dispatchOrderEmails(db: FirebaseFirestore.Firestore, razorpayOrderId: string): Promise<void> {
   try {
     const registrations = await db.collection('registrations').where('razorpay_order_id', '==', razorpayOrderId).limit(30).get();
-    const ids = registrations.docs.map(document => document.id);
-    if (!ids.length) return;
-    const deliveries = await db.collection('emailDeliveries').where('registration_id', 'in', ids).limit(30).get();
-    await Promise.all(deliveries.docs.map(delivery => sendPassEmail(db, delivery.id).catch(() => false)));
+    await dispatchRegistrationEmails(db, registrations.docs.map(document => document.id));
   } catch (error) {
     console.error('Pass email dispatch is queued for retry:', error instanceof Error ? error.message : 'unknown error');
   }
@@ -1220,7 +1274,7 @@ export const lookupPublicPasses = onRequest({
 
 export const razorpayWebhook = onRequest({
   region: 'asia-south1', timeoutSeconds: 120, memory: '512MiB', maxInstances: 20,
-  secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, REGISTRATION_ROLL_CLAIM_SECRET],
+  secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET, REGISTRATION_ROLL_CLAIM_SECRET, BREVO_API_KEY],
 }, async (request, response) => {
   if (request.method !== 'POST') { sendJson(response, 405, { error: 'Method not allowed.' }); return; }
   const signature = clean(request.get('x-razorpay-signature'), 128).toLowerCase();

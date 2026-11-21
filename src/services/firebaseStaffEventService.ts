@@ -64,7 +64,17 @@ export const FirebaseStaffEventService = {
   },
 
   async updateEvent(eventId: string, event: Partial<FestEvent>): Promise<FestEvent> {
-    const result = await call<{ event: FestEvent }>('updateStaffEvent', { eventId, event });
+    // updateStaffEvent owns identity/count/approval/department fields and rejects
+    // any payload that contains them. The edit screens submit the whole event
+    // object, so strip those server-managed keys before sending the patch.
+    const editable: Record<string, unknown> = { ...event };
+    delete editable.id;
+    delete editable.registeredCount;
+    delete editable.approvalStatus;
+    delete editable.departmentCode;
+    delete editable.clusterCode;
+
+    const result = await call<{ event: FestEvent }>('updateStaffEvent', { eventId, event: editable });
     return result.event;
   },
 

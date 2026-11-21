@@ -200,10 +200,13 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
     // the background instead of leaving a just-paid guest on an empty page.
     const cachedMatches = readGuestPassCache().filter(registration => registration.id === activePassId);
     if (cachedMatches.length > 0) {
-      setLiveRegistrations(previous => mergePasses(cachedMatches, previous));
+      // The cache is only a temporary placeholder while the live lookup runs.
+      // Backend data must win so a QR generated on another device is the one
+      // shown here; never let a stale localStorage token override Firestore.
+      setLiveRegistrations(previous => mergePasses(previous, cachedMatches));
       setActiveList(cachedMatches);
       setSelectedIndex(0);
-      setSearchFeedback('Saved on this device • verifying payment status…');
+      setSearchFeedback('Checking your pass…');
     }
 
     void lookupLivePasses(activePassId);
@@ -864,7 +867,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
                 {/* Verification/Entry Status */}
                 <div style={{ marginTop: '14px' }}>
-                  {!(reg.qrToken || reg.id) ? (
+                  {!reg.qrToken ? (
                     <div
                       style={{
                         display: 'inline-flex',
@@ -922,7 +925,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               </div>
 
               {/* QR Code token or entry ticket */}
-              {!(reg.qrToken || reg.id) ? (
+              {!reg.qrToken ? (
                 <div
                   style={{
                     textAlign: 'center',
@@ -975,7 +978,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '14px', borderRadius: '12px' }}>
-                  <LocalQrCode value={reg.qrToken || reg.id} size={120} alt="Entry QR pass" />
+                  <LocalQrCode value={reg.qrToken} size={120} alt="Entry QR pass" />
                   <div
                     style={{
                       fontFamily: 'monospace',
@@ -986,8 +989,38 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                       letterSpacing: '0.05em'
                     }}
                   >
-                    TOKEN: {reg.qrToken || reg.id}
+                    TOKEN: {reg.qrToken}
                   </div>
+                  {reg.leaderEmail && (
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleResendEmail(reg)}
+                        disabled={resendStatus[reg.id] === 'Sending...'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #2563EB',
+                          background: '#EFF6FF',
+                          color: '#1D4ED8',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          cursor: resendStatus[reg.id] === 'Sending...' ? 'wait' : 'pointer'
+                        }}
+                      >
+                        <Mail size={14} />
+                        {resendStatus[reg.id] === 'Sending...' ? 'Sending...' : 'Email this QR'}
+                      </button>
+                      {resendStatus[reg.id] && resendStatus[reg.id] !== 'Sending...' && (
+                        <div style={{ marginTop: '6px', color: '#334155', fontSize: '0.68rem' }}>
+                          {resendStatus[reg.id]}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

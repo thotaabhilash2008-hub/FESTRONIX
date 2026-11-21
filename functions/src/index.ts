@@ -2053,21 +2053,190 @@ export const approveStaffEvent = onCall({ enforceAppCheck: false }, async reques
   return { success: true };
 });
 
+const EVENT_DELETE_SCAN_LIMIT = 2000;
+const EVENT_DELETE_BATCH_SIZE = 450;
+
+async function collectByField(
+  db: FirebaseFirestore.Firestore,
+  collectionName: string,
+  field: string,
+  value: string,
+): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const collected: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let cursor: FirebaseFirestore.DocumentSnapshot | undefined;
+  while (collected.length < EVENT_DELETE_SCAN_LIMIT) {
+    const pageSize = Math.min(400, EVENT_DELETE_SCAN_LIMIT - collected.length + 1);
+    let query: FirebaseFirestore.Query = db.collection(collectionName).where(field, '==', value).limit(pageSize);
+    if (cursor) query = query.startAfter(cursor);
+    const snapshot = await query.get();
+    if (snapshot.docs.length > EVENT_DELETE_SCAN_LIMIT - collected.length) {
+      throw new HttpsError('resource-exhausted', 'This event has too many linked records to delete at once. Contact the fest desk.');
+    }
+    collected.push(...snapshot.docs);
+    if (snapshot.docs.length < pageSize) break;
+    cursor = snapshot.docs[snapshot.docs.length - 1];
+  }
+  return collected;
+}
+
+async function collectByFieldIn(
+  db: FirebaseFirestore.Firestore,
+  collectionName: string,
+  field: string,
+  values: string[],
+): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const collected: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  const unique = [...new Set(values.filter(Boolean))];
+  for (let index = 0; index < unique.length; index += 10) {
+    const snapshot = await db.collection(collectionName).where(field, 'in', unique.slice(index, index + 10)).limit(500).get();
+    collected.push(...snapshot.docs);
+  }
+  return collected;
+}
+
+async function deleteDocumentRefs(
+  db: FirebaseFirestore.Firestore,
+  refs: FirebaseFirestore.DocumentReference[],
+): Promise<number> {
+  const unique = [...new Map(refs.map(ref => [ref.path, ref])).values()];
+  for (let index = 0; index < unique.length; index += EVENT_DELETE_BATCH_SIZE) {
+    const batch = db.batch();
+    unique.slice(index, index + EVENT_DELETE_BATCH_SIZE).forEach(ref => batch.delete(ref));
+    await batch.commit();
+  }
+  return unique.length;
+}
+
+function eventIdsFromPaymentOrder(data: Record<string, unknown>): string[] {
+  const ids = new Set<string>();
+  const direct = textField(data.event_id);
+  if (direct) ids.add(direct);
+  const payload = data.payload && typeof data.payload === 'object' && !Array.isArray(data.payload)
+    ? data.payload as Record<string, unknown>
+    : {};
+  const payloadIds = Array.isArray(payload.eventIds) ? payload.eventIds : [];
+  payloadIds.forEach(id => { if (typeof id === 'string') ids.add(id); });
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  items.forEach(item => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      const itemEventId = textField((item as Record<string, unknown>).eventId);
+      if (itemEventId) ids.add(itemEventId);
+    }
+  });
+  return [...ids];
+}
+
 export const deleteStaffEvent = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
   const eventId = textField(request.data?.eventId);
   if (!eventId || !EVENT_ID_PATTERN.test(eventId)) throw new HttpsError('invalid-argument', 'A valid event ID is required.');
   const context = await loadStaffContext(uid);
-  const eventRef = context.db.collection('events').doc(eventId);
-  const projectionRef = context.db.collection('publicEvents').doc(eventId);
-  await context.db.runTransaction(async transaction => {
-    const snapshot = await transaction.get(eventRef);
-    if (!snapshot.exists) throw new HttpsError('not-found', 'The event was not found.');
-    const current = snapshot.data() as Record<string, unknown>;
-    if (!canManageEvent(context, eventId, current)) throw new HttpsError('permission-denied', 'This account cannot delete this event.');
-    transaction.update(eventRef, { is_deleted: true, deleted_at: new Date().toISOString(), status: 'closed', updated_at: new Date().toISOString() });
-    transaction.delete(projectionRef);
+  const db = context.db;
+  const eventRef = db.collection('events').doc(eventId);
+  const eventSnapshot = await eventRef.get();
+  if (!eventSnapshot.exists) throw new HttpsError('not-found', 'The event was not found.');
+  const current = eventSnapshot.data() as Record<string, unknown>;
+  if (!canManageEvent(context, eventId, current)) throw new HttpsError('permission-denied', 'This account cannot delete this event.');
+
+  // Gather every dependent record before writing anything. A Razorpay order
+  // with a captured payment (or an unresolved refund) must be reconciled by
+  // the finance team first; deleting it would destroy the payment audit trail.
+  const [registrationDocs, teamDocs, rollClaimDocs, assignmentDocs, directOrderDocs, recentOrderDocs] = await Promise.all([
+    collectByField(db, 'registrations', 'event_id', eventId),
+    collectByField(db, 'teams', 'event_id', eventId),
+    collectByField(db, 'registrationRollClaims', 'event_id', eventId),
+    collectByField(db, 'adminEventAssignments', 'event_id', eventId),
+    collectByField(db, 'paymentOrders', 'event_id', eventId),
+    db.collection('paymentOrders').orderBy('created_at', 'desc').limit(500).get().then(snapshot => snapshot.docs),
+  ]);
+
+  const orderDocs = [...new Map([...directOrderDocs, ...recentOrderDocs]
+    .filter(doc => eventIdsFromPaymentOrder(doc.data() as Record<string, unknown>).includes(eventId))
+    .map(doc => [doc.id, doc])).values()];
+  const unresolvedOrders = orderDocs.filter(doc => {
+    const data = doc.data() as Record<string, unknown>;
+    const status = textField(data.status) || '';
+    const refundStatus = textField(data.refund_status) || 'not_requested';
+    const hasCapture = Boolean(textField(data.razorpay_payment_id));
+    return refundStatus !== 'succeeded' &&
+      (['paid', 'completed', 'captured'].includes(status) || hasCapture || refundStatus === 'pending' || refundStatus === 'failed');
   });
-  return { success: true, deleted: true };
+  if (unresolvedOrders.length) {
+    throw new HttpsError('failed-precondition', 'This event has Razorpay payment history that must be reconciled before it can be deleted. Ask the finance team to review it first.');
+  }
+
+  const registrationIds = registrationDocs.map(doc => doc.id);
+  const [emailDocs, memberDocs, displayClaimDocs, tokenClaimDocs] = await Promise.all([
+    collectByFieldIn(db, 'emailDeliveries', 'registration_id', registrationIds),
+    collectByFieldIn(db, 'registrationMembers', 'registration_id', registrationIds),
+    collectByFieldIn(db, 'registrationDisplayClaims', 'registration_id', registrationIds),
+    collectByFieldIn(db, 'ticketTokenClaims', 'registration_id', registrationIds),
+  ]);
+  const checkoutDocs = await collectByFieldIn(
+    db, 'paymentCheckoutRequests', 'order_id', orderDocs.map(doc => doc.id),
+  );
+  const teamCodeRefs = teamDocs
+    .map(doc => {
+      const data = doc.data() as Record<string, unknown>;
+      const code = textField(data.lookup_team_code) || normalizeRegistrationTeamCode(textField(data.team_code) || '');
+      return code ? db.collection('teamCodeClaims').doc(code) : null;
+    })
+    .filter((ref): ref is FirebaseFirestore.DocumentReference => Boolean(ref));
+  const gatewayOrderIds = [...new Set(orderDocs
+    .map(doc => textField(doc.get('razorpay_order_id')))
+    .filter((id): id is string => Boolean(id)))];
+  const razorpayClaimRefs = gatewayOrderIds.map(id => db.collection('razorpayOrderClaims').doc(id));
+
+  const now = new Date().toISOString();
+  const slug = textField(current.slug);
+  const projectionRef = db.collection('publicEvents').doc(eventId);
+  const slugClaimRef = slug ? db.collection('eventSlugClaims').doc(slug) : null;
+
+  // Hide the event first so no new registration or checkout can be created
+  // while the dependent records are being removed. This update is idempotent,
+  // so an interrupted cleanup can be retried by clicking Delete again.
+  await db.runTransaction(async transaction => {
+    const freshSnapshot = await transaction.get(eventRef);
+    if (!freshSnapshot.exists) throw new HttpsError('not-found', 'The event was not found.');
+    const fresh = freshSnapshot.data() as Record<string, unknown>;
+    if (!canManageEvent(context, eventId, fresh)) throw new HttpsError('permission-denied', 'This account cannot delete this event.');
+    if (fresh.is_deleted !== true && !fresh.deleted_at) {
+      transaction.update(eventRef, {
+        is_deleted: true, deleted_at: now, status: 'closed', registered_count: 0, updated_at: now,
+      });
+    }
+    transaction.delete(projectionRef);
+    if (slugClaimRef) transaction.delete(slugClaimRef);
+    assignmentDocs.forEach(doc => transaction.delete(doc.ref));
+  });
+
+  const childRefs: FirebaseFirestore.DocumentReference[] = [
+    ...registrationDocs.map(doc => doc.ref),
+    ...registrationIds.map(id => db.collection('tickets').doc(id)),
+    ...emailDocs.map(doc => doc.ref),
+    ...memberDocs.map(doc => doc.ref),
+    ...displayClaimDocs.map(doc => doc.ref),
+    ...tokenClaimDocs.map(doc => doc.ref),
+    ...rollClaimDocs.map(doc => doc.ref),
+    ...teamDocs.map(doc => doc.ref),
+    ...teamCodeRefs,
+    ...orderDocs.map(doc => doc.ref),
+    ...checkoutDocs.map(doc => doc.ref),
+    ...razorpayClaimRefs,
+  ];
+  const documentsDeleted = await deleteDocumentRefs(db, childRefs);
+
+  await db.collection('auditLogs').doc(randomUUID()).set({
+    action: 'staff_event_deleted',
+    actor_uid: uid,
+    actor_role: context.role,
+    event_id: eventId,
+    event_title: textField(current.title) || '',
+    registrations_deleted: registrationIds.length,
+    documents_deleted: documentsDeleted,
+    created_at: now,
+  });
+
+  return { success: true, deleted: true, registrationsDeleted: registrationIds.length, documentsDeleted };
 });

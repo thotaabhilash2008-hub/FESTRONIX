@@ -17,6 +17,7 @@ import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
 import { Department, FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { AdminHeader } from './AdminHeader';
 import { DeptSidebar } from './DeptSidebar';
+import { ConfirmActionModal } from './ConfirmActionModal';
 
 interface DeptCoordinatorDashboardProps {
   adminUser: AdminUser;
@@ -226,6 +227,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Edit Event Modal State (8.1 • Edit event details, rules, team limits, fee, capacity, deadline, schedule and venue)
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [eventPendingDelete, setEventPendingDelete] = useState<FestEvent | null>(null);
+  const [eventDeleteError, setEventDeleteError] = useState<string | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [eventCreateError, setEventCreateError] = useState('');
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -693,20 +696,26 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
   };
 
-  const handleDeleteDepartmentEvent = async (event: FestEvent) => {
+  const handleDeleteDepartmentEvent = (event: FestEvent) => {
     if (!isDeptChief) {
       window.alert('Only the department coordinator can delete department events.');
       return;
     }
-    const confirmed = window.confirm(`Permanently delete "${event.title}"? Its registrations, tickets, and event-coordinator assignments will also be deleted. Events with Razorpay order history must be reconciled before they can be removed. This cannot be undone.`);
-    if (!confirmed) return;
+    setEventDeleteError(null);
+    setEventPendingDelete(event);
+  };
 
+  const confirmDeleteDepartmentEvent = async () => {
+    const event = eventPendingDelete;
+    if (!event || deletingEventId) return;
     setDeletingEventId(event.id);
+    setEventDeleteError(null);
     try {
       await StorageService.deleteEvent(event.id, event.slug);
+      setEventPendingDelete(null);
       await refreshDeptData();
     } catch (error) {
-      window.alert((error as Error).message || 'Unable to permanently delete the event.');
+      setEventDeleteError((error as Error).message || 'Unable to permanently delete the event.');
     } finally {
       setDeletingEventId(null);
     }
@@ -4595,6 +4604,18 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             </button>
           </div>
         </div>
+      )}
+
+      {eventPendingDelete && (
+        <ConfirmActionModal
+          title="Delete event permanently?"
+          message={`“${eventPendingDelete.title}” and all of its registrations, tickets, passes, teams, claims, email records, and event-coordinator assignments will be removed. The event itself is hidden from the site and admin list.`}
+          confirmLabel="Delete event"
+          busy={deletingEventId === eventPendingDelete.id}
+          error={eventDeleteError}
+          onConfirm={() => void confirmDeleteDepartmentEvent()}
+          onCancel={() => { setEventPendingDelete(null); setEventDeleteError(null); }}
+        />
       )}
       </div>
     </div>

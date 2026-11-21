@@ -12,11 +12,13 @@ import jsQR from 'jsqr';
 import confetti from 'canvas-confetti';
 import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
+import { FirebaseStaffEventService } from '../../services/firebaseStaffEventService';
 import { 
   FestEvent, Registration, Announcement, FestStats, PaymentStatus, 
   EventCategory, EventFormat, Department
 } from '../../types/festronix';
 import { ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
+import { ConfirmActionModal } from './ConfirmActionModal';
 import { isFirebaseConfigured } from '../../lib/firebase';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar, AdminNavTab } from './AdminSidebar';
@@ -159,6 +161,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // Modal States
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
+  const [eventPendingDelete, setEventPendingDelete] = useState<FestEvent | null>(null);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [eventDeleteError, setEventDeleteError] = useState<string | null>(null);
   const [isAddCoordinatorOpen, setIsAddCoordinatorOpen] = useState(false);
   const [coordinatorCreatedForEventId, setCoordinatorCreatedForEventId] = useState<string | null>(null);
 
@@ -660,12 +665,18 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // SAC Event Approval Handler (FR-EVT-08)
   const handleApproveEvent = async (event: FestEvent) => {
     try {
-      const updated: FestEvent = {
-        ...event,
-        status: 'open',
-        approvalStatus: 'approved'
-      };
-      await StorageService.updateEvent(updated);
+      if (isFirebaseConfigured) {
+        // Approval is server-managed in Firebase mode. updateStaffEvent rejects
+        // approvalStatus, so use the dedicated approval callable instead.
+        await FirebaseStaffEventService.approveEvent(event.id);
+      } else {
+        const updated: FestEvent = {
+          ...event,
+          status: 'open',
+          approvalStatus: 'approved'
+        };
+        await StorageService.updateEvent(updated);
+      }
       confetti({ particleCount: 70, spread: 50 });
       await refreshAllData();
     } catch (error) {
@@ -673,16 +684,26 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     }
   };
 
-  // Delete Event Handler
-  const handleDeleteEvent = async (event: FestEvent) => {
-    const confirmed = window.confirm(`Permanently delete "${event.title}"? Its registrations, tickets, and event assignments will also be deleted. Events with Razorpay order history must be reconciled before they can be removed. This cannot be undone.`);
-    if (confirmed) {
-      try {
-        await StorageService.deleteEvent(event.id, event.slug);
-        await refreshAllData();
-      } catch (error) {
-        window.alert((error as Error).message || 'Unable to delete event.');
-      }
+  // Delete Event Handler — uses an in-app dialog because native confirm()
+  // can be silently suppressed by browsers and embedded previews.
+  const handleDeleteEvent = (event: FestEvent) => {
+    setEventDeleteError(null);
+    setEventPendingDelete(event);
+  };
+
+  const confirmDeleteEvent = async () => {
+    const event = eventPendingDelete;
+    if (!event || deletingEventId) return;
+    setDeletingEventId(event.id);
+    setEventDeleteError(null);
+    try {
+      await StorageService.deleteEvent(event.id, event.slug);
+      setEventPendingDelete(null);
+      await refreshAllData();
+    } catch (error) {
+      setEventDeleteError((error as Error).message || 'Unable to delete event.');
+    } finally {
+      setDeletingEventId(null);
     }
   };
 
@@ -2970,6 +2991,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => handleDeleteEvent(event)}
                         style={{
                           background: 'rgba(239, 68, 68, 0.12)',
@@ -7897,6 +7919,18 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             </button>
           </div>
         </div>
+      )}
+
+      {eventPendingDelete && (
+        <ConfirmActionModal
+          title="Delete event permanently?"
+          message={`“${eventPendingDelete.title}” and all of its registrations, tickets, passes, teams, claims, email records, and coordinator assignments will be removed. The event itself is hidden from the site and admin list.`}
+          confirmLabel="Delete event"
+          busy={deletingEventId === eventPendingDelete.id}
+          error={eventDeleteError}
+          onConfirm={() => void confirmDeleteEvent()}
+          onCancel={() => { setEventPendingDelete(null); setEventDeleteError(null); }}
+        />
       )}
       </div>
     </div>
