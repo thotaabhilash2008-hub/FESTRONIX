@@ -337,6 +337,29 @@ async function callRazorpay(path: string, keyId: string, keySecret: string, init
   return { response, body };
 }
 
+const memoryRateLimits = new Map<string, { count: number; expiresAt: number }>();
+
+function consumeMemoryRateLimit(key: string, limit: number): boolean {
+  const now = Date.now();
+  for (const [entryKey, entry] of memoryRateLimits) {
+    if (entry.expiresAt <= now) memoryRateLimits.delete(entryKey);
+  }
+  const count = (memoryRateLimits.get(key)?.count || 0) + 1;
+  if (count > limit) return false;
+  memoryRateLimits.set(key, { count, expiresAt: now + 10 * 60_000 });
+  return true;
+}
+
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, fallback: T): Promise<T> {
+  return new Promise(resolve => {
+    const timer = setTimeout(() => resolve(fallback), milliseconds);
+    promise.then(
+      value => { clearTimeout(timer); resolve(value); },
+      () => { clearTimeout(timer); resolve(fallback); },
+    );
+  });
+}
+
 async function rateLimit(request: Request, route: string, subject = ''): Promise<boolean> {
   // Fall back to the socket address so local dev (no proxy headers) is not
   // treated as an attacker; Vercel and Cloud Functions set request.ip.
@@ -346,19 +369,24 @@ async function rateLimit(request: Request, route: string, subject = ''): Promise
   const minuteBucket = Math.floor(Date.now() / 60_000);
   const actor = subject ? `subject:${subject}` : `ip:${ip}`;
   const key = createHmac('sha256', secret).update(`${route}\0${actor}\0${minuteBucket}`).digest('hex');
+  const limit = route === 'create-order' ? 20
+    : route === 'resend-pass-email' ? 3
+      : route === 'resend-pass-email-recipient' ? 2
+      : route === 'pass-lookup' ? 20 : 40;
+
+  // Firestore quota exhaustions must not turn a valid Razorpay checkout into a
+  // 60-second timeout. The in-memory limiter protects each instance while the
+  // authoritative Firestore counter is unavailable.
+  if (!consumeMemoryRateLimit(key, limit)) return false;
   const db = getFirestore();
   const ref = db.collection('publicRateLimits').doc(key);
-  return db.runTransaction(async transaction => {
+  return withTimeout(db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     const next = Number(snapshot.get('count') || 0) + 1;
-    const limit = route === 'create-order' ? 20
-      : route === 'resend-pass-email' ? 3
-        : route === 'resend-pass-email-recipient' ? 2
-        : route === 'pass-lookup' ? 20 : 40;
     if (next > limit) return false;
     transaction.set(ref, { count: next, expires_at: Timestamp.fromMillis((minuteBucket + 10) * 60_000) });
     return true;
-  });
+  }), 4000, true);
 }
 
 export const createRazorpayOrder = onRequest({
