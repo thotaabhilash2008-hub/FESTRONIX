@@ -205,6 +205,7 @@ export const App: React.FC = () => {
   // State
   const [events, setEvents] = useState<FestEvent[]>([]);
   const [publicEvents, setPublicEvents] = useState<FestEvent[]>([]);
+  const [isEventsLoading, setIsEventsLoading] = useState<boolean>(true);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -244,6 +245,7 @@ export const App: React.FC = () => {
 
 
   const refreshData = async () => {
+    setIsEventsLoading(true);
     if (isFirebaseConfigured) {
       // The public site must not request staff-only event/registration lists.
       // Load each public Firebase projection independently so a problem with
@@ -257,7 +259,10 @@ export const App: React.FC = () => {
       // The coming-soon page is intentionally independent of event and
       // registration data. Skipping these public reads keeps the Firebase read
       // budget available for staff sign-in on every device.
-      if (COMING_SOON_ONLY) return;
+      if (COMING_SOON_ONLY) {
+        setIsEventsLoading(false);
+        return;
+      }
 
       const [eventsResult, announcementsResult, departmentsResult] = await Promise.allSettled([
         fetchFirebasePublicEvents(),
@@ -270,11 +275,19 @@ export const App: React.FC = () => {
         setPublicEvents(eventsResult.value);
       } else {
         console.error('Firebase public events could not be loaded.', eventsResult.reason);
+        // Firestore quota failures must not leave the events page spinning on
+        // "Loading Festival Events..." forever. Use the last cached schedule.
+        const cachedEvents = StorageService.getEvents();
+        if (cachedEvents.length > 0) {
+          setEvents(cachedEvents);
+          setPublicEvents(cachedEvents);
+        }
       }
       if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
       else console.warn('Firebase public announcements could not be loaded.', announcementsResult.reason);
       if (departmentsResult.status === 'fulfilled') setDepartments(departmentsResult.value);
       else console.warn('Firebase public departments could not be loaded.', departmentsResult.reason);
+      setIsEventsLoading(false);
       return;
     }
 
@@ -312,6 +325,7 @@ export const App: React.FC = () => {
     } catch (err) {
       console.warn('Background sync warning:', err);
     }
+    setIsEventsLoading(false);
   };
 
   useEffect(() => {
@@ -581,6 +595,7 @@ export const App: React.FC = () => {
         <AllEventsPage
           events={publicEvents}
           departments={departments}
+          isLoading={isEventsLoading}
           passesCount={registrations.length}
           onBackToHome={handleBackFromAllEventsPage}
           onSelectEvent={evt => setDetailEvent(evt)}

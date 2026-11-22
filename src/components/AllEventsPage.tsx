@@ -26,6 +26,7 @@ import { Footer } from './Footer';
 interface AllEventsPageProps {
   events: FestEvent[];
   departments: Department[];
+  isLoading?: boolean;
   passesCount: number;
   onBackToHome: () => void;
   onSelectEvent: (event: FestEvent) => void;
@@ -70,6 +71,7 @@ function getCategoryLabel(category: FestEvent['category']): string {
 export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   events,
   departments,
+  isLoading = false,
   passesCount,
   onBackToHome,
   onSelectEvent,
@@ -887,7 +889,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
         </section>
 
         {/* Events Display */}
-        {events.length === 0 ? (
+        {isLoading ? (
           <div
             className="cyber-card"
             style={{ padding: '64px 24px', textAlign: 'center', color: '#94A3B8' }}
@@ -897,6 +899,19 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             </h2>
             <p style={{ fontSize: '0.9rem', margin: 0 }}>
               Fetching the complete FESTRONIX 2026 event schedule.
+            </p>
+          </div>
+        ) : events.length === 0 ? (
+          <div
+            className="cyber-card"
+            style={{ padding: '64px 24px', textAlign: 'center', color: '#94A3B8' }}
+          >
+            <Inbox size={40} color="#38BDF8" style={{ margin: '0 auto 12px' }} />
+            <h2 style={{ color: '#FFFFFF', fontSize: '1.2rem', marginBottom: '8px' }}>
+              Festival Schedule Unavailable
+            </h2>
+            <p style={{ fontSize: '0.9rem', margin: 0 }}>
+              The event schedule could not be loaded right now. Please try again shortly.
             </p>
           </div>
         ) : filteredEvents.length === 0 ? (
