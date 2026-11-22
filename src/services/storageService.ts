@@ -1878,20 +1878,9 @@ export class StorageService {
 
   static async fetchDepartments(): Promise<Department[]> {
     if (isFirebaseConfigured) {
-      try {
-        const departments = await FirebaseContentService.departments();
-        this.saveDepartments(departments);
-        return departments;
-      } catch (error) {
-        // A transient Firebase quota error should not blank the dashboard matrix.
-        // Use the last successfully loaded departments when available.
-        const cached = this.getDepartments();
-        if (cached.length > 0) {
-          console.warn('Using cached departments because Firebase could not be reached.', error);
-          return cached;
-        }
-        throw error;
-      }
+      const departments = await FirebaseContentService.departments();
+      this.saveDepartments(departments);
+      return departments;
     }
     if (isSupabaseConfigured()) {
       try {

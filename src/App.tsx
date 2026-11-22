@@ -275,13 +275,6 @@ export const App: React.FC = () => {
         setPublicEvents(eventsResult.value);
       } else {
         console.error('Firebase public events could not be loaded.', eventsResult.reason);
-        // Firestore quota failures must not leave the events page spinning on
-        // "Loading Festival Events..." forever. Use the last cached schedule.
-        const cachedEvents = StorageService.getEvents();
-        if (cachedEvents.length > 0) {
-          setEvents(cachedEvents);
-          setPublicEvents(cachedEvents);
-        }
       }
       if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
       else console.warn('Firebase public announcements could not be loaded.', announcementsResult.reason);
