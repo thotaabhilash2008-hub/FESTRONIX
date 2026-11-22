@@ -14,6 +14,11 @@ export async function sendRegistrationPassEmail(registration: Registration): Pro
   if (!registration.leaderEmail?.trim()) {
     return { sent: false, message: 'No attendee email was provided; the pass remains available on the website.' };
   }
+  // Paid pass emails are dispatched by the backend only after Razorpay capture
+  // verification. Never let a client-side call send one early or twice.
+  if (registration.paymentMethod === 'razorpay' || registration.paymentStatus === 'verification_pending') {
+    return { sent: false, message: 'Paid pass emails are sent after Razorpay confirmation.' };
+  }
 
   try {
     const operation = registration.emailDeliveryToken

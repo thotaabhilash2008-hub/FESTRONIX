@@ -313,14 +313,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     });
   };
 
-  const finishSuccessfulRegistration = (created: Registration[]) => {
+  const finishSuccessfulRegistration = (created: Registration[], sendEmail = true) => {
     const finalReg = created[created.length - 1];
     confetti({ particleCount: 110, spread: 75, origin: { y: 0.6 } });
     if (!finalReg) return;
 
-    // The pass is already stored and can be opened immediately. Email delivery
-    // remains independent so a provider outage cannot cause duplicate retries.
+    // The pass is already stored and can be opened immediately. For Razorpay
+    // registrations the backend sends the email only after the captured payment
+    // is verified, so the browser must not fire a second/earlier delivery.
     onSuccess(finalReg);
+    if (!sendEmail) return;
     void Promise.all(created.map(registration => sendRegistrationPassEmail(registration)))
       .then(emailResults => {
         const emailFailure = emailResults.find(result => !result.sent);
@@ -337,7 +339,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     try {
       const batch = await buildRegistrationBatch(event.fee > 0 ? 'verification_pending' : 'not_applicable');
       const created = await completeRazorpayCheckout(event, batch, setRazorpayMode);
-      finishSuccessfulRegistration(created);
+      finishSuccessfulRegistration(created, false);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Razorpay payment could not be confirmed. If your bank shows a charge, check My Passes before retrying; the server will complete or refund it.');
     } finally {

@@ -57,8 +57,22 @@ function basicAuth(keyId: string, keySecret: string): string {
   return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
 }
 
+function setStatus(response: Response, status: number): void {
+  // Express provides status(); the Vercel Node runtime may only expose
+  // statusCode. Support both so payment endpoints never hang before replying.
+  if (typeof response.status === 'function') response.status(status);
+  else response.statusCode = status;
+}
+
 function sendJson(response: Response, status: number, body: unknown): void {
-  response.status(status).set('Content-Type', 'application/json; charset=utf-8').send(JSON.stringify(body));
+  setStatus(response, status);
+  response.setHeader('Content-Type', 'application/json; charset=utf-8');
+  response.end(JSON.stringify(body));
+}
+
+function sendEmpty(response: Response, status: number): void {
+  setStatus(response, status);
+  response.end();
 }
 
 function publicSiteUrl(): string {
@@ -77,10 +91,13 @@ function configureCors(request: Request, response: Response): boolean {
     sendJson(response, 403, { error: 'This website is not allowed to start a payment.' });
     return false;
   }
-  if (origin) response.set('Access-Control-Allow-Origin', origin).set('Vary', 'Origin');
-  response.set('Access-Control-Allow-Headers', 'content-type, x-razorpay-signature, x-checkout-request-id');
-  response.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  response.set('Access-Control-Max-Age', '600');
+  if (origin) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+    response.setHeader('Vary', 'Origin');
+  }
+  response.setHeader('Access-Control-Allow-Headers', 'content-type, x-razorpay-signature, x-checkout-request-id');
+  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Max-Age', '600');
   return true;
 }
 
@@ -352,7 +369,7 @@ export const createRazorpayOrder = onRequest({
   secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, REGISTRATION_ROLL_CLAIM_SECRET],
 }, async (request, response) => {
   if (!configureCors(request, response)) return;
-  if (request.method === 'OPTIONS') { response.status(204).send(''); return; }
+  if (request.method === 'OPTIONS') { sendEmpty(response, 204); return; }
   if (request.method !== 'POST') { sendJson(response, 405, { error: 'Method not allowed.' }); return; }
   const keyId = RAZORPAY_KEY_ID.value().trim();
   const keySecret = RAZORPAY_KEY_SECRET.value();
@@ -888,7 +905,7 @@ export const verifyRazorpayPayment = onRequest({
   secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, REGISTRATION_ROLL_CLAIM_SECRET, BREVO_API_KEY],
 }, async (request, response) => {
   if (!configureCors(request, response)) return;
-  if (request.method === 'OPTIONS') { response.status(204).send(''); return; }
+  if (request.method === 'OPTIONS') { sendEmpty(response, 204); return; }
   if (request.method !== 'POST') { sendJson(response, 405, { error: 'Method not allowed.' }); return; }
   try {
     if (!await rateLimit(request, 'verify-payment')) { sendJson(response, 429, { error: 'Too many verification attempts. Wait a minute and retry.' }); return; }
@@ -950,6 +967,14 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
     return false;
   }
   const registration = registrationSnapshot.data() as AnyRecord;
+  // A Razorpay pass email is only valid after the captured payment has been
+  // verified and persisted. Free passes use payment_status 'not_applicable'.
+  const paymentMethod = clean(registration.payment_method, 40);
+  const paymentStatus = clean(registration.payment_status, 40);
+  if (paymentMethod === 'razorpay' && (paymentStatus !== 'verified' || !clean(registration.razorpay_payment_id, 100))) {
+    await deliveryRef.update({ status: 'failed', last_error: 'The payment has not been verified yet.', updated_at: new Date().toISOString() });
+    return false;
+  }
   const ticketSnapshot = await db.collection('tickets').doc(registrationId).get();
   const qrToken = clean(ticketSnapshot.get('qr_token'), 200);
   const eventSnapshot = await db.collection('events').doc(clean(registration.event_id, 80)).get();
@@ -966,7 +991,6 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
   const eventTitle = clean(registration.event_title, 140) || 'FESTRONIX event';
   const participant = clean(registration.leader_name, 120) || 'FESTRONIX participant';
   const fee = Number(registration.fee || 0);
-  const paymentStatus = String(registration.payment_status || '');
   const statusLabel = paymentStatus === 'verified' ? 'PAID · CONFIRMED' : paymentStatus === 'not_applicable' ? 'CONFIRMED' : paymentStatus.toUpperCase();
   const safe = (value: unknown) => escapeHtml(value);
   // Draw the QR with HTML table cells so it is visible even when Gmail blocks
@@ -1076,7 +1100,7 @@ export const sendRegistrationPassEmail = onRequest({
   secrets: [BREVO_API_KEY],
 }, async (request, response) => {
   if (!configureCors(request, response)) return;
-  if (request.method === 'OPTIONS') { response.status(204).send(''); return; }
+  if (request.method === 'OPTIONS') { sendEmpty(response, 204); return; }
   if (request.method !== 'POST') { sendJson(response, 405, { error: 'Method not allowed.' }); return; }
   const token = clean(requestObject(request.body).deliveryToken, 80);
   if (!/^[a-f0-9]{64}$/i.test(token)) { sendJson(response, 400, { sent: false, error: 'Invalid email delivery token.' }); return; }
@@ -1098,7 +1122,7 @@ export const resendRegistrationPassEmail = onRequest({
   secrets: [BREVO_API_KEY, REGISTRATION_ROLL_CLAIM_SECRET],
 }, async (request, response) => {
   if (!configureCors(request, response)) return;
-  if (request.method === 'OPTIONS') { response.status(204).send(''); return; }
+  if (request.method === 'OPTIONS') { sendEmpty(response, 204); return; }
   if (request.method !== 'POST') { sendJson(response, 405, { error: 'Method not allowed.' }); return; }
   try {
     if (!await rateLimit(request, 'resend-pass-email')) {
@@ -1166,7 +1190,7 @@ export const lookupPublicPasses = onRequest({
   secrets: [REGISTRATION_ROLL_CLAIM_SECRET],
 }, async (request, response) => {
   if (!configureCors(request, response)) return;
-  if (request.method === 'OPTIONS') { response.status(204).send(''); return; }
+  if (request.method === 'OPTIONS') { sendEmpty(response, 204); return; }
   if (request.method !== 'POST') { sendJson(response, 405, { error: 'Method not allowed.' }); return; }
   try {
     if (!await rateLimit(request, 'pass-lookup')) {
