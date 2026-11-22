@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
+import { HeroSection as ComingSoonHeroSection } from './components/ComingSoonHeroSection';
 import { EventsGlimpseSection } from './components/EventsGlimpseSection';
 import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
@@ -52,7 +53,7 @@ const ComingSoonPage: React.FC = () => (
         className="public-main coming-soon-main"
         style={{ flex: 1, position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column' }}
       >
-        <HeroSection />
+        <ComingSoonHeroSection />
       </main>
     </div>
   </ScrollAnimationsProvider>
