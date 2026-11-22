@@ -1403,9 +1403,31 @@ export const listPublicEvents = onCall({ enforceAppCheck: false }, async () => {
   return { events };
 });
 
+let publicDepartmentsCache: ReturnType<typeof departmentPayload>[] | null = null;
+
 export const listPublicDepartments = onCall({ enforceAppCheck: false }, async () => {
-  const snapshot = await getFirestore().collection('departments').limit(100).get();
-  return { departments: snapshot.docs.map(document => departmentPayload(document.id, document.data())) };
+  try {
+    const snapshot = await getFirestore().collection('departments').limit(100).get();
+    const departments = snapshot.docs.map(document => departmentPayload(document.id, document.data()));
+    if (departments.length > 0) publicDepartmentsCache = departments;
+    return { departments };
+  } catch (error) {
+    if (!isFirestoreQuotaError(error)) throw error;
+
+    if (publicDepartmentsCache?.length) return { departments: publicDepartmentsCache };
+
+    // Static last-known-good snapshot for cold starts while Firestore is over quota.
+    const raw = process.env.PUBLIC_DEPARTMENTS_FALLBACK_JSON;
+    if (raw) {
+      try {
+        const fallback = JSON.parse(raw) as { departments?: ReturnType<typeof departmentPayload>[] };
+        if (fallback.departments?.length) return { departments: fallback.departments };
+      } catch {
+        // Ignore a malformed fallback and surface the original quota error.
+      }
+    }
+    throw error;
+  }
 });
 
 function sponsorProfilePayload(id: string, raw: Record<string, unknown>, publicOnly = false) {

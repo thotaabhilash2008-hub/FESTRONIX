@@ -28,7 +28,7 @@ import { AboutSection } from './components/AboutSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
-const COMING_SOON_ONLY = true;
+const COMING_SOON_ONLY = import.meta.env.VITE_COMING_SOON_ONLY !== 'false';
 
 // Exact public page from the repository's `coming-soon` branch. Kept here so the
 // Firebase-only codex deployment can show the same page without changing the
