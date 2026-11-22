@@ -57,6 +57,10 @@ function basicAuth(keyId: string, keySecret: string): string {
   return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString('base64')}`;
 }
 
+function isQuotaError(error: unknown): boolean {
+  return error instanceof Error && /RESOURCE_EXHAUSTED|Quota exceeded/i.test(error.message);
+}
+
 function setStatus(response: Response, status: number): void {
   // Express provides status(); the Vercel Node runtime may only expose
   // statusCode. Support both so payment endpoints never hang before replying.
@@ -487,6 +491,10 @@ export const createRazorpayOrder = onRequest({
       eventTitle: checkout.eventIds.length === 1 ? checkout.items[0].eventTitle : `${checkout.items.length} FESTRONIX passes`, receipt,
     });
   } catch (error) {
+    if (isQuotaError(error)) {
+      sendJson(response, 503, { error: 'Firebase is temporarily over its Firestore quota. Payment checkout is paused; please retry shortly.' });
+      return;
+    }
     const message = error instanceof Error ? error.message : 'Unable to start the payment checkout.';
     sendJson(response, 409, { error: message });
   }
@@ -949,6 +957,10 @@ export const verifyRazorpayPayment = onRequest({
     if (result.ignored) { sendJson(response, 404, { error: 'The payment order could not be found.' }); return; }
     sendJson(response, 200, result);
   } catch (error) {
+    if (isQuotaError(error)) {
+      sendJson(response, 503, { error: 'Firebase is temporarily over its Firestore quota. Payment verification is paused; your payment will be reconciled when quota recovers.' });
+      return;
+    }
     sendJson(response, 409, { error: error instanceof Error ? error.message : 'Unable to verify the Razorpay payment.' });
   }
 });
