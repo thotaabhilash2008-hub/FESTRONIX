@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio, LayoutGrid } from 'lucide-react';
+import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio, LayoutGrid, Play } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
 import { HeroAnimation } from './animations';
 
@@ -305,6 +305,46 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <Ticket size={16} />
             <span>Register Now</span>
           </button>
+
+          {onOpenIntro && (
+            <button
+              onClick={onOpenIntro}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                fontSize: '0.88rem',
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                color: '#F3F0EA',
+                background: 'rgba(28, 43, 89, 0.45)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#38BDF8';
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.18)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 0 20px rgba(56, 189, 248, 0.35)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                e.currentTarget.style.background = 'rgba(28, 43, 89, 0.45)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.5)';
+              }}
+              title="Watch Festronix Cinematic Introduction Video"
+            >
+              <Play size={14} color="#38BDF8" fill="#38BDF8" />
+              <span>Watch Intro</span>
+            </button>
+          )}
         </div>
 
         {/* Architectural Countdown Metrics */}

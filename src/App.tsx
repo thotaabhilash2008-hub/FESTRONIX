@@ -177,8 +177,41 @@ export const App: React.FC = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
+  // Intro video session check: plays once per session on initial public landing
+  const INTRO_PLAYED_KEY = 'festronix_intro_played';
+  const shouldPlayIntroOnce = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    const pathname = window.location.pathname || '';
+    // Skip intro if user is directly accessing deep-links (admin, registration, verify)
+    if (
+      hash.includes('admin') ||
+      pathname.includes('/admin') ||
+      search.includes('registration=') ||
+      search.includes('verify=') ||
+      search.includes('pass=')
+    ) {
+      return false;
+    }
+    try {
+      return !sessionStorage.getItem(INTRO_PLAYED_KEY);
+    } catch {
+      return false;
+    }
+  };
+
   // Intro video & modals
-  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(false);
+  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(shouldPlayIntroOnce);
+
+  const handleIntroFinish = () => {
+    setIsIntroOpen(false);
+    try {
+      sessionStorage.setItem(INTRO_PLAYED_KEY, 'true');
+    } catch {
+      // ignore
+    }
+  };
   const [isKineticStageReady, setIsKineticStageReady] = useState<boolean>(false);
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
@@ -465,7 +498,7 @@ export const App: React.FC = () => {
     return (
       <FullscreenIntro
         isOpen={isIntroOpen}
-        onFinish={() => setIsIntroOpen(false)}
+        onFinish={handleIntroFinish}
       />
     );
   }

@@ -1,31 +1,24 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, VolumeX, ArrowRight } from 'lucide-react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Volume2, VolumeX, ArrowRight, Play, Loader2 } from 'lucide-react';
 
 interface FullscreenIntroProps {
   isOpen: boolean;
   onFinish: () => void;
 }
 
-// Determines if device is mobile, tablet, or 9:16 portrait display
+// Determines if device is in portrait orientation (phones/tablets in portrait)
+// versus landscape (desktops, laptops, horizontal tablets/phones)
 const getIntroVideoSrc = (): string => {
   if (typeof window === 'undefined') return '/intro_final2.mp4';
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const aspectRatio = width / (height || 1);
 
-  // 9:16 aspect ratio or vertical portrait devices (e.g. phones in portrait)
-  const isNineSixteenOrPortrait = aspectRatio <= 0.85 ||
+  // Portrait mode: height > width, or standard portrait media query
+  const isPortrait = height > width ||
     (window.matchMedia && window.matchMedia('(orientation: portrait)').matches);
 
-  // Mobile or tablet detection (screens <= 1024px or mobile touch devices)
-  const isMobileOrTabletScreen = width <= 1024;
-  const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Tablet/i.test(
-    navigator.userAgent
-  );
-  const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-
-  if (isNineSixteenOrPortrait || isMobileOrTabletScreen || (isMobileUserAgent && isTouchDevice)) {
+  if (isPortrait) {
     return '/intro_mobile.mp4';
   }
 
@@ -40,6 +33,9 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [videoSrc, setVideoSrc] = useState<string>(getIntroVideoSrc);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(false);
 
   // Dynamically update source if screen orientation or viewport changes
   useEffect(() => {
@@ -56,14 +52,48 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
     };
   }, []);
 
+  // Safe play helper that handles iOS/Android autoplay policy & power saving mode
+  const attemptPlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Explicitly enforce muted on the DOM element for mobile autoplay eligibility
+    video.muted = isMuted;
+    video.defaultMuted = isMuted;
+    video.playsInline = true;
+
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsPlaying(true);
+          setIsAutoplayBlocked(false);
+          setIsLoading(false);
+        })
+        .catch(err => {
+          console.warn("Autoplay requires user interaction:", err);
+          setIsAutoplayBlocked(true);
+          setIsLoading(false);
+        });
+    }
+  }, [isMuted]);
+
   useEffect(() => {
     if (!isOpen) return;
 
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().catch(err => {
-        console.log("Autoplay waiting for user gesture:", err);
-      });
+    const video = videoRef.current;
+    if (video) {
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      if (video.currentTime > 0) {
+        try {
+          video.currentTime = 0;
+        } catch {
+          // ignore
+        }
+      }
+      attemptPlay();
     }
 
     // Complete scroll lock for body & html on mobile and desktop
@@ -76,8 +106,8 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
     document.body.style.touchAction = 'none';
 
     const preventDefaultTouch = (e: TouchEvent) => {
-      // Allow button taps
-      if ((e.target as HTMLElement)?.closest('button')) {
+      // Allow button and interactable taps
+      if ((e.target as HTMLElement)?.closest('button, .intro-interactive')) {
         return;
       }
       if (e.cancelable) {
@@ -93,43 +123,75 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
       document.body.style.touchAction = prevBodyTouchAction;
       window.removeEventListener('touchmove', preventDefaultTouch);
     };
-  }, [isOpen, videoSrc]);
+  }, [isOpen, videoSrc, attemptPlay]);
 
   if (!isOpen) return null;
 
-  // Immediately enters the main Festronix site without freezing on the last frame
-  const handleEnterFestronix = () => {
+  // Immediately enters the main Festronix site
+  const handleEnterFestronix = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.pause();
+      try {
+        videoRef.current.pause();
+      } catch {
+        // ignore
+      }
     }
     onFinish();
   };
 
   const handleEnded = () => {
     if (videoRef.current) {
-      videoRef.current.pause();
+      try {
+        videoRef.current.pause();
+      } catch {
+        // ignore
+      }
     }
     onFinish();
   };
 
-  const toggleSound = (e: React.MouseEvent) => {
+  const toggleSound = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
+    const video = videoRef.current;
+    if (video) {
+      const nextMuted = !video.muted;
+      video.muted = nextMuted;
+      setIsMuted(nextMuted);
+      // If paused or autoplay blocked, this click gesture unlocks audio & plays!
+      if (video.paused || isAutoplayBlocked) {
+        video.play().then(() => {
+          setIsPlaying(true);
+          setIsAutoplayBlocked(false);
+          setIsLoading(false);
+        }).catch(console.error);
+      }
+    }
+  };
+
+  // Tapping anywhere on the container or play button initiates playback
+  const handleContainerTap = () => {
+    const video = videoRef.current;
+    if (video && (video.paused || isAutoplayBlocked)) {
+      video.play().then(() => {
+        setIsPlaying(true);
+        setIsAutoplayBlocked(false);
+        setIsLoading(false);
+      }).catch(console.error);
     }
   };
 
   return (
     <div
+      onClick={handleContainerTap}
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        width: '100%',
-        height: '100%',
+        width: '100vw',
+        height: '100vh',
         minHeight: '100dvh',
         zIndex: 999999,
         backgroundColor: '#000',
@@ -138,10 +200,11 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         alignItems: 'center',
         justifyContent: 'center',
         touchAction: 'none',
-        overscrollBehavior: 'none'
+        overscrollBehavior: 'none',
+        cursor: isAutoplayBlocked ? 'pointer' : 'default'
       }}
     >
-      {/* Fullscreen Video (intro_mobile.mp4 for mobile/tablet/9:16 devices, intro_final2.mp4 for desktop) */}
+      {/* Fullscreen Video (intro_mobile.mp4 for portrait mobile, intro_final2.mp4 for desktop/landscape) */}
       <video
         ref={videoRef}
         key={videoSrc}
@@ -149,7 +212,27 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         autoPlay
         playsInline
         muted={isMuted}
+        preload="auto"
+        onPlay={() => {
+          setIsPlaying(true);
+          setIsAutoplayBlocked(false);
+          setIsLoading(false);
+        }}
+        onPlaying={() => {
+          setIsPlaying(true);
+          setIsAutoplayBlocked(false);
+          setIsLoading(false);
+        }}
+        onWaiting={() => setIsLoading(true)}
+        onCanPlay={() => {
+          setIsLoading(false);
+          attemptPlay();
+        }}
         onEnded={handleEnded}
+        onError={(err) => {
+          console.error("Intro video loading error:", err);
+          setIsLoading(false);
+        }}
         style={{
           position: 'absolute',
           top: 0,
@@ -157,12 +240,78 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          display: 'block',
-          pointerEvents: 'none'
+          display: 'block'
         }}
-      >
-        <source src={videoSrc} type="video/mp4" />
-      </video>
+      />
+
+      {/* Buffering Loader Spinner */}
+      {isLoading && !isPlaying && (
+        <div
+          style={{
+            position: 'absolute',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            color: '#38BDF8',
+            zIndex: 15,
+            pointerEvents: 'none'
+          }}
+        >
+          <Loader2 size={36} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontSize: '0.85rem', color: '#CBD5E1', letterSpacing: '0.08em', fontWeight: 600 }}>
+            LOADING FESTRONIX...
+          </span>
+        </div>
+      )}
+
+      {/* Tap to Play Overlay (if browser policy or Low Power Mode blocked unprompted autoplay) */}
+      {isAutoplayBlocked && (
+        <div
+          className="intro-interactive"
+          onClick={handleContainerTap}
+          style={{
+            position: 'absolute',
+            zIndex: 25,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '14px',
+            cursor: 'pointer',
+            padding: '24px',
+            background: 'rgba(8, 9, 13, 0.75)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '24px',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            boxShadow: '0 0 50px rgba(56, 189, 248, 0.25)'
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #1C2B59 0%, #38BDF8 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 30px rgba(56, 189, 248, 0.6)'
+            }}
+          >
+            <Play size={28} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: '3px' }} />
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: '#F3F0EA', fontSize: '1rem', fontWeight: 700, letterSpacing: '0.02em' }}>
+              Tap to Play Intro Video
+            </div>
+            <div style={{ color: '#94A3B8', fontSize: '0.78rem', marginTop: '4px' }}>
+              Experience Festronix 2026
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom ambient gradient */}
       <div
@@ -208,6 +357,8 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
         {/* Sound toggle */}
         <button
           onClick={toggleSound}
+          className="intro-interactive"
+          aria-label={isMuted ? 'Turn Sound On' : 'Mute Sound'}
           style={{
             background: 'rgba(16, 26, 53, 0.85)',
             backdropFilter: 'blur(20px)',
@@ -220,7 +371,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            fontSize: '0.8rem',
+            fontSize: '0.82rem',
             fontWeight: 600,
             letterSpacing: '0.04em',
             boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
@@ -230,8 +381,8 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
             flexShrink: 0
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.borderColor = '#BACEBB';
-            e.currentTarget.style.color = '#BACEBB';
+            e.currentTarget.style.borderColor = '#38BDF8';
+            e.currentTarget.style.color = '#38BDF8';
           }}
           onMouseLeave={e => {
             e.currentTarget.style.borderColor = 'rgba(120, 149, 147, 0.45)';
@@ -242,9 +393,10 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           <span>{isMuted ? 'Sound' : 'Mute'}</span>
         </button>
 
-        {/* Enter Festronix button */}
+        {/* Enter Festronix / Skip button */}
         <button
           onClick={handleEnterFestronix}
+          className="intro-interactive"
           style={{
             background: 'linear-gradient(135deg, #283B78 0%, #3B539C 50%, #4B63AA 100%)',
             border: '1px solid rgba(220, 227, 229, 0.35)',
@@ -266,7 +418,7 @@ export const FullscreenIntro: React.FC<FullscreenIntroProps> = ({
           }}
           onMouseEnter={e => {
             e.currentTarget.style.transform = 'translateY(-2px) scale(1.03)';
-            e.currentTarget.style.boxShadow = '0 0 45px rgba(120, 149, 147, 0.6), 0 14px 36px rgba(0, 0, 0, 0.8)';
+            e.currentTarget.style.boxShadow = '0 0 45px rgba(56, 189, 248, 0.6), 0 14px 36px rgba(0, 0, 0, 0.8)';
           }}
           onMouseLeave={e => {
             e.currentTarget.style.transform = 'translateY(0) scale(1)';
