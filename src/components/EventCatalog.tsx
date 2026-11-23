@@ -797,8 +797,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
           }}
         >
           {filteredEvents.map(event => {
-            const seatsRemaining = Math.max(0, event.capacity - event.registeredCount);
-            const isFull = event.status === 'full' || seatsRemaining === 0;
+            const isFull = event.status === 'full';
             const registrationBlockReason = getEventRegistrationBlockReason(event);
             const isRegistrationBlocked = Boolean(registrationBlockReason);
             const dayBadge = getEventDayBadge(event.date);
