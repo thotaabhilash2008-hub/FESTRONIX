@@ -30,7 +30,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   if (!event) return null;
 
   const registrationBlockReason = getEventRegistrationBlockReason(event);
-  const isFull = event.status === 'full' || event.registeredCount >= event.capacity;
+  const isFull = event.status === 'full';
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -253,7 +253,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             className="btn-cyber-primary"
             style={{ opacity: registrationBlockReason ? 0.5 : 1, cursor: registrationBlockReason ? 'not-allowed' : 'pointer' }}
           >
-            <span>{isFull ? 'Capacity Full' : registrationBlockReason ? 'Registration Closed' : 'Proceed to Registration'}</span>
+            <span>{isFull || registrationBlockReason ? 'Registration Closed' : 'Proceed to Registration'}</span>
             <ArrowRight size={16} />
           </button>
         </div>
