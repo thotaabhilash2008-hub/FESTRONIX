@@ -833,7 +833,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 gap: '12px',
                 flexWrap: 'wrap',
                 margin: '10px 0 12px',
-                padding: '6px 12px',
+                padding: '6px 14px',
                 borderRadius: '8px',
                 background: 'linear-gradient(90deg, rgba(28, 43, 89, 0.75) 0%, rgba(14, 23, 46, 0.85) 100%)',
                 border: '1px solid rgba(136, 178, 174, 0.3)',
@@ -842,7 +842,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 zIndex: 1
               }}
             >
-              {/* Sanvi Homes Logo - Updated high-resolution brand asset without white background */}
+              {/* Sanvi Homes Logo - 3D Hexagonal Emblem with Title */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
@@ -858,20 +858,32 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </span>
                 <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center'
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px'
                   }}
                 >
                   <img
-                    src="/sanvi_homes_brand_clean.png"
-                    alt="Sanvi Homes"
+                    src="/sanvi_homes_3d_emblem.png"
+                    alt="Sanvi Homes Emblem"
                     style={{
                       height: '24px',
                       width: 'auto',
                       objectFit: 'contain',
-                      filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
+                      filter: 'drop-shadow(0 0 8px rgba(0, 194, 255, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))'
                     }}
                   />
+                  <span
+                    style={{
+                      fontSize: '0.84rem',
+                      fontWeight: 800,
+                      color: '#FFFFFF',
+                      letterSpacing: '0.04em',
+                      fontFamily: "'Space Grotesk', sans-serif"
+                    }}
+                  >
+                    SANVI HOMES
+                  </span>
                 </div>
               </div>
 
@@ -879,7 +891,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
-                    fontSize: '0.6rem',
+                    fontSize: '0.62rem',
                     color: '#38BDF8',
                     fontWeight: 800,
                     letterSpacing: '0.14em',
