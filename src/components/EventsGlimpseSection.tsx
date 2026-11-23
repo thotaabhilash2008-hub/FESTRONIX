@@ -486,7 +486,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
           </h2>
 
           <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.92rem, 1.3vw, 1.02rem)', lineHeight: 1.6 }}>
-            A glimpse into Vardhaman's flagship battlegrounds. Select any arena for full rules, prizes, and registrations.
+            A glimpse into Vardhaman's flagship battlegrounds. Select any arena for full rules and prizes.
           </p>
 
           {onViewAllEvents && (
