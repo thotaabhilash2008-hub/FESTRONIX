@@ -101,10 +101,9 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({ items, mod
                 </div>
               ) : (
                 <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(220, 227, 229, 0.1)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#A8B3C2', fontSize: '0.7rem', marginBottom: '6px' }}>
-                    <span>Capacity</span><span>{records.length}{capacity ? ` / ${capacity}` : ''} ({fill}%)</span>
+                  <div style={{ color: '#A8B3C2', fontSize: '0.7rem' }}>
+                    {records.length} registrations
                   </div>
-                  <div style={{ height: '5px', borderRadius: '4px', background: 'rgba(8, 12, 22, 0.8)', overflow: 'hidden' }}><div style={{ height: '100%', width: `${fill}%`, background: 'linear-gradient(90deg, #38BDF8, #34D399)', borderRadius: '4px' }} /></div>
                 </div>
               )}
             </button>
