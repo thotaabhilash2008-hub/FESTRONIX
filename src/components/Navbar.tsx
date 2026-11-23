@@ -327,35 +327,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Action Icons & Passes */}
         <div className="navbar-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Buy Multiple Passes Link */}
-          <button
-            onClick={onOpenMultiPass}
-            className="desktop-only"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: '#94A3B8',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 8px',
-              transition: 'color 0.15s ease',
-              fontFamily: "'Space Grotesk', sans-serif",
-              whiteSpace: 'nowrap'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = '#94A3B8';
-            }}
-          >
-            <span>Multiple Passes</span>
-          </button>
 
           {/* Public Sponsors & Partners Nav Link */}
           {onOpenSponsors && (
@@ -644,30 +615,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>All Events</span>
               </button>
 
-              {/* Option 3: Buy Multiple Passes */}
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenMultiPass();
-                }}
-                className="mobile-menu-action mobile-multipass"
-                style={{
-                  background: 'rgba(21, 24, 32, 0.85)',
-                  border: '1px solid rgba(199, 203, 212, 0.2)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  color: '#F3F0EA',
-                  fontSize: '0.88rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px'
-                }}
-              >
-                <ShoppingBag size={18} color="#88B2AE" />
-                <span>Buy Multiple Passes</span>
-              </button>
 
               {/* Option 4: Sponsors & Strategic Partners Page Button */}
               {onOpenSponsors && (

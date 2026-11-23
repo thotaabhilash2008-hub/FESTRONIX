@@ -797,7 +797,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       venue,
       description: description || 'Exciting engineering challenge hosted by the department.',
       rules: rulesArr.length > 0 ? rulesArr : ['Valid college ID required', 'Report 15 minutes before start'],
-      prizes: { first: '₹15,000 Cash + Certificate', second: '₹8,000 Cash' },
+      prizes: { first: 'Cash Prize + Certificate', second: 'Cash Prize + Certificate' },
       eligibility: 'All Engineering Students',
       coordinatorName,
       coordinatorPhone,

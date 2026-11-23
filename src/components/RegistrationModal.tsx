@@ -798,46 +798,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </div>
         )}
 
-        {/* Multi-Pass Shortcut (Only for solo passes) */}
-        {!isTeamEvent && onOpenMultiPass && (
-          <div
-            style={{
-              padding: '10px 14px',
-              background: 'rgba(40, 59, 120, 0.25)',
-              border: '1px solid rgba(120, 149, 147, 0.35)',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '0.78rem'
-            }}
-          >
-            <span style={{ color: '#DCE3E5' }}>
-              Want to buy passes for multiple solo events simultaneously?
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenMultiPass();
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#BACEBB',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <span>Open Multi-Pass Desk →</span>
-            </button>
-          </div>
-        )}
-
         {/* TEAM MODE SELECTOR: Create vs Join (ONLY SHOWN FOR TEAM / DUO EVENTS) */}
         {isTeamEvent && (
           <div

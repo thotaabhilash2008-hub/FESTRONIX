@@ -1398,32 +1398,6 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         {/* Action Controls */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {onOpenMultiPass && (
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenMultiPass();
-                }}
-                style={{
-                  background: 'rgba(40, 59, 120, 0.35)',
-                  border: '1px solid rgba(120, 149, 147, 0.45)',
-                  borderRadius: '6px',
-                  color: '#BACEBB',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  padding: '7px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  transition: 'all 0.2s'
-                }}
-              >
-                <ShoppingBag size={14} />
-                <span>+ Buy Multiple Passes</span>
-              </button>
-            )}
 
             {onBrowseEvents && (
               <button

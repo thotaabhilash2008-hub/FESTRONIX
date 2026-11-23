@@ -110,9 +110,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Evaluation criteria: Technical Execution (40%), Benchmark Accuracy (30%), UI/UX (30%).'
     ],
     prizes: {
-      first: '₹15,000 Cash Prize',
-      second: '₹8,000',
-      third: '₹3,000'
+      first: 'Cash Prize & Certificate',
+      second: 'Cash Prize & Certificate',
+      third: 'Certificate of Appreciation'
     },
     eligibility: 'Open to all B.Tech / M.Tech / MCA / Degree students with valid college ID.',
     coordinatorName: 'M Raghavendra / Ch Bala Subramanyam / BJV Varma',
@@ -146,9 +146,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'All bots must have remote radio fail-safe switches.'
     ],
     prizes: {
-      first: '₹15,000 + Trophy',
-      second: '₹7,000',
-      third: '₹3,000'
+      first: 'Cash Prize & Certificate',
+      second: 'Cash Prize & Certificate',
+      third: 'Certificate of Appreciation'
     },
     eligibility: 'Engineering undergraduates and polytechnic students.',
     coordinatorName: 'R Phani Vidyadhar',

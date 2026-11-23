@@ -285,7 +285,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             </div>
           </div>
 
-          {/* 1st Prize */}
+          {/* Prizes & Awards */}
           <div
             style={{
               display: 'flex',
@@ -300,7 +300,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
           >
             <Crown size={14} color="#FBBF24" style={{ flexShrink: 0 }} />
             <span style={{ fontSize: '0.78rem', color: '#FBBF24', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              1st Prize: {event.prizes?.first || 'Trophy & Certificate'}
+              Cash Prizes & Certificates
             </span>
           </div>
         </div>
@@ -421,7 +421,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#FBBF24', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
-            {event.prizes?.first || 'Trophy'}
+            Cash Prizes & Certificates
           </div>
         </div>
 
@@ -514,15 +514,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={onOpenMultiPass}
-            className="btn-cyber-secondary"
-            style={{ padding: '8px 14px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
-          >
-            <Layers size={14} color="#38BDF8" />
-            <span>Multiple Passes</span>
-          </button>
 
           <button
             type="button"

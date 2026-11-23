@@ -514,7 +514,7 @@ export const App: React.FC = () => {
         <PublicSponsorsPage
           onBackToHome={handleBackFromSponsorsPage}
           onExploreEvents={handleOpenAllEventsPage}
-          onRegisterNow={handleStartMultiPass}
+          onRegisterNow={handleOpenAllEventsPage}
         />
       </Suspense>
     );
@@ -666,7 +666,7 @@ export const App: React.FC = () => {
           onExploreEvents={handleOpenAllEventsPage}
           onViewAllEvents={handleOpenAllEventsPage}
           onOpenIntro={() => setIsIntroOpen(true)}
-          onRegisterNow={handleStartMultiPass}
+          onRegisterNow={handleOpenAllEventsPage}
         />
 
         {/* ABOUT FESTRONIX: Scroll-Driven Transformation */}

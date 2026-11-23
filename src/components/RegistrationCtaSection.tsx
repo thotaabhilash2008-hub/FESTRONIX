@@ -143,7 +143,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               <button
-                onClick={onOpenMultiPass}
+                onClick={onExploreEvents}
                 className="btn-cyber-gold cta-btn-primary"
                 style={{
                   padding: '16px 38px',
@@ -154,24 +154,8 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
                 }}
               >
                 <Ticket size={18} />
-                <span>Book All-Access Multi-Pass</span>
-                <ArrowRight size={16} />
-              </button>
-
-              <button
-                onClick={onExploreEvents}
-                className="btn-cyber-secondary cta-btn-secondary"
-                style={{
-                  padding: '15px 32px',
-                  fontSize: '0.92rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  color: '#FFFFFF'
-                }}
-              >
-                <Ticket size={17} color="#38BDF8" />
                 <span>Browse Events</span>
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
