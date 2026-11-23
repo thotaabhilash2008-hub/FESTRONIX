@@ -696,7 +696,7 @@ export const CoordinatorPortal: React.FC<CoordinatorPortalProps> = ({
                 >
                   {events.map(evt => (
                     <option key={evt.id} value={evt.id}>
-                      [{evt.departmentCode}] {evt.title} — {evt.format.toUpperCase()} — Fee: {evt.fee === 0 ? 'FREE' : `₹${evt.fee}`} ({evt.registeredCount}/{evt.capacity} registered)
+                      [{evt.departmentCode}] {evt.title} — {evt.format.toUpperCase()} — Fee: {evt.fee === 0 ? 'FREE' : `₹${evt.fee}`} ({evt.registeredCount} registrations)
                     </option>
                   ))}
                 </select>
@@ -707,8 +707,8 @@ export const CoordinatorPortal: React.FC<CoordinatorPortalProps> = ({
                       Format: {currentSpotEvent.format.toUpperCase()}
                       {currentSpotEvent.format !== 'individual' && ` (${currentSpotEvent.minTeamSize}-${currentSpotEvent.maxTeamSize} members)`}
                     </span>
-                    <span style={{ padding: '2px 8px', borderRadius: '4px', background: currentSpotEvent.registeredCount >= currentSpotEvent.capacity ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)', color: currentSpotEvent.registeredCount >= currentSpotEvent.capacity ? '#f87171' : '#34d399', fontWeight: 600 }}>
-                      Capacity: {currentSpotEvent.registeredCount}/{currentSpotEvent.capacity} Slots
+                    <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 600 }}>
+                      {currentSpotEvent.registeredCount} registrations
                     </span>
                     <span style={{ color: '#9B8E7B' }}>
                       Status: <strong>{currentSpotEvent.status.toUpperCase()}</strong>
@@ -956,7 +956,6 @@ export const CoordinatorPortal: React.FC<CoordinatorPortalProps> = ({
                 type="submit"
                 className="btn-cyber-primary"
                 style={{ padding: '14px', marginTop: '10px' }}
-                disabled={currentSpotEvent && currentSpotEvent.registeredCount >= currentSpotEvent.capacity}
               >
                 <span>Generate Official Spot QR Pass (FR-SPOT-07)</span>
                 <ArrowRight size={16} />
