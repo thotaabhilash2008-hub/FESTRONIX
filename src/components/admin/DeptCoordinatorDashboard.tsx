@@ -745,11 +745,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       setEventCreateError('Enter a valid non-negative event fee.');
       return;
     }
-    if (!Number.isFinite(Number(newEventCapacity)) || Number(newEventCapacity) < 1) {
-      setEventCreateError('Enter a valid seat capacity greater than zero.');
-      return;
-    }
-
     const title = newEventTitle.trim();
     const venue = newEventVenue.trim();
     const description = newEventDesc.trim();
@@ -823,7 +818,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       minTeamSize: minSize,
       maxTeamSize: maxSize,
       fee: Number(newEventFee),
-      capacity: Number(newEventCapacity),
+      capacity: 0,
       registeredCount: 0,
       deadline: '',
       date: newEventDate,
@@ -1312,7 +1307,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const handleExportDeptExecutiveReport = () => {
     const headers = [
       'Event ID', 'Event Title', 'Category', 'Format', 'Coordinator', 'Phone', 'Email',
-      'Capacity', 'Enrolled Count', 'Capacity Fill %', 'Fee (INR)', 'Total Revenue (INR)',
+      'Registrations', 'Fee (INR)', 'Total Revenue (INR)',
       'Checked-In (Turnout)', 'Turnout %'
     ];
     const rows = events.map(evt => {
@@ -1320,7 +1315,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       const verifiedRegs = evtRegs.filter(r => r.paymentStatus === 'verified');
       const checkedInCount = evtRegs.filter(r => r.checkedIn).length;
       const totalRev = verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
-      const capPct = evt.capacity > 0 ? Math.round((evtRegs.length / evt.capacity) * 100) : 0;
       const turnoutPct = evtRegs.length > 0 ? Math.round((checkedInCount / evtRegs.length) * 100) : 0;
 
       return [
@@ -1331,9 +1325,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         `"${evt.coordinatorName.replace(/"/g, '""')}"`,
         evt.coordinatorPhone,
         evt.coordinatorEmail,
-        evt.capacity,
         evtRegs.length,
-        `${capPct}%`,
         evt.fee,
         totalRev,
         checkedInCount,
@@ -1772,7 +1764,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div
                 className="admin-progress-fill"
                 style={{
-                  width: `${Math.min(100, (scopedRegistrations.length / Math.max(1, visibleEvents.reduce((acc, e) => acc + e.capacity, 0))) * 100)}%`,
+                  width: '100%',
                   background: 'linear-gradient(90deg, #2563EB, #38BDF8)'
                 }}
               />
@@ -1808,15 +1800,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             </div>
           </div>
 
-          {/* Card 3: Capacity & Slots */}
+          {/* Card 3: Registrations */}
           <div className="admin-kpi-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <div>
                 <span style={{ fontSize: '0.74rem', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Total Slot Capacity
+                  Total Registrations
                 </span>
                 <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.1, marginTop: '4px' }}>
-                  {visibleEvents.reduce((acc, e) => acc + e.capacity, 0)} Seats
+                  {scopedRegistrations.length}
                 </div>
               </div>
               <div className="admin-kpi-icon-pod">
@@ -1826,14 +1818,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             <div className="admin-progress-track">
               <div
                 className="admin-progress-fill"
-                style={{
-                  width: `${Math.min(100, Math.round((scopedRegistrations.length / Math.max(1, visibleEvents.reduce((acc, e) => acc + e.capacity, 0))) * 100))}%`,
-                  background: 'linear-gradient(90deg, #6366F1, #818CF8)'
-                }}
+                style={{ width: '100%', background: 'linear-gradient(90deg, #6366F1, #818CF8)' }}
               />
             </div>
             <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '8px' }}>
-              Across {visibleEvents.length} events • {scopedRegistrations.length} slots claimed
+              Across {visibleEvents.length} events
             </div>
           </div>
 
@@ -2016,7 +2005,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '18px' }}>
                 {visibleEvents.map(event => {
                   const eventRegs = registrations.filter(r => r.eventId === event.id);
-                  const fillPct = event.capacity > 0 ? Math.round((eventRegs.length / event.capacity) * 100) : 0;
                   const isAssigned = isEventAssigned(event);
 
                   return (
@@ -2087,23 +2075,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                           {event.description.slice(0, 100)}...
                         </p>
 
-                        {/* Capacity Progress Bar (8.2 Monitor Capacity) */}
-                        <div style={{ marginBottom: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#DCE3E5', marginBottom: '4px' }}>
-                            <span>Capacity: <strong>{eventRegs.length} / {event.capacity}</strong> filled</span>
-                            <span style={{ fontWeight: 700, color: fillPct >= 90 ? '#f87171' : fillPct >= 70 ? '#FBBF24' : '#34D399' }}>
-                              {fillPct}%
-                            </span>
-                          </div>
-                          <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '9999px', overflow: 'hidden' }}>
-                            <div
-                              style={{
-                                width: `${Math.min(100, fillPct)}%`,
-                                height: '100%',
-                                background: fillPct >= 90 ? '#f87171' : fillPct >= 70 ? '#FBBF24' : '#34D399'
-                              }}
-                            />
-                          </div>
+                        <div style={{ marginBottom: '12px', fontSize: '0.78rem', color: '#34D399', fontWeight: 700 }}>
+                          {eventRegs.length} registrations
                         </div>
 
                         <div style={{ fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>
@@ -2311,8 +2284,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </h2>
                 <p style={{ fontSize: '0.82rem', color: '#94A3B8', margin: '4px 0 0', maxWidth: '780px' }}>
                   {isEventCoord
-                    ? `Real-time registrations, collections, capacity, and gateway attendance for ${analyticsScopeName.toLowerCase()}.`
-                    : `Real-time collections ledger, payment reconciliations, and capacity monetization strictly restricted to ${analyticsScopeName}.`}
+                    ? `Real-time registrations, collections, and gateway attendance for ${analyticsScopeName.toLowerCase()}.`
+                    : `Real-time collections ledger, payment reconciliations, and registrations strictly restricted to ${analyticsScopeName}.`}
                 </p>
               </div>
 
@@ -2365,7 +2338,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   </div>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#94A3B8' }}>
-                  <span style={{ color: '#34D399', fontWeight: 700 }}>{deptRevenueAnalytics.verifiedCount} participant slots</span> bank approved
+                  <span style={{ color: '#34D399', fontWeight: 700 }}>{deptRevenueAnalytics.verifiedCount} registrations</span> bank approved
                 </div>
               </div>
 
@@ -2447,7 +2420,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               </div>
 
-              {/* Card 4: Capacity Monetization */}
+              {/* Card 4: Registrations */}
               <div
                 style={{
                   background: 'rgba(16, 26, 53, 0.85)',
@@ -2460,10 +2433,10 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#C084FC', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Slot Monetization Rate
+                      Verified Registrations
                     </span>
                     <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
-                      {deptRevenueAnalytics.capacityMonetizationRate}%
+                      {deptRevenueAnalytics.verifiedCount}
                     </div>
                   </div>
                   <div
@@ -2485,7 +2458,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   <div
                     className="admin-progress-fill"
                     style={{
-                      width: `${deptRevenueAnalytics.capacityMonetizationRate}%`,
+                      width: '100%',
                       background: 'linear-gradient(90deg, #9333EA, #C084FC)',
                       height: '100%',
                       borderRadius: '3px'
@@ -2493,7 +2466,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   />
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
-                  ₹{deptRevenueAnalytics.totalVerified.toLocaleString('en-IN')} of ₹{deptRevenueAnalytics.totalPotentialCapacityRevenue.toLocaleString('en-IN')} max seat cap
+                  ₹{deptRevenueAnalytics.totalVerified.toLocaleString('en-IN')} collected from verified registrations
                 </div>
               </div>
             </div>
@@ -2520,8 +2493,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   </div>
                   <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0' }}>
                     {isEventCoord
-                      ? 'Financial reconciliation and capacity fill performance for each event assigned to this coordinator.'
-                      : `Financial reconciliation and capacity fill performance for each arena hosted by ${deptCode}.`}
+                      ? 'Financial reconciliation and registration performance for each event assigned to this coordinator.'
+                      : `Financial reconciliation and registration performance for each arena hosted by ${deptCode}.`}
                   </p>
                 </div>
               </div>
@@ -2561,7 +2534,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                         >
                           <td style={{ padding: '14px 14px' }}>
                             <div style={{ color: '#FFFFFF', fontWeight: 700 }}>{item.title}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{item.capacity} max capacity</div>
+                            <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{item.totalRegs} registrations</div>
                           </td>
                           <td style={{ padding: '14px 14px', textAlign: 'center' }}>
                             <span
@@ -4109,18 +4082,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               </div>
 
-              {/* Capacity & Deadline */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Max Capacity Slots</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={editingEvent.capacity}
-                    onChange={e => setEditingEvent({ ...editingEvent, capacity: Number(e.target.value) })}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
-                  />
-                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Registration Deadline</label>
                   <input
@@ -4418,17 +4380,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               </div>
 
-              {/* Capacity Slots */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#DCE3E5', marginBottom: '4px' }}>Capacity Slots</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={newEventCapacity}
-                  onChange={e => setNewEventCapacity(Number(e.target.value))}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF', boxSizing: 'border-box' }}
-                />
-              </div>
 
               {/* Schedule & Venue */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
