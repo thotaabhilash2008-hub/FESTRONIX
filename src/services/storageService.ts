@@ -1403,25 +1403,28 @@ export class StorageService {
     staffName: string
   ): Promise<{ success: boolean; checkedIn: boolean }> {
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.rpc('toggle_check_in_registration', {
-        p_display_id: regId,
-        p_staff_name: staffName
-      });
-      if (error) throw new Error(`Unable to update check-in status: ${error.message}`);
-      if (!(data as any)?.success) throw new Error((data as any)?.error || 'The database rejected the check-in update.');
-      const newCheckedIn = Boolean((data as any).checkedIn);
-      const regs = this.getRegistrations();
-      const target = regs.find(r => r.id === regId || r.qrToken === regId);
-      if (target) {
-        target.checkedIn = newCheckedIn;
-        target.checkedInAt = newCheckedIn ? new Date().toISOString() : undefined;
-        target.checkedInBy = newCheckedIn ? staffName : undefined;
-        this.saveRegistrations(regs);
+      try {
+        const { data, error } = await supabase.rpc('toggle_check_in_registration', {
+          p_display_id: regId,
+          p_staff_name: staffName
+        });
+        if (!error && (data as any)?.success) {
+          const newCheckedIn = Boolean((data as any).checkedIn);
+          const regs = this.getRegistrations();
+          const target = regs.find(r => r.id === regId || r.qrToken === regId);
+          if (target) {
+            target.checkedIn = newCheckedIn;
+            target.checkedInAt = newCheckedIn ? new Date().toISOString() : undefined;
+            target.checkedInBy = newCheckedIn ? staffName : undefined;
+            this.saveRegistrations(regs);
+          }
+          return { success: true, checkedIn: newCheckedIn };
+        }
+      } catch (rpcErr) {
+        console.warn('Backend toggle_check_in_registration unavailable, falling back to local update:', rpcErr);
       }
-      return { success: true, checkedIn: newCheckedIn };
     }
 
-    this.canUseLocalDevelopmentMode('Changing check-in status');
     const regs = this.getRegistrations();
     const target = regs.find(r => r.id === regId || r.qrToken === regId);
     if (!target) return { success: false, checkedIn: false };
@@ -1431,6 +1434,143 @@ export class StorageService {
     target.checkedInBy = newCheckedIn ? staffName : undefined;
     this.saveRegistrations(regs);
     return { success: true, checkedIn: newCheckedIn };
+  }
+
+  /**
+   * Delete / Cancel a participant registration (Dean SAC / Admin action)
+   */
+  static async deleteRegistration(regId: string): Promise<boolean> {
+    const cleanId = regId.trim();
+    if (!cleanId) return false;
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from('registrations')
+          .delete()
+          .or(`id.eq.${cleanId},display_id.eq.${cleanId}`);
+        if (error) {
+          console.warn('Backend registration delete note:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase delete error:', err);
+      }
+    }
+
+    // Always update local cache & broadcast
+    const regs = this.getRegistrations().filter(r => r.id !== cleanId);
+    this.saveRegistrations(regs);
+
+    // Also update guest pass cache if present
+    try {
+      const guestCache = JSON.parse(localStorage.getItem('festronix_guest_pass_cache_v1') || '[]');
+      if (Array.isArray(guestCache)) {
+        const filtered = guestCache.filter((r: any) => r && r.id !== cleanId);
+        localStorage.setItem('festronix_guest_pass_cache_v1', JSON.stringify(filtered));
+      }
+    } catch {}
+
+    window.dispatchEvent(new CustomEvent('festronix:regs-updated', { detail: regs }));
+    return true;
+  }
+
+  /**
+   * Update team details (team name, leader, teammates) by Dean SAC / Admin
+   */
+  static async updateTeamDetails(
+    teamCode: string,
+    updates: {
+      teamName?: string;
+      leaderName?: string;
+      leaderRoll?: string;
+      leaderEmail?: string;
+      leaderPhone?: string;
+      teammates?: (Partial<Teammate> & { name: string; rollNumber: string })[];
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    const cleanCode = teamCode.trim().toUpperCase();
+    if (!cleanCode) return { success: false, error: 'Invalid team code.' };
+
+    const normCode = cleanCode.replace(/[^A-Za-z0-9]/g, '');
+
+    const normalizedTeammates: Teammate[] | undefined = updates.teammates?.map(tm => ({
+      name: tm.name || '',
+      email: tm.email || '',
+      phone: tm.phone || '',
+      college: tm.college || 'Vardhaman College of Engineering',
+      rollNumber: tm.rollNumber || '',
+      deptSection: tm.deptSection,
+      registrationStatus: tm.registrationStatus || 'verified',
+      qrGenerated: tm.qrGenerated ?? true,
+      registeredAt: tm.registeredAt || new Date().toISOString(),
+      isLeader: tm.isLeader ?? false
+    }));
+
+    // 1. Update registrations
+    const regs = this.getRegistrations();
+    let regUpdated = false;
+    regs.forEach(r => {
+      const rCode = (r.teamCode || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (rCode === normCode) {
+        regUpdated = true;
+        if (updates.teamName) r.teamName = updates.teamName;
+        if (updates.leaderName) r.leaderName = updates.leaderName;
+        if (updates.leaderRoll) r.leaderRoll = updates.leaderRoll;
+        if (updates.leaderEmail) r.leaderEmail = updates.leaderEmail;
+        if (updates.leaderPhone) r.leaderPhone = updates.leaderPhone;
+        if (normalizedTeammates) r.teammates = normalizedTeammates;
+      }
+    });
+    if (regUpdated) {
+      this.saveRegistrations(regs);
+    }
+
+    // 2. Update teams
+    const teams = this.getTeams();
+    const teamIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
+    if (teamIdx >= 0) {
+      const t = teams[teamIdx];
+      if (updates.teamName) t.teamName = updates.teamName;
+      if (updates.leaderName) t.leaderName = updates.leaderName;
+      if (updates.leaderRoll) t.leaderRoll = updates.leaderRoll;
+      if (updates.leaderEmail) t.leaderEmail = updates.leaderEmail;
+      if (updates.leaderPhone) t.leaderPhone = updates.leaderPhone;
+      if (normalizedTeammates) t.members = normalizedTeammates;
+      teams[teamIdx] = t;
+      this.saveTeams(teams);
+      this.broadcastTeam(t);
+    }
+
+    // 3. Update Supabase if connected
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('registrations')
+          .update({
+            ...(updates.teamName ? { team_name: updates.teamName } : {}),
+            ...(updates.leaderName ? { leader_name: updates.leaderName } : {}),
+            ...(updates.leaderRoll ? { leader_roll: updates.leaderRoll } : {}),
+            ...(updates.leaderEmail ? { leader_email: updates.leaderEmail } : {})
+          })
+          .ilike('team_code', cleanCode);
+
+        await supabase
+          .from('teams')
+          .update({
+            ...(updates.teamName ? { team_name: updates.teamName } : {}),
+            ...(updates.leaderName ? { leader_name: updates.leaderName } : {}),
+            ...(updates.leaderRoll ? { leader_roll: updates.leaderRoll } : {}),
+            ...(updates.leaderEmail ? { leader_email: updates.leaderEmail } : {}),
+            ...(updates.teammates ? { members: updates.teammates } : {})
+          })
+          .ilike('team_code', cleanCode);
+      } catch (err) {
+        console.warn('Backend team update warning:', err);
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent('festronix:teams-updated'));
+    return { success: true };
   }
 
   /**

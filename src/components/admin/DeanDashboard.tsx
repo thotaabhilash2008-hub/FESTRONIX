@@ -147,6 +147,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [isAddCoordinatorOpen, setIsAddCoordinatorOpen] = useState(false);
   const [coordinatorCreatedForEventId, setCoordinatorCreatedForEventId] = useState<string | null>(null);
 
+  // Participant Deletion & Team Editing State
+  const [deletingRegId, setDeletingRegId] = useState<string | null>(null);
+  const [editingTeam, setEditingTeam] = useState<{
+    teamCode: string;
+    teamName: string;
+    leaderName: string;
+    leaderRoll: string;
+    leaderEmail: string;
+    leaderPhone: string;
+    teammates: { name: string; rollNumber: string; email?: string; phone?: string }[];
+  } | null>(null);
+  const [teamEditSaving, setTeamEditSaving] = useState(false);
+
   // Clipboard copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -463,6 +476,82 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       }
     } catch (error) {
       window.alert((error as Error).message || 'Unable to update gate check-in status.');
+    }
+  };
+
+  // Delete participant registration handler
+  const handleDeleteParticipant = async (reg: Registration) => {
+    const confirmMessage = `Are you sure you want to permanently delete participant registration "${reg.id}" (${reg.leaderName} - ${reg.leaderRoll}) for "${reg.eventTitle}"? This will cancel their pass.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setDeletingRegId(reg.id);
+    try {
+      const ok = await StorageService.deleteRegistration(reg.id);
+      if (ok) {
+        await refreshAllData();
+      } else {
+        window.alert('Failed to delete participant registration.');
+      }
+    } catch (err: any) {
+      window.alert(err?.message || 'Error deleting registration.');
+    } finally {
+      setDeletingRegId(null);
+    }
+  };
+
+  // Open team editor
+  const handleOpenEditTeam = (reg: Registration) => {
+    setEditingTeam({
+      teamCode: reg.teamCode || reg.id,
+      teamName: reg.teamName || `${reg.leaderName}'s Squad`,
+      leaderName: reg.leaderName || '',
+      leaderRoll: reg.leaderRoll || '',
+      leaderEmail: reg.leaderEmail || '',
+      leaderPhone: reg.leaderPhone || '',
+      teammates: (reg.teammates || []).map(t => ({
+        name: t.name || '',
+        rollNumber: t.rollNumber || '',
+        email: t.email || '',
+        phone: t.phone || ''
+      }))
+    });
+  };
+
+  // Save team edits
+  const handleSaveTeamEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeam) return;
+
+    setTeamEditSaving(true);
+    try {
+      const res = await StorageService.updateTeamDetails(editingTeam.teamCode, {
+        teamName: editingTeam.teamName,
+        leaderName: editingTeam.leaderName,
+        leaderRoll: editingTeam.leaderRoll,
+        leaderEmail: editingTeam.leaderEmail,
+        leaderPhone: editingTeam.leaderPhone,
+        teammates: editingTeam.teammates.map(t => ({
+          name: t.name,
+          rollNumber: t.rollNumber,
+          email: t.email || '',
+          phone: t.phone || '',
+          college: 'Vardhaman College of Engineering',
+          registrationStatus: 'verified' as const,
+          qrGenerated: true
+        }))
+      });
+
+      if (res.success) {
+        await refreshAllData();
+        setEditingTeam(null);
+        confetti({ particleCount: 40, spread: 50, origin: { y: 0.6 } });
+      } else {
+        window.alert(res.error || 'Failed to update team details.');
+      }
+    } catch (err: any) {
+      window.alert(err?.message || 'Error updating team details.');
+    } finally {
+      setTeamEditSaving(false);
     }
   };
 
@@ -4430,6 +4519,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     <th style={{ padding: '12px 16px' }}>Fee</th>
                     <th style={{ padding: '12px 16px' }}>Payment</th>
                     <th style={{ padding: '12px 16px' }}>Gate Check-In (Live Toggle)</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4455,9 +4545,30 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       </td>
                       <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
                         <div>{r.eventTitle}</div>
-                        {(r.teamName || r.teamCode) && (
-                          <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px' }}>
-                            Squad: <strong>{r.teamName || 'Team'}</strong> <span style={{ fontFamily: 'monospace', color: '#A8B3C2' }}>({r.teamCode})</span>
+                        {(r.teamName || r.teamCode || (r.teammates && r.teammates.length > 0)) && (
+                          <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>Squad: <strong>{r.teamName || 'Team'}</strong></span>
+                            {r.teamCode && <span style={{ fontFamily: 'monospace', color: '#38BDF8' }}>({r.teamCode})</span>}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditTeam(r)}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                color: '#38BDF8',
+                                borderRadius: '4px',
+                                padding: '1px 6px',
+                                fontSize: '0.66rem',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}
+                              title="Edit Team Details & Members"
+                            >
+                              <Edit3 size={10} />
+                              Edit Team
+                            </button>
                           </div>
                         )}
                       </td>
@@ -4503,6 +4614,51 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           {r.checkedIn ? <CheckCircle2 size={13} /> : <Clock size={13} />}
                           <span>{r.checkedIn ? `CHECKED IN (${r.checkedInAt || 'Gate'})` : '+ CHECK IN NOW'}</span>
                         </button>
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditTeam(r)}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              border: '1px solid rgba(56, 189, 248, 0.3)',
+                              color: '#38BDF8',
+                              borderRadius: '6px',
+                              padding: '5px 8px',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title="Edit participant and team details"
+                          >
+                            <Edit3 size={12} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingRegId === r.id}
+                            onClick={() => handleDeleteParticipant(r)}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              color: '#F87171',
+                              borderRadius: '6px',
+                              padding: '5px 8px',
+                              fontSize: '0.72rem',
+                              cursor: deletingRegId === r.id ? 'wait' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title="Delete participant registration"
+                          >
+                            <Trash2 size={12} />
+                            <span>{deletingRegId === r.id ? 'Deleting...' : 'Delete'}</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -7788,6 +7944,372 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   }}
                 >
                   Save Department Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Team Details & Participant Editor Modal */}
+      {editingTeam && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 10, 24, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 110,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setEditingTeam(null)}
+        >
+          <div
+            style={{
+              maxWidth: '650px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#0F1A35',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(56, 189, 248, 0.4)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)',
+              padding: '24px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit3 size={18} color="#38BDF8" />
+                <h3 style={{ color: '#FFFFFF', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                  Edit Team & Participant Details
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTeam(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#A8B3C2',
+                  borderRadius: '6px',
+                  width: '30px',
+                  height: '30px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTeamEdit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Team / Squad Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingTeam.teamName}
+                    onChange={e => setEditingTeam(prev => prev ? { ...prev, teamName: e.target.value } : null)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#FFFFFF',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Team Code
+                  </label>
+                  <input
+                    type="text"
+                    disabled
+                    value={editingTeam.teamCode}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(8, 14, 28, 0.9)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#38BDF8',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(220, 227, 229, 0.12)', paddingTop: '12px' }}>
+                <h4 style={{ color: '#BACEBB', fontSize: '0.85rem', margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Leader / Primary Participant
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingTeam.leaderName}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderName: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Roll Number</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingTeam.leaderRoll}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderRoll: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Email</label>
+                    <input
+                      type="email"
+                      value={editingTeam.leaderEmail}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderEmail: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Phone</label>
+                    <input
+                      type="text"
+                      value={editingTeam.leaderPhone}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderPhone: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Teammates List */}
+              <div style={{ borderTop: '1px solid rgba(220, 227, 229, 0.12)', paddingTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ color: '#BACEBB', fontSize: '0.85rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Squad Teammates ({editingTeam.teammates.length})
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTeam(prev => prev ? {
+                        ...prev,
+                        teammates: [...prev.teammates, { name: '', rollNumber: '', email: '', phone: '' }]
+                      } : null);
+                    }}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      color: '#38BDF8',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + Add Teammate
+                  </button>
+                </div>
+
+                {editingTeam.teammates.length === 0 ? (
+                  <div style={{ color: '#94A3B8', fontSize: '0.78rem', fontStyle: 'italic', padding: '8px 0' }}>
+                    No additional teammates in this squad. Click "+ Add Teammate" if needed.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {editingTeam.teammates.map((tm, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1.2fr 1fr 1fr auto',
+                          gap: '8px',
+                          alignItems: 'center',
+                          background: 'rgba(16, 26, 53, 0.6)',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(220, 227, 229, 0.1)'
+                        }}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Member Name"
+                          value={tm.name}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              const updated = [...prev.teammates];
+                              updated[idx] = { ...updated[idx], name: val };
+                              return { ...prev, teammates: updated };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(9, 18, 36, 0.8)',
+                            border: '1px solid rgba(220, 227, 229, 0.15)',
+                            borderRadius: '4px',
+                            padding: '5px 8px',
+                            color: '#FFFFFF',
+                            fontSize: '0.76rem'
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Roll Number"
+                          value={tm.rollNumber}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              const updated = [...prev.teammates];
+                              updated[idx] = { ...updated[idx], rollNumber: val };
+                              return { ...prev, teammates: updated };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(9, 18, 36, 0.8)',
+                            border: '1px solid rgba(220, 227, 229, 0.15)',
+                            borderRadius: '4px',
+                            padding: '5px 8px',
+                            color: '#FFFFFF',
+                            fontSize: '0.76rem'
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Email or Phone"
+                          value={tm.email || tm.phone || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              const updated = [...prev.teammates];
+                              updated[idx] = { ...updated[idx], email: val };
+                              return { ...prev, teammates: updated };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(9, 18, 36, 0.8)',
+                            border: '1px solid rgba(220, 227, 229, 0.15)',
+                            borderRadius: '4px',
+                            padding: '5px 8px',
+                            color: '#FFFFFF',
+                            fontSize: '0.76rem'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              return {
+                                ...prev,
+                                teammates: prev.teammates.filter((_, i) => i !== idx)
+                              };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: '#F87171',
+                            borderRadius: '4px',
+                            width: '26px',
+                            height: '26px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Remove Teammate"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingTeam(null)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    color: '#A8B3C2',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={teamEditSaving}
+                  style={{
+                    background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    borderRadius: '8px',
+                    padding: '8px 20px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: teamEditSaving ? 'wait' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(56, 189, 248, 0.3)'
+                  }}
+                >
+                  {teamEditSaving ? 'Saving Changes...' : 'Save Team Changes'}
                 </button>
               </div>
             </form>
