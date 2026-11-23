@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Flame, Building2, Layers, ShoppingBag, LogIn, LogOut } from 'lucide-react';
+import { Ticket, Menu, X, Flame, Building2, Layers, ShoppingBag, LogIn, LogOut, Download } from 'lucide-react';
 import { Announcement } from '../types/festronix';
 
 interface NavbarProps {
@@ -390,13 +390,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* View Our Registration Passes */}
+          {/* Download Your Pass Button */}
           <button
             onClick={onOpenPasses}
             className="nav-action nav-passes"
             style={{
-              background: 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
-              border: '1px solid rgba(220, 227, 232, 0.35)',
+              background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
+              border: '1px solid rgba(136, 178, 174, 0.45)',
               borderRadius: '9999px',
               padding: '7px 16px',
               color: '#FFFFFF',
@@ -406,37 +406,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: '0 4px 20px rgba(46, 78, 140, 0.65), 0 0 16px rgba(111, 150, 147, 0.35)',
+              boxShadow: '0 4px 20px rgba(40, 59, 120, 0.65), 0 0 16px rgba(56, 189, 248, 0.35)',
               transition: 'all 0.2s ease',
               fontFamily: "'Space Grotesk', sans-serif",
               whiteSpace: 'nowrap'
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.boxShadow = '0 6px 26px rgba(46, 78, 140, 0.85), 0 0 24px rgba(111, 150, 147, 0.5)';
+              e.currentTarget.style.boxShadow = '0 6px 26px rgba(40, 59, 120, 0.85), 0 0 24px rgba(56, 189, 248, 0.5)';
               e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.boxShadow = '0 4px 20px rgba(46, 78, 140, 0.65), 0 0 16px rgba(111, 150, 147, 0.35)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(40, 59, 120, 0.65), 0 0 16px rgba(56, 189, 248, 0.35)';
               e.currentTarget.style.transform = 'translateY(0) scale(1)';
             }}
           >
-            <Ticket size={14} color="#FFFFFF" />
-            <span className="desktop-only">My Passes</span>
-            {passesCount > 0 && (
-              <span
-                style={{
-                  background: '#080C16',
-                  color: '#88B2AE',
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  padding: '1px 6px',
-                  borderRadius: '9999px',
-                  border: '1px solid rgba(111, 150, 147, 0.6)'
-                }}
-              >
-                {passesCount}
-              </span>
-            )}
+            <Download size={14} color="#FFFFFF" />
+            <span className="desktop-only">Download Your Pass</span>
           </button>
 
 
@@ -612,21 +597,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Ticket size={18} color="#FFFFFF" />
-                  <span>My Passes & Tickets</span>
+                  <Download size={18} color="#FFFFFF" />
+                  <span>Download Your Pass</span>
                 </div>
                 <span
                   style={{
                     background: '#080C16',
-                    color: '#88B2AE',
+                    color: '#38BDF8',
                     fontSize: '0.72rem',
                     fontWeight: 800,
                     padding: '2px 8px',
                     borderRadius: '9999px',
-                    border: '1px solid rgba(111, 150, 147, 0.6)'
+                    border: '1px solid rgba(56, 189, 248, 0.4)'
                   }}
                 >
-                  {passesCount > 0 ? `${passesCount} Active` : 'View Passes'}
+                  Pass Search
                 </span>
               </button>
 

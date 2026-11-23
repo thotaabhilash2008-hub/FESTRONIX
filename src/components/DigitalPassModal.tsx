@@ -104,16 +104,22 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   }, [pageMode]);
 
   const [liveRegistrations, setLiveRegistrations] = useState<Registration[]>(() =>
-    mergePasses(initialRegistrations, readGuestPassCache())
+    activePassId
+      ? mergePasses(initialRegistrations, readGuestPassCache()).filter(r => r.id === activePassId)
+      : []
   );
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const allRegs = liveRegistrations;
-  const userFiltered = pageMode ? allRegs : visibleRegistrations(allRegs);
 
-  const [activeList, setActiveList] = useState<Registration[]>(
-    userFiltered
-  );
+  const [activeList, setActiveList] = useState<Registration[]>(() => {
+    if (activePassId) {
+      const merged = mergePasses(initialRegistrations, readGuestPassCache());
+      const match = merged.filter(r => r.id === activePassId);
+      return match;
+    }
+    return [];
+  });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selectedRegistrationId = useRef<string | null>(null);
   const [teamDashboards, setTeamDashboards] = useState<Record<string, Team>>({});
@@ -123,51 +129,71 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<Record<string, string>>({});
 
-  const lookupLivePasses = async (query: string, silent = false) => {
-    const cleanQuery = query.trim();
-    if (!cleanQuery) return;
+  const lookupPassSecurely = async (query: string, silent = false) => {
+    const rawQuery = query.trim();
+    if (!rawQuery) return;
+
     if (!silent) {
       setIsLookupLoading(true);
       setLookupError(null);
       setSearchFeedback(null);
     }
+
     try {
-      const found = await StorageService.lookupPublicPasses(cleanQuery);
-      const normalizedQuery = cleanQuery.toLowerCase();
-      const cachedMatches = readGuestPassCache().filter(registration => [
-        registration.id,
-        registration.leaderEmail,
-        registration.leaderRoll,
-        registration.teamCode
-      ].filter(Boolean).some(value => String(value).toLowerCase() === normalizedQuery));
-      const resolved = mergePasses(found, cachedMatches);
-      setLiveRegistrations(resolved);
-      setActiveList(resolved);
-      setSelectedIndex(0);
-      setSearchFeedback(found.length > 0
-        ? `Live result • ${found.length} pass${found.length === 1 ? '' : 'es'} found`
-        : cachedMatches.length > 0
-          ? 'Saved on this device • live sync will update when available'
-          : 'No live pass matched that lookup.');
-      if (resolved.length === 0) setLookupError('No registration matched. Check the registration ID, roll number, email, or team code.');
-      else setLookupError(null);
-    } catch (error: any) {
-      const normalizedQuery = cleanQuery.toLowerCase();
-      const cachedMatches = readGuestPassCache().filter(registration => [
-        registration.id,
-        registration.leaderEmail,
-        registration.leaderRoll,
-        registration.teamCode
-      ].filter(Boolean).some(value => String(value).toLowerCase() === normalizedQuery));
-      if (cachedMatches.length > 0) {
-        setLiveRegistrations(cachedMatches);
-        setActiveList(cachedMatches);
+      const isFourDigits = /^\d{4}$/.test(rawQuery);
+      const searchTarget = isFourDigits ? `FEST-2026-${rawQuery}` : rawQuery;
+      const normalizedRaw = rawQuery.toLowerCase();
+      const normalizedTarget = searchTarget.toLowerCase();
+
+      // Check local cache first
+      const allCached = mergePasses(initialRegistrations, readGuestPassCache());
+      const localMatches = allCached.filter(r => {
+        const idLower = (r.id || '').toLowerCase();
+        if (isFourDigits) {
+          return idLower === normalizedTarget || idLower.endsWith(normalizedRaw);
+        }
+        return idLower === normalizedRaw || (r.qrToken && r.qrToken.toLowerCase() === normalizedRaw);
+      });
+
+      // Query Supabase backend
+      let remoteMatches: Registration[] = [];
+      try {
+        const found = await StorageService.lookupPublicPasses(searchTarget);
+        remoteMatches = found.filter(r => {
+          const idLower = (r.id || '').toLowerCase();
+          if (isFourDigits) {
+            return idLower === normalizedTarget || idLower.endsWith(normalizedRaw);
+          }
+          return idLower === normalizedRaw || (r.qrToken && r.qrToken.toLowerCase() === normalizedRaw);
+        });
+      } catch (err: any) {
+        // If 4-digit lookup fails, we only rely on local if available
+        console.warn('Backend lookup error:', err);
+      }
+
+      const verified = mergePasses(remoteMatches, localMatches);
+
+      if (verified.length > 0) {
+        setLiveRegistrations(verified);
+        setActiveList(verified);
+        setSelectedIndex(0);
         setLookupError(null);
-        setSearchFeedback('Saved on this device • live lookup is temporarily unavailable');
+        setSearchFeedback(`Pass verified successfully! Found ${verified.length} matching pass${verified.length === 1 ? '' : 'es'}.`);
       } else {
-        if (!silent) setActiveList([]);
-        setLookupError(error?.message || 'Live pass lookup is temporarily unavailable.');
-        setSearchFeedback(null);
+        if (!silent) {
+          setActiveList([]);
+          setLiveRegistrations([]);
+          setLookupError(
+            isFourDigits
+              ? `No pass found ending in digits "${rawQuery}". Please check your pass number.`
+              : `No pass found matching "${rawQuery}". Please verify your Pass Number (e.g., FEST-2026-XXXX).`
+          );
+        }
+      }
+    } catch (error: any) {
+      if (!silent) {
+        setActiveList([]);
+        setLookupError(error?.message || 'Pass lookup temporarily unavailable. Please try again.');
       }
     } finally {
       if (!silent) setIsLookupLoading(false);
@@ -175,48 +201,10 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   useEffect(() => {
-    const nextRegistrations = mergePasses(initialRegistrations, readGuestPassCache());
-    setLiveRegistrations(nextRegistrations);
-    if (nextRegistrations.length > 0) {
-      if (activePassId) {
-        const matches = nextRegistrations.filter(r => r.id === activePassId);
-        if (matches.length > 0) {
-          setActiveList(matches);
-          setSelectedIndex(0);
-        } else {
-          setActiveList(visibleRegistrations(nextRegistrations));
-        }
-      } else {
-        setActiveList(visibleRegistrations(nextRegistrations));
-      }
+    if (activePassId) {
+      void lookupPassSecurely(activePassId, false);
     }
-  }, [initialRegistrations, pageMode, activePassId]);
-
-  useEffect(() => {
-    if (!pageMode || !activePassId) return;
-    setSearchQuery(activePassId);
-
-    // Render the pass cached by the registration flow immediately. The live
-    // lookup below is still authoritative, but it should refresh the card in
-    // the background instead of leaving a just-paid guest on an empty page.
-    const cachedMatches = readGuestPassCache().filter(registration => registration.id === activePassId);
-    if (cachedMatches.length > 0) {
-      setLiveRegistrations(previous => mergePasses(cachedMatches, previous));
-      setActiveList(cachedMatches);
-      setSelectedIndex(0);
-      setSearchFeedback('Saved on this device • verifying payment status…');
-    }
-
-    void lookupLivePasses(activePassId);
-  }, [pageMode, activePassId]);
-
-  useEffect(() => {
-    if (!pageMode || !searchQuery.trim()) return;
-    const intervalId = window.setInterval(() => {
-      void lookupLivePasses(searchQuery, true);
-    }, 5000);
-    return () => window.clearInterval(intervalId);
-  }, [pageMode, searchQuery]);
+  }, [activePassId]);
 
   useEffect(() => {
     if (activePassId && activeList.length > 0) {
@@ -245,19 +233,6 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       setResendStatus(prev => ({ ...prev, [reg.id]: 'Failed to send' }));
     }
   };
-
-  useEffect(() => {
-    const selectedId = selectedRegistrationId.current;
-    const next = pageMode ? liveRegistrations : visibleRegistrations(liveRegistrations);
-    setActiveList(next);
-    setSelectedIndex(previousIndex => {
-      if (selectedId) {
-        const nextIndex = next.findIndex(registration => registration.id === selectedId);
-        if (nextIndex >= 0) return nextIndex;
-      }
-      return Math.min(previousIndex, Math.max(next.length - 1, 0));
-    });
-  }, [initialRegistrations, currentUser, pageMode, liveRegistrations]);
 
   useEffect(() => {
     selectedRegistrationId.current = activeList[selectedIndex]?.id || null;
@@ -320,44 +295,19 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const handleSearchPass = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
-    if (pageMode) {
-      void lookupLivePasses(searchQuery);
-      return;
-    }
-
-    const q = searchQuery.trim().toLowerCase();
-    const found = activeList.filter(
-      r =>
-        r.id.toLowerCase().includes(q) ||
-        r.leaderRoll.toLowerCase().includes(q) ||
-        r.leaderEmail.toLowerCase().includes(q) ||
-        r.leaderName.toLowerCase().includes(q) ||
-        (r.teamName && r.teamName.toLowerCase().includes(q)) ||
-        (r.teamCode && r.teamCode.toLowerCase().includes(q)) ||
-        (r.teammates && r.teammates.some(tm => tm.rollNumber.toLowerCase().includes(q) || tm.name.toLowerCase().includes(q)))
-    );
-
-    if (found.length > 0) {
-      setActiveList(found);
-      setSelectedIndex(0);
-      setSearchFeedback(`Found ${found.length} pass(es) matching "${searchQuery}"!`);
-    } else {
-      setSearchFeedback(`No pass found for "${searchQuery}". Please check your Roll No or Registration ID.`);
-    }
+    void lookupPassSecurely(searchQuery);
   };
 
   const handleResetSearch = () => {
-    const next = pageMode ? [] : visibleRegistrations(liveRegistrations);
-    setLiveRegistrations(next);
-    setActiveList(next);
+    setLiveRegistrations([]);
+    setActiveList([]);
     setSelectedIndex(0);
     setSearchQuery('');
     setSearchFeedback(null);
     setLookupError(null);
   };
 
-  const reg = activeList[selectedIndex] || activeList[0];
+  const reg = activeList.length > 0 ? (activeList[selectedIndex] || activeList[0]) : null;
   const associatedEvent = reg
     ? events.find(event => event.id === reg.eventId || event.slug === reg.eventId)
     : undefined;
@@ -528,7 +478,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Ticket size={20} color="#BACEBB" />
+            <Download size={20} color="#38BDF8" />
             <span
               style={{
                 fontFamily: "var(--font-heading)",
@@ -538,7 +488,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 fontWeight: 700
               }}
             >
-              {pageMode ? 'FESTRONIX PASS PORTAL' : 'OFFICIAL FESTRONIX REGISTRATION PASS'}
+              DOWNLOAD YOUR PASS
             </span>
           </div>
 
@@ -565,73 +515,112 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         </div>
 
         {/* Quick Search Pass Finder */}
-        {pageMode && (
-          <div className="pass-page-intro">
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(16, 26, 53, 0.8) 0%, rgba(9, 18, 36, 0.95) 100%)',
+          border: '1px solid rgba(136, 178, 174, 0.25)',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px'
+        }}>
+          <p style={{
+            margin: '0 0 10px 0',
+            fontSize: '0.84rem',
+            color: '#BACEBB',
+            lineHeight: 1.4
+          }}>
+            Enter your <strong>Pass Number</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>FEST-2026-1234</span>) or simply the <strong>last 4 digits</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>1234</span>) to view and download your pass.
+          </p>
 
-            <h1>Find your official pass</h1>
-            <p>Search with the registration ID, roll number, email, or team code used during registration. Guest access is supported—no sign-in required.</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSearchPass} style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Search
-                size={15}
-                color="#BACEBB"
-                style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-              />
-              <input
-                type="text"
-                className="cyber-input"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Registration ID, roll number, email, or team code"
-                style={{
-                  paddingLeft: '36px',
-                  height: '38px',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  background: 'rgba(16, 26, 53, 0.85)',
-                  border: '1px solid rgba(220, 227, 229, 0.22)',
-                  color: '#FFFFFF'
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              className="btn-cyber-primary"
-              style={{ padding: '0 16px', height: '38px', fontSize: '0.8rem' }}
-            >
-                {isLookupLoading ? 'Checking…' : 'Find pass'}
-            </button>
-            {searchQuery && (
+          <form onSubmit={handleSearchPass}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search
+                  size={15}
+                  color="#38BDF8"
+                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+                />
+                <input
+                  type="text"
+                  className="cyber-input"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Enter Pass No or Last 4 Digits (e.g. 4821)"
+                  autoFocus
+                  style={{
+                    paddingLeft: '36px',
+                    height: '42px',
+                    borderRadius: '8px',
+                    fontSize: '0.86rem',
+                    background: 'rgba(9, 18, 36, 0.95)',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    color: '#FFFFFF'
+                  }}
+                />
+              </div>
               <button
-                type="button"
-                onClick={handleResetSearch}
-                className="btn-cyber-secondary"
-                style={{ padding: '0 12px', height: '38px', fontSize: '0.78rem' }}
+                type="submit"
+                disabled={isLookupLoading}
+                className="btn-cyber-primary"
+                style={{
+                  padding: '0 18px',
+                  height: '42px',
+                  fontSize: '0.82rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
+                  whiteSpace: 'nowrap'
+                }}
               >
-                Reset
+                <Search size={14} />
+                {isLookupLoading ? 'Searching…' : 'Find Pass'}
               </button>
-            )}
-          </div>
-          {searchFeedback && (
-            <div
-              style={{
-                fontSize: '0.74rem',
-                color: searchFeedback.includes('Found') ? '#10B981' : '#F43F5E',
-                marginTop: '6px',
-                fontWeight: 600
-              }}
-            >
-              {searchFeedback}
+              {(searchQuery || activeList.length > 0) && (
+                <button
+                  type="button"
+                  onClick={handleResetSearch}
+                  className="btn-cyber-secondary"
+                  style={{ padding: '0 12px', height: '42px', fontSize: '0.78rem' }}
+                >
+                  Clear
+                </button>
+              )}
             </div>
-          )}
-          {lookupError && (
-            <div className="pass-lookup-error" role="status">{lookupError}</div>
-          )}
-        </form>
+            {searchFeedback && (
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#34D399',
+                  marginTop: '8px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <CheckCircle2 size={14} color="#34D399" />
+                {searchFeedback}
+              </div>
+            )}
+            {lookupError && (
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#F87171',
+                  marginTop: '8px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                role="status"
+              >
+                <AlertTriangle size={14} color="#F87171" />
+                {lookupError}
+              </div>
+            )}
+          </form>
+        </div>
 
         {/* Multi-pass selector tabs */}
         {activeList.length > 1 && (
@@ -1287,10 +1276,38 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           )}
           </>
         ) : (
-          <div className="pass-empty-state">
-            <Ticket size={32} />
-            <h2>{pageMode ? 'Your live pass will appear here' : 'No pass selected'}</h2>
-            <p>{pageMode ? 'Enter a lookup value above to retrieve the latest registration state from Supabase.' : 'Search for a pass to view its latest status.'}</p>
+          <div className="pass-empty-state" style={{
+            minHeight: '260px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            padding: '36px 20px',
+            background: 'rgba(9, 18, 36, 0.7)',
+            border: '1px dashed rgba(136, 178, 174, 0.3)',
+            borderRadius: '14px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(40, 59, 120, 0.4)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#38BDF8'
+            }}>
+              <Download size={26} />
+            </div>
+            <h2 style={{ color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+              Search Your Pass to View & Download
+            </h2>
+            <p style={{ color: '#BACEBB', fontSize: '0.84rem', maxWidth: '440px', margin: 0, lineHeight: 1.5 }}>
+              For your privacy, passes are only displayed once verified. Enter your full <strong>Pass Number</strong> (e.g. <code>FEST-2026-XXXX</code>) or the <strong>last 4 digits</strong> above to access your official ticket.
+            </p>
           </div>
         )}
 
@@ -1346,13 +1363,22 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
-            <button onClick={handlePrint} className="btn-cyber-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-              <Printer size={15} />
-              <span>Print / Save Pass</span>
-            </button>
+            {reg && (
+              <button onClick={handlePrint} className="btn-cyber-primary" style={{
+                padding: '8px 18px',
+                fontSize: '0.82rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)'
+              }}>
+                <Download size={15} />
+                <span>Download / Print Pass (PDF)</span>
+              </button>
+            )}
 
-            <button onClick={onClose} className="btn-cyber-primary" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>
-              Done
+            <button onClick={onClose} className="btn-cyber-secondary" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>
+              Close
             </button>
           </div>
         </div>

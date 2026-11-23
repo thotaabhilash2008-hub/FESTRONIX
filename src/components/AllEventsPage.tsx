@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Code2,
   Crown,
+  Download,
   Gamepad2,
   Inbox,
   LayoutGrid,
@@ -527,10 +528,10 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             type="button"
             onClick={onOpenPasses}
             className="btn-cyber-gold"
-            style={{ padding: '8px 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+            style={{ padding: '8px 16px', fontSize: '0.82rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <Ticket size={14} />
-            <span>My Passes{passesCount > 0 ? ` (${passesCount})` : ''}</span>
+            <Download size={14} />
+            <span>Download Your Pass</span>
           </button>
         </div>
       </header>
