@@ -25,6 +25,10 @@ interface DeptCoordinatorDashboardProps {
   onSwitchToFest: () => void;
 }
 
+// Re-read Firebase every two minutes so the readiness score, counts and
+// revenue stay current without asking coordinators to refresh manually.
+const DEPT_DASHBOARD_REFRESH_MS = 2 * 60 * 1000;
+
 export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> = ({
   adminUser,
   onLogout,
@@ -279,9 +283,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const refreshQueuedRef = useRef(false);
 
   const refreshDeptData = async (): Promise<void> => {
-    // Realtime can report registrations, members, tickets, and payment proof
-    // changes separately. Coalesce those notifications instead of starting
-    // several identical Supabase reads that abort one another.
+    // Registration, event and payment updates can arrive together. Coalesce
+    // those notifications instead of starting several identical Firebase reads.
     if (refreshInFlightRef.current) {
       refreshQueuedRef.current = true;
       return refreshInFlightRef.current;
@@ -396,6 +399,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       }
     }
   };
+  const refreshDeptDataRef = useRef(refreshDeptData);
+  refreshDeptDataRef.current = refreshDeptData;
 
   useEffect(() => {
     if (!isEventCoord) {
@@ -424,12 +429,20 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refreshDeptDataRef.current();
+    };
+    const refreshTimer = window.setInterval(handleVisibilityChange, DEPT_DASHBOARD_REFRESH_MS);
+
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
     window.addEventListener('festronix:events-updated', handleEventsUpdate);
     window.addEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
     window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      window.clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
       window.removeEventListener('festronix:events-updated', handleEventsUpdate);
       window.removeEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
@@ -1553,34 +1566,41 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   };
 
   // Readiness Metrics (8.2 • Readiness Monitor)
+  // Derived only from live Firebase-backed state. Capacity is intentionally
+  // excluded because registrations are unlimited; the final 20% now measures
+  // whether each scoped event has at least one confirmed participant.
   const readinessMetrics = useMemo(() => {
     const totalEventsCount = events.length;
     const eventsWithVenues = events.filter(e => e.venue && e.venue.trim().length > 0).length;
     const eventsWithCoords = events.filter(e => e.coordinatorName && e.coordinatorPhone).length;
     const pendingPaymentCount = registrations.filter(r => r.paymentStatus === 'verification_pending').length;
-    const totalCapacity = deptStats.totalCapacity || 1;
-    const capacityFilledPct = Math.min(100, Math.round((deptStats.totalRegistrations / totalCapacity) * 100));
+    const confirmedRegistrationCount = registrations.filter(r =>
+      r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable'
+    ).length;
+    const eventsWithConfirmedRegistrations = new Set(
+      registrations
+        .filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable')
+        .map(r => r.eventId)
+    ).size;
 
-    // Calculate composite score (out of 100)
     let score = 0;
     if (totalEventsCount > 0) {
-      score += (eventsWithVenues / totalEventsCount) * 30; // 30% for venue allocation
-      score += (eventsWithCoords / totalEventsCount) * 30; // 30% for coordinator appointment
+      score += (eventsWithVenues / totalEventsCount) * 30; // 30% venue allocation
+      score += (eventsWithCoords / totalEventsCount) * 30; // 30% coordinator appointment
+      score += (Math.min(eventsWithConfirmedRegistrations, totalEventsCount) / totalEventsCount) * 20;
     }
     // 20% for payment review queue health (100% if 0 pending)
     score += pendingPaymentCount === 0 ? 20 : Math.max(5, 20 - (pendingPaymentCount * 2));
-    // 20% for capacity utilization
-    score += Math.min(20, (capacityFilledPct / 50) * 20);
 
     return {
-      score: Math.min(100, Math.round(score)),
+      score: Math.max(0, Math.min(100, Math.round(score))),
       eventsWithVenues,
       eventsWithCoords,
       pendingPaymentCount,
-      capacityFilledPct,
+      confirmedRegistrationCount,
       totalEventsCount
     };
-  }, [events, registrations, deptStats]);
+  }, [events, registrations]);
 
   return (
     <div className="admin-shell-layout">

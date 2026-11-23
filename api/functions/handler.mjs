@@ -4,7 +4,7 @@ const callableFunctions = new Set([
   'approveStaffEvent', 'checkInStaffRegistration', 'createFreeRegistrations', 'createStaffEvent',
   'createStaffSpotRegistration', 'deleteStaffEvent', 'findPublicTeam',
   'getStaffAccess', 'getStaffEvent', 'listPublicAnnouncements', 'listPublicDepartments', 'listPublicEvents',
-  'listPublicSponsorProfiles', 'listStaffEvents', 'listStaffRazorpayRefundOrders',
+  'listPublicSponsorProfiles', 'listStaffEvents', 'listStaffPaymentOrders', 'listStaffRazorpayRefundOrders',
   'listStaffRegistrations', 'listStaffTeams', 'manageAnnouncement', 'manageDepartment',
   'manageSponsorProfile', 'manageStaffAccount',
   'reviewStaffRegistrationPayment', 'toggleStaffCheckIn', 'updateStaffEvent',

@@ -900,6 +900,44 @@ export const listStaffRazorpayRefundOrders = onCall({ enforceAppCheck: false }, 
   return { orders };
 });
 
+export const listStaffPaymentOrders = onCall({ enforceAppCheck: false, timeoutSeconds: 120 }, async request => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');
+  const context = await loadStaffContext(uid, request.auth?.token?.email);
+  if (!GLOBAL_ROLES.has(context.role) && context.role !== 'finance_reviewer') {
+    throw new HttpsError('permission-denied', 'Only finance reviewers and central administrators can view payment totals.');
+  }
+  const snapshot = await context.db.collection('paymentOrders').get();
+  const orders = snapshot.docs.map(document => {
+    const row = document.data() as Record<string, unknown>;
+    const payload = row.payload && typeof row.payload === 'object' ? row.payload as Record<string, unknown> : {};
+    const items = Array.isArray(payload.items) ? payload.items as Array<Record<string, unknown>> : [];
+    const linked = Array.isArray(row.registrations) ? row.registrations as Array<Record<string, unknown>> : [];
+    return {
+      id: document.id,
+      orderId: textField(row.razorpay_order_id) || document.id,
+      paymentId: textField(row.razorpay_payment_id) || undefined,
+      amountPaise: Number(row.amount_paise) || 0,
+      status: textField(row.status) || 'unknown',
+      refundStatus: textField(row.refund_status) || 'not_requested',
+      eventId: textField(row.event_id) || textField(items[0]?.eventId) || '',
+      eventTitle: textField(items[0]?.eventTitle) || textField(row.event_title) || '',
+      items: items.map(item => ({
+        eventId: textField(item.eventId),
+        eventTitle: textField(item.eventTitle),
+        departmentCode: textField(item.departmentCode),
+        registrationId: textField(item.registrationId),
+        displayId: textField(item.displayId),
+        fee: Number(item.fee) || 0,
+      })),
+      registrationIds: linked.map(item => textField(item.id)).filter(Boolean),
+      createdAt: firestoreTimestampText(row.created_at) || '',
+      updatedAt: firestoreTimestampText(row.updated_at) || '',
+    };
+  });
+  return { orders };
+});
+
 export const checkInStaffRegistration = onCall({ enforceAppCheck: false }, async request => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in with an authorized staff account.');

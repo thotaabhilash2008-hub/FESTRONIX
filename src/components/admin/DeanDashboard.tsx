@@ -20,6 +20,12 @@ import {
 import { ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
 import { ConfirmActionModal } from './ConfirmActionModal';
 import { isFirebaseConfigured } from '../../lib/firebase';
+import {
+  FirebaseStaffPaymentService,
+  StaffPaymentOrder,
+  paidOrderTotalPaise,
+  paidOrderTotalForDepartmentPaise,
+} from '../../services/firebaseStaffPaymentService';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar, AdminNavTab } from './AdminSidebar';
 import { AdminTopNav } from './AdminTopNav';
@@ -61,6 +67,13 @@ const EMPTY_STATS: FestStats = {
   checkedInCount: 0,
 };
 
+// Keep the finance KPI aligned with Razorpay without making the visitor wait
+// for a manual refresh. Paused while the tab is hidden to avoid needless reads.
+const DASHBOARD_REFRESH_MS = 2 * 60 * 1000;
+
+const statsWithRevenue = (stats: FestStats, orders: StaffPaymentOrder[]): FestStats =>
+  orders.length === 0 ? stats : { ...stats, totalCollected: Math.round(paidOrderTotalPaise(orders) / 100) };
+
 const cseClusterLabel = (clusterCode?: string): string => {
   const normalized = clusterCode?.trim().toUpperCase();
   return CSE_CLUSTER_OPTIONS.find(option => option.value === normalized)?.label || normalized || 'Unassigned CSE cluster';
@@ -94,6 +107,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [selectedTimeScope, setSelectedTimeScope] = useState<'day' | 'week' | 'month' | 'year'>('day');
   
   const [stats, setStats] = useState<FestStats>(() => isFirebaseConfigured ? EMPTY_STATS : StorageService.getStats());
+  const [paymentOrders, setPaymentOrders] = useState<StaffPaymentOrder[]>([]);
+  const paymentOrdersRef = useRef<StaffPaymentOrder[]>([]);
+  const dashboardRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const [events, setEvents] = useState<FestEvent[]>(() => isFirebaseConfigured ? [] : StorageService.getEvents());
   const [registrations, setRegistrations] = useState<Registration[]>(() => isFirebaseConfigured ? [] : StorageService.getRegistrations());
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => isFirebaseConfigured ? [] : StorageService.getAnnouncements());
@@ -253,65 +269,79 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [editDeptContact, setEditDeptContact] = useState('');
   const [editDeptIcon, setEditDeptIcon] = useState('Cpu');
 
-  const refreshAllData = async () => {
-    setIsLoadingDepartments(true);
-    if (isFirebaseConfigured) {
-      setStats(EMPTY_STATS);
-      setEvents([]);
-      setRegistrations([]);
-      setAnnouncements([]);
-      setDepartments([]);
-      setCoordinators([]);
-    } else {
-      setStats(StorageService.getStats());
-      setEvents(StorageService.getEvents());
-      setRegistrations(StorageService.getRegistrations());
-      setAnnouncements(StorageService.getAnnouncements());
-      setDepartments(StorageService.getDepartments());
-      setCoordinators(AdminAuthService.getCoordinators());
-    }
+  const refreshAllData = async (): Promise<void> => {
+    if (dashboardRefreshInFlightRef.current) return dashboardRefreshInFlightRef.current;
+    const refresh = (async () => {
+      setIsLoadingDepartments(true);
+      if (isFirebaseConfigured) {
+        setStats(EMPTY_STATS);
+        setEvents([]);
+        setRegistrations([]);
+        setAnnouncements([]);
+        setDepartments([]);
+        setCoordinators([]);
+      } else {
+        setStats(StorageService.getStats());
+        setEvents(StorageService.getEvents());
+        setRegistrations(StorageService.getRegistrations());
+        setAnnouncements(StorageService.getAnnouncements());
+        setDepartments(StorageService.getDepartments());
+        setCoordinators(AdminAuthService.getCoordinators());
+      }
 
-    const results = await Promise.allSettled([
-      StorageService.fetchEvents(),
-      StorageService.fetchRegistrations(),
-      StorageService.fetchAnnouncements(),
-      StorageService.fetchDepartments(),
-      AdminAuthService.fetchAdmins(),
-    ] as const);
-    const [eventsResult, registrationsResult, announcementsResult, departmentsResult, coordinatorsResult] = results;
+      const results = await Promise.allSettled([
+        StorageService.fetchEvents(),
+        StorageService.fetchRegistrations(),
+        StorageService.fetchAnnouncements(),
+        StorageService.fetchDepartments(),
+        AdminAuthService.fetchAdmins(),
+        isFirebaseConfigured ? FirebaseStaffPaymentService.list() : Promise.resolve([] as StaffPaymentOrder[]),
+      ] as const);
+      const [eventsResult, registrationsResult, announcementsResult, departmentsResult, coordinatorsResult, paymentsResult] = results;
+      const orders = paymentsResult.status === 'fulfilled' ? paymentsResult.value : paymentOrdersRef.current;
 
-    if (eventsResult.status === 'fulfilled') setEvents(eventsResult.value);
-    else console.warn('Firebase staff events could not be loaded.', eventsResult.reason);
-    if (registrationsResult.status === 'fulfilled') setRegistrations(registrationsResult.value);
-    else console.warn('Firebase staff registrations could not be loaded.', registrationsResult.reason);
-    if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
-    else console.warn('Firebase announcements could not be loaded.', announcementsResult.reason);
-    if (departmentsResult.status === 'fulfilled') {
-      setDepartments(departmentsResult.value);
-      setDepartmentLoadFailed(false);
-    } else {
-      setDepartmentLoadFailed(true);
-      console.error('Firebase departments could not be loaded.', departmentsResult.reason);
-    }
-    setIsLoadingDepartments(false);
-    if (coordinatorsResult.status === 'fulfilled') setCoordinators(coordinatorsResult.value);
-    else console.warn('Firebase coordinator directory could not be loaded.', coordinatorsResult.reason);
-    if (eventsResult.status === 'fulfilled' && registrationsResult.status === 'fulfilled') {
-      setStats(StorageService.getStats());
+      if (eventsResult.status === 'fulfilled') setEvents(eventsResult.value);
+      else console.warn('Firebase staff events could not be loaded.', eventsResult.reason);
+      if (registrationsResult.status === 'fulfilled') setRegistrations(registrationsResult.value);
+      else console.warn('Firebase staff registrations could not be loaded.', registrationsResult.reason);
+      if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
+      else console.warn('Firebase announcements could not be loaded.', announcementsResult.reason);
+      if (departmentsResult.status === 'fulfilled') {
+        setDepartments(departmentsResult.value);
+        setDepartmentLoadFailed(false);
+      } else {
+        setDepartmentLoadFailed(true);
+        console.error('Firebase departments could not be loaded.', departmentsResult.reason);
+      }
+      setIsLoadingDepartments(false);
+      if (coordinatorsResult.status === 'fulfilled') setCoordinators(coordinatorsResult.value);
+      else console.warn('Firebase coordinator directory could not be loaded.', coordinatorsResult.reason);
+      if (paymentsResult.status === 'rejected') console.warn('Firebase payment orders could not be loaded.', paymentsResult.reason);
+      paymentOrdersRef.current = orders;
+      setPaymentOrders(orders);
+      if (eventsResult.status === 'fulfilled' && registrationsResult.status === 'fulfilled') {
+        setStats(statsWithRevenue(StorageService.getStats(), orders));
+      }
+    })();
+    dashboardRefreshInFlightRef.current = refresh;
+    try {
+      await refresh;
+    } finally {
+      dashboardRefreshInFlightRef.current = null;
     }
   };
 
   useEffect(() => {
-    refreshAllData();
+    void refreshAllData();
 
     const handleRegsUpdate = () => {
       setRegistrations(StorageService.getRegistrations());
-      setStats(StorageService.getStats());
+      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
     };
 
     const handleEventsUpdate = () => {
       setEvents(StorageService.getEvents());
-      setStats(StorageService.getStats());
+      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
     };
 
     const handleDeptsUpdate = () => {
@@ -335,9 +365,14 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         e.key === 'festronix_departments_v2' ||
         e.key === 'festronix_all_admins_v2'
       ) {
-        refreshAllData();
+        void refreshAllData();
       }
     };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refreshAllData();
+    };
+    const refreshTimer = window.setInterval(handleVisibilityChange, DASHBOARD_REFRESH_MS);
 
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
     window.addEventListener('festronix:events-updated', handleEventsUpdate);
@@ -345,8 +380,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     window.addEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
     window.addEventListener('festronix:admins-updated', handleAdminsUpdate);
     window.addEventListener('storage', handleStorageChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      window.clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
       window.removeEventListener('festronix:events-updated', handleEventsUpdate);
       window.removeEventListener('festronix:departments-updated', handleDeptsUpdate);
@@ -1860,7 +1898,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   const deptRegs = registrations.filter(r => deptEvents.some(e => e.id === r.eventId));
                   const verifiedRegs = deptRegs.filter(r => r.paymentStatus === 'verified');
                   const checkedInCount = deptRegs.filter(r => r.checkedIn).length;
-                  const totalCollected = verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
+                  const orderCollectedPaise = paidOrderTotalForDepartmentPaise(paymentOrders, dept.code);
+                  const totalCollected = orderCollectedPaise > 0
+                    ? Math.round(orderCollectedPaise / 100)
+                    : verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
                   const deptCoords = coordinators.filter(c => c.departmentCode?.toUpperCase() === dept.code.toUpperCase());
 
                   const deptColorConfig: Record<string, { border: string; glow: string; text: string; bg: string; icon: any }> = {
@@ -2070,7 +2111,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px' }}>
               {departments.map(dept => {
-                const deptStats = StorageService.getDepartmentStats(dept.code);
+                const deptOrderPaise = paidOrderTotalForDepartmentPaise(paymentOrders, dept.code);
+                const baseDeptStats = StorageService.getDepartmentStats(dept.code);
+                const deptStats: FestStats = deptOrderPaise > 0
+                  ? { ...baseDeptStats, totalCollected: Math.round(deptOrderPaise / 100) }
+                  : baseDeptStats;
                 const deptEvents = events.filter(e => e.departmentCode.toUpperCase() === dept.code.toUpperCase());
                 const deptCoords = coordinators.filter(c => c.departmentCode?.toUpperCase() === dept.code.toUpperCase());
                 const deptCoordinator = deptCoords.find(c => c.role === 'dept_chief_coordinator' || c.role === 'dept_coordinator');

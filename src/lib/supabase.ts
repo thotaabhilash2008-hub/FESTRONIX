@@ -2,10 +2,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { isFirebaseConfigured } from './firebase';
 
 /**
- * Compatibility guard for code paths being removed during the migration.
- * The application must never connect to Supabase. Legacy call sites remain
- * temporarily so the Firebase migration can be reviewed incrementally; any
- * accidental invocation fails locally instead of making a network request.
+ * Firebase is the sole runtime store. Supabase is kept only as an optional,
+ * read-only legacy recovery source for manual incident scripts; the browser
+ * application must never connect to it. Any accidental invocation fails
+ * locally instead of making a network request.
  */
 const rejectSupabaseCall = () => {
   throw new Error('Supabase has been disabled. Configure the Firebase backend and use its service adapter.');
