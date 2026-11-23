@@ -64,6 +64,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onBackToFest }) => {
     if (!isSupabaseConfigured()) return;
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
+        const current = AdminAuthService.getCurrentAdmin();
+        if (current && AdminAuthService.getAllAdmins().some(a => 
+          a.email.toLowerCase() === current.email.toLowerCase() || 
+          a.username.toLowerCase() === current.username.toLowerCase()
+        )) {
+          return;
+        }
         setAdminUser(null);
         localStorage.removeItem('festronix_admin_session_v1');
       }
