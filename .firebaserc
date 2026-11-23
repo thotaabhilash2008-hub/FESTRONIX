@@ -1,1 +1,5 @@
-{"projects":{"staging":"festronix-26---new-db","production":"festronix-26---new-db"}}
+{
+  "projects": {
+    "staging": "festronix-migration-stg26"
+  }
+}
