@@ -202,10 +202,6 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
           return;
         }
       }
-      if (item.event.registeredCount + item.quantity > item.event.capacity) {
-        setErrorMessage(`"${item.event.title}" does not have enough remaining seats for this order.`);
-        return;
-      }
       if (item.quantity > 1) {
         const extra = additionalMembersByEvent[item.event.id] || [];
         const seenRolls = new Set<string>();
@@ -426,7 +422,7 @@ export const MultiPassModal: React.FC<MultiPassModalProps> = ({
   // individual events; team/duo events must use their roster checkout.
   const getMultiPassUnavailableReason = (event: FestEvent): string | null => {
     if (event.format !== 'individual') return 'Use event team registration';
-    if (event.status === 'full' || event.registeredCount >= event.capacity) return 'Full';
+    if (event.status === 'full') return 'Full';
     if (!['open', 'upcoming'].includes(event.status)) return 'Registration closed';
     if (event.deadline) {
       const deadline = new Date(event.deadline);
