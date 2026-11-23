@@ -3,7 +3,7 @@ import {
   Award, Users, IndianRupee, Clock, CheckCircle2, XCircle, Search, 
   Download, Bell, Plus, Trash2, Edit3, LogOut, Globe, 
   Layers, Eye, RefreshCw, Building2,
-  UserCheck, UserPlus, Phone, Mail, Copy, Check,
+  UserCheck, UserPlus, Phone, Mail, Copy, Check, X,
   Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key,
   Calendar, ArrowRight, QrCode, Camera, StopCircle,
   TrendingUp, Filter, FileSpreadsheet, ArrowUpRight, BarChart3, PieChart, Upload
@@ -101,6 +101,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [rosterDeptFilter, setRosterDeptFilter] = useState('all');
   const [rosterPaymentFilter, setRosterPaymentFilter] = useState('all');
   const [rosterCheckInFilter, setRosterCheckInFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all');
+  const [rosterTypeFilter, setRosterTypeFilter] = useState<'all' | 'team' | 'single'>('all');
+  const [viewingTeamMembers, setViewingTeamMembers] = useState<Registration | null>(null);
   const [rosterPage, setRosterPage] = useState(1);
   const ROSTER_PAGE_SIZE = 10;
 
@@ -1243,6 +1245,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     );
   }, [coordinators, editingEvent]);
 
+  const isTeamRegistration = (r: Registration) => {
+    return Boolean(
+      (r.teamName && r.teamName.trim().length > 0) ||
+      (r.teamCode && r.teamCode.trim().length > 0) ||
+      (Array.isArray(r.teammates) && r.teammates.length > 0) ||
+      r.format === 'team'
+    );
+  };
+
   // Filtered Roster
   const filteredRoster = registrations.filter(r => {
     if (selectedRosterEventId) {
@@ -1266,7 +1277,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       (rosterCheckInFilter === 'checked_in' && r.checkedIn) || 
       (rosterCheckInFilter === 'not_checked_in' && !r.checkedIn);
 
-    return matchSearch && matchDept && matchPay && matchCheckIn;
+    const isTeam = isTeamRegistration(r);
+    const matchType =
+      rosterTypeFilter === 'all' ||
+      (rosterTypeFilter === 'team' && isTeam) ||
+      (rosterTypeFilter === 'single' && !isTeam);
+
+    return matchSearch && matchDept && matchPay && matchCheckIn && matchType;
   });
 
   const rosterPageCount = Math.max(1, Math.ceil(filteredRoster.length / ROSTER_PAGE_SIZE));
@@ -1274,7 +1291,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
   useEffect(() => {
     setRosterPage(1);
-  }, [rosterSearch, rosterDeptFilter, rosterPaymentFilter, rosterCheckInFilter, selectedRosterEventId]);
+  }, [rosterSearch, rosterDeptFilter, rosterPaymentFilter, rosterCheckInFilter, rosterTypeFilter, selectedRosterEventId]);
 
   useEffect(() => {
     if (rosterPage > rosterPageCount) setRosterPage(rosterPageCount);
@@ -4498,6 +4515,24 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <option value="checked_in">Checked In Only</option>
                 <option value="not_checked_in">Not Arrived</option>
               </select>
+
+              <select
+                value={rosterTypeFilter}
+                onChange={e => setRosterTypeFilter(e.target.value as any)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 26, 53, 0.9)',
+                  border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                  color: '#38BDF8',
+                  fontSize: '0.82rem',
+                  fontWeight: 700
+                }}
+              >
+                <option value="all" style={{ background: '#101B35', color: '#FFFFFF' }}>View All Participants</option>
+                <option value="team" style={{ background: '#101B35', color: '#38BDF8' }}>View as Team</option>
+                <option value="single" style={{ background: '#101B35', color: '#34D399' }}>Single Registration Only</option>
+              </select>
             </div>
 
             {/* Table */}
@@ -4536,41 +4571,74 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#BACEBB', fontWeight: 700 }}>
                         {r.id}
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
-                        {r.leaderName}
-                        <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderEmail} • {r.leaderPhone}</div>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
-                        {r.leaderRoll}
-                      </td>
-                      <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
-                        <div>{r.eventTitle}</div>
-                        {(r.teamName || r.teamCode || (r.teammates && r.teammates.length > 0)) && (
-                          <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>Squad: <strong>{r.teamName || 'Team'}</strong></span>
-                            {r.teamCode && <span style={{ fontFamily: 'monospace', color: '#38BDF8' }}>({r.teamCode})</span>}
+                      {isTeamRegistration(r) ? (
+                        <>
+                          <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '6px',
+                                background: 'rgba(56, 189, 248, 0.15)',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#38BDF8',
+                                flexShrink: 0
+                              }}>
+                                <Users size={14} />
+                              </div>
+                              <div>
+                                <div style={{ color: '#38BDF8', fontWeight: 800, fontSize: '0.88rem' }}>
+                                  {r.teamName || `Team ${r.teamCode || r.id}`}
+                                </div>
+                                {r.teamCode && (
+                                  <div style={{ fontSize: '0.7rem', color: '#BACEBB', fontFamily: 'monospace' }}>
+                                    Code: {r.teamCode}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
                             <button
                               type="button"
-                              onClick={() => handleOpenEditTeam(r)}
+                              onClick={() => setViewingTeamMembers(r)}
                               style={{
-                                background: 'rgba(56, 189, 248, 0.12)',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(40, 59, 120, 0.35) 100%)',
+                                border: '1px solid rgba(56, 189, 248, 0.45)',
                                 color: '#38BDF8',
-                                borderRadius: '4px',
-                                padding: '1px 6px',
-                                fontSize: '0.66rem',
+                                borderRadius: '6px',
+                                padding: '5px 10px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '3px'
+                                gap: '6px',
+                                whiteSpace: 'nowrap'
                               }}
-                              title="Edit Team Details & Members"
+                              title="View all team members"
                             >
-                              <Edit3 size={10} />
-                              Edit Team
+                              <Users size={13} />
+                              <span>View Team Members ({1 + (r.teammates?.length || 0)})</span>
                             </button>
-                          </div>
-                        )}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
+                            {r.leaderName}
+                            <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderEmail} • {r.leaderPhone}</div>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
+                            {r.leaderRoll}
+                          </td>
+                        </>
+                      )}
+                      <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
+                        <div>{r.eventTitle}</div>
                       </td>
                       <td style={{ padding: '12px 16px', color: '#BACEBB', fontWeight: 700 }}>
                         ₹{r.fee}
@@ -7947,6 +8015,249 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Team Members Modal */}
+      {viewingTeamMembers && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 10, 24, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 110,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setViewingTeamMembers(null)}
+        >
+          <div
+            style={{
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#0F1A35',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(56, 189, 248, 0.4)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)',
+              padding: '24px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid rgba(220, 227, 229, 0.1)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38BDF8'
+                }}>
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 style={{ color: '#FFFFFF', margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>
+                    {viewingTeamMembers.teamName || 'Team Squad Roster'}
+                  </h3>
+                  <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '2px' }}>
+                    Event: <span style={{ color: '#DCE3E5', fontWeight: 600 }}>{viewingTeamMembers.eventTitle}</span> • Reg ID: <span style={{ color: '#38BDF8', fontFamily: 'monospace' }}>{viewingTeamMembers.id}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingTeamMembers(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#A8B3C2',
+                  borderRadius: '6px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: '10px',
+              marginBottom: '20px',
+              background: 'rgba(16, 26, 53, 0.7)',
+              padding: '12px',
+              borderRadius: '10px',
+              border: '1px solid rgba(220, 227, 229, 0.1)'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Team Code</div>
+                <div style={{ fontSize: '0.88rem', color: '#38BDF8', fontWeight: 800, fontFamily: 'monospace', marginTop: '2px' }}>
+                  {viewingTeamMembers.teamCode || 'N/A'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Total Members</div>
+                <div style={{ fontSize: '0.88rem', color: '#FFFFFF', fontWeight: 800, marginTop: '2px' }}>
+                  {1 + (viewingTeamMembers.teammates?.length || 0)} Members
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Registration Fee</div>
+                <div style={{ fontSize: '0.88rem', color: '#34D399', fontWeight: 800, marginTop: '2px' }}>
+                  ₹{viewingTeamMembers.fee}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Payment Status</div>
+                <div style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  marginTop: '2px',
+                  color: viewingTeamMembers.paymentStatus === 'verified' ? '#34D399' : viewingTeamMembers.paymentStatus === 'verification_pending' ? '#FBBF24' : '#F87171'
+                }}>
+                  {viewingTeamMembers.paymentStatus.toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            {/* Members List */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.78rem', color: '#7DD3FC', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '10px' }}>
+                All Team Members ({1 + (viewingTeamMembers.teammates?.length || 0)})
+              </div>
+
+              {/* Member 1: Team Leader */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.6) 0%, rgba(16, 26, 53, 0.8) 100%)',
+                border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '10px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      background: 'rgba(56, 189, 248, 0.2)',
+                      border: '1px solid #38BDF8',
+                      color: '#38BDF8',
+                      fontSize: '0.66rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase'
+                    }}>
+                      Leader
+                    </span>
+                    <strong style={{ color: '#FFFFFF', fontSize: '0.92rem' }}>{viewingTeamMembers.leaderName}</strong>
+                  </div>
+                  <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
+                    {viewingTeamMembers.leaderRoll}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                  <div>Email: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderEmail || '—'}</span></div>
+                  <div>Phone: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderPhone || '—'}</span></div>
+                  <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderCollege || 'Vardhaman College of Engineering'}</span></div>
+                </div>
+              </div>
+
+              {/* Teammates */}
+              {(!viewingTeamMembers.teammates || viewingTeamMembers.teammates.length === 0) ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: '#94A3B8', fontSize: '0.78rem', background: 'rgba(16, 26, 53, 0.4)', borderRadius: '8px' }}>
+                  No additional teammates listed.
+                </div>
+              ) : (
+                viewingTeamMembers.teammates.map((tm, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'rgba(16, 26, 53, 0.6)',
+                      border: '1px solid rgba(220, 227, 229, 0.12)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(220, 227, 229, 0.2)',
+                          color: '#A8B3C2',
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase'
+                        }}>
+                          Member #{idx + 2}
+                        </span>
+                        <strong style={{ color: '#FFFFFF', fontSize: '0.88rem' }}>{tm.name || 'Unnamed Member'}</strong>
+                      </div>
+                      <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
+                        {tm.rollNumber || '—'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                      <div>Email: <span style={{ color: '#CBD5E1' }}>{tm.email || '—'}</span></div>
+                      <div>Phone: <span style={{ color: '#CBD5E1' }}>{tm.phone || '—'}</span></div>
+                      {tm.college && <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{tm.college}</span></div>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.1)', paddingTop: '14px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const reg = viewingTeamMembers;
+                  setViewingTeamMembers(null);
+                  handleOpenEditTeam(reg);
+                }}
+                className="btn-cyber-secondary"
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '0.82rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Edit3 size={14} />
+                <span>Edit Team Details</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewingTeamMembers(null)}
+                className="btn-cyber-primary"
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '0.82rem',
+                  background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)'
+                }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

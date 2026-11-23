@@ -126,6 +126,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const [isRefreshingTeams, setIsRefreshingTeams] = useState(false);
   const [lastTeamSync, setLastTeamSync] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<'pass' | 'team'>('pass');
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<Record<string, string>>({});
 
@@ -150,8 +151,20 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         const idLower = (r.id || '').toLowerCase();
         const teamCodeNormalized = normalizeTeamCode(r.teamCode);
 
-        // 1. Team Code Match (exact or normalized alphanumeric)
-        if (normalizedTeamQuery && teamCodeNormalized && teamCodeNormalized === normalizedTeamQuery) {
+        // 1. Team Code Match (exact, normalized alphanumeric, prefix, or suffix)
+        if (normalizedTeamQuery && teamCodeNormalized) {
+          if (
+            teamCodeNormalized === normalizedTeamQuery ||
+            teamCodeNormalized.endsWith(normalizedTeamQuery) ||
+            teamCodeNormalized.includes(normalizedTeamQuery)
+          ) {
+            return true;
+          }
+        }
+        if (r.teamCode && (
+          r.teamCode.toLowerCase() === normalizedRaw ||
+          r.teamCode.toLowerCase().includes(normalizedRaw)
+        )) {
           return true;
         }
 
@@ -232,14 +245,22 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         setActiveList(verified);
         setSelectedIndex(0);
         setLookupError(null);
-        setSearchFeedback(`Pass verified successfully! Found ${verified.length} matching pass${verified.length === 1 ? '' : 'es'}.`);
+        const hasTeamPass = verified.some(r => r.teamCode || r.teamName);
+        if (searchMode === 'team' || hasTeamPass) {
+          const matchedTeamCode = verified.find(r => r.teamCode)?.teamCode || rawQuery.toUpperCase();
+          setSearchFeedback(`Team verified! Found ${verified.length} pass${verified.length === 1 ? '' : 'es'} for Team ${matchedTeamCode}.`);
+        } else {
+          setSearchFeedback(`Pass verified successfully! Found ${verified.length} matching pass${verified.length === 1 ? '' : 'es'}.`);
+        }
       } else {
         if (!silent) {
           setActiveList([]);
           setLiveRegistrations([]);
           setLookupError(
-            isFourDigits
-              ? `No pass found ending in "${rawQuery}" or matching team code "${rawQuery}". Please check your pass number or team code.`
+            searchMode === 'team'
+              ? `No passes found for Team Code "${rawQuery}". Please check your team code (e.g. TM-8492 or FX-XXXX).`
+              : isFourDigits
+              ? `No pass found ending in "${rawQuery}". Please check your 4-digit pass number.`
               : `No pass found matching "${rawQuery}". Please verify your Pass Number (e.g. FEST-2026-XXXX) or Team Code (e.g. TM-XXXX).`
           );
         }
@@ -606,7 +627,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           </button>
         </div>
 
-        {/* Quick Search Pass Finder */}
+        {/* Quick Search Pass Finder with Team Code & Pass ID Options */}
         <div style={{
           background: 'linear-gradient(135deg, rgba(16, 26, 53, 0.8) 0%, rgba(9, 18, 36, 0.95) 100%)',
           border: '1px solid rgba(136, 178, 174, 0.25)',
@@ -614,29 +635,105 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           padding: '16px',
           marginBottom: '16px'
         }}>
+          {/* Option Selector Tabs */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode('pass');
+                setLookupError(null);
+                setSearchFeedback(null);
+              }}
+              style={{
+                flex: 1,
+                minWidth: '140px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: searchMode === 'pass' ? '1.5px solid #38BDF8' : '1px solid rgba(220, 227, 229, 0.15)',
+                background: searchMode === 'pass' ? 'rgba(56, 189, 248, 0.18)' : 'rgba(16, 26, 53, 0.6)',
+                color: searchMode === 'pass' ? '#38BDF8' : '#94A3B8',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Ticket size={14} />
+              <span>Pass Number / ID</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode('team');
+                setLookupError(null);
+                setSearchFeedback(null);
+              }}
+              style={{
+                flex: 1,
+                minWidth: '140px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: searchMode === 'team' ? '1.5px solid #34D399' : '1px solid rgba(220, 227, 229, 0.15)',
+                background: searchMode === 'team' ? 'rgba(52, 211, 153, 0.18)' : 'rgba(16, 26, 53, 0.6)',
+                color: searchMode === 'team' ? '#34D399' : '#94A3B8',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Users size={14} />
+              <span>Download by Team Code</span>
+            </button>
+          </div>
+
           <p style={{
             margin: '0 0 10px 0',
-            fontSize: '0.84rem',
+            fontSize: '0.82rem',
             color: '#BACEBB',
             lineHeight: 1.4
           }}>
-            Enter your <strong>Pass Number</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>FEST-2026-1234</span>), <strong>last 4 digits</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>1234</span>), or <strong>Team Code</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>TM-8492</span>) to view and download your pass.
+            {searchMode === 'team' ? (
+              <>Enter your <strong>Team Code</strong> (e.g. <span style={{ color: '#34D399', fontFamily: "'Space Grotesk', monospace" }}>TM-8492</span> or <span style={{ color: '#34D399', fontFamily: "'Space Grotesk', monospace" }}>FX-XXXX-1234</span>) to find and download passes for your squad.</>
+            ) : (
+              <>Enter your <strong>Pass Number</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>FEST-2026-1234</span>), <strong>last 4 digits</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>1234</span>), or <strong>Roll Number</strong> to view and download your pass.</>
+            )}
           </p>
 
           <form onSubmit={handleSearchPass}>
             <div style={{ display: 'flex', gap: '8px' }}>
               <div style={{ position: 'relative', flex: 1 }}>
-                <Search
-                  size={15}
-                  color="#38BDF8"
-                  style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-                />
+                {searchMode === 'team' ? (
+                  <Users
+                    size={15}
+                    color="#34D399"
+                    style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+                  />
+                ) : (
+                  <Search
+                    size={15}
+                    color="#38BDF8"
+                    style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+                  />
+                )}
                 <input
                   type="text"
                   className="cyber-input"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Enter Pass No, Last 4 Digits, or Team Code (e.g. TM-8492)"
+                  placeholder={
+                    searchMode === 'team'
+                      ? "Enter Team Code (e.g. TM-8492 or 8492)"
+                      : "Enter Pass No (e.g. FEST-2026-1234) or Roll No"
+                  }
                   autoFocus
                   style={{
                     paddingLeft: '36px',
@@ -644,7 +741,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                     borderRadius: '8px',
                     fontSize: '0.86rem',
                     background: 'rgba(9, 18, 36, 0.95)',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    border: searchMode === 'team' ? '1px solid rgba(52, 211, 153, 0.45)' : '1px solid rgba(56, 189, 248, 0.4)',
                     color: '#FFFFFF'
                   }}
                 />
@@ -660,12 +757,14 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
+                  background: searchMode === 'team'
+                    ? 'linear-gradient(135deg, #064E3B 0%, #047857 50%, #10B981 100%)'
+                    : 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
                   whiteSpace: 'nowrap'
                 }}
               >
-                <Search size={14} />
-                {isLookupLoading ? 'Searching…' : 'Find Pass'}
+                {searchMode === 'team' ? <Users size={14} /> : <Search size={14} />}
+                {isLookupLoading ? 'Searching…' : searchMode === 'team' ? 'Find Team Passes' : 'Find Pass'}
               </button>
               {(searchQuery || activeList.length > 0) && (
                 <button
