@@ -619,7 +619,6 @@ export const createStaffSpotRegistration = onCall({
       throw new HttpsError('failed-precondition', 'This event is no longer accepting spot registrations.');
     }
     if (String(fresh.format) !== format || Number(fresh.fee) !== fee) throw new HttpsError('failed-precondition', 'Event registration rules changed. Refresh and retry.');
-    if (Number(fresh.registered_count || 0) + participantCount > Number(fresh.capacity || 0)) throw new HttpsError('resource-exhausted', 'This event does not have enough seats for this registration.');
     if (claimSnapshots.some(snapshot => snapshot.exists && (snapshot.get('conflict') === true || snapshot.get('pending_team_membership') === true))) {
       throw new HttpsError('already-exists', 'A participant is already reserved for another team in this event.');
     }
@@ -740,11 +739,9 @@ export const createStaffSpotRegistration = onCall({
       transaction.create(teamCodeClaimRef, { team_id: teamRef.id, event_id: eventId, created_at: now });
     }
     const registeredCount = Number(fresh.registered_count || 0) + participantCount;
-    const nextStatus = registeredCount >= Number(fresh.capacity || 0) ? 'full' : fresh.status;
-    transaction.update(eventRef, { registered_count: registeredCount, status: nextStatus, updated_at: now });
+    transaction.update(eventRef, { registered_count: registeredCount, updated_at: now });
     const projectionRef = context.db.collection('publicEvents').doc(eventId);
-    if (nextStatus === 'full') transaction.delete(projectionRef);
-    else transaction.set(projectionRef, { registeredCount }, { merge: true });
+    transaction.set(projectionRef, { registeredCount }, { merge: true });
     return { registrationId: registrationIds[0], status };
   });
   const [registrationSnapshot, ticketSnapshot, memberSnapshot] = await Promise.all([
@@ -1795,7 +1792,7 @@ function validateEventFields(input: Record<string, unknown>, departmentCode: str
     throw new HttpsError('invalid-argument', 'Team size must be between 1 and 20, with maximum at least minimum.');
   }
   if (!Number.isFinite(fee) || fee < 0 || fee > 1_000_000) throw new HttpsError('invalid-argument', 'Event fee must be between ₹0 and ₹10,00,000.');
-  if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 100_000) throw new HttpsError('invalid-argument', 'Event capacity must be between 1 and 100,000.');
+  if (!Number.isSafeInteger(capacity) || capacity < 0) throw new HttpsError('invalid-argument', 'Event capacity must be zero or greater.');
   if (format === 'individual' && (minTeamSize !== 1 || maxTeamSize !== 1)) {
     throw new HttpsError('invalid-argument', 'Individual events must have a team size of exactly one.');
   }
@@ -2053,8 +2050,6 @@ export const updateStaffEvent = onCall({ enforceAppCheck: false }, async request
       if (Object.hasOwn(patchInput, frontKey)) patch[dbKey] = validated[dbKey as keyof typeof validated];
     }
     patch.updated_at = updateTime;
-    const capacity = Number(patch.capacity ?? current.capacity);
-    if (capacity < Number(current.registered_count || 0)) throw new HttpsError('failed-precondition', 'Capacity cannot be lower than the number of registrations already recorded.');
     if (patch.slug && patch.slug !== current.slug) {
       const nextClaimRef = context.db.collection('eventSlugClaims').doc(String(patch.slug));
       const [matches, nextClaim] = await Promise.all([
