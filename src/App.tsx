@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
-import { HeroSection as ComingSoonHeroSection } from './components/ComingSoonHeroSection';
+import { GlitchOpeningHeroSection } from './components/GlitchOpeningHeroSection';
 import { EventsGlimpseSection } from './components/EventsGlimpseSection';
 import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
@@ -31,9 +31,9 @@ import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
 const COMING_SOON_ONLY = import.meta.env.VITE_COMING_SOON_ONLY !== 'false';
 
-// Exact public page from the repository's `coming-soon` branch. Kept here so the
-// Firebase-only codex deployment can show the same page without changing the
-// normal site that is restored when COMING_SOON_ONLY is flipped to false.
+// Opening page shown while registrations are paused. It keeps the original
+// coming-soon backdrop and brand lockup, with a glitch/restoration status.
+// The normal site is restored when COMING_SOON_ONLY is flipped to false.
 const ComingSoonPage: React.FC = () => (
   <ScrollAnimationsProvider>
     <div
@@ -53,7 +53,7 @@ const ComingSoonPage: React.FC = () => (
         className="public-main coming-soon-main"
         style={{ flex: 1, position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column' }}
       >
-        <ComingSoonHeroSection />
+        <GlitchOpeningHeroSection />
       </main>
     </div>
   </ScrollAnimationsProvider>
