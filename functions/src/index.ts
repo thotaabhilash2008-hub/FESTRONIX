@@ -2052,8 +2052,18 @@ export const updateStaffEvent = onCall({ enforceAppCheck: false }, async request
     const requestedFormat = textField(patchInput.format)?.toLowerCase();
     const requestedMin = patchInput.minTeamSize === undefined ? current.min_team_size : Number(patchInput.minTeamSize);
     const requestedMax = patchInput.maxTeamSize === undefined ? current.max_team_size : Number(patchInput.maxTeamSize);
-    if ((requestedFormat && requestedFormat !== current.format) || requestedMin !== Number(current.min_team_size) || requestedMax !== Number(current.max_team_size)) {
-      throw new HttpsError('failed-precondition', 'Changing event format or team-size rules requires a dedicated roster migration.');
+    const formatChanged = Boolean(requestedFormat && requestedFormat !== (textField(current.format)?.toLowerCase() || ''));
+    const teamSizeChanged = requestedMin !== Number(current.min_team_size) || requestedMax !== Number(current.max_team_size);
+    if (formatChanged || teamSizeChanged) {
+      // Empty events can be reconfigured freely. Once a roster exists, format
+      // and team-size changes must go through a dedicated roster migration.
+      const [registrations, teams] = await Promise.all([
+        transaction.get(context.db.collection('registrations').where('event_id', '==', eventId).limit(1)),
+        transaction.get(context.db.collection('teams').where('event_id', '==', eventId).limit(1)),
+      ]);
+      if (!registrations.empty || !teams.empty) {
+        throw new HttpsError('failed-precondition', 'Changing event format or team-size rules requires a dedicated roster migration.');
+      }
     }
     const currentDeadline = current.deadline && typeof current.deadline === 'object' && 'toDate' in current.deadline
       ? (current.deadline as { toDate: () => Date }).toDate().toISOString()
