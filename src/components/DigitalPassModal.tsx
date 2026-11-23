@@ -468,10 +468,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       <html>
         <head>
           <meta charset="utf-8" />
+          <base href="${window.location.origin}/" />
           <title>Festronix Pass – ${reg?.id ?? ''}</title>
           ${styles}
           <style>
-            @page { size: A5 landscape; margin: 12mm; }
+            @page { size: A5 landscape; margin: 10mm; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             body {
               margin: 0;
@@ -484,7 +485,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             }
             .ticket-wrapper {
               width: 100%;
-              max-width: 720px;
+              max-width: 760px;
               page-break-inside: avoid;
             }
           </style>
@@ -673,39 +674,228 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             id="festronix-pass-card"
             className="ticket-wrapper"
             style={{
-              padding: '24px',
+              padding: '24px 28px',
               color: '#FFFFFF',
               position: 'relative',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.98) 0%, rgba(16, 26, 53, 0.98) 100%)',
-              border: '1px solid rgba(120, 149, 147, 0.35)',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(40, 59, 120, 0.3)'
+              borderRadius: '18px',
+              background: 'linear-gradient(145deg, #091224 0%, #122146 50%, #1A2F5E 100%)',
+              border: '1.5px solid rgba(136, 178, 174, 0.45)',
+              boxShadow: '0 18px 50px rgba(0, 0, 0, 0.75), 0 0 35px rgba(40, 59, 120, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+              overflow: 'hidden'
             }}
           >
-            {/* Ticket Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
-              <div>
-                <div style={{ fontSize: '0.7rem', color: '#BACEBB', letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase' }}>
-                  VARDHAMAN COLLEGE OF ENGINEERING • FESTRONIX 2026
-                </div>
-                <h2
+            {/* VCE Institutional Watermark */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-25px',
+                bottom: '-25px',
+                width: '240px',
+                height: '240px',
+                opacity: 0.04,
+                pointerEvents: 'none',
+                backgroundImage: 'url(/vce_crest_hires.png)',
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                zIndex: 0
+              }}
+            />
+
+            {/* Ticket Header: VCE Brand & Institutional Authority */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+                paddingBottom: '14px',
+                borderBottom: '1px solid rgba(136, 178, 174, 0.25)',
+                position: 'relative',
+                zIndex: 1
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img
+                  src="/vce_logo.png"
+                  alt="Vardhaman College of Engineering"
                   style={{
-                    fontFamily: "var(--font-heading)",
-                    fontSize: '1.45rem',
-                    fontWeight: 700,
-                    marginTop: '2px',
-                    color: '#FFFFFF',
-                    letterSpacing: '0.02em'
+                    height: '42px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5))'
                   }}
-                >
-                  {reg.eventTitle}
-                </h2>
-                <div style={{ fontSize: '0.78rem', color: '#A8B3C2', marginTop: '2px' }}>
-                  Registration ID: <span style={{ color: '#DCE3E5', fontFamily: 'monospace', fontWeight: 700 }}>{reg.id}</span>
+                />
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.74rem',
+                      color: '#BACEBB',
+                      letterSpacing: '0.12em',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      fontFamily: "'Space Grotesk', sans-serif"
+                    }}
+                  >
+                    VARDHAMAN COLLEGE OF ENGINEERING
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.62rem',
+                      color: '#88B2AE',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      fontWeight: 600
+                    }}
+                  >
+                    Autonomous Institute • NAAC A++ • FESTRONIX 2026
+                  </div>
                 </div>
               </div>
 
               <div>{getStatusBadge(effectivePaymentStatus || reg.paymentStatus)}</div>
+            </div>
+
+            {/* Official Sponsors Strip: Sanvi Homes & Vencorpia */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                margin: '12px 0 14px',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                background: 'linear-gradient(90deg, rgba(28, 43, 89, 0.75) 0%, rgba(14, 23, 46, 0.85) 100%)',
+                border: '1px solid rgba(136, 178, 174, 0.3)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                position: 'relative',
+                zIndex: 1
+              }}
+            >
+              {/* Sanvi Homes Logo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    color: '#38BDF8',
+                    fontWeight: 800,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    fontFamily: "'Space Grotesk', sans-serif"
+                  }}
+                >
+                  TITLE SPONSOR:
+                </span>
+                <div
+                  style={{
+                    background: '#FFFFFF',
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)'
+                  }}
+                >
+                  <img
+                    src="/sanvi_homes_logo.png"
+                    alt="Sanvi Homes"
+                    style={{
+                      height: '18px',
+                      width: 'auto',
+                      objectFit: 'contain'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Vencorpia Logo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    color: '#38BDF8',
+                    fontWeight: 800,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    fontFamily: "'Space Grotesk', sans-serif"
+                  }}
+                >
+                  EVENT PARTNER:
+                </span>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '3px 8px',
+                    borderRadius: '5px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)'
+                  }}
+                >
+                  <img
+                    src="/vencorpia_transparent.png"
+                    alt="Vencorpia"
+                    style={{
+                      height: '18px',
+                      width: 'auto',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 6px rgba(0, 194, 255, 0.45))'
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: '#F8FAFC',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      letterSpacing: '0.02em'
+                    }}
+                  >
+                    Vencorpia
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Event Title & Pass Header */}
+            <div style={{ marginBottom: '14px', position: 'relative', zIndex: 1 }}>
+              <h2
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 'clamp(1.25rem, 2.5vw, 1.55rem)',
+                  fontWeight: 800,
+                  margin: '0 0 4px 0',
+                  color: '#FFFFFF',
+                  letterSpacing: '0.02em',
+                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.5)'
+                }}
+              >
+                {reg.eventTitle}
+              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>
+                  Pass ID: <strong style={{ color: '#F8FAFC', fontFamily: 'monospace' }}>{reg.id}</strong>
+                </span>
+                {associatedEvent?.category && (
+                  <span
+                    style={{
+                      fontSize: '0.64rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(56, 189, 248, 0.18)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      color: '#38BDF8',
+                      fontWeight: 700,
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {associatedEvent.category}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Ticket Body Grid */}
@@ -715,9 +905,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 gridTemplateColumns: '1.3fr 1fr',
                 gap: '20px',
                 padding: '16px 0',
-                borderTop: '1px dashed rgba(120, 149, 147, 0.35)',
-                borderBottom: '1px dashed rgba(120, 149, 147, 0.35)',
-                alignItems: 'center'
+                borderTop: '1px dashed rgba(136, 178, 174, 0.35)',
+                borderBottom: '1px dashed rgba(136, 178, 174, 0.35)',
+                alignItems: 'center',
+                position: 'relative',
+                zIndex: 1
               }}
             >
               {/* Participant info */}
@@ -729,8 +921,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                       marginBottom: '14px',
                       padding: '10px 14px',
                       borderRadius: '10px',
-                      background: 'linear-gradient(135deg, rgba(40, 59, 120, 0.45) 0%, rgba(62, 66, 100, 0.45) 100%)',
-                      border: '1px solid rgba(120, 149, 147, 0.4)',
+                      background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.75) 0%, rgba(16, 26, 53, 0.85) 100%)',
+                      border: '1px solid rgba(136, 178, 174, 0.45)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -746,16 +938,16 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                     </div>
                     {reg.teamCode && (
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.64rem', color: '#A8B3C2', fontWeight: 600 }}>TEAM CODE</div>
+                        <div style={{ fontSize: '0.64rem', color: '#CBD5E1', fontWeight: 600 }}>TEAM CODE</div>
                         <div
                           style={{
                             fontFamily: 'monospace',
                             fontWeight: 800,
-                            color: '#BACEBB',
-                            background: 'rgba(16, 26, 53, 0.85)',
+                            color: '#38BDF8',
+                            background: 'rgba(10, 18, 38, 0.85)',
                             padding: '3px 8px',
                             borderRadius: '4px',
-                            border: '1px solid rgba(120, 149, 147, 0.35)',
+                            border: '1px solid rgba(136, 178, 174, 0.35)',
                             fontSize: '0.82rem'
                           }}
                         >
@@ -772,8 +964,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                       marginBottom: '14px',
                       padding: '12px 14px',
                       borderRadius: '10px',
-                      background: 'rgba(16, 26, 53, 0.72)',
-                      border: '1px solid rgba(120, 149, 147, 0.35)'
+                      background: 'rgba(14, 23, 46, 0.75)',
+                      border: '1px solid rgba(136, 178, 174, 0.35)'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -817,23 +1009,23 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 )}
 
                 <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#88B2AE', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
                     {teamSummary && !isTeamLeader ? 'Participant' : 'Participant / Team Lead'}
                   </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFFFFF' }}>{reg.leaderName}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#A8B3C2' }}>{reg.leaderCollege}</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF' }}>{reg.leaderName}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>{reg.leaderCollege}</div>
                   <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll No: {reg.leaderRoll}</div>
                   {reg.deptSection && (
-                    <div style={{ fontSize: '0.75rem', color: '#DCE3E5', marginTop: '2px' }}>
-                      Dept & Section: <strong style={{ color: '#BACEBB', letterSpacing: '0.04em' }}>{reg.deptSection}</strong>
+                    <div style={{ fontSize: '0.75rem', color: '#38BDF8', marginTop: '2px' }}>
+                      Dept & Section: <strong style={{ color: '#FFFFFF', letterSpacing: '0.04em' }}>{reg.deptSection}</strong>
                     </div>
                   )}
-                  <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>Email: {reg.leaderEmail}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Email: {reg.leaderEmail}</div>
                 </div>
 
                 {roster.length > 0 && (
                   <div style={{ marginTop: '10px' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#88B2AE', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 700 }}>
                       Squad Teammates ({roster.length}):
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -843,8 +1035,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                           style={{
                             fontSize: '0.72rem',
                             padding: '3px 10px',
-                            background: 'rgba(120, 149, 147, 0.15)',
-                            border: '1px solid rgba(120, 149, 147, 0.35)',
+                            background: 'rgba(28, 43, 89, 0.45)',
+                            border: '1px solid rgba(136, 178, 174, 0.35)',
                             borderRadius: '4px',
                             color: '#BACEBB',
                             fontFamily: "'Space Grotesk', sans-serif",
@@ -906,15 +1098,16 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
-                        padding: '4px 10px',
-                        background: 'rgba(40, 59, 120, 0.35)',
-                        border: '1px solid rgba(120, 149, 147, 0.4)',
+                        padding: '5px 12px',
+                        background: 'rgba(28, 43, 89, 0.65)',
+                        border: '1px solid rgba(136, 178, 174, 0.45)',
                         borderRadius: '6px',
                         color: '#BACEBB',
-                        fontSize: '0.75rem'
+                        fontSize: '0.75rem',
+                        fontWeight: 600
                       }}
                     >
-                      <Clock size={14} color="#BACEBB" />
+                      <Clock size={14} color="#38BDF8" />
                       <span>Authorized Entry Pass • Ready for QR Scan</span>
                     </div>
                   )}
@@ -926,7 +1119,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 <div
                   style={{
                     textAlign: 'center',
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(16, 26, 53, 0.95) 100%)',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(14, 23, 46, 0.95) 100%)',
                     border: '1px dashed #F59E0B',
                     padding: '16px 12px',
                     borderRadius: '12px',
@@ -974,7 +1167,16 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '14px', borderRadius: '12px' }}>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    background: '#FFFFFF',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(136, 178, 174, 0.5)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
+                  }}
+                >
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(reg.qrToken || reg.id)}`}
                     alt="Entry QR Pass"
@@ -984,13 +1186,25 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                     style={{
                       fontFamily: 'monospace',
                       fontSize: '0.68rem',
-                      color: '#101A35',
-                      fontWeight: 700,
+                      color: '#0E172E',
+                      fontWeight: 800,
                       marginTop: '8px',
                       letterSpacing: '0.05em'
                     }}
                   >
                     TOKEN: {reg.qrToken || reg.id}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.62rem',
+                      color: '#64748B',
+                      fontWeight: 700,
+                      marginTop: '2px',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    SCAN FOR EVENT CHECK-IN
                   </div>
                 </div>
               )}
@@ -1004,20 +1218,26 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 alignItems: 'center',
                 marginTop: '14px',
                 fontSize: '0.72rem',
-                color: '#A8B3C2'
+                color: '#94A3B8',
+                position: 'relative',
+                zIndex: 1
               }}
             >
               <div>
-                Date Issued: <span>{reg.registrationDate}</span> • Status:{' '}
+                Date Issued: <span style={{ color: '#CBD5E1' }}>{reg.registrationDate}</span> • Status:{' '}
                 {effectivePaymentStatus === 'payment_required' ? (
                   <strong style={{ color: '#FBBF24' }}>PENDING LEADER PAYMENT</strong>
                 ) : (
-                  <strong style={{ color: '#10B981' }}>CONFIRMED</strong>
+                  <strong style={{ color: '#34D399' }}>CONFIRMED</strong>
                 )}
               </div>
-              {reg.transactionId && (
+              {reg.transactionId ? (
                 <div>
                   UTR: <span style={{ color: '#BACEBB', fontFamily: 'monospace' }}>{reg.transactionId}</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE' }}>
+                  VCE SAC • Shamshabad, Hyderabad
                 </div>
               )}
             </div>
