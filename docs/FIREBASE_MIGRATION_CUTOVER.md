@@ -23,6 +23,8 @@
 - Preview deployment reads from `festronix-26---new-db`.
 - Production keeps `VITE_COMING_SOON_ONLY=true` so the glitch reopening screen remains live.
 - A separate preview deployment keeps `VITE_COMING_SOON_ONLY=false` for full-site testing.
+- The central admin payment desk defaults to **All Transactions** so verified, free, pending, and rejected records remain visible together.
+- Pass-email delivery is audited against `emailDeliveries`; only confirmed paid (`payment_status: verified` with a captured Razorpay payment ID) or free (`not_applicable`) registrations are resent through the app's own resend endpoint.
 
 ## Runtime configuration
 
