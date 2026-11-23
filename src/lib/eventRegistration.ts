@@ -59,15 +59,8 @@ export function getEventRegistrationBlockReason(
 
   if (!['open', 'upcoming'].includes(event.status)) {
     return event.status === 'full'
-      ? 'This event has reached capacity.'
+      ? 'This event is not accepting registrations.'
       : `Registration is closed for this event (${event.status.replace(/_/g, ' ')}).`;
-  }
-
-  const capacity = Number(event.capacity);
-  const registered = Number(event.registeredCount);
-  if (!Number.isFinite(capacity) || capacity <= 0) return 'This event has no available capacity.';
-  if ((Number.isFinite(registered) ? Math.max(0, registered) : 0) + Math.max(1, requestedPasses) > capacity) {
-    return 'There are not enough seats remaining for this order.';
   }
 
   const deadline = getEffectiveRegistrationDeadline(event.deadline);
