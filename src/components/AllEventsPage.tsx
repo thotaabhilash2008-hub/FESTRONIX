@@ -278,10 +278,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
                   ? 'Duo (2 Members)'
                   : `Team (${event.minTeamSize}–${event.maxTeamSize} Members)`}
               </span>
-              <span aria-hidden="true" style={{ color: '#64748B' }}>·</span>
-              <span style={{ color: '#94A3B8', fontVariantNumeric: 'tabular-nums' }}>
-                {seatsRemaining} / {event.capacity} seats left
-              </span>
             </div>
           </div>
 
@@ -410,9 +406,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
               : event.format === 'duo'
               ? 'Duo (2)'
               : `Team (${event.minTeamSize}–${event.maxTeamSize})`}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontVariantNumeric: 'tabular-nums' }}>
-            {seatsRemaining}/{event.capacity} seats
           </div>
         </div>
 
