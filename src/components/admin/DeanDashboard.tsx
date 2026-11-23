@@ -137,7 +137,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
   const [paymentSearch, setPaymentSearch] = useState('');
   const [paymentDeptFilter, setPaymentDeptFilter] = useState('all');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'pending' | 'verified' | 'rejected' | 'all'>('pending');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'pending' | 'verified' | 'rejected' | 'all'>('all');
   const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(null);
   const [selectedRosterEventId, setSelectedRosterEventId] = useState<string | null>(null);
 
