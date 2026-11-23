@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import confetti from 'canvas-confetti';
-import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
+import { AdminUser, AdminAuthService, AdminRole, isSuperAdminRole } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
 import { 
   FestEvent, Registration, Announcement, FestStats, PaymentStatus, 
@@ -1812,7 +1812,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   className="admin-action-chip-item"
                 >
                   <Clock size={15} color="#FBBF24" />
-                  <span>Payment Approvals</span>
+                  <span>Event Wise Analysis</span>
                   <span className="admin-sidebar-badge">{stats.pendingCount}</span>
                 </button>
 
@@ -2345,29 +2345,35 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           </div>
         )}
 
-        {/* TAB 2: PAYMENT VERIFICATION DESK */}
+        {/* TAB 2: EVENT WISE ANALYSIS & PAYMENT VERIFICATION DESK */}
         {activeTab === 'payments' && (
           <div>
             {!selectedPaymentEventId ? (
-              <EventOverviewGrid items={eventOverviewItems} mode="payments" onSelect={setSelectedPaymentEventId} />
+              <EventOverviewGrid
+                items={eventOverviewItems}
+                mode="payments"
+                onSelect={setSelectedPaymentEventId}
+                isSuperAdmin={isSuperAdminRole(adminUser.role)}
+                userDepartment={adminUser.departmentCode}
+              />
             ) : (
             <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #FBBF24', background: 'rgba(251, 191, 36, 0.06)', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #38BDF8', background: 'rgba(56, 189, 248, 0.06)', flexWrap: 'wrap' }}>
               <div>
-                <div style={{ color: '#FBBF24', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Selected event payment reviews</div>
+                <div style={{ color: '#38BDF8', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Selected event analysis & payment reviews</div>
                 <div style={{ color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 800, marginTop: '3px' }}>{selectedPaymentEvent?.title || 'Event payment reviews'}</div>
               </div>
-              <button type="button" onClick={() => setSelectedPaymentEventId(null)} style={{ padding: '7px 11px', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.35)', background: 'rgba(251, 191, 36, 0.1)', color: '#FDE68A', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem' }}>
-                ← All events
+              <button type="button" onClick={() => setSelectedPaymentEventId(null)} style={{ padding: '7px 11px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.35)', background: 'rgba(56, 189, 248, 0.1)', color: '#7DD3FC', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem' }}>
+                ← All events (Event Wise Analysis)
               </button>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
-                  Central Payment Verification & Approval Desk
+                  Event Wise Analysis & Payment Approvals
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Verify UPI transaction screenshots, approve registration passes, and release digital entry passes
+                  Analyze registrations, verify UPI transactions, approve attendee passes, and release tickets
                 </p>
               </div>
 
@@ -4417,7 +4423,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             </div>
 
             {activeTab === 'registrations' && !selectedRosterEventId ? (
-              <EventOverviewGrid items={eventOverviewItems} mode="registrations" onSelect={setSelectedRosterEventId} />
+              <EventOverviewGrid
+                items={eventOverviewItems}
+                mode="registrations"
+                onSelect={setSelectedRosterEventId}
+                isSuperAdmin={isSuperAdminRole(adminUser.role)}
+                userDepartment={adminUser.departmentCode}
+              />
             ) : (
             <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #38BDF8', background: 'rgba(56, 189, 248, 0.06)', flexWrap: 'wrap' }}>

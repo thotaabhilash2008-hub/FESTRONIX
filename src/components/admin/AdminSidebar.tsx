@@ -54,7 +54,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'registrations' as AdminNavTab, label: 'Registrations', icon: ClipboardList },
     {
       id: 'payments' as AdminNavTab,
-      label: 'Payment Approvals',
+      label: 'Event Wise Analysis',
       icon: CreditCard,
       badge: pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined
     },

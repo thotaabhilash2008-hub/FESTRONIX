@@ -17,6 +17,7 @@ import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announc
 import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
 import { DeptSidebar } from './DeptSidebar';
+import { EventOverviewGrid, EventOverviewItem } from './EventOverviewGrid';
 
 interface DeptCoordinatorDashboardProps {
   adminUser: AdminUser;
@@ -169,8 +170,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   });
 
   // Event coordinators start in analytics and never receive the event-management tab.
-  type DashboardTab = 'events' | 'revenue' | 'checkin' | 'security';
+  type DashboardTab = 'events' | 'analysis' | 'revenue' | 'checkin' | 'security';
   const [activeTab, setActiveTab] = useState<DashboardTab>(isEventCoord ? 'revenue' : 'events');
+  const [selectedAnalysisEventId, setSelectedAnalysisEventId] = useState<string | null>(null);
 
   // Revenue Analysis States & Filters (Scoped strictly to this department / assigned events)
   const [deptRevenueSearch, setDeptRevenueSearch] = useState('');
@@ -608,6 +610,22 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       return matchEvent && matchStatus && matchSearch && matchType;
     });
   }, [scopedRegistrations, deptRevenueEventFilter, deptRevenueStatusFilter, deptRevenueSearch, deptRevenueTypeFilter]);
+
+  const deptOverviewItems = useMemo<EventOverviewItem[]>(() => {
+    return visibleEvents.map(event => {
+      const eventRegs = scopedRegistrations.filter(r =>
+        r.eventId === event.id ||
+        (!isEventCoord && r.eventTitle.toLowerCase() === event.title.toLowerCase())
+      );
+      return {
+        key: event.id,
+        event,
+        title: event.title,
+        departmentCode: event.departmentCode || deptCode,
+        registrations: eventRegs
+      };
+    });
+  }, [visibleEvents, scopedRegistrations, isEventCoord, deptCode]);
 
   const handleExportDeptRevenueCSV = () => {
     const headers = [
@@ -2240,6 +2258,22 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               )}
             </section>
+          </div>
+        )}
+
+        {/* TAB: EVENT WISE ANALYSIS */}
+        {activeTab === 'analysis' && (!isEventCoord || visibleEvents.length > 0) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <EventOverviewGrid
+              items={deptOverviewItems}
+              mode="payments"
+              onSelect={eventKey => {
+                setDeptRevenueEventFilter(eventKey);
+                setActiveTab('revenue');
+              }}
+              isSuperAdmin={false}
+              userDepartment={deptCode}
+            />
           </div>
         )}
 
