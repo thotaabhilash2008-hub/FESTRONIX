@@ -125,9 +125,6 @@ function assertEventAcceptsRegistration(id: string, event: AnyRecord): void {
   if (!ALLOWED_EVENT_STATUSES.has(String(event.status)) || event.approval_status !== 'approved') {
     throw new Error(`${clean(event.title, 140) || 'This event'} is not accepting registrations.`);
   }
-  if (Number(event.capacity) <= 0 || Number(event.registered_count) >= Number(event.capacity)) {
-    throw new Error(`${clean(event.title, 140) || 'This event'} has reached capacity.`);
-  }
   if (!['individual', 'duo', 'team'].includes(String(event.format))) throw new Error('This event has an unsupported registration format.');
   if (!Number.isSafeInteger(Number(event.fee)) || Number(event.fee) < 0 || Number(event.fee) > 1_000_000) {
     throw new Error(`${clean(event.title, 140) || 'This event'} has an invalid fee.`);
@@ -435,9 +432,6 @@ export const createRazorpayOrder = onRequest({
         const event = snapshot.data() as AnyRecord;
         assertEventAcceptsRegistration(snapshot.id, event);
         const participantCount = checkout.participantCounts.get(snapshot.id) || 0;
-        if (Number(event.registered_count || 0) + participantCount > Number(event.capacity || 0)) {
-          throw new Error(`${clean(event.title, 140)} does not have enough remaining seats for this order.`);
-        }
       }
       const now = new Date().toISOString();
       transaction.create(orderRef, {
@@ -691,9 +685,6 @@ async function finalizeCapturedOrder(db: FirebaseFirestore.Firestore, orderRef: 
       const event = eventSnapshot.data() as AnyRecord;
       assertEventAcceptsRegistration(eventSnapshot.id, event);
       const participantCount = participantCounts.get(eventSnapshot.id) || 0;
-      if (Number(event.registered_count || 0) + participantCount > Number(event.capacity || 0)) {
-        throw new Error(`${clean(event.title, 140)} does not have enough remaining seats for this order.`);
-      }
     }
 
     // Preserve the checkout item order exactly. Multi-pass carts may interleave
@@ -799,11 +790,9 @@ async function finalizeCapturedOrder(db: FirebaseFirestore.Firestore, orderRef: 
     for (const eventSnapshot of eventSnapshots) {
       const event = eventSnapshot.data() as AnyRecord;
       const registeredCount = Number(event.registered_count || 0) + (participantCounts.get(eventSnapshot.id) || 0);
-      const nextStatus = registeredCount >= Number(event.capacity || 0) ? 'full' : event.status;
-      transaction.update(eventSnapshot.ref, { registered_count: registeredCount, status: nextStatus, updated_at: now });
+      transaction.update(eventSnapshot.ref, { registered_count: registeredCount, updated_at: now });
       const publicEventRef = db.collection('publicEvents').doc(eventSnapshot.id);
-      if (nextStatus === 'full') transaction.delete(publicEventRef);
-      else if (event.status === 'open' && event.approval_status === 'approved') {
+      if (event.status === 'open' && event.approval_status === 'approved') {
         transaction.set(publicEventRef, { registeredCount }, { merge: true });
       }
     }
