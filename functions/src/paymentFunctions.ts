@@ -969,6 +969,29 @@ function parseSender(value: string): { name: string; email: string } | null {
   return { name: name || 'FESTRONIX 2026', email };
 }
 
+/**
+ * New registrations store the ticket at tickets/{registrationId}, but migrated
+ * records kept their own ticket document ID and only reference the registration
+ * in a field. Resolve both shapes so pass emails and public passes always carry
+ * the same QR token as the registration.
+ */
+async function resolveQrToken(
+  db: FirebaseFirestore.Firestore,
+  registrationId: string,
+  registration: AnyRecord,
+  directSnapshot?: FirebaseFirestore.DocumentSnapshot,
+): Promise<string> {
+  const direct = directSnapshot ?? await db.collection('tickets').doc(registrationId).get();
+  const directToken = clean(direct.get('qr_token'), 200);
+  if (directToken) return directToken;
+  const linked = await db.collection('tickets').where('registration_id', '==', registrationId).limit(1).get();
+  for (const ticket of linked.docs) {
+    const token = clean(ticket.get('qr_token'), 200);
+    if (token) return token;
+  }
+  return clean(registration.qr_token, 200);
+}
+
 async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: string): Promise<boolean> {
   const deliveryRef = db.collection('emailDeliveries').doc(deliveryToken);
   const deliverySnapshot = await deliveryRef.get();
@@ -1004,8 +1027,7 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
     await deliveryRef.update({ status: 'failed', last_error: 'The payment has not been verified yet.', updated_at: new Date().toISOString() });
     return false;
   }
-  const ticketSnapshot = await db.collection('tickets').doc(registrationId).get();
-  const qrToken = clean(ticketSnapshot.get('qr_token'), 200);
+  const qrToken = await resolveQrToken(db, registrationId, registration);
   const eventSnapshot = await db.collection('events').doc(clean(registration.event_id, 80)).get();
   const event = eventSnapshot.exists ? eventSnapshot.data() as AnyRecord : {};
   const displayId = clean(registration.display_id, 80);
@@ -1328,7 +1350,7 @@ export const lookupPublicPasses = onRequest({
         rejectionReason: clean(row.rejection_reason, 500) || undefined,
         verifiedBy: clean(row.verified_by, 120) || undefined,
         verifiedAt: firestoreTimestampText(row.verified_at),
-        qrToken: unlocked ? clean(ticket?.qr_token, 200) || '' : '',
+        qrToken: unlocked ? await resolveQrToken(db, document.id, row, ticketSnapshot) : '',
         checkedIn: ticket?.checked_in === true,
         checkedInAt: firestoreTimestampText(ticket?.checked_in_at),
         checkedInBy: clean(ticket?.checked_in_by, 120) || undefined,
