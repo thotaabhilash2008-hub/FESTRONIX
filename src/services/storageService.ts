@@ -10,6 +10,7 @@ import { FirebaseRegistrationService } from './firebaseRegistrationService';
 import { FirebaseContentService } from './firebaseContentService';
 import { lookupFirebasePublicPasses } from './firebasePublicPassService';
 import { getEventRegistrationBlockReason, registrationDeadlineToIso } from '../lib/eventRegistration';
+import { sumVerifiedRegistrationRevenue } from '../lib/revenue';
 import type { Database } from '../lib/database.types';
 
 const STORAGE_KEYS = {
@@ -1786,9 +1787,7 @@ export class StorageService {
     const onlineCount = regs.filter(r => r.source === 'online').length;
     const checkedInCount = regs.filter(r => Boolean(r.checkedIn)).length;
 
-    const totalCollected = regs
-      .filter(r => r.paymentStatus === 'verified')
-      .reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+    const totalCollected = sumVerifiedRegistrationRevenue(regs);
 
     const totalCapacity = events.reduce((sum, e) => sum + (Number(e.capacity) || 0), 0);
 
@@ -1822,9 +1821,7 @@ export class StorageService {
     const onlineCount = regs.filter(r => r.source === 'online').length;
     const checkedInCount = regs.filter(r => Boolean(r.checkedIn)).length;
 
-    const totalCollected = regs
-      .filter(r => r.paymentStatus === 'verified')
-      .reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+    const totalCollected = sumVerifiedRegistrationRevenue(regs);
 
     const totalCapacity = allEvents.reduce((sum, e) => sum + (Number(e.capacity) || 0), 0);
 

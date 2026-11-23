@@ -394,6 +394,8 @@ function staffRegistrationPayload(
     })),
     format: textField(row.format) || 'individual',
     fee: Number(row.fee) || 0,
+    eventFee: Number(row.event_fee) || Number(event.fee) || 0,
+    paidAmountPaise: Number(row.paid_amount_paise) || 0,
     source: textField(row.source) || 'online',
     registrationDate: firestoreTimestampText(row.created_at) || new Date().toISOString(),
     paymentStatus: textField(row.payment_status) || 'payment_required',

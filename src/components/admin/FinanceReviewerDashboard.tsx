@@ -8,6 +8,7 @@ import confetti from 'canvas-confetti';
 import { AdminUser } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
 import { Registration, PaymentStatus, FestEvent, FestStats, RazorpayRefundOrder, Department } from '../../types/festronix';
+import { registrationRevenueAmount } from '../../lib/revenue';
 import { AdminHeader } from './AdminHeader';
 
 interface FinanceReviewerDashboardProps {
@@ -165,7 +166,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
       `"${r.eventTitle.replace(/"/g, '""')}"`,
       `"${r.leaderName.replace(/"/g, '""')}"`,
       r.leaderRoll,
-      r.fee,
+      registrationRevenueAmount(r),
       r.paymentStatus,
       r.transactionId || 'N/A',
       r.verifiedBy || 'N/A',
@@ -500,7 +501,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
                         <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{r.leaderRoll} • {r.leaderCollege}</div>
                       </td>
                       <td style={{ color: '#E2E8F0' }}>{r.eventTitle}</td>
-                      <td style={{ fontWeight: 800, color: '#34D399' }}>₹{r.fee}</td>
+                      <td style={{ fontWeight: 800, color: '#34D399' }}>₹{registrationRevenueAmount(r)}</td>
                       <td style={{ fontFamily: 'monospace', color: '#CBD5E1', fontSize: '0.78rem' }}>
                         {r.transactionId || '—'}
                       </td>

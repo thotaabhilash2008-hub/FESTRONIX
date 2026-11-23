@@ -21,6 +21,12 @@ import { ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
 import { ConfirmActionModal } from './ConfirmActionModal';
 import { isFirebaseConfigured } from '../../lib/firebase';
 import {
+  registrationRevenueAmount,
+  registrationRevenueKey,
+  sumPendingRegistrationRevenue,
+  sumVerifiedRegistrationRevenue,
+} from '../../lib/revenue';
+import {
   FirebaseStaffPaymentService,
   StaffPaymentOrder,
   paidOrderTotalPaise,
@@ -1371,23 +1377,29 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     let onlineCount = 0;
     let spotCount = 0;
 
+    const countedVerified = new Set<string>();
+    const countedPending = new Set<string>();
     registrations.forEach(r => {
-      const fee = Number(r.fee) || 0;
+      const amount = registrationRevenueAmount(r);
+      const key = registrationRevenueKey(r);
       if (r.paymentStatus === 'verified') {
-        totalVerified += fee;
-        verifiedCount++;
-        if (r.source === 'spot') {
-          spotVerified += fee;
-          spotCount++;
-        } else {
-          onlineVerified += fee;
-          onlineCount++;
+        if (!countedVerified.has(key)) {
+          countedVerified.add(key);
+          totalVerified += amount;
+          if (r.source === 'spot') spotVerified += amount;
+          else onlineVerified += amount;
         }
+        verifiedCount++;
+        if (r.source === 'spot') spotCount++;
+        else onlineCount++;
       } else if (r.paymentStatus === 'verification_pending') {
-        totalPending += fee;
+        if (!countedPending.has(key)) {
+          countedPending.add(key);
+          totalPending += amount;
+        }
         pendingCount++;
       } else if (r.paymentStatus === 'rejected') {
-        totalRejected += fee;
+        totalRejected += amount;
         rejectedCount++;
       }
     });
@@ -1420,6 +1432,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       }
     });
 
+    const countedVerifiedOrders = new Set<string>();
+    const countedPendingOrders = new Set<string>();
     registrations.forEach(r => {
       const ev = events.find(e => e.id === r.eventId);
       const code = (r.departmentCode || ev?.departmentCode || 'OTHER').toUpperCase();
@@ -1434,14 +1448,17 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
           regsCount: 0
         };
       }
-      const fee = Number(r.fee) || 0;
+      const amount = registrationRevenueAmount(r);
+      const key = registrationRevenueKey(r);
       deptMap[code].regsCount++;
-      if (r.paymentStatus === 'verified') {
-        deptMap[code].verifiedRev += fee;
-        deptMap[code].grossRev += fee;
-      } else if (r.paymentStatus === 'verification_pending') {
-        deptMap[code].pendingRev += fee;
-        deptMap[code].grossRev += fee;
+      if (r.paymentStatus === 'verified' && amount > 0 && !countedVerifiedOrders.has(key)) {
+        countedVerifiedOrders.add(key);
+        deptMap[code].verifiedRev += amount;
+        deptMap[code].grossRev += amount;
+      } else if (r.paymentStatus === 'verification_pending' && amount > 0 && !countedPendingOrders.has(key)) {
+        countedPendingOrders.add(key);
+        deptMap[code].pendingRev += amount;
+        deptMap[code].grossRev += amount;
       }
     });
 
@@ -1452,8 +1469,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       const evRegs = registrations.filter(r => r.eventId === ev.id);
       const verifiedRegs = evRegs.filter(r => r.paymentStatus === 'verified');
       const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
-      const verifiedRev = verifiedRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
-      const pendingRev = pendingRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+      const verifiedRev = sumVerifiedRegistrationRevenue(evRegs);
+      const pendingRev = sumPendingRegistrationRevenue(evRegs);
       return {
         id: ev.id,
         title: ev.title,
@@ -1534,7 +1551,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         `"${(r.leaderName || '').replace(/"/g, '""')}"`,
         `"${r.leaderRoll || ''}"`,
         `"${r.leaderEmail || ''}"`,
-        Number(r.fee) || 0,
+        registrationRevenueAmount(r),
         r.paymentStatus,
         r.paymentMethod || 'UPI',
         r.source || 'online',
@@ -1901,7 +1918,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   const orderCollectedPaise = paidOrderTotalForDepartmentPaise(paymentOrders, dept.code);
                   const totalCollected = orderCollectedPaise > 0
                     ? Math.round(orderCollectedPaise / 100)
-                    : verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
+                    : sumVerifiedRegistrationRevenue(deptRegs);
                   const deptCoords = coordinators.filter(c => c.departmentCode?.toUpperCase() === dept.code.toUpperCase());
 
                   const deptColorConfig: Record<string, { border: string; glow: string; text: string; bg: string; icon: any }> = {
@@ -4303,7 +4320,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                               <span style={{ color: '#DCE3E5' }}>{ev?.title || r.eventTitle}</span>
                             </td>
                             <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 800, color: '#FFFFFF' }}>
-                              ₹{Number(r.fee) || 0}
+                              ₹{registrationRevenueAmount(r)}
                             </td>
                             <td style={{ padding: '12px 12px', textAlign: 'center' }}>
                               <span
@@ -4559,7 +4576,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                         )}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#BACEBB', fontWeight: 700 }}>
-                        ₹{r.fee}
+                        ₹{registrationRevenueAmount(r)}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span

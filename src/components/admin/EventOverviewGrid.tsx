@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight, Calendar, CheckCircle2, Clock, IndianRupee, Users, XCircle } from 'lucide-react';
 import { FestEvent, Registration } from '../../types/festronix';
+import { sumVerifiedRegistrationRevenue } from '../../lib/revenue';
 
 export interface EventOverviewItem {
   key: string;
@@ -54,7 +55,7 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({ items, mod
           const pending = records.filter(r => r.paymentStatus === 'verification_pending').length;
           const verified = records.filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable').length;
           const rejected = records.filter(r => r.paymentStatus === 'rejected').length;
-          const totalCollected = records.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + Number(r.fee || 0), 0);
+          const totalCollected = sumVerifiedRegistrationRevenue(records);
           const capacity = item.event?.capacity || 0;
           const fill = capacity > 0 ? Math.min(100, Math.round((records.length / capacity) * 100)) : 0;
 

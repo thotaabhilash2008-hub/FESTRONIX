@@ -14,6 +14,12 @@ import { StorageService } from '../../services/storageService';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { isFirebaseConfigured } from '../../lib/firebase';
 import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
+import {
+  registrationRevenueAmount,
+  registrationRevenueKey,
+  sumPendingRegistrationRevenue,
+  sumVerifiedRegistrationRevenue,
+} from '../../lib/revenue';
 import { Department, FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { AdminHeader } from './AdminHeader';
 import { DeptSidebar } from './DeptSidebar';
@@ -109,7 +115,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       rejectedCount: scopedRegistrations.filter(r => r.paymentStatus === 'rejected').length,
       spotCount: scopedRegistrations.filter(r => r.source === 'spot').length,
       onlineCount: scopedRegistrations.filter(r => r.source !== 'spot').length,
-      totalCollected: scopedRegistrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+      totalCollected: sumVerifiedRegistrationRevenue(scopedRegistrations),
       totalCapacity: scopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
       checkedInCount: scopedRegistrations.filter(r => r.checkedIn).length
     };
@@ -311,7 +317,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           rejectedCount: localRegs.filter(r => r.paymentStatus === 'rejected').length,
           spotCount: localRegs.filter(r => r.source === 'spot').length,
           onlineCount: localRegs.filter(r => r.source !== 'spot').length,
-          totalCollected: localRegs.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+          totalCollected: sumVerifiedRegistrationRevenue(localRegs),
           totalCapacity: scopedEvts.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
           checkedInCount: localRegs.filter(r => r.checkedIn).length
         });
@@ -367,7 +373,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           rejectedCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'rejected').length,
           spotCount: updatedScopedRegistrations.filter(r => r.source === 'spot').length,
           onlineCount: updatedScopedRegistrations.filter(r => r.source !== 'spot').length,
-          totalCollected: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+          totalCollected: sumVerifiedRegistrationRevenue(updatedScopedRegistrations),
           totalCapacity: updatedScopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
           checkedInCount: updatedScopedRegistrations.filter(r => r.checkedIn).length
         });
@@ -523,23 +529,29 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     let onlineCount = 0;
     let spotCount = 0;
 
+    const countedVerified = new Set<string>();
+    const countedPending = new Set<string>();
     scopedRegistrations.forEach(r => {
-      const fee = Number(r.fee) || 0;
+      const amount = registrationRevenueAmount(r);
+      const key = registrationRevenueKey(r);
       if (r.paymentStatus === 'verified') {
-        totalVerified += fee;
-        verifiedCount++;
-        if (r.source === 'spot') {
-          spotVerified += fee;
-          spotCount++;
-        } else {
-          onlineVerified += fee;
-          onlineCount++;
+        if (!countedVerified.has(key)) {
+          countedVerified.add(key);
+          totalVerified += amount;
+          if (r.source === 'spot') spotVerified += amount;
+          else onlineVerified += amount;
         }
+        verifiedCount++;
+        if (r.source === 'spot') spotCount++;
+        else onlineCount++;
       } else if (r.paymentStatus === 'verification_pending') {
-        totalPending += fee;
+        if (!countedPending.has(key)) {
+          countedPending.add(key);
+          totalPending += amount;
+        }
         pendingCount++;
       } else if (r.paymentStatus === 'rejected') {
-        totalRejected += fee;
+        totalRejected += amount;
         rejectedCount++;
       }
     });
@@ -556,8 +568,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       const evRegs = scopedRegistrations.filter(r => r.eventId === ev.id);
       const verifiedRegs = evRegs.filter(r => r.paymentStatus === 'verified');
       const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
-      const verifiedRev = verifiedRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
-      const pendingRev = pendingRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+      const verifiedRev = sumVerifiedRegistrationRevenue(evRegs);
+      const pendingRev = sumPendingRegistrationRevenue(evRegs);
       const theoreticalCapRev = (ev.capacity || 0) * (ev.fee || 0);
 
       return {
@@ -644,7 +656,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         `"${(r.leaderName || '').replace(/"/g, '""')}"`,
         `"${r.leaderRoll || ''}"`,
         `"${r.leaderEmail || ''}"`,
-        Number(r.fee) || 0,
+        registrationRevenueAmount(r),
         r.paymentStatus,
         r.paymentMethod || 'UPI',
         r.source || 'online',
@@ -1299,7 +1311,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       r.leaderEmail,
       r.leaderPhone,
       `"${r.leaderCollege.replace(/"/g, '""')}"`,
-      r.fee,
+      registrationRevenueAmount(r),
       r.paymentStatus,
       r.checkedIn ? 'YES' : 'NO',
       r.source || 'online',
@@ -1327,7 +1339,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       const evtRegs = registrations.filter(r => r.eventId === evt.id);
       const verifiedRegs = evtRegs.filter(r => r.paymentStatus === 'verified');
       const checkedInCount = evtRegs.filter(r => r.checkedIn).length;
-      const totalRev = verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
+      const totalRev = sumVerifiedRegistrationRevenue(evtRegs);
       const turnoutPct = evtRegs.length > 0 ? Math.round((checkedInCount / evtRegs.length) * 100) : 0;
 
       return [
@@ -1802,10 +1814,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   {eventScope === 'assigned' ? 'Assigned Collections' : 'Dept Collections'}
                 </span>
                 <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#34D399', lineHeight: 1.1, marginTop: '4px' }}>
-                  ₹{scopedRegistrations
-                    .filter(r => r.paymentStatus === 'verified')
-                    .reduce((acc, r) => acc + (Number(r.fee) || 0), 0)
-                    .toLocaleString()}
+                  ₹{sumVerifiedRegistrationRevenue(scopedRegistrations).toLocaleString()}
                 </div>
               </div>
               <div className="admin-kpi-icon-pod" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.35)' }}>
@@ -2899,7 +2908,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                             {r.eventTitle}
                           </td>
                           <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 800, color: '#FFFFFF' }}>
-                            ₹{Number(r.fee) || 0}
+                            ₹{registrationRevenueAmount(r)}
                           </td>
                           <td style={{ padding: '12px 12px', textAlign: 'center' }}>
                             <span

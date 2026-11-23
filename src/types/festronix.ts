@@ -148,6 +148,8 @@ export interface Registration {
   teammates: Teammate[];
   format: EventFormat;
   fee: number;
+  eventFee?: number;
+  paidAmountPaise?: number;
   source: RegistrationSource;
   registrationDate: string;
   paymentStatus: PaymentStatus;
