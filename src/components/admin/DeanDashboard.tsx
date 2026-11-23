@@ -766,7 +766,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       minTeamSize,
       maxTeamSize,
       fee: evtIsFree ? 0 : Math.max(0, Number(evtFee) || 0),
-      capacity: Math.max(5, Math.min(500, Number(evtCapacity) || 100)),
+      capacity: 0,
       registeredCount: 0,
       deadline: '',
       date: evtDate,
@@ -1422,7 +1422,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         departmentCode: ev.departmentCode,
         category: ev.category,
         fee: ev.fee,
-        capacity: ev.capacity,
         totalRegs: evRegs.length,
         verifiedCount: verifiedRegs.length,
         pendingCount: pendingRegs.length,
@@ -1594,7 +1593,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       'Total Verified Attendees',
       'Gate Checked-In',
       'Turnout Rate (%)',
-      'Capacity',
       'Avg Registrations Per Event'
     ];
     const rows = reportsAnalytics.deptStatsList.map(d => {
@@ -1606,7 +1604,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         d.verifiedCount,
         d.checkedInCount,
         `${d.turnoutRate}%`,
-        d.capacity,
         d.avgPerEvent
       ].join(',');
     });
@@ -1665,7 +1662,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       });
       const deptCheckedIn = deptRegs.filter(r => r.checkedIn).length;
       const deptVerified = deptRegs.filter(r => r.paymentStatus === 'verified').length;
-      const deptCapacity = deptEvts.reduce((sum, e) => sum + (e.capacity || 0), 0);
       const deptTurnout = deptRegs.length > 0 ? Math.round((deptCheckedIn / deptRegs.length) * 100) : 0;
 
       return {
@@ -1675,7 +1671,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         regsCount: deptRegs.length,
         checkedInCount: deptCheckedIn,
         verifiedCount: deptVerified,
-        capacity: deptCapacity,
         turnoutRate: deptTurnout,
         avgPerEvent: deptEvts.length > 0 ? Math.round(deptRegs.length / deptEvts.length) : 0
       };
@@ -1690,11 +1685,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         title: ev.title,
         departmentCode: ev.departmentCode,
         category: ev.category,
-        capacity: ev.capacity,
         totalRegs: evRegs.length,
         checkedIn,
         turnout: evRegs.length > 0 ? Math.round((checkedIn / evRegs.length) * 100) : 0,
-        fillRate: ev.capacity > 0 ? Math.round((evRegs.length / ev.capacity) * 100) : 0
+        fillRate: 0
       };
     }).sort((a, b) => b.totalRegs - a.totalRegs).slice(0, 5);
 
@@ -2905,22 +2899,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       📍 {event.venue} • 🗓️ {event.date} • {event.time}
                     </div>
 
-                    {/* Progress Bar for Registration Capacity */}
-                    <div style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#A8B3C2', marginBottom: '4px' }}>
-                        <span>Capacity Utilization</span>
-                        <strong style={{ color: '#DCE3E5' }}>{event.registeredCount} / {event.capacity} seats</strong>
-                      </div>
-                      <div style={{ width: '100%', height: '5px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '999px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            width: `${Math.min(100, (event.registeredCount / event.capacity) * 100)}%`,
-                            height: '100%',
-                            background: event.registeredCount >= event.capacity ? '#EF4444' : '#34D399',
-                            borderRadius: '999px'
-                          }}
-                        />
-                      </div>
+                    <div style={{ marginBottom: '12px', fontSize: '0.78rem', color: '#34D399', fontWeight: 700 }}>
+                      {event.registeredCount} registrations
                     </div>
                   </div>
 
@@ -3761,7 +3741,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
-              {/* Card 4: Capacity Monetization */}
+              {/* Card 4: Registrations */}
               <div
                 style={{
                   background: 'rgba(16, 26, 53, 0.85)',
@@ -3774,10 +3754,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#C084FC', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Capacity Monetization
+                      Registrations
                     </span>
                     <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#FFFFFF', marginTop: '4px', letterSpacing: '-0.02em' }}>
-                      {revenueAnalytics.capacityMonetizationRate}%
+                      {revenueAnalytics.verifiedCount}
                     </div>
                   </div>
                   <div
@@ -3799,7 +3779,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   <div
                     className="admin-progress-fill"
                     style={{
-                      width: `${revenueAnalytics.capacityMonetizationRate}%`,
+                      width: '100%',
                       background: 'linear-gradient(90deg, #9333EA, #C084FC)',
                       height: '100%',
                       borderRadius: '3px'
@@ -3807,7 +3787,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   />
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
-                  ₹{revenueAnalytics.totalVerified.toLocaleString('en-IN')} of ₹{revenueAnalytics.totalPotentialCapacityRevenue.toLocaleString('en-IN')} theoretical cap
+                  ₹{revenueAnalytics.totalVerified.toLocaleString('en-IN')} collected from verified registrations
                 </div>
               </div>
             </div>
@@ -4979,7 +4959,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
-              {/* Card 4: Arenas & Capacity */}
+              {/* Card 4: Active Fest Arenas */}
               <div
                 style={{
                   background: 'rgba(16, 26, 53, 0.85)',
@@ -5760,7 +5740,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </div>
               </div>
 
-              {/* Fee & Capacity (FR-EVT-05, FR-EVT-06) */}
+              {/* Entry Fee (FR-EVT-05) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
@@ -5792,29 +5772,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Seat / Team Capacity *
-                  </label>
-                  <input
-                    type="number"
-                    min={5}
-                    max={500}
-                    value={evtCapacity}
-                    onChange={e => setEvtCapacity(Number(e.target.value))}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(16, 26, 53, 0.9)',
-                      border: '1px solid rgba(220, 227, 229, 0.25)',
-                      color: '#FFFFFF',
-                      fontSize: '0.84rem',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
 
               </div>
 
@@ -6314,26 +6271,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   />
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
-                    Seat Capacity
-                  </label>
-                  <input
-                    type="number"
-                    value={editingEvent.capacity}
-                    onChange={e => setEditingEvent({ ...editingEvent, capacity: Number(e.target.value) })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(16, 26, 53, 0.9)',
-                      border: '1px solid rgba(220, 227, 229, 0.25)',
-                      color: '#FFFFFF',
-                      fontSize: '0.84rem',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
