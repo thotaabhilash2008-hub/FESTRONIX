@@ -178,7 +178,7 @@ export const App: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   // Intro video & modals
-  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
+  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(false);
   const [isKineticStageReady, setIsKineticStageReady] = useState<boolean>(false);
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
