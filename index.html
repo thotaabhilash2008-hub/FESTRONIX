@@ -19,7 +19,11 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Never leave visitors staring at a blank page if the client bundle fails.
+      // Keep the original coming-soon fallback on the live site only. The
+      // preview build is for testing the full application, so it must never
+      // show the registration banner while a feature is being exercised.
+      var comingSoonOnly = '%VITE_COMING_SOON_ONLY%';
+      if (comingSoonOnly !== 'true') return;
       window.setTimeout(function () {
         var root = document.getElementById('root');
         if (!root || root.childElementCount > 0) return;
