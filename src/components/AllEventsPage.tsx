@@ -174,8 +174,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   };
 
   const renderEventCard = (event: FestEvent) => {
-    const seatsRemaining = Math.max(0, event.capacity - event.registeredCount);
-    const isFull = event.status === 'full' || seatsRemaining === 0;
+    const isFull = event.status === 'full';
     const blockReason = getEventRegistrationBlockReason(event);
     const isBlocked = Boolean(blockReason);
 
@@ -359,8 +358,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   };
 
   const renderEventRow = (event: FestEvent) => {
-    const seatsRemaining = Math.max(0, event.capacity - event.registeredCount);
-    const isFull = event.status === 'full' || seatsRemaining === 0;
+    const isFull = event.status === 'full';
     const blockReason = getEventRegistrationBlockReason(event);
     const isBlocked = Boolean(blockReason);
 
