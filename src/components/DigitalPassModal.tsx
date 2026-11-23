@@ -781,29 +781,43 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </div>
               </div>
 
-              {/* Center: Official Festronix Logo Badge */}
+              {/* Center: Official Festronix 2026 Crest */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  padding: '4px 12px',
-                  borderRadius: '9999px',
-                  background: 'rgba(28, 43, 89, 0.5)',
-                  border: '1px solid rgba(56, 189, 248, 0.35)',
-                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+                  padding: '6px 14px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.75) 0%, rgba(9, 18, 36, 0.85) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4), 0 0 12px rgba(56, 189, 248, 0.25)'
                 }}
               >
                 <img
                   src="/festronix_3d_title_clean.png"
                   alt="Festronix 2026"
                   style={{
-                    height: '20px',
+                    height: '24px',
                     width: 'auto',
                     objectFit: 'contain',
-                    filter: 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.5))'
+                    filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.6)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7))'
                   }}
                 />
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    color: '#38BDF8',
+                    letterSpacing: '0.12em',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    borderLeft: '1px solid rgba(136, 178, 174, 0.35)',
+                    paddingLeft: '8px',
+                    textTransform: 'uppercase'
+                  }}
+                >
+                  2026
+                </span>
               </div>
 
               {/* Right: Pass Status Badge */}
@@ -828,11 +842,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 zIndex: 1
               }}
             >
-              {/* Sanvi Homes Logo - Transparent without white background */}
+              {/* Sanvi Homes Logo - Updated high-resolution brand asset without white background */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
-                    fontSize: '0.6rem',
+                    fontSize: '0.62rem',
                     color: '#38BDF8',
                     fontWeight: 800,
                     letterSpacing: '0.14em',
@@ -849,13 +863,13 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   }}
                 >
                   <img
-                    src="/sanvi_homes_transparent.png"
+                    src="/sanvi_homes_brand_clean.png"
                     alt="Sanvi Homes"
                     style={{
-                      height: '22px',
+                      height: '24px',
                       width: 'auto',
                       objectFit: 'contain',
-                      filter: 'drop-shadow(0 0 6px rgba(56, 189, 248, 0.45))'
+                      filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4))'
                     }}
                   />
                 </div>
