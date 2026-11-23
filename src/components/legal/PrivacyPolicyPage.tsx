@@ -157,7 +157,7 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
             We strictly enforce a non-commercial privacy policy. Student names, emails, phone numbers, and academic IDs are <strong>never sold, leased, or traded</strong> to third-party telemarketers or commercial advertisers.
           </p>
           <p style={{ color: '#94A3B8', fontSize: '0.88rem', lineHeight: 1.7, margin: 0 }}>
-            Account and registration data is stored in Firebase Authentication and Cloud Firestore. Staff access is limited by active roles and department or event assignments, while public event information is served from a separate projection. Razorpay processes payments; Festronix does not store card numbers, CVVs, or UPI credentials.
+            Data is stored in authenticated, encrypted Supabase databases protected by strict Row-Level Security (RLS) policies accessible exclusively to authorized Student Activity Council administrators and verified Department Coordinators.
           </p>
         </section>
 

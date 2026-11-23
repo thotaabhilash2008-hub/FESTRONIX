@@ -1,6 +1,5 @@
 import { User } from '../types/festronix';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { isFirebaseConfigured } from '../lib/firebase';
 
 const STORAGE_KEYS = {
   USERS: 'festronix_users_v1',
@@ -20,12 +19,6 @@ export class AuthService {
   static init(): void {
     if (this.isInitialized) return;
     this.isInitialized = true;
-
-    if (isFirebaseConfigured) {
-      localStorage.removeItem(STORAGE_KEYS.SESSION);
-      window.dispatchEvent(new CustomEvent('festronix:auth', { detail: null }));
-      return;
-    }
 
     if (isSupabaseConfigured()) {
       supabase.auth.onAuthStateChange(async (event, session) => {
@@ -113,10 +106,6 @@ export class AuthService {
   // Get cached user (fast, synchronous — used for initial render)
   // -----------------------------------------------------------------------
   static getCurrentUser(): User | null {
-    if (isFirebaseConfigured) {
-      localStorage.removeItem(STORAGE_KEYS.SESSION);
-      return null;
-    }
     const raw = localStorage.getItem(STORAGE_KEYS.SESSION);
     if (!raw) return null;
     try {
@@ -133,9 +122,6 @@ export class AuthService {
     identifier: string,
     password: string
   ): Promise<{ success: boolean; user?: User; error?: string }> {
-    if (isFirebaseConfigured) {
-      return { success: false, error: 'Public accounts are not used here. Continue as a guest and enter your registration details.' };
-    }
     const cleanId = identifier.trim();
     const cleanPass = password.trim();
 
@@ -255,9 +241,6 @@ export class AuthService {
     college: string;
     password: string;
   }): Promise<{ success: boolean; user?: User; error?: string }> {
-    if (isFirebaseConfigured) {
-      return { success: false, error: 'Public accounts are not used here. Register as a guest without signing up.' };
-    }
     const roll = data.rollNumber.trim().toUpperCase();
     const username = (data.username || roll).trim().toLowerCase();
     const name = data.fullName.trim();
@@ -399,7 +382,7 @@ export class AuthService {
   // Sign Out
   // -----------------------------------------------------------------------
   static async signOut(): Promise<void> {
-    if (!isFirebaseConfigured && isSupabaseConfigured()) {
+    if (isSupabaseConfigured()) {
       try {
         await supabase.auth.signOut();
       } catch (err) {

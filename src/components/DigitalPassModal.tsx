@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, MessageCircle } from 'lucide-react';
+import { X, QrCode, Mail, Download, Printer, CheckCircle2, Clock, AlertTriangle, ShieldCheck, User, Users, Search, Ticket, ShoppingBag, MessageCircle } from 'lucide-react';
 import { FestEvent, Registration, Team, User as UserType } from '../types/festronix';
 import { StorageService } from '../services/storageService';
-import { resendRegistrationPassEmail } from '../services/registrationEmailService';
-import { LocalQrCode } from './LocalQrCode';
+import { EmailService } from '../services/emailService';
 
 interface DigitalPassModalProps {
   registrations: Registration[];
@@ -13,6 +12,7 @@ interface DigitalPassModalProps {
   pageMode?: boolean;
   onClose: () => void;
   onBrowseEvents?: () => void;
+  onOpenMultiPass?: () => void;
 }
 
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
@@ -41,7 +41,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   activePassId,
   pageMode = false,
   onClose,
-  onBrowseEvents
+  onBrowseEvents,
+  onOpenMultiPass
 }) => {
   const normalizeTeamCode = (code?: string) => (code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   const visibleRegistrations = (source: Registration[]) => {
@@ -103,70 +104,171 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   }, [pageMode]);
 
   const [liveRegistrations, setLiveRegistrations] = useState<Registration[]>(() =>
-    mergePasses(initialRegistrations, readGuestPassCache())
+    activePassId
+      ? mergePasses(initialRegistrations, readGuestPassCache()).filter(r => r.id === activePassId)
+      : []
   );
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const allRegs = liveRegistrations;
-  const userFiltered = pageMode ? allRegs : visibleRegistrations(allRegs);
 
-  const [activeList, setActiveList] = useState<Registration[]>(
-    userFiltered
-  );
+  const [activeList, setActiveList] = useState<Registration[]>(() => {
+    if (activePassId) {
+      const merged = mergePasses(initialRegistrations, readGuestPassCache());
+      const match = merged.filter(r => r.id === activePassId);
+      return match;
+    }
+    return [];
+  });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selectedRegistrationId = useRef<string | null>(null);
   const [teamDashboards, setTeamDashboards] = useState<Record<string, Team>>({});
   const [isRefreshingTeams, setIsRefreshingTeams] = useState(false);
   const [lastTeamSync, setLastTeamSync] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<'pass' | 'team'>('pass');
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<Record<string, string>>({});
 
-  const lookupLivePasses = async (query: string, silent = false) => {
-    const cleanQuery = query.trim();
-    if (!cleanQuery) return;
+  const lookupPassSecurely = async (query: string, silent = false) => {
+    const rawQuery = query.trim();
+    if (!rawQuery) return;
+
     if (!silent) {
       setIsLookupLoading(true);
       setLookupError(null);
       setSearchFeedback(null);
     }
+
     try {
-      const found = await StorageService.lookupPublicPasses(cleanQuery);
-      const normalizedQuery = cleanQuery.toLowerCase();
-      const cachedMatches = readGuestPassCache().filter(registration => [
-        registration.id,
-        registration.leaderEmail,
-        registration.leaderRoll,
-        registration.teamCode
-      ].filter(Boolean).some(value => String(value).toLowerCase() === normalizedQuery));
-      const resolved = mergePasses(found, cachedMatches);
-      setLiveRegistrations(resolved);
-      setActiveList(resolved);
-      setSelectedIndex(0);
-      setSearchFeedback(found.length > 0
-        ? `Live result • ${found.length} pass${found.length === 1 ? '' : 'es'} found`
-        : cachedMatches.length > 0
-          ? 'Saved on this device • live sync will update when available'
-          : 'No live pass matched that lookup.');
-      if (resolved.length === 0) setLookupError('No registration matched. Check the registration ID, roll number, email, or team code.');
-      else setLookupError(null);
-    } catch (error: any) {
-      const normalizedQuery = cleanQuery.toLowerCase();
-      const cachedMatches = readGuestPassCache().filter(registration => [
-        registration.id,
-        registration.leaderEmail,
-        registration.leaderRoll,
-        registration.teamCode
-      ].filter(Boolean).some(value => String(value).toLowerCase() === normalizedQuery));
-      if (cachedMatches.length > 0) {
-        setLiveRegistrations(cachedMatches);
-        setActiveList(cachedMatches);
+      const isFourDigits = /^\d{4}$/.test(rawQuery);
+      const searchTarget = isFourDigits ? `FEST-2026-${rawQuery}` : rawQuery;
+      const normalizedRaw = rawQuery.toLowerCase();
+      const normalizedTarget = searchTarget.toLowerCase();
+      const normalizedTeamQuery = normalizeTeamCode(rawQuery);
+
+      const matchesPass = (r: Registration) => {
+        const idLower = (r.id || '').toLowerCase();
+        const teamCodeNormalized = normalizeTeamCode(r.teamCode);
+
+        // 1. Team Code Match (exact, normalized alphanumeric, prefix, or suffix)
+        if (normalizedTeamQuery && teamCodeNormalized) {
+          if (
+            teamCodeNormalized === normalizedTeamQuery ||
+            teamCodeNormalized.endsWith(normalizedTeamQuery) ||
+            teamCodeNormalized.includes(normalizedTeamQuery)
+          ) {
+            return true;
+          }
+        }
+        if (r.teamCode && (
+          r.teamCode.toLowerCase() === normalizedRaw ||
+          r.teamCode.toLowerCase().includes(normalizedRaw)
+        )) {
+          return true;
+        }
+
+        // 2. Pass Number / ID Match
+        if (isFourDigits) {
+          if (idLower === normalizedTarget || idLower.endsWith(normalizedRaw)) {
+            return true;
+          }
+        } else {
+          if (idLower === normalizedRaw || idLower === normalizedTarget) {
+            return true;
+          }
+        }
+
+        // 3. QR Token Match
+        if (r.qrToken && r.qrToken.toLowerCase() === normalizedRaw) {
+          return true;
+        }
+
+        // 4. Roll number or Email Match
+        if (r.leaderRoll && r.leaderRoll.toLowerCase() === normalizedRaw) return true;
+        if (r.leaderEmail && r.leaderEmail.toLowerCase() === normalizedRaw) return true;
+        if (Array.isArray(r.teammates)) {
+          if (r.teammates.some(tm =>
+            (tm.rollNumber && tm.rollNumber.toLowerCase() === normalizedRaw) ||
+            (tm.email && tm.email.toLowerCase() === normalizedRaw)
+          )) {
+            return true;
+          }
+        }
+
+        return false;
+      };
+
+      // Check local cache first
+      const allCached = mergePasses(initialRegistrations, readGuestPassCache());
+      const localMatches = allCached.filter(matchesPass);
+
+      // Query Supabase backend
+      let remoteMatches: Registration[] = [];
+      try {
+        let found = await StorageService.lookupPublicPasses(searchTarget);
+        // If 4 digits yielded no results with FEST-2026-XXXX, also try searching the raw query
+        if (found.length === 0 && isFourDigits) {
+          try {
+            const rawFound = await StorageService.lookupPublicPasses(rawQuery);
+            if (rawFound.length > 0) {
+              found = rawFound;
+            }
+          } catch {
+            // ignore
+          }
+        }
+        // If query looks like a team code (e.g. user entered TM-XXXX but searchTarget was altered or normalized)
+        if (found.length === 0 && normalizedTeamQuery && normalizedTeamQuery !== rawQuery.toUpperCase()) {
+          try {
+            const teamFound = await StorageService.lookupPublicPasses(normalizedTeamQuery);
+            if (teamFound.length > 0) {
+              found = teamFound;
+            }
+          } catch {
+            // ignore
+          }
+        }
+        remoteMatches = found.filter(matchesPass);
+        // If found has results from backend lookup but local filter was overly strict, retain found
+        if (remoteMatches.length === 0 && found.length > 0) {
+          remoteMatches = found;
+        }
+      } catch (err: any) {
+        console.warn('Backend lookup error:', err);
+      }
+
+      const verified = mergePasses(remoteMatches, localMatches);
+
+      if (verified.length > 0) {
+        setLiveRegistrations(verified);
+        setActiveList(verified);
+        setSelectedIndex(0);
         setLookupError(null);
-        setSearchFeedback('Saved on this device • live lookup is temporarily unavailable');
+        const hasTeamPass = verified.some(r => r.teamCode || r.teamName);
+        if (searchMode === 'team' || hasTeamPass) {
+          const matchedTeamCode = verified.find(r => r.teamCode)?.teamCode || rawQuery.toUpperCase();
+          setSearchFeedback(`Team verified! Found ${verified.length} pass${verified.length === 1 ? '' : 'es'} for Team ${matchedTeamCode}.`);
+        } else {
+          setSearchFeedback(`Pass verified successfully! Found ${verified.length} matching pass${verified.length === 1 ? '' : 'es'}.`);
+        }
       } else {
-        if (!silent) setActiveList([]);
-        setLookupError(error?.message || 'Live pass lookup is temporarily unavailable.');
-        setSearchFeedback(null);
+        if (!silent) {
+          setActiveList([]);
+          setLiveRegistrations([]);
+          setLookupError(
+            searchMode === 'team'
+              ? `No passes found for Team Code "${rawQuery}". Please check your team code (e.g. TM-8492 or FX-XXXX).`
+              : isFourDigits
+              ? `No pass found ending in "${rawQuery}". Please check your 4-digit pass number.`
+              : `No pass found matching "${rawQuery}". Please verify your Pass Number (e.g. FEST-2026-XXXX) or Team Code (e.g. TM-XXXX).`
+          );
+        }
+      }
+    } catch (error: any) {
+      if (!silent) {
+        setActiveList([]);
+        setLookupError(error?.message || 'Pass lookup temporarily unavailable. Please try again.');
       }
     } finally {
       if (!silent) setIsLookupLoading(false);
@@ -174,51 +276,10 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   };
 
   useEffect(() => {
-    const nextRegistrations = mergePasses(initialRegistrations, readGuestPassCache());
-    setLiveRegistrations(nextRegistrations);
-    if (nextRegistrations.length > 0) {
-      if (activePassId) {
-        const matches = nextRegistrations.filter(r => r.id === activePassId);
-        if (matches.length > 0) {
-          setActiveList(matches);
-          setSelectedIndex(0);
-        } else {
-          setActiveList(visibleRegistrations(nextRegistrations));
-        }
-      } else {
-        setActiveList(visibleRegistrations(nextRegistrations));
-      }
+    if (activePassId) {
+      void lookupPassSecurely(activePassId, false);
     }
-  }, [initialRegistrations, pageMode, activePassId]);
-
-  useEffect(() => {
-    if (!pageMode || !activePassId) return;
-    setSearchQuery(activePassId);
-
-    // Render the pass cached by the registration flow immediately. The live
-    // lookup below is still authoritative, but it should refresh the card in
-    // the background instead of leaving a just-paid guest on an empty page.
-    const cachedMatches = readGuestPassCache().filter(registration => registration.id === activePassId);
-    if (cachedMatches.length > 0) {
-      // The cache is only a temporary placeholder while the live lookup runs.
-      // Backend data must win so a QR generated on another device is the one
-      // shown here; never let a stale localStorage token override Firestore.
-      setLiveRegistrations(previous => mergePasses(previous, cachedMatches));
-      setActiveList(cachedMatches);
-      setSelectedIndex(0);
-      setSearchFeedback('Checking your pass…');
-    }
-
-    void lookupLivePasses(activePassId);
-  }, [pageMode, activePassId]);
-
-  useEffect(() => {
-    if (!pageMode || !searchQuery.trim()) return;
-    const intervalId = window.setInterval(() => {
-      void lookupLivePasses(searchQuery, true);
-    }, 5000);
-    return () => window.clearInterval(intervalId);
-  }, [pageMode, searchQuery]);
+  }, [activePassId]);
 
   useEffect(() => {
     if (activePassId && activeList.length > 0) {
@@ -234,8 +295,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
     if (!reg.leaderEmail) return;
     setResendStatus(prev => ({ ...prev, [reg.id]: 'Sending...' }));
     try {
-      const result = await resendRegistrationPassEmail(reg.id, reg.leaderEmail);
-      if (!result.sent) throw new Error(result.message);
+      await EmailService.sendPassEmail(reg);
       setResendStatus(prev => ({ ...prev, [reg.id]: '✓ Email Sent' }));
       setTimeout(() => {
         setResendStatus(prev => {
@@ -244,23 +304,10 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           return updated;
         });
       }, 4000);
-    } catch (error) {
-      setResendStatus(prev => ({ ...prev, [reg.id]: error instanceof Error ? error.message : 'Failed to send' }));
+    } catch {
+      setResendStatus(prev => ({ ...prev, [reg.id]: 'Failed to send' }));
     }
   };
-
-  useEffect(() => {
-    const selectedId = selectedRegistrationId.current;
-    const next = pageMode ? liveRegistrations : visibleRegistrations(liveRegistrations);
-    setActiveList(next);
-    setSelectedIndex(previousIndex => {
-      if (selectedId) {
-        const nextIndex = next.findIndex(registration => registration.id === selectedId);
-        if (nextIndex >= 0) return nextIndex;
-      }
-      return Math.min(previousIndex, Math.max(next.length - 1, 0));
-    });
-  }, [initialRegistrations, currentUser, pageMode, liveRegistrations]);
 
   useEffect(() => {
     selectedRegistrationId.current = activeList[selectedIndex]?.id || null;
@@ -323,44 +370,19 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
   const handleSearchPass = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
-    if (pageMode) {
-      void lookupLivePasses(searchQuery);
-      return;
-    }
-
-    const q = searchQuery.trim().toLowerCase();
-    const found = activeList.filter(
-      r =>
-        r.id.toLowerCase().includes(q) ||
-        r.leaderRoll.toLowerCase().includes(q) ||
-        r.leaderEmail.toLowerCase().includes(q) ||
-        r.leaderName.toLowerCase().includes(q) ||
-        (r.teamName && r.teamName.toLowerCase().includes(q)) ||
-        (r.teamCode && r.teamCode.toLowerCase().includes(q)) ||
-        (r.teammates && r.teammates.some(tm => tm.rollNumber.toLowerCase().includes(q) || tm.name.toLowerCase().includes(q)))
-    );
-
-    if (found.length > 0) {
-      setActiveList(found);
-      setSelectedIndex(0);
-      setSearchFeedback(`Found ${found.length} pass(es) matching "${searchQuery}"!`);
-    } else {
-      setSearchFeedback(`No pass found for "${searchQuery}". Please check your Roll No or Registration ID.`);
-    }
+    void lookupPassSecurely(searchQuery);
   };
 
   const handleResetSearch = () => {
-    const next = pageMode ? [] : visibleRegistrations(liveRegistrations);
-    setLiveRegistrations(next);
-    setActiveList(next);
+    setLiveRegistrations([]);
+    setActiveList([]);
     setSelectedIndex(0);
     setSearchQuery('');
     setSearchFeedback(null);
     setLookupError(null);
   };
 
-  const reg = activeList[selectedIndex] || activeList[0];
+  const reg = activeList.length > 0 ? (activeList[selectedIndex] || activeList[0]) : null;
   const associatedEvent = reg
     ? events.find(event => event.id === reg.eventId || event.slug === reg.eventId)
     : undefined;
@@ -471,24 +493,63 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       <html>
         <head>
           <meta charset="utf-8" />
+          <base href="${window.location.origin}/" />
           <title>Festronix Pass – ${reg?.id ?? ''}</title>
           ${styles}
           <style>
-            @page { size: A5 landscape; margin: 12mm; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            @page {
+              size: A4 portrait;
+              margin: 10mm;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box !important;
+            }
+            html, body {
+              width: 100% !important;
+              height: auto !important;
+              min-height: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #080C16 !important;
+              overflow: visible !important;
+            }
             body {
-              margin: 0;
-              background: #080C16;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              font-family: 'Space Grotesk', sans-serif;
+              display: block !important;
+              font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
             .ticket-wrapper {
-              width: 100%;
-              max-width: 720px;
-              page-break-inside: avoid;
+              width: 100% !important;
+              max-width: 720px !important;
+              margin: 0 auto !important;
+              padding: 20px 24px !important;
+              border-radius: 14px !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
+              page-break-before: avoid !important;
+              break-before: avoid !important;
+              box-sizing: border-box !important;
+            }
+            @media print {
+              html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+              }
+              .ticket-wrapper {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+                margin: 0 auto !important;
+                transform: scale(0.96);
+                transform-origin: top center;
+              }
             }
           </style>
         </head>
@@ -530,7 +591,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Ticket size={20} color="#BACEBB" />
+            <Download size={20} color="#38BDF8" />
             <span
               style={{
                 fontFamily: "var(--font-heading)",
@@ -540,7 +601,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 fontWeight: 700
               }}
             >
-              {pageMode ? 'FESTRONIX PASS PORTAL' : 'OFFICIAL FESTRONIX REGISTRATION PASS'}
+              DOWNLOAD YOUR PASS
             </span>
           </div>
 
@@ -566,74 +627,191 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           </button>
         </div>
 
-        {/* Quick Search Pass Finder */}
-        {pageMode && (
-          <div className="pass-page-intro">
-
-            <h1>Find your official pass</h1>
-            <p>Search with the registration ID, roll number, email, or team code used during registration. Guest access is supported—no sign-in required.</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSearchPass} style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Search
-                size={15}
-                color="#BACEBB"
-                style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-              />
-              <input
-                type="text"
-                className="cyber-input"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Registration ID, roll number, email, or team code"
-                style={{
-                  paddingLeft: '36px',
-                  height: '38px',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  background: 'rgba(16, 26, 53, 0.85)',
-                  border: '1px solid rgba(220, 227, 229, 0.22)',
-                  color: '#FFFFFF'
-                }}
-              />
-            </div>
+        {/* Quick Search Pass Finder with Team Code & Pass ID Options */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(16, 26, 53, 0.8) 0%, rgba(9, 18, 36, 0.95) 100%)',
+          border: '1px solid rgba(136, 178, 174, 0.25)',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px'
+        }}>
+          {/* Option Selector Tabs */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
             <button
-              type="submit"
-              className="btn-cyber-primary"
-              style={{ padding: '0 16px', height: '38px', fontSize: '0.8rem' }}
-            >
-                {isLookupLoading ? 'Checking…' : 'Find pass'}
-            </button>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={handleResetSearch}
-                className="btn-cyber-secondary"
-                style={{ padding: '0 12px', height: '38px', fontSize: '0.78rem' }}
-              >
-                Reset
-              </button>
-            )}
-          </div>
-          {searchFeedback && (
-            <div
+              type="button"
+              onClick={() => {
+                setSearchMode('pass');
+                setLookupError(null);
+                setSearchFeedback(null);
+              }}
               style={{
-                fontSize: '0.74rem',
-                color: searchFeedback.includes('Found') ? '#10B981' : '#F43F5E',
-                marginTop: '6px',
-                fontWeight: 600
+                flex: 1,
+                minWidth: '140px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: searchMode === 'pass' ? '1.5px solid #38BDF8' : '1px solid rgba(220, 227, 229, 0.15)',
+                background: searchMode === 'pass' ? 'rgba(56, 189, 248, 0.18)' : 'rgba(16, 26, 53, 0.6)',
+                color: searchMode === 'pass' ? '#38BDF8' : '#94A3B8',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
               }}
             >
-              {searchFeedback}
+              <Ticket size={14} />
+              <span>Pass Number / ID</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode('team');
+                setLookupError(null);
+                setSearchFeedback(null);
+              }}
+              style={{
+                flex: 1,
+                minWidth: '140px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: searchMode === 'team' ? '1.5px solid #34D399' : '1px solid rgba(220, 227, 229, 0.15)',
+                background: searchMode === 'team' ? 'rgba(52, 211, 153, 0.18)' : 'rgba(16, 26, 53, 0.6)',
+                color: searchMode === 'team' ? '#34D399' : '#94A3B8',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Users size={14} />
+              <span>Download by Team Code</span>
+            </button>
+          </div>
+
+          <p style={{
+            margin: '0 0 10px 0',
+            fontSize: '0.82rem',
+            color: '#BACEBB',
+            lineHeight: 1.4
+          }}>
+            {searchMode === 'team' ? (
+              <>Enter your <strong>Team Code</strong> (e.g. <span style={{ color: '#34D399', fontFamily: "'Space Grotesk', monospace" }}>TM-8492</span> or <span style={{ color: '#34D399', fontFamily: "'Space Grotesk', monospace" }}>FX-XXXX-1234</span>) to find and download passes for your squad.</>
+            ) : (
+              <>Enter your <strong>Pass Number</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>FEST-2026-1234</span>), <strong>last 4 digits</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>1234</span>), or <strong>Roll Number</strong> to view and download your pass.</>
+            )}
+          </p>
+
+          <form onSubmit={handleSearchPass}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                {searchMode === 'team' ? (
+                  <Users
+                    size={15}
+                    color="#34D399"
+                    style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+                  />
+                ) : (
+                  <Search
+                    size={15}
+                    color="#38BDF8"
+                    style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+                  />
+                )}
+                <input
+                  type="text"
+                  className="cyber-input"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder={
+                    searchMode === 'team'
+                      ? "Enter Team Code (e.g. TM-8492 or 8492)"
+                      : "Enter Pass No (e.g. FEST-2026-1234) or Roll No"
+                  }
+                  autoFocus
+                  style={{
+                    paddingLeft: '36px',
+                    height: '42px',
+                    borderRadius: '8px',
+                    fontSize: '0.86rem',
+                    background: 'rgba(9, 18, 36, 0.95)',
+                    border: searchMode === 'team' ? '1px solid rgba(52, 211, 153, 0.45)' : '1px solid rgba(56, 189, 248, 0.4)',
+                    color: '#FFFFFF'
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLookupLoading}
+                className="btn-cyber-primary"
+                style={{
+                  padding: '0 18px',
+                  height: '42px',
+                  fontSize: '0.82rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: searchMode === 'team'
+                    ? 'linear-gradient(135deg, #064E3B 0%, #047857 50%, #10B981 100%)'
+                    : 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {searchMode === 'team' ? <Users size={14} /> : <Search size={14} />}
+                {isLookupLoading ? 'Searching…' : searchMode === 'team' ? 'Find Team Passes' : 'Find Pass'}
+              </button>
+              {(searchQuery || activeList.length > 0) && (
+                <button
+                  type="button"
+                  onClick={handleResetSearch}
+                  className="btn-cyber-secondary"
+                  style={{ padding: '0 12px', height: '42px', fontSize: '0.78rem' }}
+                >
+                  Clear
+                </button>
+              )}
             </div>
-          )}
-          {lookupError && (
-            <div className="pass-lookup-error" role="status">{lookupError}</div>
-          )}
-        </form>
+            {searchFeedback && (
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#34D399',
+                  marginTop: '8px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <CheckCircle2 size={14} color="#34D399" />
+                {searchFeedback}
+              </div>
+            )}
+            {lookupError && (
+              <div
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#F87171',
+                  marginTop: '8px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                role="status"
+              >
+                <AlertTriangle size={14} color="#F87171" />
+                {lookupError}
+              </div>
+            )}
+          </form>
+        </div>
 
         {/* Multi-pass selector tabs */}
         {activeList.length > 1 && (
@@ -676,39 +854,274 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             id="festronix-pass-card"
             className="ticket-wrapper"
             style={{
-              padding: '24px',
+              padding: '24px 28px',
               color: '#FFFFFF',
               position: 'relative',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.98) 0%, rgba(16, 26, 53, 0.98) 100%)',
-              border: '1px solid rgba(120, 149, 147, 0.35)',
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(40, 59, 120, 0.3)'
+              borderRadius: '18px',
+              background: 'linear-gradient(145deg, #091224 0%, #122146 50%, #1A2F5E 100%)',
+              border: '1.5px solid rgba(136, 178, 174, 0.45)',
+              boxShadow: '0 18px 50px rgba(0, 0, 0, 0.75), 0 0 35px rgba(40, 59, 120, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+              overflow: 'hidden'
             }}
           >
-            {/* Ticket Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
-              <div>
-                <div style={{ fontSize: '0.7rem', color: '#BACEBB', letterSpacing: '0.12em', fontWeight: 800, textTransform: 'uppercase' }}>
-                  VARDHAMAN COLLEGE OF ENGINEERING • FESTRONIX 2026
-                </div>
-                <h2
+            {/* VCE Institutional Watermark */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-25px',
+                bottom: '-25px',
+                width: '240px',
+                height: '240px',
+                opacity: 0.04,
+                pointerEvents: 'none',
+                backgroundImage: 'url(/vce_crest_hires.png)',
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                zIndex: 0
+              }}
+            />
+
+            {/* Ticket Header: VCE Brand, Festronix Logo & Pass Status */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+                paddingBottom: '12px',
+                borderBottom: '1px solid rgba(136, 178, 174, 0.25)',
+                position: 'relative',
+                zIndex: 1
+              }}
+            >
+              {/* Left: VCE Crest & Name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img
+                  src="/vce_logo.png"
+                  alt="Vardhaman College of Engineering"
                   style={{
-                    fontFamily: "var(--font-heading)",
-                    fontSize: '1.45rem',
-                    fontWeight: 700,
-                    marginTop: '2px',
-                    color: '#FFFFFF',
-                    letterSpacing: '0.02em'
+                    height: '38px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5))'
                   }}
-                >
-                  {reg.eventTitle}
-                </h2>
-                <div style={{ fontSize: '0.78rem', color: '#A8B3C2', marginTop: '2px' }}>
-                  Registration ID: <span style={{ color: '#DCE3E5', fontFamily: 'monospace', fontWeight: 700 }}>{reg.id}</span>
+                />
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.72rem',
+                      color: '#BACEBB',
+                      letterSpacing: '0.12em',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      fontFamily: "'Space Grotesk', sans-serif"
+                    }}
+                  >
+                    VARDHAMAN COLLEGE OF ENGINEERING
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.6rem',
+                      color: '#88B2AE',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      fontWeight: 600
+                    }}
+                  >
+                    Autonomous Institute • NAAC A++
+                  </div>
                 </div>
               </div>
 
+              {/* Center: Official Festronix 2026 Crest */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 14px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.75) 0%, rgba(9, 18, 36, 0.85) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4), 0 0 12px rgba(56, 189, 248, 0.25)'
+                }}
+              >
+                <img
+                  src="/festronix_3d_title_clean.png"
+                  alt="Festronix 2026"
+                  style={{
+                    height: '24px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.6)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7))'
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    color: '#38BDF8',
+                    letterSpacing: '0.12em',
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    borderLeft: '1px solid rgba(136, 178, 174, 0.35)',
+                    paddingLeft: '8px',
+                    textTransform: 'uppercase'
+                  }}
+                >
+                  2026
+                </span>
+              </div>
+
+              {/* Right: Pass Status Badge */}
               <div>{getStatusBadge(effectivePaymentStatus || reg.paymentStatus)}</div>
+            </div>
+
+            {/* Official Sponsors Strip: Sanvi Homes & Vencorpia */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                margin: '10px 0 12px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: 'linear-gradient(90deg, rgba(28, 43, 89, 0.75) 0%, rgba(14, 23, 46, 0.85) 100%)',
+                border: '1px solid rgba(136, 178, 174, 0.3)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                position: 'relative',
+                zIndex: 1
+              }}
+            >
+              {/* Sanvi Homes Logo - 3D Hexagonal Emblem with Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    color: '#38BDF8',
+                    fontWeight: 800,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    fontFamily: "'Space Grotesk', sans-serif"
+                  }}
+                >
+                  TITLE SPONSOR:
+                </span>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px'
+                  }}
+                >
+                  <img
+                    src="/sanvi_homes_3d_emblem.png"
+                    alt="Sanvi Homes Emblem"
+                    style={{
+                      height: '24px',
+                      width: 'auto',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 8px rgba(0, 194, 255, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))'
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '0.84rem',
+                      fontWeight: 800,
+                      color: '#FFFFFF',
+                      letterSpacing: '0.04em',
+                      fontFamily: "'Space Grotesk', sans-serif"
+                    }}
+                  >
+                    SANVI HOMES
+                  </span>
+                </div>
+              </div>
+
+              {/* Vencorpia Logo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    color: '#38BDF8',
+                    fontWeight: 800,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    fontFamily: "'Space Grotesk', sans-serif"
+                  }}
+                >
+                  EVENT PARTNER:
+                </span>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <img
+                    src="/vencorpia_transparent.png"
+                    alt="Vencorpia"
+                    style={{
+                      height: '20px',
+                      width: 'auto',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 6px rgba(0, 194, 255, 0.45))'
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: '#F8FAFC',
+                      fontFamily: "'Space Grotesk', sans-serif",
+                      letterSpacing: '0.02em'
+                    }}
+                  >
+                    Vencorpia
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Event Title & Pass Header */}
+            <div style={{ marginBottom: '14px', position: 'relative', zIndex: 1 }}>
+              <h2
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 'clamp(1.25rem, 2.5vw, 1.55rem)',
+                  fontWeight: 800,
+                  margin: '0 0 4px 0',
+                  color: '#FFFFFF',
+                  letterSpacing: '0.02em',
+                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.5)'
+                }}
+              >
+                {reg.eventTitle}
+              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>
+                  Pass ID: <strong style={{ color: '#F8FAFC', fontFamily: 'monospace' }}>{reg.id}</strong>
+                </span>
+                {associatedEvent?.category && (
+                  <span
+                    style={{
+                      fontSize: '0.64rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(56, 189, 248, 0.18)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      color: '#38BDF8',
+                      fontWeight: 700,
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {associatedEvent.category}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Ticket Body Grid */}
@@ -718,9 +1131,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 gridTemplateColumns: '1.3fr 1fr',
                 gap: '20px',
                 padding: '16px 0',
-                borderTop: '1px dashed rgba(120, 149, 147, 0.35)',
-                borderBottom: '1px dashed rgba(120, 149, 147, 0.35)',
-                alignItems: 'center'
+                borderTop: '1px dashed rgba(136, 178, 174, 0.35)',
+                borderBottom: '1px dashed rgba(136, 178, 174, 0.35)',
+                alignItems: 'center',
+                position: 'relative',
+                zIndex: 1
               }}
             >
               {/* Participant info */}
@@ -732,8 +1147,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                       marginBottom: '14px',
                       padding: '10px 14px',
                       borderRadius: '10px',
-                      background: 'linear-gradient(135deg, rgba(40, 59, 120, 0.45) 0%, rgba(62, 66, 100, 0.45) 100%)',
-                      border: '1px solid rgba(120, 149, 147, 0.4)',
+                      background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.75) 0%, rgba(16, 26, 53, 0.85) 100%)',
+                      border: '1px solid rgba(136, 178, 174, 0.45)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -749,16 +1164,16 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                     </div>
                     {reg.teamCode && (
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.64rem', color: '#A8B3C2', fontWeight: 600 }}>TEAM CODE</div>
+                        <div style={{ fontSize: '0.64rem', color: '#CBD5E1', fontWeight: 600 }}>TEAM CODE</div>
                         <div
                           style={{
                             fontFamily: 'monospace',
                             fontWeight: 800,
-                            color: '#BACEBB',
-                            background: 'rgba(16, 26, 53, 0.85)',
+                            color: '#38BDF8',
+                            background: 'rgba(10, 18, 38, 0.85)',
                             padding: '3px 8px',
                             borderRadius: '4px',
-                            border: '1px solid rgba(120, 149, 147, 0.35)',
+                            border: '1px solid rgba(136, 178, 174, 0.35)',
                             fontSize: '0.82rem'
                           }}
                         >
@@ -775,8 +1190,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                       marginBottom: '14px',
                       padding: '12px 14px',
                       borderRadius: '10px',
-                      background: 'rgba(16, 26, 53, 0.72)',
-                      border: '1px solid rgba(120, 149, 147, 0.35)'
+                      background: 'rgba(14, 23, 46, 0.75)',
+                      border: '1px solid rgba(136, 178, 174, 0.35)'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -820,23 +1235,23 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 )}
 
                 <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#88B2AE', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
                     {teamSummary && !isTeamLeader ? 'Participant' : 'Participant / Team Lead'}
                   </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFFFFF' }}>{reg.leaderName}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#A8B3C2' }}>{reg.leaderCollege}</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF' }}>{reg.leaderName}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>{reg.leaderCollege}</div>
                   <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontFamily: 'monospace' }}>Roll No: {reg.leaderRoll}</div>
                   {reg.deptSection && (
-                    <div style={{ fontSize: '0.75rem', color: '#DCE3E5', marginTop: '2px' }}>
-                      Dept & Section: <strong style={{ color: '#BACEBB', letterSpacing: '0.04em' }}>{reg.deptSection}</strong>
+                    <div style={{ fontSize: '0.75rem', color: '#38BDF8', marginTop: '2px' }}>
+                      Dept & Section: <strong style={{ color: '#FFFFFF', letterSpacing: '0.04em' }}>{reg.deptSection}</strong>
                     </div>
                   )}
-                  <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>Email: {reg.leaderEmail}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Email: {reg.leaderEmail}</div>
                 </div>
 
                 {roster.length > 0 && (
                   <div style={{ marginTop: '10px' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#A8B3C2', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#88B2AE', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 700 }}>
                       Squad Teammates ({roster.length}):
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -846,8 +1261,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                           style={{
                             fontSize: '0.72rem',
                             padding: '3px 10px',
-                            background: 'rgba(120, 149, 147, 0.15)',
-                            border: '1px solid rgba(120, 149, 147, 0.35)',
+                            background: 'rgba(28, 43, 89, 0.45)',
+                            border: '1px solid rgba(136, 178, 174, 0.35)',
                             borderRadius: '4px',
                             color: '#BACEBB',
                             fontFamily: "'Space Grotesk', sans-serif",
@@ -867,7 +1282,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
 
                 {/* Verification/Entry Status */}
                 <div style={{ marginTop: '14px' }}>
-                  {!reg.qrToken ? (
+                  {!(reg.qrToken || reg.id) ? (
                     <div
                       style={{
                         display: 'inline-flex',
@@ -909,15 +1324,16 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
-                        padding: '4px 10px',
-                        background: 'rgba(40, 59, 120, 0.35)',
-                        border: '1px solid rgba(120, 149, 147, 0.4)',
+                        padding: '5px 12px',
+                        background: 'rgba(28, 43, 89, 0.65)',
+                        border: '1px solid rgba(136, 178, 174, 0.45)',
                         borderRadius: '6px',
                         color: '#BACEBB',
-                        fontSize: '0.75rem'
+                        fontSize: '0.75rem',
+                        fontWeight: 600
                       }}
                     >
-                      <Clock size={14} color="#BACEBB" />
+                      <Clock size={14} color="#38BDF8" />
                       <span>Authorized Entry Pass • Ready for QR Scan</span>
                     </div>
                   )}
@@ -925,11 +1341,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               </div>
 
               {/* QR Code token or entry ticket */}
-              {!reg.qrToken ? (
+              {!(reg.qrToken || reg.id) ? (
                 <div
                   style={{
                     textAlign: 'center',
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(16, 26, 53, 0.95) 100%)',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(14, 23, 46, 0.95) 100%)',
                     border: '1px dashed #F59E0B',
                     padding: '16px 12px',
                     borderRadius: '12px',
@@ -977,50 +1393,45 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '14px', borderRadius: '12px' }}>
-                  <LocalQrCode value={reg.qrToken} size={120} alt="Entry QR pass" />
+                <div
+                  style={{
+                    textAlign: 'center',
+                    background: '#FFFFFF',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(136, 178, 174, 0.5)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
+                  }}
+                >
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(reg.qrToken || reg.id)}`}
+                    alt="Entry QR Pass"
+                    style={{ width: '120px', height: '120px', margin: '0 auto', display: 'block' }}
+                  />
                   <div
                     style={{
                       fontFamily: 'monospace',
                       fontSize: '0.68rem',
-                      color: '#101A35',
-                      fontWeight: 700,
+                      color: '#0E172E',
+                      fontWeight: 800,
                       marginTop: '8px',
                       letterSpacing: '0.05em'
                     }}
                   >
-                    TOKEN: {reg.qrToken}
+                    TOKEN: {reg.qrToken || reg.id}
                   </div>
-                  {reg.leaderEmail && (
-                    <div style={{ marginTop: '12px' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleResendEmail(reg)}
-                        disabled={resendStatus[reg.id] === 'Sending...'}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: '1px solid #2563EB',
-                          background: '#EFF6FF',
-                          color: '#1D4ED8',
-                          fontSize: '0.72rem',
-                          fontWeight: 800,
-                          cursor: resendStatus[reg.id] === 'Sending...' ? 'wait' : 'pointer'
-                        }}
-                      >
-                        <Mail size={14} />
-                        {resendStatus[reg.id] === 'Sending...' ? 'Sending...' : 'Email this QR'}
-                      </button>
-                      {resendStatus[reg.id] && resendStatus[reg.id] !== 'Sending...' && (
-                        <div style={{ marginTop: '6px', color: '#334155', fontSize: '0.68rem' }}>
-                          {resendStatus[reg.id]}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div
+                    style={{
+                      fontSize: '0.62rem',
+                      color: '#64748B',
+                      fontWeight: 700,
+                      marginTop: '2px',
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    SCAN FOR EVENT CHECK-IN
+                  </div>
                 </div>
               )}
             </div>
@@ -1033,20 +1444,26 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 alignItems: 'center',
                 marginTop: '14px',
                 fontSize: '0.72rem',
-                color: '#A8B3C2'
+                color: '#94A3B8',
+                position: 'relative',
+                zIndex: 1
               }}
             >
               <div>
-                Date Issued: <span>{reg.registrationDate}</span> • Status:{' '}
+                Date Issued: <span style={{ color: '#CBD5E1' }}>{reg.registrationDate}</span> • Status:{' '}
                 {effectivePaymentStatus === 'payment_required' ? (
                   <strong style={{ color: '#FBBF24' }}>PENDING LEADER PAYMENT</strong>
                 ) : (
-                  <strong style={{ color: '#10B981' }}>CONFIRMED</strong>
+                  <strong style={{ color: '#34D399' }}>CONFIRMED</strong>
                 )}
               </div>
-              {reg.transactionId && (
+              {reg.transactionId ? (
                 <div>
                   UTR: <span style={{ color: '#BACEBB', fontFamily: 'monospace' }}>{reg.transactionId}</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE' }}>
+                  VCE SAC • Shamshabad, Hyderabad
                 </div>
               )}
             </div>
@@ -1096,16 +1513,45 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           )}
           </>
         ) : (
-          <div className="pass-empty-state">
-            <Ticket size={32} />
-            <h2>{pageMode ? 'Your live pass will appear here' : 'No pass selected'}</h2>
-            <p>{pageMode ? 'Enter a lookup value above to retrieve the latest registration state from Firebase.' : 'Search for a pass to view its latest status.'}</p>
+          <div className="pass-empty-state" style={{
+            minHeight: '260px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            padding: '36px 20px',
+            background: 'rgba(9, 18, 36, 0.7)',
+            border: '1px dashed rgba(136, 178, 174, 0.3)',
+            borderRadius: '14px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(40, 59, 120, 0.4)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#38BDF8'
+            }}>
+              <Download size={26} />
+            </div>
+            <h2 style={{ color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+              Search Your Pass to View & Download
+            </h2>
+            <p style={{ color: '#BACEBB', fontSize: '0.84rem', maxWidth: '440px', margin: 0, lineHeight: 1.5 }}>
+              For your privacy, passes are only displayed once verified. Enter your full <strong>Pass Number</strong> (e.g. <code>FEST-2026-XXXX</code>), <strong>last 4 digits</strong>, or <strong>Team Code</strong> (e.g. <code>TM-8492</code>) above to access your official ticket.
+            </p>
           </div>
         )}
 
         {/* Action Controls */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+
             {onBrowseEvents && (
               <button
                 onClick={() => {
@@ -1128,13 +1574,22 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
-            <button onClick={handlePrint} className="btn-cyber-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-              <Printer size={15} />
-              <span>Print / Save Pass</span>
-            </button>
+            {reg && (
+              <button onClick={handlePrint} className="btn-cyber-primary" style={{
+                padding: '8px 18px',
+                fontSize: '0.82rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)'
+              }}>
+                <Download size={15} />
+                <span>Download / Print Pass (PDF)</span>
+              </button>
+            )}
 
-            <button onClick={onClose} className="btn-cyber-primary" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>
-              Done
+            <button onClick={onClose} className="btn-cyber-secondary" style={{ padding: '8px 20px', fontSize: '0.8rem' }}>
+              Close
             </button>
           </div>
         </div>

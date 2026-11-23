@@ -7,7 +7,8 @@ import {
 import confetti from 'canvas-confetti';
 import { AdminUser } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
-import { Registration, PaymentStatus, FestEvent, FestStats, RazorpayRefundOrder, Department } from '../../types/festronix';
+import { Registration, PaymentStatus, FestEvent, FestStats, RazorpayRefundOrder } from '../../types/festronix';
+import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
 
 interface FinanceReviewerDashboardProps {
@@ -23,7 +24,6 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
 }) => {
   const [stats, setStats] = useState<FestStats>(() => StorageService.getStats());
   const [registrations, setRegistrations] = useState<Registration[]>(() => StorageService.getRegistrations());
-  const [departments, setDepartments] = useState<Department[]>([]);
   const departmentScope = adminUser.departmentCode?.trim().toUpperCase() || '';
   
   // Filter and search
@@ -70,9 +70,6 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   };
 
   useEffect(() => {
-    void StorageService.fetchDepartments()
-      .then(setDepartments)
-      .catch(error => console.warn('Finance department list could not be loaded from Firebase.', error));
     void refreshData();
     const handleRegistrations = () => {
       setStats(StorageService.getStats());
@@ -461,8 +458,8 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
                 className="admin-form-input"
                 style={{ width: 'auto', flex: '0 1 240px', paddingLeft: '14px' }}
               >
-                <option value="all">All Departments</option>
-                {departments.map(d => (
+                <option value="all">All 9 Academic Departments</option>
+                {DEPARTMENTS.map(d => (
                   <option key={d.code} value={d.code}>{d.code} - {d.name}</option>
                 ))}
               </select>

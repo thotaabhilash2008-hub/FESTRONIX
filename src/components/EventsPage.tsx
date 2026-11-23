@@ -174,7 +174,7 @@ const EventCard: React.FC<{
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#F59E0B', fontSize: '0.78rem', fontWeight: 700 }}>
           <Trophy size={13} color="#F59E0B" />
-          <span>{event.prizes.first.replace(/Cash Prize|Worth Prizes/gi, '').trim()}</span>
+          <span>Cash Prizes & Certificates</span>
         </div>
         <div style={{ fontSize: '0.78rem', fontWeight: 800, color: event.fee === 0 ? '#34D399' : '#38BDF8' }}>
           {event.fee === 0 ? 'FREE' : `₹${event.fee}`}

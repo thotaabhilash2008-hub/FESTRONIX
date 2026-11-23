@@ -3,23 +3,20 @@ import {
   Award, Users, IndianRupee, Clock, CheckCircle2, XCircle, Search, 
   Download, Bell, Plus, Trash2, Edit3, LogOut, Globe, 
   Layers, Eye, RefreshCw, Building2,
-  UserCheck, UserPlus, Phone, Mail, Copy, Check,
+  UserCheck, UserPlus, Phone, Mail, Copy, Check, X,
   Lock, Unlock, Cpu, Database, Brain, Wrench, Zap, Radio, Briefcase, Building, ShieldCheck, Key,
   Calendar, ArrowRight, QrCode, Camera, StopCircle,
   TrendingUp, Filter, FileSpreadsheet, ArrowUpRight, BarChart3, PieChart, Upload
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import confetti from 'canvas-confetti';
-import { AdminUser, AdminAuthService, AdminRole } from '../../services/adminAuthService';
+import { AdminUser, AdminAuthService, AdminRole, isSuperAdminRole } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
-import { FirebaseStaffEventService } from '../../services/firebaseStaffEventService';
 import { 
   FestEvent, Registration, Announcement, FestStats, PaymentStatus, 
   EventCategory, EventFormat, Department
 } from '../../types/festronix';
-import { ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
-import { ConfirmActionModal } from './ConfirmActionModal';
-import { isFirebaseConfigured } from '../../lib/firebase';
+import { DEPARTMENTS, ORGANISATIONAL_STRUCTURE } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar, AdminNavTab } from './AdminSidebar';
 import { AdminTopNav } from './AdminTopNav';
@@ -48,18 +45,6 @@ const CSE_CLUSTER_OPTIONS = [
   { value: 'CSE-2', label: 'CSE-2 · 2nd Cluster · Balu' },
   { value: 'CSE-3', label: 'CSE-3 · 3rd Cluster · Raghavendra' }
 ] as const;
-
-const EMPTY_STATS: FestStats = {
-  totalRegistrations: 0,
-  verifiedCount: 0,
-  pendingCount: 0,
-  rejectedCount: 0,
-  spotCount: 0,
-  onlineCount: 0,
-  totalCollected: 0,
-  totalCapacity: 0,
-  checkedInCount: 0,
-};
 
 const cseClusterLabel = (clusterCode?: string): string => {
   const normalized = clusterCode?.trim().toUpperCase();
@@ -93,15 +78,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [globalSearch, setGlobalSearch] = useState('');
   const [selectedTimeScope, setSelectedTimeScope] = useState<'day' | 'week' | 'month' | 'year'>('day');
   
-  const [stats, setStats] = useState<FestStats>(() => isFirebaseConfigured ? EMPTY_STATS : StorageService.getStats());
-  const [events, setEvents] = useState<FestEvent[]>(() => isFirebaseConfigured ? [] : StorageService.getEvents());
-  const [registrations, setRegistrations] = useState<Registration[]>(() => isFirebaseConfigured ? [] : StorageService.getRegistrations());
-  const [announcements, setAnnouncements] = useState<Announcement[]>(() => isFirebaseConfigured ? [] : StorageService.getAnnouncements());
-  const [departments, setDepartments] = useState<Department[]>(() => isFirebaseConfigured ? [] : StorageService.getDepartments());
-  const [departmentLoadFailed, setDepartmentLoadFailed] = useState(false);
-  const [isLoadingDepartments, setIsLoadingDepartments] = useState(isFirebaseConfigured);
+  const [stats, setStats] = useState<FestStats>(StorageService.getStats());
+  const [events, setEvents] = useState<FestEvent[]>(StorageService.getEvents());
+  const [registrations, setRegistrations] = useState<Registration[]>(StorageService.getRegistrations());
+  const [announcements, setAnnouncements] = useState<Announcement[]>(StorageService.getAnnouncements());
+  const [departments, setDepartments] = useState<Department[]>(StorageService.getDepartments());
   const [coordinators, setCoordinators] = useState<Array<AdminUser & { assignedEvents?: string[] }>>(
-    () => isFirebaseConfigured ? [] : AdminAuthService.getCoordinators()
+    AdminAuthService.getCoordinators()
   );
   const occupiedCseDepartmentCoordinatorClusters = useMemo(() => new Set(
     coordinators
@@ -118,6 +101,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [rosterDeptFilter, setRosterDeptFilter] = useState('all');
   const [rosterPaymentFilter, setRosterPaymentFilter] = useState('all');
   const [rosterCheckInFilter, setRosterCheckInFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all');
+  const [rosterTypeFilter, setRosterTypeFilter] = useState<'all' | 'team' | 'single'>('all');
+  const [viewingTeamMembers, setViewingTeamMembers] = useState<Registration | null>(null);
   const [rosterPage, setRosterPage] = useState(1);
   const ROSTER_PAGE_SIZE = 10;
 
@@ -161,11 +146,21 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // Modal States
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
-  const [eventPendingDelete, setEventPendingDelete] = useState<FestEvent | null>(null);
-  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
-  const [eventDeleteError, setEventDeleteError] = useState<string | null>(null);
   const [isAddCoordinatorOpen, setIsAddCoordinatorOpen] = useState(false);
   const [coordinatorCreatedForEventId, setCoordinatorCreatedForEventId] = useState<string | null>(null);
+
+  // Participant Deletion & Team Editing State
+  const [deletingRegId, setDeletingRegId] = useState<string | null>(null);
+  const [editingTeam, setEditingTeam] = useState<{
+    teamCode: string;
+    teamName: string;
+    leaderName: string;
+    leaderRoll: string;
+    leaderEmail: string;
+    leaderPhone: string;
+    teammates: { name: string; rollNumber: string; email?: string; phone?: string }[];
+  } | null>(null);
+  const [teamEditSaving, setTeamEditSaving] = useState(false);
 
   // Clipboard copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -187,9 +182,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [evtTime, setEvtTime] = useState('10:00 AM - 01:00 PM');
   const [evtVenue, setEvtVenue] = useState('Main Auditorium');
   const [evtDescription, setEvtDescription] = useState('');
-  const [evtPrizeFirst, setEvtPrizeFirst] = useState('');
-  const [evtPrizeSecond, setEvtPrizeSecond] = useState('');
-  const [evtPrizeThird, setEvtPrizeThird] = useState('');
   const [evtRules, setEvtRules] = useState('• Valid college ID card required at entry.\n• Decision of event judges is final.\n• Malpractice leads to immediate disqualification.');
   const [evtPaymentInstructions, setEvtPaymentInstructions] = useState('Scan the SAC official QR code, pay the entry fee, and upload screenshot with UTR number.');
   const [evtWhatsAppGroupLink, setEvtWhatsAppGroupLink] = useState('');
@@ -254,50 +246,29 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [editDeptIcon, setEditDeptIcon] = useState('Cpu');
 
   const refreshAllData = async () => {
-    setIsLoadingDepartments(true);
-    if (isFirebaseConfigured) {
-      setStats(EMPTY_STATS);
-      setEvents([]);
-      setRegistrations([]);
-      setAnnouncements([]);
-      setDepartments([]);
-      setCoordinators([]);
-    } else {
-      setStats(StorageService.getStats());
-      setEvents(StorageService.getEvents());
-      setRegistrations(StorageService.getRegistrations());
-      setAnnouncements(StorageService.getAnnouncements());
-      setDepartments(StorageService.getDepartments());
-      setCoordinators(AdminAuthService.getCoordinators());
-    }
+    setStats(StorageService.getStats());
+    setEvents(StorageService.getEvents());
+    setRegistrations(StorageService.getRegistrations());
+    setAnnouncements(StorageService.getAnnouncements());
+    setDepartments(StorageService.getDepartments());
+    setCoordinators(AdminAuthService.getCoordinators());
 
-    const results = await Promise.allSettled([
-      StorageService.fetchEvents(),
-      StorageService.fetchRegistrations(),
-      StorageService.fetchAnnouncements(),
-      StorageService.fetchDepartments(),
-      AdminAuthService.fetchAdmins(),
-    ] as const);
-    const [eventsResult, registrationsResult, announcementsResult, departmentsResult, coordinatorsResult] = results;
-
-    if (eventsResult.status === 'fulfilled') setEvents(eventsResult.value);
-    else console.warn('Firebase staff events could not be loaded.', eventsResult.reason);
-    if (registrationsResult.status === 'fulfilled') setRegistrations(registrationsResult.value);
-    else console.warn('Firebase staff registrations could not be loaded.', registrationsResult.reason);
-    if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
-    else console.warn('Firebase announcements could not be loaded.', announcementsResult.reason);
-    if (departmentsResult.status === 'fulfilled') {
-      setDepartments(departmentsResult.value);
-      setDepartmentLoadFailed(false);
-    } else {
-      setDepartmentLoadFailed(true);
-      console.error('Firebase departments could not be loaded.', departmentsResult.reason);
-    }
-    setIsLoadingDepartments(false);
-    if (coordinatorsResult.status === 'fulfilled') setCoordinators(coordinatorsResult.value);
-    else console.warn('Firebase coordinator directory could not be loaded.', coordinatorsResult.reason);
-    if (eventsResult.status === 'fulfilled' && registrationsResult.status === 'fulfilled') {
+    try {
+      const [liveEvts, liveRegs, liveAnns, liveDepts, liveAdmins] = await Promise.all([
+        StorageService.fetchEvents(),
+        StorageService.fetchRegistrations(),
+        StorageService.fetchAnnouncements(),
+        StorageService.fetchDepartments(),
+        AdminAuthService.fetchAdmins()
+      ]);
+      setEvents(liveEvts);
+      setRegistrations(liveRegs);
+      setAnnouncements(liveAnns);
+      setDepartments(liveDepts);
       setStats(StorageService.getStats());
+      setCoordinators(liveAdmins);
+    } catch (err) {
+      console.warn('Dashboard sync warning:', err);
     }
   };
 
@@ -510,6 +481,82 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     }
   };
 
+  // Delete participant registration handler
+  const handleDeleteParticipant = async (reg: Registration) => {
+    const confirmMessage = `Are you sure you want to permanently delete participant registration "${reg.id}" (${reg.leaderName} - ${reg.leaderRoll}) for "${reg.eventTitle}"? This will cancel their pass.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setDeletingRegId(reg.id);
+    try {
+      const ok = await StorageService.deleteRegistration(reg.id);
+      if (ok) {
+        await refreshAllData();
+      } else {
+        window.alert('Failed to delete participant registration.');
+      }
+    } catch (err: any) {
+      window.alert(err?.message || 'Error deleting registration.');
+    } finally {
+      setDeletingRegId(null);
+    }
+  };
+
+  // Open team editor
+  const handleOpenEditTeam = (reg: Registration) => {
+    setEditingTeam({
+      teamCode: reg.teamCode || reg.id,
+      teamName: reg.teamName || `${reg.leaderName}'s Squad`,
+      leaderName: reg.leaderName || '',
+      leaderRoll: reg.leaderRoll || '',
+      leaderEmail: reg.leaderEmail || '',
+      leaderPhone: reg.leaderPhone || '',
+      teammates: (reg.teammates || []).map(t => ({
+        name: t.name || '',
+        rollNumber: t.rollNumber || '',
+        email: t.email || '',
+        phone: t.phone || ''
+      }))
+    });
+  };
+
+  // Save team edits
+  const handleSaveTeamEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTeam) return;
+
+    setTeamEditSaving(true);
+    try {
+      const res = await StorageService.updateTeamDetails(editingTeam.teamCode, {
+        teamName: editingTeam.teamName,
+        leaderName: editingTeam.leaderName,
+        leaderRoll: editingTeam.leaderRoll,
+        leaderEmail: editingTeam.leaderEmail,
+        leaderPhone: editingTeam.leaderPhone,
+        teammates: editingTeam.teammates.map(t => ({
+          name: t.name,
+          rollNumber: t.rollNumber,
+          email: t.email || '',
+          phone: t.phone || '',
+          college: 'Vardhaman College of Engineering',
+          registrationStatus: 'verified' as const,
+          qrGenerated: true
+        }))
+      });
+
+      if (res.success) {
+        await refreshAllData();
+        setEditingTeam(null);
+        confetti({ particleCount: 40, spread: 50, origin: { y: 0.6 } });
+      } else {
+        window.alert(res.error || 'Failed to update team details.');
+      }
+    } catch (err: any) {
+      window.alert(err?.message || 'Error updating team details.');
+    } finally {
+      setTeamEditSaving(false);
+    }
+  };
+
   const findGateRegistration = (query: string): Registration | null => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return null;
@@ -665,18 +712,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // SAC Event Approval Handler (FR-EVT-08)
   const handleApproveEvent = async (event: FestEvent) => {
     try {
-      if (isFirebaseConfigured) {
-        // Approval is server-managed in Firebase mode. updateStaffEvent rejects
-        // approvalStatus, so use the dedicated approval callable instead.
-        await FirebaseStaffEventService.approveEvent(event.id);
-      } else {
-        const updated: FestEvent = {
-          ...event,
-          status: 'open',
-          approvalStatus: 'approved'
-        };
-        await StorageService.updateEvent(updated);
-      }
+      const updated: FestEvent = {
+        ...event,
+        status: 'open',
+        approvalStatus: 'approved'
+      };
+      await StorageService.updateEvent(updated);
       confetti({ particleCount: 70, spread: 50 });
       await refreshAllData();
     } catch (error) {
@@ -684,26 +725,16 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     }
   };
 
-  // Delete Event Handler — uses an in-app dialog because native confirm()
-  // can be silently suppressed by browsers and embedded previews.
-  const handleDeleteEvent = (event: FestEvent) => {
-    setEventDeleteError(null);
-    setEventPendingDelete(event);
-  };
-
-  const confirmDeleteEvent = async () => {
-    const event = eventPendingDelete;
-    if (!event || deletingEventId) return;
-    setDeletingEventId(event.id);
-    setEventDeleteError(null);
-    try {
-      await StorageService.deleteEvent(event.id, event.slug);
-      setEventPendingDelete(null);
-      await refreshAllData();
-    } catch (error) {
-      setEventDeleteError((error as Error).message || 'Unable to delete event.');
-    } finally {
-      setDeletingEventId(null);
+  // Delete Event Handler
+  const handleDeleteEvent = async (event: FestEvent) => {
+    const confirmed = window.confirm(`Permanently delete "${event.title}"? Its registrations, tickets, and event assignments will also be deleted. Events with Razorpay order history must be reconciled before they can be removed. This cannot be undone.`);
+    if (confirmed) {
+      try {
+        await StorageService.deleteEvent(event.id, event.slug);
+        await refreshAllData();
+      } catch (error) {
+        window.alert((error as Error).message || 'Unable to delete event.');
+      }
     }
   };
 
@@ -781,9 +812,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       approvalStatus: evtPublishStatus === 'open' ? 'approved' : 'pending',
       bannerGradient: 'linear-gradient(135deg, #142042 0%, #283B78 50%, #789593 100%)',
       prizes: {
-        first: evtPrizeFirst.trim(),
-        second: evtPrizeSecond.trim(),
-        third: evtPrizeThird.trim()
+        first: '₹10,000 + Merit Certificate',
+        second: '₹5,000 + Certificate',
+        third: '₹2,500 + Certificate'
       },
       paymentInstructions: !evtIsFree ? evtPaymentInstructions.trim() : undefined,
       whatsappGroupLink: evtWhatsAppGroupLink.trim() || undefined
@@ -1094,7 +1125,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       return;
     }
     const confirmed = window.confirm(
-      `Are you sure you want to permanently delete ${roleName || 'coordinator'} "${name}"?\n\nThis permanently removes the Firebase Authentication account, profile, portal role, and event assignments. The action cannot be undone.`
+      `Are you sure you want to permanently delete ${roleName || 'coordinator'} "${name}"?\n\nThis permanently removes the Supabase Auth account, profile, portal role, and event assignments. The action cannot be undone.`
     );
     if (confirmed) {
       try {
@@ -1214,6 +1245,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     );
   }, [coordinators, editingEvent]);
 
+  const isTeamRegistration = (r: Registration) => {
+    return Boolean(
+      (r.teamName && r.teamName.trim().length > 0) ||
+      (r.teamCode && r.teamCode.trim().length > 0) ||
+      (Array.isArray(r.teammates) && r.teammates.length > 0) ||
+      r.format === 'team'
+    );
+  };
+
   // Filtered Roster
   const filteredRoster = registrations.filter(r => {
     if (selectedRosterEventId) {
@@ -1237,7 +1277,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       (rosterCheckInFilter === 'checked_in' && r.checkedIn) || 
       (rosterCheckInFilter === 'not_checked_in' && !r.checkedIn);
 
-    return matchSearch && matchDept && matchPay && matchCheckIn;
+    const isTeam = isTeamRegistration(r);
+    const matchType =
+      rosterTypeFilter === 'all' ||
+      (rosterTypeFilter === 'team' && isTeam) ||
+      (rosterTypeFilter === 'single' && !isTeam);
+
+    return matchSearch && matchDept && matchPay && matchCheckIn && matchType;
   });
 
   const rosterPageCount = Math.max(1, Math.ceil(filteredRoster.length / ROSTER_PAGE_SIZE));
@@ -1245,7 +1291,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
   useEffect(() => {
     setRosterPage(1);
-  }, [rosterSearch, rosterDeptFilter, rosterPaymentFilter, rosterCheckInFilter, selectedRosterEventId]);
+  }, [rosterSearch, rosterDeptFilter, rosterPaymentFilter, rosterCheckInFilter, rosterTypeFilter, selectedRosterEventId]);
 
   useEffect(() => {
     if (rosterPage > rosterPageCount) setRosterPage(rosterPageCount);
@@ -1766,7 +1812,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   className="admin-action-chip-item"
                 >
                   <Clock size={15} color="#FBBF24" />
-                  <span>Payment Approvals</span>
+                  <span>Event Wise Analysis</span>
                   <span className="admin-sidebar-badge">{stats.pendingCount}</span>
                 </button>
 
@@ -2068,12 +2114,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               </div>
             </div>
 
-            {departmentLoadFailed && (
-              <div role="alert" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.22)', color: '#FCA5A5', fontSize: '0.84rem' }}>
-                Firebase could not load departments. Use “Refresh Matrix” to retry; the rest of the dashboard loads independently.
-              </div>
-            )}
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px' }}>
               {departments.map(dept => {
                 const deptStats = StorageService.getDepartmentStats(dept.code);
@@ -2302,37 +2342,38 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 );
               })}
                 </div>
-            {!departmentLoadFailed && departments.length === 0 && (
-              <div role="status" style={{ marginTop: '16px', padding: '18px', borderRadius: '12px', border: '1px dashed rgba(148, 163, 184, 0.35)', color: '#A8B3C2', textAlign: 'center' }}>
-                {isLoadingDepartments ? 'Loading departments from Firebase…' : 'No departments are currently stored in Firebase.'}
-              </div>
-            )}
           </div>
         )}
 
-        {/* TAB 2: PAYMENT VERIFICATION DESK */}
+        {/* TAB 2: EVENT WISE ANALYSIS & PAYMENT VERIFICATION DESK */}
         {activeTab === 'payments' && (
           <div>
             {!selectedPaymentEventId ? (
-              <EventOverviewGrid items={eventOverviewItems} mode="payments" onSelect={setSelectedPaymentEventId} />
+              <EventOverviewGrid
+                items={eventOverviewItems}
+                mode="payments"
+                onSelect={setSelectedPaymentEventId}
+                isSuperAdmin={isSuperAdminRole(adminUser.role)}
+                userDepartment={adminUser.departmentCode}
+              />
             ) : (
             <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #FBBF24', background: 'rgba(251, 191, 36, 0.06)', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #38BDF8', background: 'rgba(56, 189, 248, 0.06)', flexWrap: 'wrap' }}>
               <div>
-                <div style={{ color: '#FBBF24', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Selected event payment reviews</div>
+                <div style={{ color: '#38BDF8', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Selected event analysis & payment reviews</div>
                 <div style={{ color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 800, marginTop: '3px' }}>{selectedPaymentEvent?.title || 'Event payment reviews'}</div>
               </div>
-              <button type="button" onClick={() => setSelectedPaymentEventId(null)} style={{ padding: '7px 11px', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.35)', background: 'rgba(251, 191, 36, 0.1)', color: '#FDE68A', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem' }}>
-                ← All events
+              <button type="button" onClick={() => setSelectedPaymentEventId(null)} style={{ padding: '7px 11px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.35)', background: 'rgba(56, 189, 248, 0.1)', color: '#7DD3FC', cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem' }}>
+                ← All events (Event Wise Analysis)
               </button>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
-                  Central Payment Verification & Approval Desk
+                  Event Wise Analysis & Payment Approvals
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#A8B3C2', margin: '2px 0 0' }}>
-                  Verify UPI transaction screenshots, approve registration passes, and release digital entry passes
+                  Analyze registrations, verify UPI transactions, approve attendee passes, and release tickets
                 </p>
               </div>
 
@@ -2991,7 +3032,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       </button>
 
                       <button
-                        type="button"
                         onClick={() => handleDeleteEvent(event)}
                         style={{
                           background: 'rgba(239, 68, 68, 0.12)',
@@ -4383,7 +4423,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             </div>
 
             {activeTab === 'registrations' && !selectedRosterEventId ? (
-              <EventOverviewGrid items={eventOverviewItems} mode="registrations" onSelect={setSelectedRosterEventId} />
+              <EventOverviewGrid
+                items={eventOverviewItems}
+                mode="registrations"
+                onSelect={setSelectedRosterEventId}
+                isSuperAdmin={isSuperAdminRole(adminUser.role)}
+                userDepartment={adminUser.departmentCode}
+              />
             ) : (
             <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #38BDF8', background: 'rgba(56, 189, 248, 0.06)', flexWrap: 'wrap' }}>
@@ -4481,6 +4527,24 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <option value="checked_in">Checked In Only</option>
                 <option value="not_checked_in">Not Arrived</option>
               </select>
+
+              <select
+                value={rosterTypeFilter}
+                onChange={e => setRosterTypeFilter(e.target.value as any)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 26, 53, 0.9)',
+                  border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                  color: '#38BDF8',
+                  fontSize: '0.82rem',
+                  fontWeight: 700
+                }}
+              >
+                <option value="all" style={{ background: '#101B35', color: '#FFFFFF' }}>View All Participants</option>
+                <option value="team" style={{ background: '#101B35', color: '#38BDF8' }}>View as Team</option>
+                <option value="single" style={{ background: '#101B35', color: '#34D399' }}>Single Registration Only</option>
+              </select>
             </div>
 
             {/* Table */}
@@ -4502,6 +4566,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     <th style={{ padding: '12px 16px' }}>Fee</th>
                     <th style={{ padding: '12px 16px' }}>Payment</th>
                     <th style={{ padding: '12px 16px' }}>Gate Check-In (Live Toggle)</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4518,20 +4583,74 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#BACEBB', fontWeight: 700 }}>
                         {r.id}
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
-                        {r.leaderName}
-                        <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderEmail} • {r.leaderPhone}</div>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
-                        {r.leaderRoll}
-                      </td>
+                      {isTeamRegistration(r) ? (
+                        <>
+                          <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '6px',
+                                background: 'rgba(56, 189, 248, 0.15)',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#38BDF8',
+                                flexShrink: 0
+                              }}>
+                                <Users size={14} />
+                              </div>
+                              <div>
+                                <div style={{ color: '#38BDF8', fontWeight: 800, fontSize: '0.88rem' }}>
+                                  {r.teamName || `Team ${r.teamCode || r.id}`}
+                                </div>
+                                {r.teamCode && (
+                                  <div style={{ fontSize: '0.7rem', color: '#BACEBB', fontFamily: 'monospace' }}>
+                                    Code: {r.teamCode}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setViewingTeamMembers(r)}
+                              style={{
+                                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(40, 59, 120, 0.35) 100%)',
+                                border: '1px solid rgba(56, 189, 248, 0.45)',
+                                color: '#38BDF8',
+                                borderRadius: '6px',
+                                padding: '5px 10px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title="View all team members"
+                            >
+                              <Users size={13} />
+                              <span>View Team Members ({1 + (r.teammates?.length || 0)})</span>
+                            </button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
+                            {r.leaderName}
+                            <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderEmail} • {r.leaderPhone}</div>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
+                            {r.leaderRoll}
+                          </td>
+                        </>
+                      )}
                       <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
                         <div>{r.eventTitle}</div>
-                        {(r.teamName || r.teamCode) && (
-                          <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px' }}>
-                            Squad: <strong>{r.teamName || 'Team'}</strong> <span style={{ fontFamily: 'monospace', color: '#A8B3C2' }}>({r.teamCode})</span>
-                          </div>
-                        )}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#BACEBB', fontWeight: 700 }}>
                         ₹{r.fee}
@@ -4575,6 +4694,51 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                           {r.checkedIn ? <CheckCircle2 size={13} /> : <Clock size={13} />}
                           <span>{r.checkedIn ? `CHECKED IN (${r.checkedInAt || 'Gate'})` : '+ CHECK IN NOW'}</span>
                         </button>
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditTeam(r)}
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              border: '1px solid rgba(56, 189, 248, 0.3)',
+                              color: '#38BDF8',
+                              borderRadius: '6px',
+                              padding: '5px 8px',
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title="Edit participant and team details"
+                          >
+                            <Edit3 size={12} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingRegId === r.id}
+                            onClick={() => handleDeleteParticipant(r)}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              color: '#F87171',
+                              borderRadius: '6px',
+                              padding: '5px 8px',
+                              fontSize: '0.72rem',
+                              cursor: deletingRegId === r.id ? 'wait' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title="Delete participant registration"
+                          >
+                            <Trash2 size={12} />
+                            <span>{deletingRegId === r.id ? 'Deleting...' : 'Delete'}</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -6009,15 +6173,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
-                {([['1st Prize', evtPrizeFirst, setEvtPrizeFirst, 'e.g. ₹10,000 + Certificate'], ['2nd Prize', evtPrizeSecond, setEvtPrizeSecond, 'Optional'], ['3rd Prize', evtPrizeThird, setEvtPrizeThird, 'Optional']] as const).map(([label, value, setter, hint]) => (
-                  <div key={label}>
-                    <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>{label}</label>
-                    <input type="text" value={value} onChange={e => setter(e.target.value)} placeholder={hint} maxLength={300} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.25)', color: '#FFFFFF', fontSize: '0.84rem', boxSizing: 'border-box' }} />
-                  </div>
-                ))}
-              </div>
-
               <div>
                 <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '6px' }}>
                   Rules & Regulations (One per line)
@@ -6609,7 +6764,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               {coordAccountMode === 'existing' && (
                 <div style={{ padding: '13px 14px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
-                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Firebase staff account</div>
+                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Supabase account</div>
                   <div style={{ color: '#BAE6FD', fontSize: '0.75rem', lineHeight: 1.45, marginBottom: '10px' }}>Enter the account email or username. This reuses the existing login and password; it does not create a duplicate Auth user.</div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#DCE3E5', marginBottom: '10px' }}>
                     Existing account email or username *
@@ -7593,7 +7748,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
               {deptChief.trim() && (
                 <div style={{ background: 'rgba(124, 58, 237, 0.12)', border: '1px solid rgba(124, 58, 237, 0.3)', borderRadius: '8px', padding: '10px 12px', fontSize: '0.76rem', color: '#C084FC' }}>
-                  💡 The department is created first. Assign its coordinator from the staff registry, where the account is provisioned through Firebase Authentication.
+                  💡 The department is created first. Assign its coordinator from the staff registry, where the account is provisioned through Supabase Auth.
                 </div>
               )}
 
@@ -7876,6 +8031,615 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         </div>
       )}
 
+      {/* View Team Members Modal */}
+      {viewingTeamMembers && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 10, 24, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 110,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setViewingTeamMembers(null)}
+        >
+          <div
+            style={{
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#0F1A35',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(56, 189, 248, 0.4)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)',
+              padding: '24px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid rgba(220, 227, 229, 0.1)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38BDF8'
+                }}>
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 style={{ color: '#FFFFFF', margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>
+                    {viewingTeamMembers.teamName || 'Team Squad Roster'}
+                  </h3>
+                  <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '2px' }}>
+                    Event: <span style={{ color: '#DCE3E5', fontWeight: 600 }}>{viewingTeamMembers.eventTitle}</span> • Reg ID: <span style={{ color: '#38BDF8', fontFamily: 'monospace' }}>{viewingTeamMembers.id}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingTeamMembers(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#A8B3C2',
+                  borderRadius: '6px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: '10px',
+              marginBottom: '20px',
+              background: 'rgba(16, 26, 53, 0.7)',
+              padding: '12px',
+              borderRadius: '10px',
+              border: '1px solid rgba(220, 227, 229, 0.1)'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Team Code</div>
+                <div style={{ fontSize: '0.88rem', color: '#38BDF8', fontWeight: 800, fontFamily: 'monospace', marginTop: '2px' }}>
+                  {viewingTeamMembers.teamCode || 'N/A'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Total Members</div>
+                <div style={{ fontSize: '0.88rem', color: '#FFFFFF', fontWeight: 800, marginTop: '2px' }}>
+                  {1 + (viewingTeamMembers.teammates?.length || 0)} Members
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Registration Fee</div>
+                <div style={{ fontSize: '0.88rem', color: '#34D399', fontWeight: 800, marginTop: '2px' }}>
+                  ₹{viewingTeamMembers.fee}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Payment Status</div>
+                <div style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  marginTop: '2px',
+                  color: viewingTeamMembers.paymentStatus === 'verified' ? '#34D399' : viewingTeamMembers.paymentStatus === 'verification_pending' ? '#FBBF24' : '#F87171'
+                }}>
+                  {viewingTeamMembers.paymentStatus.toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            {/* Members List */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.78rem', color: '#7DD3FC', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '10px' }}>
+                All Team Members ({1 + (viewingTeamMembers.teammates?.length || 0)})
+              </div>
+
+              {/* Member 1: Team Leader */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.6) 0%, rgba(16, 26, 53, 0.8) 100%)',
+                border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '10px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      background: 'rgba(56, 189, 248, 0.2)',
+                      border: '1px solid #38BDF8',
+                      color: '#38BDF8',
+                      fontSize: '0.66rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase'
+                    }}>
+                      Leader
+                    </span>
+                    <strong style={{ color: '#FFFFFF', fontSize: '0.92rem' }}>{viewingTeamMembers.leaderName}</strong>
+                  </div>
+                  <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
+                    {viewingTeamMembers.leaderRoll}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                  <div>Email: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderEmail || '—'}</span></div>
+                  <div>Phone: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderPhone || '—'}</span></div>
+                  <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderCollege || 'Vardhaman College of Engineering'}</span></div>
+                </div>
+              </div>
+
+              {/* Teammates */}
+              {(!viewingTeamMembers.teammates || viewingTeamMembers.teammates.length === 0) ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: '#94A3B8', fontSize: '0.78rem', background: 'rgba(16, 26, 53, 0.4)', borderRadius: '8px' }}>
+                  No additional teammates listed.
+                </div>
+              ) : (
+                viewingTeamMembers.teammates.map((tm, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'rgba(16, 26, 53, 0.6)',
+                      border: '1px solid rgba(220, 227, 229, 0.12)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(220, 227, 229, 0.2)',
+                          color: '#A8B3C2',
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase'
+                        }}>
+                          Member #{idx + 2}
+                        </span>
+                        <strong style={{ color: '#FFFFFF', fontSize: '0.88rem' }}>{tm.name || 'Unnamed Member'}</strong>
+                      </div>
+                      <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
+                        {tm.rollNumber || '—'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                      <div>Email: <span style={{ color: '#CBD5E1' }}>{tm.email || '—'}</span></div>
+                      <div>Phone: <span style={{ color: '#CBD5E1' }}>{tm.phone || '—'}</span></div>
+                      {tm.college && <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{tm.college}</span></div>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.1)', paddingTop: '14px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const reg = viewingTeamMembers;
+                  setViewingTeamMembers(null);
+                  handleOpenEditTeam(reg);
+                }}
+                className="btn-cyber-secondary"
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '0.82rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Edit3 size={14} />
+                <span>Edit Team Details</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewingTeamMembers(null)}
+                className="btn-cyber-primary"
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '0.82rem',
+                  background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team Details & Participant Editor Modal */}
+      {editingTeam && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 10, 24, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 110,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setEditingTeam(null)}
+        >
+          <div
+            style={{
+              maxWidth: '650px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#0F1A35',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(56, 189, 248, 0.4)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)',
+              padding: '24px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit3 size={18} color="#38BDF8" />
+                <h3 style={{ color: '#FFFFFF', margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                  Edit Team & Participant Details
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTeam(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#A8B3C2',
+                  borderRadius: '6px',
+                  width: '30px',
+                  height: '30px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTeamEdit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Team / Squad Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingTeam.teamName}
+                    onChange={e => setEditingTeam(prev => prev ? { ...prev, teamName: e.target.value } : null)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#FFFFFF',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Team Code
+                  </label>
+                  <input
+                    type="text"
+                    disabled
+                    value={editingTeam.teamCode}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(8, 14, 28, 0.9)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      color: '#38BDF8',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(220, 227, 229, 0.12)', paddingTop: '12px' }}>
+                <h4 style={{ color: '#BACEBB', fontSize: '0.85rem', margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Leader / Primary Participant
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingTeam.leaderName}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderName: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Roll Number</label>
+                    <input
+                      type="text"
+                      required
+                      value={editingTeam.leaderRoll}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderRoll: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Email</label>
+                    <input
+                      type="email"
+                      value={editingTeam.leaderEmail}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderEmail: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#94A3B8', marginBottom: '3px' }}>Leader Phone</label>
+                    <input
+                      type="text"
+                      value={editingTeam.leaderPhone}
+                      onChange={e => setEditingTeam(prev => prev ? { ...prev, leaderPhone: e.target.value } : null)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(220, 227, 229, 0.2)',
+                        borderRadius: '6px',
+                        padding: '7px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Teammates List */}
+              <div style={{ borderTop: '1px solid rgba(220, 227, 229, 0.12)', paddingTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ color: '#BACEBB', fontSize: '0.85rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Squad Teammates ({editingTeam.teammates.length})
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTeam(prev => prev ? {
+                        ...prev,
+                        teammates: [...prev.teammates, { name: '', rollNumber: '', email: '', phone: '' }]
+                      } : null);
+                    }}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      color: '#38BDF8',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + Add Teammate
+                  </button>
+                </div>
+
+                {editingTeam.teammates.length === 0 ? (
+                  <div style={{ color: '#94A3B8', fontSize: '0.78rem', fontStyle: 'italic', padding: '8px 0' }}>
+                    No additional teammates in this squad. Click "+ Add Teammate" if needed.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {editingTeam.teammates.map((tm, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1.2fr 1fr 1fr auto',
+                          gap: '8px',
+                          alignItems: 'center',
+                          background: 'rgba(16, 26, 53, 0.6)',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(220, 227, 229, 0.1)'
+                        }}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Member Name"
+                          value={tm.name}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              const updated = [...prev.teammates];
+                              updated[idx] = { ...updated[idx], name: val };
+                              return { ...prev, teammates: updated };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(9, 18, 36, 0.8)',
+                            border: '1px solid rgba(220, 227, 229, 0.15)',
+                            borderRadius: '4px',
+                            padding: '5px 8px',
+                            color: '#FFFFFF',
+                            fontSize: '0.76rem'
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Roll Number"
+                          value={tm.rollNumber}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              const updated = [...prev.teammates];
+                              updated[idx] = { ...updated[idx], rollNumber: val };
+                              return { ...prev, teammates: updated };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(9, 18, 36, 0.8)',
+                            border: '1px solid rgba(220, 227, 229, 0.15)',
+                            borderRadius: '4px',
+                            padding: '5px 8px',
+                            color: '#FFFFFF',
+                            fontSize: '0.76rem'
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Email or Phone"
+                          value={tm.email || tm.phone || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              const updated = [...prev.teammates];
+                              updated[idx] = { ...updated[idx], email: val };
+                              return { ...prev, teammates: updated };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(9, 18, 36, 0.8)',
+                            border: '1px solid rgba(220, 227, 229, 0.15)',
+                            borderRadius: '4px',
+                            padding: '5px 8px',
+                            color: '#FFFFFF',
+                            fontSize: '0.76rem'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTeam(prev => {
+                              if (!prev) return null;
+                              return {
+                                ...prev,
+                                teammates: prev.teammates.filter((_, i) => i !== idx)
+                              };
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: '#F87171',
+                            borderRadius: '4px',
+                            width: '26px',
+                            height: '26px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Remove Teammate"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingTeam(null)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(220, 227, 229, 0.25)',
+                    color: '#A8B3C2',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={teamEditSaving}
+                  style={{
+                    background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    borderRadius: '8px',
+                    padding: '8px 20px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: teamEditSaving ? 'wait' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(56, 189, 248, 0.3)'
+                  }}
+                >
+                  {teamEditSaving ? 'Saving Changes...' : 'Save Team Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Proof Viewer Lightbox Modal */}
       {selectedProofUrl && (
         <div
@@ -7919,18 +8683,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             </button>
           </div>
         </div>
-      )}
-
-      {eventPendingDelete && (
-        <ConfirmActionModal
-          title="Delete event permanently?"
-          message={`“${eventPendingDelete.title}” and all of its registrations, tickets, passes, teams, claims, email records, and coordinator assignments will be removed. The event itself is hidden from the site and admin list.`}
-          confirmLabel="Delete event"
-          busy={deletingEventId === eventPendingDelete.id}
-          error={eventDeleteError}
-          onConfirm={() => void confirmDeleteEvent()}
-          onCancel={() => { setEventPendingDelete(null); setEventDeleteError(null); }}
-        />
       )}
       </div>
     </div>

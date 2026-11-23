@@ -1,14 +1,6 @@
 import { FestEvent, Registration, Announcement, FestStats, PaymentStatus, Teammate, Team, Department, RazorpayRefundOrder } from '../types/festronix';
 import { INITIAL_EVENTS, INITIAL_REGISTRATIONS, INITIAL_ANNOUNCEMENTS, INITIAL_TEAMS, DEPARTMENTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { firebaseAuth, isFirebaseConfigured } from '../lib/firebase';
-import { fetchFirebasePublicEvents } from './firebasePublicEventService';
-import { FirebaseStaffEventService } from './firebaseStaffEventService';
-import { FirebaseStaffRegistrationService } from './firebaseStaffRegistrationService';
-import { FirebaseTeamService } from './firebaseTeamService';
-import { FirebaseRegistrationService } from './firebaseRegistrationService';
-import { FirebaseContentService } from './firebaseContentService';
-import { lookupFirebasePublicPasses } from './firebasePublicPassService';
 import { getEventRegistrationBlockReason, registrationDeadlineToIso } from '../lib/eventRegistration';
 import type { Database } from '../lib/database.types';
 
@@ -24,26 +16,6 @@ type EventRow = Database['public']['Tables']['events']['Row'];
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 const PAYMENT_PROOF_BUCKET = 'payment-screenshots';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function eventsCacheKey(): string {
-  return isFirebaseConfigured ? `${STORAGE_KEYS.EVENTS}_firebase_staging` : STORAGE_KEYS.EVENTS;
-}
-
-function registrationsCacheKey(): string {
-  return isFirebaseConfigured ? `${STORAGE_KEYS.REGISTRATIONS}_firebase_staging` : STORAGE_KEYS.REGISTRATIONS;
-}
-
-function teamsCacheKey(): string {
-  return isFirebaseConfigured ? `${STORAGE_KEYS.TEAMS}_firebase_staging` : STORAGE_KEYS.TEAMS;
-}
-
-function announcementsCacheKey(): string {
-  return isFirebaseConfigured ? `${STORAGE_KEYS.ANNOUNCEMENTS}_firebase_staging` : STORAGE_KEYS.ANNOUNCEMENTS;
-}
-
-function departmentsCacheKey(): string {
-  return isFirebaseConfigured ? `${STORAGE_KEYS.DEPARTMENTS}_firebase_staging` : STORAGE_KEYS.DEPARTMENTS;
-}
 
 function isUuid(value: string | undefined | null): value is string {
   return Boolean(value && UUID_PATTERN.test(value));
@@ -63,9 +35,9 @@ function paymentProofObjectPath(reference?: string): string | null {
 }
 
 /**
- * Legacy payment-proof URLs are viewable only when they point to a persistent
- * hosted object. Browser blob/data URLs belong to the tab that created them
- * and cannot be opened from an admin portal or another device.
+ * A payment proof is viewable only when it points to a persistent Supabase
+ * Storage object or a signed Storage URL. Browser blob/data URLs belong to the
+ * tab that created them and cannot be opened from an admin portal or Vercel.
  */
 export function isViewablePaymentProof(reference?: string): boolean {
   return Boolean(paymentProofObjectPath(reference));
@@ -159,7 +131,6 @@ function announcementFromDb(row: AnnouncementRow): Announcement {
     type: row.type,
     scope: row.scope === 'event' ? 'department' : row.scope,
     departmentCode: row.department_code || undefined,
-    clusterCode: row.cluster_code || undefined,
     date: row.date_display || new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 }
@@ -206,7 +177,7 @@ function registrationFromDb(row: any): Registration {
     rejectionReason: row.rejection_reason || undefined,
     verifiedBy: row.verified_by || undefined,
     verifiedAt: row.verified_at || undefined,
-    qrToken: ticket?.qr_token || '',
+    qrToken: ticket?.qr_token || `FEST26-${(row.display_id || row.id).slice(-4)}`,
     checkedIn: Boolean(ticket?.checked_in ?? row.checked_in),
     checkedInAt: ticket?.checked_in_at || row.checked_in_at || undefined,
     checkedInBy: ticket?.checked_in_by || row.checked_in_by || undefined
@@ -348,7 +319,7 @@ export class StorageService {
       } catch {}
     }
 
-    if (isFirebaseConfigured || !isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured()) return;
 
     try {
       supabase
@@ -426,7 +397,7 @@ export class StorageService {
    */
   static getEvents(): FestEvent[] {
     this.purgeLegacyDemoData();
-    const raw = localStorage.getItem(eventsCacheKey());
+    const raw = localStorage.getItem(STORAGE_KEYS.EVENTS);
     if (raw !== null) {
       try {
         const parsed = JSON.parse(raw);
@@ -436,9 +407,9 @@ export class StorageService {
       } catch {}
     }
 
-    // A configured backend is authoritative. Never replace an empty or
-    // unavailable Firebase/Supabase event list with demo fixtures.
-    if (isFirebaseConfigured || isSupabaseConfigured()) return [];
+    // Supabase is authoritative in connected environments. Never replace an
+    // empty or unavailable live event list with demo fixtures.
+    if (isSupabaseConfigured()) return [];
 
     // Seed sample events only for standalone local development.
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS));
@@ -446,29 +417,13 @@ export class StorageService {
   }
 
   static saveEvents(events: FestEvent[]): void {
-    localStorage.setItem(eventsCacheKey(), JSON.stringify(events));
+    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
   }
 
   /**
- * Fetch the authoritative event list from the configured Firebase backend.
+   * Asynchronous fetch directly from Supabase (Single Source of Truth)
    */
   static async fetchEvents(): Promise<FestEvent[]> {
-    if (isFirebaseConfigured) {
-      try {
-        const mapped = firebaseAuth?.currentUser
-          ? await FirebaseStaffEventService.fetchEvents()
-          : await fetchFirebasePublicEvents();
-        this.saveEvents(mapped);
-        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: mapped }));
-        return mapped;
-      } catch (err) {
-        if (firebaseAuth?.currentUser) throw err;
-        console.warn('Unable to load published events from Firebase:', err);
-        this.saveEvents([]);
-        window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: [] }));
-        return [];
-      }
-    }
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -492,7 +447,7 @@ export class StorageService {
   }
 
   /**
-   * Fetch only the authoritative event list from Firebase.
+   * Fetch only the authoritative event list from Supabase.
    *
    * `fetchEvents()` intentionally falls back to the browser cache for public
    * pages when the network is unavailable. That is useful for resilience, but
@@ -502,12 +457,6 @@ export class StorageService {
    * variant so stale local data is rejected before it reaches the API.
    */
   static async fetchLiveEvents(): Promise<FestEvent[]> {
-    if (isFirebaseConfigured) {
-      const mapped = await FirebaseStaffEventService.fetchEvents();
-      this.saveEvents(mapped);
-      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: mapped }));
-      return mapped;
-    }
     if (!isSupabaseConfigured()) {
       return this.getEvents();
     }
@@ -532,13 +481,6 @@ export class StorageService {
     const ids = [...new Set(eventIds.map(id => String(id).trim()).filter(Boolean))];
     if (ids.length === 0) return [];
 
-    if (isFirebaseConfigured) {
-      const allowed = new Set(ids);
-      return (await FirebaseStaffEventService.fetchEvents())
-        .filter(event => allowed.has(event.id) || allowed.has(event.slug))
-        .sort((left, right) => left.title.localeCompare(right.title));
-    }
-
     if (!isSupabaseConfigured()) {
       const idSet = new Set(ids);
       return this.getEvents().filter(event => idSet.has(event.id));
@@ -556,13 +498,6 @@ export class StorageService {
   }
 
   static async addEvent(newEvent: FestEvent): Promise<FestEvent> {
-    if (isFirebaseConfigured) {
-      const created = await FirebaseStaffEventService.createEvent(newEvent);
-      const events = [created, ...this.getEvents().filter(e => e.id !== created.id && e.slug !== created.slug)];
-      this.saveEvents(events);
-      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-      return created;
-    }
     if (isSupabaseConfigured()) {
       // A configured Supabase project is authoritative. Never report success
       // or write a browser-only copy when the production insert fails; that
@@ -628,17 +563,6 @@ export class StorageService {
   }
 
   static async updateEvent(updatedEvent: FestEvent): Promise<boolean> {
-    if (isFirebaseConfigured) {
-      const saved = await FirebaseStaffEventService.updateEvent(updatedEvent.id, updatedEvent);
-      if ((saved.whatsappGroupLink?.trim() || undefined) !== (updatedEvent.whatsappGroupLink?.trim() || undefined)) {
-        throw new Error('Firebase did not save the WhatsApp group link. Refresh the event and try again.');
-      }
-      const events = this.getEvents().map(e => (e.id === saved.id || e.slug === saved.slug) ? saved : e);
-      if (!events.some(e => e.id === saved.id)) events.unshift(saved);
-      this.saveEvents(events);
-      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-      return true;
-    }
     if (isSupabaseConfigured()) {
       const query = supabase.from('events').update({ ...eventToDb(updatedEvent), updated_at: new Date().toISOString() });
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(updatedEvent.id);
@@ -671,15 +595,6 @@ export class StorageService {
   }
 
   static async deleteEvent(eventId: string, slug?: string): Promise<boolean> {
-    if (isFirebaseConfigured) {
-      const current = this.getEvents().find(event => event.id === eventId || event.slug === eventId || event.slug === slug);
-      await FirebaseStaffEventService.deleteEvent(current?.id || eventId);
-      const eventKeys = new Set([eventId, current?.id || '', slug || '', current?.slug || '']);
-      const events = this.getEvents().filter(event => !eventKeys.has(event.id) && !eventKeys.has(event.slug));
-      this.saveEvents(events);
-      window.dispatchEvent(new CustomEvent('festronix:events-updated', { detail: events }));
-      return true;
-    }
     if (isSupabaseConfigured()) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
       let eventUuid = eventId;
@@ -798,7 +713,7 @@ export class StorageService {
    */
   static getRegistrations(): Registration[] {
     this.purgeLegacyDemoData();
-    const raw = localStorage.getItem(registrationsCacheKey());
+    const raw = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
     if (!raw) return [];
     try {
       const current = JSON.parse(raw);
@@ -809,7 +724,7 @@ export class StorageService {
   }
 
   static saveRegistrations(regs: Registration[]): void {
-    localStorage.setItem(registrationsCacheKey(), JSON.stringify(regs));
+    localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('festronix:regs-updated', { detail: regs }));
     }
@@ -819,12 +734,6 @@ export class StorageService {
    * Asynchronous fetch of registrations from Supabase
    */
   static async fetchRegistrations(): Promise<Registration[]> {
-    if (isFirebaseConfigured) {
-      if (!firebaseAuth?.currentUser) return [];
-      const registrations = await FirebaseStaffRegistrationService.list();
-      this.saveRegistrations(registrations);
-      return registrations;
-    }
     if (isSupabaseConfigured()) {
       // Registration rows are intentionally private. The public site must not
       // query the table anonymously; guest registrations are returned only by
@@ -851,11 +760,6 @@ export class StorageService {
   static async fetchRegistrationsForEvents(eventIds: string[]): Promise<Registration[]> {
     const ids = [...new Set(eventIds.map(id => String(id).trim()).filter(Boolean))];
     if (ids.length === 0) return [];
-
-    if (isFirebaseConfigured) {
-      if (!firebaseAuth?.currentUser) return [];
-      return FirebaseStaffRegistrationService.list(ids);
-    }
 
     if (!isSupabaseConfigured()) {
       const idSet = new Set(ids);
@@ -889,8 +793,6 @@ export class StorageService {
   static async lookupPublicPasses(query: string): Promise<Registration[]> {
     const cleanQuery = query.trim();
     if (!cleanQuery) return [];
-
-    if (isFirebaseConfigured) return lookupFirebasePublicPasses(cleanQuery);
 
     if (!isSupabaseConfigured()) {
       const all = this.getRegistrations();
@@ -1019,19 +921,6 @@ export class StorageService {
   static async addRegistration(
     newReg: Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>
   ): Promise<Registration> {
-    if (isFirebaseConfigured) {
-      if (newReg.source === 'spot') {
-        const created = await FirebaseStaffRegistrationService.createSpot(newReg);
-        await this.fetchEvents().catch(() => undefined);
-        const existing = this.getRegistrations();
-        this.saveRegistrations([created, ...existing.filter(registration => registration.id !== created.id)]);
-        return created;
-      }
-      const [created] = await this.addMultipleRegistrations([newReg]);
-      if (!created) throw new Error('Firebase did not return the created pass. Check My Passes before retrying.');
-      return created;
-    }
-
     if (!isSupabaseConfigured()) {
       // Offline development checks only. Supabase is the source of truth in configured builds.
       const events = this.getEvents();
@@ -1233,15 +1122,6 @@ export class StorageService {
   ): Promise<Registration[]> {
     if (batch.length === 0) return [];
 
-    if (isFirebaseConfigured) {
-      const created = await FirebaseRegistrationService.createFreeRegistrations(batch);
-      await this.fetchEvents().catch(() => undefined);
-      const existing = this.getRegistrations();
-      const createdIds = new Set(created.map(registration => registration.id));
-      this.saveRegistrations([...created, ...existing.filter(registration => !createdIds.has(registration.id))]);
-      return created;
-    }
-
     if (isSupabaseConfigured()) {
       if (batch.length > 10) throw new Error('You can create at most 10 passes in one order.');
 
@@ -1316,23 +1196,6 @@ export class StorageService {
     reviewerName: string,
     rejectionReason?: string
   ): Promise<boolean> {
-    if (isFirebaseConfigured) {
-      const result = await FirebaseStaffRegistrationService.reviewPayment(regId, status as 'verified' | 'rejected', rejectionReason);
-      const regs = this.getRegistrations();
-      const idx = regs.findIndex(registration => registration.id === regId || registration.qrToken === regId);
-      if (idx >= 0) {
-        regs[idx] = {
-          ...regs[idx],
-          paymentStatus: status,
-          verifiedBy: result.verifiedBy || reviewerName,
-          verifiedAt: result.verifiedAt || new Date().toISOString(),
-          rejectionReason: status === 'rejected' ? rejectionReason : undefined,
-        };
-        this.saveRegistrations(regs);
-      }
-      await this.fetchRegistrations().catch(() => undefined);
-      return result.success === true;
-    }
     if (isSupabaseConfigured()) {
       let data: any = null;
       let lastError: any = null;
@@ -1398,24 +1261,6 @@ export class StorageService {
    * staff only their own), so callers just render the returned rows.
    */
   static async fetchRazorpayRefundOrders(): Promise<RazorpayRefundOrder[]> {
-    if (isFirebaseConfigured) {
-      const rows = await FirebaseStaffRegistrationService.refundOrders();
-      return rows.map(row => ({
-        orderId: String(row.orderId || ''),
-        paymentId: row.paymentId ? String(row.paymentId) : undefined,
-        eventId: String(row.eventId || ''),
-        eventTitle: String(row.eventTitle || ''),
-        departmentCode: row.departmentCode ? String(row.departmentCode) : undefined,
-        amountPaise: Number(row.amountPaise) || 0,
-        orderStatus: String(row.orderStatus || ''),
-        refundStatus: (row.refundStatus || 'not_requested') as RazorpayRefundOrder['refundStatus'],
-        refundId: row.refundId ? String(row.refundId) : undefined,
-        refundError: row.refundError ? String(row.refundError) : undefined,
-        lastError: row.lastError ? String(row.lastError) : undefined,
-        createdAt: String(row.createdAt || ''),
-        updatedAt: String(row.updatedAt || ''),
-      })).filter(order => order.orderId);
-    }
     if (!isSupabaseConfigured()) return [];
     const { data, error } = await supabase.rpc('list_razorpay_refund_orders');
     if (error) throw new Error(`Unable to load Razorpay refund records: ${error.message}`);
@@ -1450,17 +1295,6 @@ export class StorageService {
     registration?: Registration;
     message: string;
   }> {
-    if (isFirebaseConfigured) {
-      const result = await FirebaseStaffRegistrationService.checkIn(qrTokenOrId, staffName);
-      if (result.registration) {
-        const regs = this.getRegistrations();
-        const index = regs.findIndex(registration => registration.id === result.registration?.id);
-        if (index >= 0) regs[index] = result.registration;
-        else regs.unshift(result.registration);
-        this.saveRegistrations(regs);
-      }
-      return result;
-    }
     // --- SUPABASE CHECK-IN FLOW ---
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.rpc('check_in_registration', {
@@ -1568,38 +1402,29 @@ export class StorageService {
     regId: string,
     staffName: string
   ): Promise<{ success: boolean; checkedIn: boolean }> {
-    if (isFirebaseConfigured) {
-      const result = await FirebaseStaffRegistrationService.toggleCheckIn(regId, staffName);
-      const regs = this.getRegistrations();
-      const target = regs.find(registration => registration.id === regId || registration.qrToken === regId);
-      if (target) {
-        target.checkedIn = result.checkedIn;
-        target.checkedInAt = result.checkedIn ? new Date().toISOString() : undefined;
-        target.checkedInBy = result.checkedIn ? staffName : undefined;
-        this.saveRegistrations(regs);
-      }
-      return result;
-    }
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase.rpc('toggle_check_in_registration', {
-        p_display_id: regId,
-        p_staff_name: staffName
-      });
-      if (error) throw new Error(`Unable to update check-in status: ${error.message}`);
-      if (!(data as any)?.success) throw new Error((data as any)?.error || 'The database rejected the check-in update.');
-      const newCheckedIn = Boolean((data as any).checkedIn);
-      const regs = this.getRegistrations();
-      const target = regs.find(r => r.id === regId || r.qrToken === regId);
-      if (target) {
-        target.checkedIn = newCheckedIn;
-        target.checkedInAt = newCheckedIn ? new Date().toISOString() : undefined;
-        target.checkedInBy = newCheckedIn ? staffName : undefined;
-        this.saveRegistrations(regs);
+      try {
+        const { data, error } = await supabase.rpc('toggle_check_in_registration', {
+          p_display_id: regId,
+          p_staff_name: staffName
+        });
+        if (!error && (data as any)?.success) {
+          const newCheckedIn = Boolean((data as any).checkedIn);
+          const regs = this.getRegistrations();
+          const target = regs.find(r => r.id === regId || r.qrToken === regId);
+          if (target) {
+            target.checkedIn = newCheckedIn;
+            target.checkedInAt = newCheckedIn ? new Date().toISOString() : undefined;
+            target.checkedInBy = newCheckedIn ? staffName : undefined;
+            this.saveRegistrations(regs);
+          }
+          return { success: true, checkedIn: newCheckedIn };
+        }
+      } catch (rpcErr) {
+        console.warn('Backend toggle_check_in_registration unavailable, falling back to local update:', rpcErr);
       }
-      return { success: true, checkedIn: newCheckedIn };
     }
 
-    this.canUseLocalDevelopmentMode('Changing check-in status');
     const regs = this.getRegistrations();
     const target = regs.find(r => r.id === regId || r.qrToken === regId);
     if (!target) return { success: false, checkedIn: false };
@@ -1612,6 +1437,143 @@ export class StorageService {
   }
 
   /**
+   * Delete / Cancel a participant registration (Dean SAC / Admin action)
+   */
+  static async deleteRegistration(regId: string): Promise<boolean> {
+    const cleanId = regId.trim();
+    if (!cleanId) return false;
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from('registrations')
+          .delete()
+          .or(`id.eq.${cleanId},display_id.eq.${cleanId}`);
+        if (error) {
+          console.warn('Backend registration delete note:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase delete error:', err);
+      }
+    }
+
+    // Always update local cache & broadcast
+    const regs = this.getRegistrations().filter(r => r.id !== cleanId);
+    this.saveRegistrations(regs);
+
+    // Also update guest pass cache if present
+    try {
+      const guestCache = JSON.parse(localStorage.getItem('festronix_guest_pass_cache_v1') || '[]');
+      if (Array.isArray(guestCache)) {
+        const filtered = guestCache.filter((r: any) => r && r.id !== cleanId);
+        localStorage.setItem('festronix_guest_pass_cache_v1', JSON.stringify(filtered));
+      }
+    } catch {}
+
+    window.dispatchEvent(new CustomEvent('festronix:regs-updated', { detail: regs }));
+    return true;
+  }
+
+  /**
+   * Update team details (team name, leader, teammates) by Dean SAC / Admin
+   */
+  static async updateTeamDetails(
+    teamCode: string,
+    updates: {
+      teamName?: string;
+      leaderName?: string;
+      leaderRoll?: string;
+      leaderEmail?: string;
+      leaderPhone?: string;
+      teammates?: (Partial<Teammate> & { name: string; rollNumber: string })[];
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    const cleanCode = teamCode.trim().toUpperCase();
+    if (!cleanCode) return { success: false, error: 'Invalid team code.' };
+
+    const normCode = cleanCode.replace(/[^A-Za-z0-9]/g, '');
+
+    const normalizedTeammates: Teammate[] | undefined = updates.teammates?.map(tm => ({
+      name: tm.name || '',
+      email: tm.email || '',
+      phone: tm.phone || '',
+      college: tm.college || 'Vardhaman College of Engineering',
+      rollNumber: tm.rollNumber || '',
+      deptSection: tm.deptSection,
+      registrationStatus: tm.registrationStatus || 'verified',
+      qrGenerated: tm.qrGenerated ?? true,
+      registeredAt: tm.registeredAt || new Date().toISOString(),
+      isLeader: tm.isLeader ?? false
+    }));
+
+    // 1. Update registrations
+    const regs = this.getRegistrations();
+    let regUpdated = false;
+    regs.forEach(r => {
+      const rCode = (r.teamCode || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (rCode === normCode) {
+        regUpdated = true;
+        if (updates.teamName) r.teamName = updates.teamName;
+        if (updates.leaderName) r.leaderName = updates.leaderName;
+        if (updates.leaderRoll) r.leaderRoll = updates.leaderRoll;
+        if (updates.leaderEmail) r.leaderEmail = updates.leaderEmail;
+        if (updates.leaderPhone) r.leaderPhone = updates.leaderPhone;
+        if (normalizedTeammates) r.teammates = normalizedTeammates;
+      }
+    });
+    if (regUpdated) {
+      this.saveRegistrations(regs);
+    }
+
+    // 2. Update teams
+    const teams = this.getTeams();
+    const teamIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
+    if (teamIdx >= 0) {
+      const t = teams[teamIdx];
+      if (updates.teamName) t.teamName = updates.teamName;
+      if (updates.leaderName) t.leaderName = updates.leaderName;
+      if (updates.leaderRoll) t.leaderRoll = updates.leaderRoll;
+      if (updates.leaderEmail) t.leaderEmail = updates.leaderEmail;
+      if (updates.leaderPhone) t.leaderPhone = updates.leaderPhone;
+      if (normalizedTeammates) t.members = normalizedTeammates;
+      teams[teamIdx] = t;
+      this.saveTeams(teams);
+      this.broadcastTeam(t);
+    }
+
+    // 3. Update Supabase if connected
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('registrations')
+          .update({
+            ...(updates.teamName ? { team_name: updates.teamName } : {}),
+            ...(updates.leaderName ? { leader_name: updates.leaderName } : {}),
+            ...(updates.leaderRoll ? { leader_roll: updates.leaderRoll } : {}),
+            ...(updates.leaderEmail ? { leader_email: updates.leaderEmail } : {})
+          })
+          .ilike('team_code', cleanCode);
+
+        await supabase
+          .from('teams')
+          .update({
+            ...(updates.teamName ? { team_name: updates.teamName } : {}),
+            ...(updates.leaderName ? { leader_name: updates.leaderName } : {}),
+            ...(updates.leaderRoll ? { leader_roll: updates.leaderRoll } : {}),
+            ...(updates.leaderEmail ? { leader_email: updates.leaderEmail } : {}),
+            ...(updates.teammates ? { members: updates.teammates } : {})
+          })
+          .ilike('team_code', cleanCode);
+      } catch (err) {
+        console.warn('Backend team update warning:', err);
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent('festronix:teams-updated'));
+    return { success: true };
+  }
+
+  /**
    * Upload payment screenshot to Supabase Storage bucket 'payment-screenshots'
    */
   static async uploadPaymentScreenshot(
@@ -1619,12 +1581,6 @@ export class StorageService {
     _regDisplayId: string,
     guestEmail?: string
   ): Promise<{ success: boolean; url?: string; error?: string }> {
-    if (isFirebaseConfigured) {
-      return {
-        success: false,
-        error: 'Payment screenshots are not accepted in Firebase mode. Complete the Razorpay checkout to register.'
-      };
-    }
     if (isSupabaseConfigured()) {
       try {
         const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -1670,7 +1626,7 @@ export class StorageService {
 
   static getAnnouncements(): Announcement[] {
     this.purgeLegacyDemoData();
-    const raw = localStorage.getItem(announcementsCacheKey());
+    const raw = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw);
@@ -1681,16 +1637,10 @@ export class StorageService {
   }
 
   static saveAnnouncements(announcements: Announcement[]): void {
-    localStorage.setItem(announcementsCacheKey(), JSON.stringify(announcements));
+    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(announcements));
   }
 
   static async fetchAnnouncements(): Promise<Announcement[]> {
-    if (isFirebaseConfigured) {
-      const mapped = await FirebaseContentService.announcements();
-      this.saveAnnouncements(mapped);
-      window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: mapped }));
-      return mapped;
-    }
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase
         .from('announcements')
@@ -1706,13 +1656,6 @@ export class StorageService {
   }
 
   static async addAnnouncement(data: Omit<Announcement, 'id' | 'date'>): Promise<Announcement> {
-    if (isFirebaseConfigured) {
-      const created = await FirebaseContentService.createAnnouncement(data);
-      const list = [created, ...this.getAnnouncements().filter(item => item.id !== created.id)];
-      this.saveAnnouncements(list);
-      window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: list }));
-      return created;
-    }
     if (isSupabaseConfigured()) {
       const { data: authData } = await supabase.auth.getUser();
       const dateDisplay = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1722,7 +1665,6 @@ export class StorageService {
         type: data.type,
         scope: data.scope,
         department_code: data.departmentCode || null,
-        cluster_code: data.clusterCode || null,
         published_by: authData.user?.id || null,
         date_display: dateDisplay
       }).select('*').single();
@@ -1748,13 +1690,6 @@ export class StorageService {
   }
 
   static async deleteAnnouncement(annId: string): Promise<void> {
-    if (isFirebaseConfigured) {
-      await FirebaseContentService.deleteAnnouncement(annId);
-      const list = this.getAnnouncements().filter(item => item.id !== annId);
-      this.saveAnnouncements(list);
-      window.dispatchEvent(new CustomEvent('festronix:announcements-updated', { detail: list }));
-      return;
-    }
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.from('announcements').delete().eq('id', annId).select('id').maybeSingle();
       if (error) throw new Error(`Unable to delete announcement: ${error.message}`);
@@ -1852,36 +1787,28 @@ export class StorageService {
   // ==========================================
 
   static getDepartments(): Department[] {
-    const raw = localStorage.getItem(departmentsCacheKey());
+    const raw = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && (parsed.length > 0 || isFirebaseConfigured || isSupabaseConfigured())) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       } catch (err) {
         console.warn('Failed to parse cached departments:', err);
       }
     }
-    // In Firebase mode, an empty remote collection is authoritative. Never
-    // inject mock departments into a production or staging Firebase session.
-    if (isFirebaseConfigured || isSupabaseConfigured()) return [];
     // Always fall back to official DEPARTMENTS mock data so departments are never 0
-    localStorage.setItem(departmentsCacheKey(), JSON.stringify(DEPARTMENTS));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEPARTMENTS));
     return [...DEPARTMENTS];
   }
 
   static saveDepartments(departments: Department[]): void {
-    localStorage.setItem(departmentsCacheKey(), JSON.stringify(departments));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(departments));
     window.dispatchEvent(new CustomEvent('festronix:departments-updated', { detail: departments }));
   }
 
   static async fetchDepartments(): Promise<Department[]> {
-    if (isFirebaseConfigured) {
-      const departments = await FirebaseContentService.departments();
-      this.saveDepartments(departments);
-      return departments;
-    }
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase.from('departments').select('*').order('name', { ascending: true });
@@ -1919,19 +1846,6 @@ export class StorageService {
       contact: dept.contact?.trim() || `${cleanCode.toLowerCase()}.festronix@vardhaman.org`,
       icon_name: dept.iconName || 'Cpu'
     };
-    if (isFirebaseConfigured) {
-      const created = await FirebaseContentService.createDepartment({
-        id: dept.id,
-        code: cleanCode,
-        name: payload.name,
-        description: payload.description,
-        chiefCoordinator: payload.chief_coordinator,
-        contact: payload.contact,
-        iconName: payload.icon_name,
-      });
-      this.saveDepartments([...this.getDepartments().filter(item => item.id !== created.id && item.code.toUpperCase() !== created.code.toUpperCase()), created]);
-      return created;
-    }
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.from('departments').insert(payload).select('*').single();
       if (error) throw new Error(`Unable to create department: ${error.message}`);
@@ -1965,13 +1879,6 @@ export class StorageService {
 
   static async updateDepartment(idOrCode: string, updated: Partial<Department>): Promise<Department | null> {
     const cleanKey = idOrCode.trim().toUpperCase();
-    if (isFirebaseConfigured) {
-      const saved = await FirebaseContentService.updateDepartment(idOrCode, updated);
-      if (saved) {
-        this.saveDepartments(this.getDepartments().map(dept => dept.id === saved.id ? saved : dept));
-      }
-      return saved;
-    }
     if (isSupabaseConfigured()) {
       const payload = {
         ...(updated.code !== undefined ? { code: updated.code.trim().toUpperCase() } : {}),
@@ -2007,11 +1914,6 @@ export class StorageService {
 
   static async deleteDepartment(idOrCode: string): Promise<boolean> {
     const cleanKey = idOrCode.trim().toUpperCase();
-    if (isFirebaseConfigured) {
-      const deleted = await FirebaseContentService.deleteDepartment(idOrCode);
-      if (deleted) this.saveDepartments(this.getDepartments().filter(dept => dept.id !== idOrCode && dept.code.toUpperCase() !== cleanKey));
-      return deleted;
-    }
     if (isSupabaseConfigured()) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode);
       const query = supabase.from('departments').delete();
@@ -2034,7 +1936,7 @@ export class StorageService {
 
   static getTeams(): Team[] {
     this.purgeLegacyDemoData();
-    const raw = localStorage.getItem(teamsCacheKey());
+    const raw = localStorage.getItem(STORAGE_KEYS.TEAMS);
     if (!raw) return [];
     try {
       const parsed = JSON.parse(raw);
@@ -2058,7 +1960,7 @@ export class StorageService {
     } else {
       localTeams.unshift(team);
     }
-    localStorage.setItem(teamsCacheKey(), JSON.stringify(localTeams));
+    localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(localTeams));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('festronix:teams-updated', { detail: localTeams }));
     }
@@ -2086,7 +1988,7 @@ export class StorageService {
     }
 
     // Supabase realtime broadcast
-    if (typeof window !== 'undefined' && !isFirebaseConfigured && isSupabaseConfigured()) {
+    if (typeof window !== 'undefined' && isSupabaseConfigured()) {
       try {
         const sbChannel = supabase.channel('festronix_live_sync');
         sbChannel.send({
@@ -2221,12 +2123,6 @@ export class StorageService {
   }
 
   static async fetchCloudTeams(): Promise<Team[]> {
-    if (isFirebaseConfigured) {
-      const rows = await FirebaseTeamService.listStaffTeams();
-      const teams = rows.map(teamFromDb);
-      this.saveTeams(teams);
-      return teams;
-    }
     if (!isSupabaseConfigured()) return this.getTeams();
     const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
     if (error) throw new Error(`Unable to load your teams: ${error.message}`);
@@ -2236,7 +2132,7 @@ export class StorageService {
   }
 
   static saveTeams(teams: Team[]): void {
-    localStorage.setItem(teamsCacheKey(), JSON.stringify(teams));
+    localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('festronix:teams-updated', { detail: teams }));
     }
@@ -2248,9 +2144,8 @@ export class StorageService {
       .replace(/[^a-zA-Z0-9]/g, '')
       .slice(0, 4)
       .toUpperCase();
-    const randomBytes = crypto.getRandomValues(new Uint8Array(8));
-    const suffix = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
-    return `${prefix}-${cleanTag}-${suffix}`;
+    const randNum = Math.floor(1000 + Math.random() * 9000);
+    return `${prefix}-${cleanTag}-${randNum}`;
   }
 
   /**
@@ -2273,18 +2168,6 @@ export class StorageService {
     const normQuery = rawClean.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     if (normQuery.length < 3) {
       return { team: null, error: 'Team code is too short. Please verify with your Team Leader.' };
-    }
-
-    if (isFirebaseConfigured) {
-      try {
-        const result = await FirebaseTeamService.find(rawClean, eventId);
-        if (!result.team) return result;
-        const cached = this.getTeams().filter(team => team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normQuery);
-        this.saveTeams([result.team, ...cached]);
-        return result;
-      } catch (error) {
-        return { team: null, error: error instanceof Error ? error.message : 'Unable to look up this team.' };
-      }
     }
 
     if (isSupabaseConfigured()) {
@@ -2542,15 +2425,6 @@ export class StorageService {
   static async fetchTeamDashboard(teamCode: string, eventId?: string): Promise<Team | null> {
     if (!teamCode.trim()) return null;
 
-    if (isFirebaseConfigured) {
-      const team = await FirebaseTeamService.dashboard(teamCode, eventId);
-      if (!team) return null;
-      const normCode = team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-      this._inFlightTeams.set(normCode, team);
-      this.saveTeams([team, ...this.getTeams().filter(item => item.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normCode)]);
-      return team;
-    }
-
     if (isSupabaseConfigured()) {
       const { data, error } = await supabase.rpc('get_team_dashboard', { p_code: teamCode.trim() });
       let team: Team | null = null;
@@ -2603,6 +2477,112 @@ export class StorageService {
     return this.findTeamByCode(teamCode, eventId);
   }
 
+  /**
+   * Fetch the saved contact details for a team roster when the caller proves
+   * the leader identity using the team code plus the leader's roll, email, and
+   * phone. The general team dashboard intentionally redacts these fields.
+   */
+  static async fetchTeamCheckoutRoster(
+    teamCode: string,
+    leaderRoll: string,
+    leaderEmail: string,
+    leaderPhone: string,
+    eventId?: string
+  ): Promise<Team | null> {
+    if (!teamCode.trim() || !leaderRoll.trim() || !leaderEmail.trim() || !leaderPhone.trim()) return null;
+
+    if (!isSupabaseConfigured()) return this.findTeamByCode(teamCode, eventId);
+
+    const { data, error } = await supabase.rpc('get_team_checkout_roster', {
+      p_code: teamCode.trim(),
+      p_leader_roll: leaderRoll.trim(),
+      p_leader_email: leaderEmail.trim(),
+      p_leader_phone: leaderPhone.trim(),
+      p_event_id: eventId || null
+    });
+    if (error) throw new Error(`Unable to load the saved team roster: ${error.message}`);
+    if (!(data as any)?.success || !(data as any)?.team) {
+      throw new Error((data as any)?.error || 'The team leader details did not match this team code.');
+    }
+
+    const team = teamFromDb((data as any).team);
+    if (eventId && team.eventId !== eventId && team.eventId !== this.getEvents().find(event => event.id === eventId || event.slug === eventId)?.id) {
+      return null;
+    }
+
+    // This response contains private member contact details. Keep it in the
+    // current form state only; the public team cache deliberately stays redacted.
+    return team;
+  }
+
+  /**
+   * Instantly creates or reserves a squad so that the Team Code is LIVE and JOINABLE immediately!
+   */
+  static async reserveOrRegisterTeam(newTeamData: Omit<Team, 'id' | 'createdAt'>): Promise<Team> {
+    if (isSupabaseConfigured()) {
+      const normCode = newTeamData.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const { data, error } = await supabase.rpc('create_or_reserve_team', {
+        p_team_code: newTeamData.teamCode,
+        p_team_name: newTeamData.teamName,
+        p_event_id: newTeamData.eventId,
+        p_event_title: newTeamData.eventTitle,
+        p_leader_name: newTeamData.leaderName,
+        p_leader_roll: newTeamData.leaderRoll,
+        p_leader_email: newTeamData.leaderEmail,
+        p_leader_phone: newTeamData.leaderPhone,
+        p_leader_college: newTeamData.leaderCollege,
+        p_leader_id: newTeamData.leaderId || null,
+        p_max_team_size: newTeamData.maxTeamSize,
+        p_min_team_size: newTeamData.minTeamSize
+      });
+      if (error) throw new Error(`Unable to reserve the team: ${error.message}`);
+      if (!(data as any)?.success || !(data as any)?.team) {
+        throw new Error((data as any)?.error || 'The database did not reserve this team.');
+      }
+
+      const team = teamFromDb((data as any).team);
+      const teams = [team, ...this.getTeams().filter(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normCode)];
+      this._inFlightTeams.set(normCode, team);
+      this.saveTeams(teams);
+      this.broadcastTeam(team);
+      return team;
+    }
+
+    const teams = this.getTeams();
+    const normCode = newTeamData.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const existingIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
+
+    let team: Team;
+    if (existingIdx !== -1) {
+      team = {
+        ...teams[existingIdx],
+        teamName: newTeamData.teamName || teams[existingIdx].teamName,
+        leaderName: newTeamData.leaderName || teams[existingIdx].leaderName,
+        leaderRoll: newTeamData.leaderRoll || teams[existingIdx].leaderRoll,
+        leaderEmail: newTeamData.leaderEmail || teams[existingIdx].leaderEmail,
+        leaderPhone: newTeamData.leaderPhone || teams[existingIdx].leaderPhone,
+        leaderCollege: newTeamData.leaderCollege || teams[existingIdx].leaderCollege,
+        eventTitle: newTeamData.eventTitle || teams[existingIdx].eventTitle,
+        eventId: newTeamData.eventId || teams[existingIdx].eventId
+      };
+      teams[existingIdx] = team;
+    } else {
+      const id = `TEAM-${Math.floor(1000 + Math.random() * 9000)}`;
+      team = {
+        ...newTeamData,
+        id,
+        createdAt: new Date().toISOString()
+      };
+      teams.unshift(team);
+    }
+
+    this._inFlightTeams.set(normCode, team);
+    this.saveTeams(teams);
+    this.broadcastTeam(team);
+
+    return team;
+  }
+
   static createTeam(newTeamData: Omit<Team, 'id' | 'createdAt'>): Team {
     const teams = this.getTeams();
     const normCode = newTeamData.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
@@ -2622,7 +2602,119 @@ export class StorageService {
     this.saveTeams(teams);
     this.broadcastTeam(team);
 
+    // Async cloud backup
+    if (isSupabaseConfigured()) {
+      this.reserveOrRegisterTeam(newTeamData).catch(() => {});
+    }
+
     return team;
+  }
+
+  static async joinTeam(
+    teamCode: string,
+    member: Teammate
+  ): Promise<{ success: boolean; team?: Team; registration?: Registration; isLeaderPaid?: boolean; error?: string }> {
+    const cleanCode = teamCode.trim().toUpperCase();
+    const normCode = cleanCode.replace(/[^A-Za-z0-9]/g, '');
+
+    // Lookup team via multi-source finder
+    const lookup = await this.findTeamWithValidation(cleanCode);
+    if (!lookup.team) {
+      return {
+        success: false,
+        error: lookup.error || `Team Code "${cleanCode}" was not found.`
+      };
+    }
+
+    const team = lookup.team;
+
+    // Check capacity
+    const currentMemberCount = 1 + (team.memberCount ?? team.members?.length ?? 0);
+    if (currentMemberCount >= team.maxTeamSize) {
+      return {
+        success: false,
+        error: `Team "${team.teamName}" is already at full capacity (${team.maxTeamSize} max members).`
+      };
+    }
+
+    // Check if member is already leader or joined
+    const memberRoll = (member.rollNumber || '').trim().toLowerCase();
+    const memberEmail = (member.email || '').trim().toLowerCase();
+
+    const isLeader =
+      team.isCurrentUserLeader ||
+      (team.leaderRoll && team.leaderRoll.trim().toLowerCase() === memberRoll) ||
+      (team.leaderEmail && team.leaderEmail.trim().toLowerCase() === memberEmail);
+
+    const alreadyJoined = (team.members || []).some(
+      m =>
+        (m.rollNumber && m.rollNumber.trim().toLowerCase() === memberRoll) ||
+        (m.email && memberEmail !== '' && m.email.trim().toLowerCase() === memberEmail)
+    ) || Boolean(team.isCurrentUserMember);
+
+    if (isLeader) {
+      return {
+        success: false,
+        error: `You are already registered as the Team Leader of "${team.teamName}"!`
+      };
+    }
+
+    if (alreadyJoined) {
+      return {
+        success: false,
+        error: `You (${member.name}) are already a member of squad "${team.teamName}"!`
+      };
+    }
+
+    let backendJoin: any = null;
+    if (isSupabaseConfigured()) {
+      const { data, error } = await supabase.rpc('join_team_membership', {
+        p_code: cleanCode,
+        p_member: member
+      });
+      if (error) return { success: false, error: `Unable to join the team: ${error.message}` };
+      if (!(data as any)?.success) {
+        return { success: false, error: (data as any)?.error || 'The database rejected this team join.' };
+      }
+      backendJoin = data;
+      if ((data as any).team) {
+        const serverTeam = teamFromDb((data as any).team);
+        Object.assign(team, serverTeam, {
+          // The membership RPC intentionally redacts private roster details
+          // from a normal member. Keep the local member visible until the
+          // privacy-safe dashboard refresh completes.
+          members: [...(team.members || []), member]
+        });
+      }
+    }
+
+    // Add the confirmed member to the local view after the backend accepted it.
+    const updatedMembers = [...(team.members || []), member];
+    team.members = updatedMembers;
+
+    // Update local teams and broadcast
+    const teams = this.getTeams();
+    const teamIdx = teams.findIndex(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode);
+    if (teamIdx !== -1) {
+      teams[teamIdx] = team;
+    } else {
+      teams.unshift(team);
+    }
+    this._inFlightTeams.set(normCode, team);
+    this.saveTeams(teams);
+    this.broadcastTeam(team);
+
+    // Joining reserves a place in the team only. It must not create an
+    // official registration or QR ticket before the leader completes the
+    // event checkout.
+    const liveTeam = isSupabaseConfigured()
+      ? await this.fetchTeamDashboard(team.teamCode, team.eventId).catch(() => team)
+      : team;
+    return {
+      success: true,
+      team: liveTeam || team,
+      isLeaderPaid: Boolean((backendJoin as any)?.isLeaderPaid)
+    };
   }
 
   static resetToDefaults(): void {

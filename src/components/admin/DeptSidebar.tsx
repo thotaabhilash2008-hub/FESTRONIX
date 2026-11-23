@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   Building2, Layers, ShieldCheck, Users, QrCode, Phone, Globe, LogOut, ChevronRight, Sparkles, KeyRound,
-  TrendingUp, Menu, X
+  TrendingUp, Menu, X, CreditCard
 } from 'lucide-react';
 import { AdminUser } from '../../services/adminAuthService';
 
 export type DeptDashboardTab =
   | 'events'
+  | 'analysis'
   | 'revenue'
   | 'checkin'
   | 'security';
@@ -115,6 +116,12 @@ export const DeptSidebar: React.FC<DeptSidebarProps> = ({
       icon: Layers,
       badge: eventsCount > 0 ? String(eventsCount) : undefined,
     }] : []),
+    {
+      id: 'analysis' as const,
+      label: 'Event Wise Analysis',
+      icon: CreditCard,
+      badge: eventsCount > 0 ? String(eventsCount) : undefined,
+    },
     {
       id: 'revenue',
       label: isEventCoord ? 'Event Analytics' : 'Revenue Analysis',

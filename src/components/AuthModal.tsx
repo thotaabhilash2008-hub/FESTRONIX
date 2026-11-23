@@ -69,7 +69,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!raw) return 'Authentication error. Please try again.';
     const lower = raw.toLowerCase();
     if (lower.includes('disabled') || lower.includes('email logins are disabled')) {
-      return 'Email sign-in is unavailable. Please check the Firebase Authentication settings or contact the organizers.';
+      return 'Email sign-in is unavailable. Please check the Supabase authentication settings or contact the organizers.';
     }
     return raw;
   };

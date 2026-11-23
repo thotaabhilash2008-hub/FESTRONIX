@@ -2,14 +2,6 @@
 -- FESTRONIX ROW-LEVEL SECURITY (RLS) POLICIES
 -- Run AFTER schema.sql in the Supabase SQL Editor
 -- ============================================================
---
--- ⚠️  DEPRECATED — DO NOT RUN ON AN EXISTING DEPLOYMENT.
--- This legacy script uses CREATE POLICY without dropping the scoped,
--- hardened policies installed by the later migrations in this folder.
--- Running it ADDS permissive policies and can expose registrations across
--- departments and CSE clusters. Use the timestamped migrations as the
--- authoritative source of truth for RLS instead.
--- ============================================================
 
 -- ============================================================
 -- PROFILES

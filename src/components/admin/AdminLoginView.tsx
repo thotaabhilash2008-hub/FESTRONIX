@@ -23,21 +23,19 @@ interface AdminLoginViewProps {
  * Single credential entry point for every staff portal.
  *
  * Role, department, and event scope are deliberately not collected from the
- * browser. Firebase Auth and the active server-side staff role decide which
- * portal is opened after login.
+ * browser. The authenticated Supabase user and its active admin role decide
+ * which portal is opened after login.
  */
 export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, onBackToFest }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [resetMessage, setResetMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage('');
-    setResetMessage('');
     setLoading(true);
 
     try {
@@ -49,20 +47,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
       }
     } catch (error: any) {
       setErrorMessage(error?.message || 'Authentication error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePasswordReset = async () => {
-    setErrorMessage('');
-    setResetMessage('');
-    setLoading(true);
-    try {
-      await AdminAuthService.sendPasswordReset(identifier);
-      setResetMessage('If this email belongs to a staff account, Firebase will send password reset instructions.');
-    } catch (error: any) {
-      setErrorMessage(error?.message || 'Unable to request a password reset.');
     } finally {
       setLoading(false);
     }
@@ -169,11 +153,8 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
               <Mail size={16} color="#38BDF8" style={{ position: 'absolute', left: '14px', top: '15px' }} />
               <input
                 id="admin-login-identifier"
-                type="email"
+                type="text"
                 autoComplete="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
                 value={identifier}
                 onChange={event => setIdentifier(event.target.value)}
                 placeholder="Enter Gmail"
@@ -225,23 +206,6 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             </div>
           </div>
 
-          {resetMessage && (
-            <div role="status" style={{ color: '#A7F3D0', fontSize: '0.82rem', lineHeight: 1.45 }}>
-              {resetMessage}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-8px' }}>
-            <button
-              type="button"
-              onClick={() => void handlePasswordReset()}
-              disabled={loading}
-              style={{ border: 0, padding: '4px 0', background: 'transparent', color: '#7DD3FC', cursor: loading ? 'wait' : 'pointer', fontSize: '0.8rem' }}
-            >
-              Forgot password?
-            </button>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -255,7 +219,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onLoginSuccess, 
             }}
           >
             {loading ? (
-              <span>Please wait...</span>
+              <span>Signing in...</span>
             ) : (
               <>
                 <Lock size={16} />

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio, LayoutGrid } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
 import { HeroAnimation } from './animations';
@@ -163,7 +163,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               VARDHAMAN COLLEGE OF ENGINEERING
             </span>
           </div>
-          <span style={{ color: '#7E8D9F', fontSize: '0.75rem' }}>ΓÇó</span>
+          <span style={{ color: '#7E8D9F', fontSize: '0.75rem' }}>•</span>
           <span
             style={{
               fontSize: '0.7rem',
@@ -178,7 +178,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               whiteSpace: 'nowrap'
             }}
           >
-            DEC 1ΓÇô2, 2026
+            DEC 1–2, 2026
           </span>
         </div>
 
@@ -266,7 +266,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             
           }}
         >
-          Vardhaman College of Engineering's annual national technical festival ΓÇö featuring hackathons, robotics tournaments, coding competitions, and project exhibitions.
+          Vardhaman College of Engineering's annual national technical festival — featuring hackathons, robotics tournaments, coding competitions, and project exhibitions.
         </p>
 
         {/* Action CTAs */}
@@ -402,7 +402,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           {[
-            { icon: <Trophy size={14} color="#FBBF24" />, value: 'Γé╣1,00,000+', label: 'Prize Pool' },
+            { icon: <Trophy size={14} color="#FBBF24" />, value: '₹1,00,000+', label: 'Prize Pool' },
             { icon: <Users size={14} color="#38BDF8" />, value: '3,500+', label: 'Competitors' },
             { icon: <Flame size={14} color="#38BDF8" />, value: '30+ Arenas', label: '9 Branches' },
             { icon: <QrCode size={14} color="#34D399" />, value: 'Crypto Pass', label: 'Instant Check-in' }

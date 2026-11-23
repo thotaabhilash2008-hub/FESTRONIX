@@ -2,14 +2,7 @@
 -- FESTRONIX 2026: UNLOCK ALL PERMISSIONS & RLS FOR ADMIN & PUBLIC ACTIONS
 -- Run this in Supabase SQL Editor: Dashboard -> SQL Editor -> New Query -> Run
 -- ==============================================================================
---
--- ⚠️  DEPRECATED — DO NOT RUN. This script grants ALL table, sequence and
--- routine privileges to `anon` and `authenticated`, which bypasses the scoped
--- RBAC model enforced by the later migrations. It also disables RLS on
--- `events`. Leave it here only for historical reference.
--- ==============================================================================
 
-/*
 -- 1. Grant table-level access to both anon, authenticated and service_role
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
@@ -133,4 +126,3 @@ CREATE POLICY "Allow insert on audit_logs" ON public.audit_logs FOR INSERT WITH 
 
 -- 8. Verification query
 SELECT tablename, policyname, cmd, permissive FROM pg_policies WHERE schemaname = 'public';
-*/

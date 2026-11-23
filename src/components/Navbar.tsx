@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Flame, Building2, Layers, LogIn, LogOut } from 'lucide-react';
+import { Ticket, Menu, X, Flame, Building2, Layers, ShoppingBag, LogIn, LogOut, Download } from 'lucide-react';
 import { Announcement } from '../types/festronix';
 
 interface NavbarProps {
   onOpenIntro?: () => void;
   onOpenPasses: () => void;
+  onOpenMultiPass: () => void;
   announcements: Announcement[];
   passesCount: number;
   onNavigateExplore?: () => void;
@@ -20,6 +21,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenIntro,
   onOpenPasses,
+  onOpenMultiPass,
   announcements,
   passesCount,
   onNavigateExplore,
@@ -239,7 +241,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }}
             >
               <img
-                src="/vencorpia_logo.png"
+                src="/vencorpia_transparent.png"
                 alt="Vencorpia"
                 className="navbar-partner-img-vencorpia"
               />
@@ -281,28 +283,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 />
               </div>
             </a>
-
-            {/* SAC VMEG */}
-            <span
-              title="Student Activity Council — Vardhaman College of Engineering"
-              className="navbar-partner-badge"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '3px 6px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
-              }}
-            >
-              <div style={{ background: '#FFFFFF', padding: '1px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                <img
-                  src="/sac-vmeg logo.jpeg"
-                  alt="SAC VMEG"
-                  style={{ height: '14px', width: 'auto', objectFit: 'contain' }}
-                />
-              </div>
-            </span>
           </div>
         </div>
 
@@ -347,6 +327,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Action Icons & Passes */}
         <div className="navbar-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+
           {/* Public Sponsors & Partners Nav Link */}
           {onOpenSponsors && (
             <button
@@ -380,13 +361,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* View Our Registration Passes */}
+          {/* Download Your Pass Button */}
           <button
             onClick={onOpenPasses}
             className="nav-action nav-passes"
             style={{
-              background: 'linear-gradient(135deg, #243C74 0%, #2E4E8C 45%, #4E7C77 100%)',
-              border: '1px solid rgba(220, 227, 232, 0.35)',
+              background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)',
+              border: '1px solid rgba(136, 178, 174, 0.45)',
               borderRadius: '9999px',
               padding: '7px 16px',
               color: '#FFFFFF',
@@ -396,37 +377,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: '0 4px 20px rgba(46, 78, 140, 0.65), 0 0 16px rgba(111, 150, 147, 0.35)',
+              boxShadow: '0 4px 20px rgba(40, 59, 120, 0.65), 0 0 16px rgba(56, 189, 248, 0.35)',
               transition: 'all 0.2s ease',
               fontFamily: "'Space Grotesk', sans-serif",
               whiteSpace: 'nowrap'
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.boxShadow = '0 6px 26px rgba(46, 78, 140, 0.85), 0 0 24px rgba(111, 150, 147, 0.5)';
+              e.currentTarget.style.boxShadow = '0 6px 26px rgba(40, 59, 120, 0.85), 0 0 24px rgba(56, 189, 248, 0.5)';
               e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.boxShadow = '0 4px 20px rgba(46, 78, 140, 0.65), 0 0 16px rgba(111, 150, 147, 0.35)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(40, 59, 120, 0.65), 0 0 16px rgba(56, 189, 248, 0.35)';
               e.currentTarget.style.transform = 'translateY(0) scale(1)';
             }}
           >
-            <Ticket size={14} color="#FFFFFF" />
-            <span className="desktop-only">My Passes</span>
-            {passesCount > 0 && (
-              <span
-                style={{
-                  background: '#080C16',
-                  color: '#88B2AE',
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  padding: '1px 6px',
-                  borderRadius: '9999px',
-                  border: '1px solid rgba(111, 150, 147, 0.6)'
-                }}
-              >
-                {passesCount}
-              </span>
-            )}
+            <Download size={14} color="#FFFFFF" />
+            <span className="desktop-only">Download Your Pass</span>
           </button>
 
 
@@ -602,21 +568,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Ticket size={18} color="#FFFFFF" />
-                  <span>My Passes & Tickets</span>
+                  <Download size={18} color="#FFFFFF" />
+                  <span>Download Your Pass</span>
                 </div>
                 <span
                   style={{
                     background: '#080C16',
-                    color: '#88B2AE',
+                    color: '#38BDF8',
                     fontSize: '0.72rem',
                     fontWeight: 800,
                     padding: '2px 8px',
                     borderRadius: '9999px',
-                    border: '1px solid rgba(111, 150, 147, 0.6)'
+                    border: '1px solid rgba(56, 189, 248, 0.4)'
                   }}
                 >
-                  {passesCount > 0 ? `${passesCount} Active` : 'View Passes'}
+                  Pass Search
                 </span>
               </button>
 
@@ -648,6 +614,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Layers size={18} color="#38BDF8" />
                 <span>All Events</span>
               </button>
+
 
               {/* Option 4: Sponsors & Strategic Partners Page Button */}
               {onOpenSponsors && (
@@ -701,7 +668,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   Official Event Partners
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                   <a
                     href="https://connectclub.in"
                     target="_blank"
@@ -747,7 +714,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                   >
                     <img
-                      src="/vencorpia_logo.png"
+                      src="/vencorpia_transparent.png"
                       alt="Vencorpia"
                       style={{ height: '20px', width: 'auto', objectFit: 'contain' }}
                     />
@@ -782,29 +749,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, textAlign: 'center' }}>Sanvi Homes</span>
                     <span style={{ fontSize: '0.58rem', color: '#C084FC' }}>Platinum</span>
                   </a>
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      background: 'rgba(10, 13, 20, 0.85)',
-                      border: '1px solid rgba(199, 203, 212, 0.16)',
-                      borderRadius: '8px',
-                      padding: '10px 4px'
-                    }}
-                  >
-                    <div style={{ background: '#FFFFFF', padding: '2px 5px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                      <img
-                        src="/sac-vmeg logo.jpeg"
-                        alt="SAC VMEG"
-                        style={{ height: '20px', width: 'auto', objectFit: 'contain' }}
-                      />
-                    </div>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textAlign: 'center' }}>SAC VMEG</span>
-                    <span style={{ fontSize: '0.58rem', color: '#6F9693' }}>Organizer</span>
-                  </div>
                 </div>
               </div>
             </div>

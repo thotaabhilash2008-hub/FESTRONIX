@@ -1,9 +1,3 @@
-/**
- * @deprecated Not reachable from the active AdminPortal routes. This legacy
- * component has no role/assignment props and exposes privileged payment,
- * check-in and export actions without authorization checks. Do not wire it
- * into the portal; use DeptCoordinatorDashboard instead.
- */
 import React, { useEffect, useState } from 'react';
 import { 
   Users, CheckCircle2, XCircle, Search, QrCode, FileSpreadsheet, 
@@ -13,7 +7,6 @@ import {
 import { FestEvent, Registration, PaymentStatus, Teammate } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
-import { LocalQrCode } from './LocalQrCode';
 
 interface CoordinatorPortalProps {
   events: FestEvent[];
@@ -605,7 +598,11 @@ export const CoordinatorPortal: React.FC<CoordinatorPortalProps> = ({
                   marginBottom: '14px'
                 }}
               >
-                <LocalQrCode value={spotCreatedReg.qrToken} size={170} alt="Spot pass QR code" />
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(spotCreatedReg.qrToken)}`}
+                  alt="Spot Pass QR Code"
+                  style={{ width: '170px', height: '170px', display: 'block' }}
+                />
               </div>
 
               <div style={{ fontFamily: 'monospace', fontSize: '0.92rem', color: '#FFD700', fontWeight: 800, letterSpacing: '1px', marginBottom: '8px' }}>

@@ -94,28 +94,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         iconBg: 'linear-gradient(135deg, #0369A1 0%, #0284C7 50%, #38BDF8 100%)'
       };
     }
-    if (role === 'finance_reviewer') {
-      return {
-        title: titleOverride || 'PAYMENT REVIEW & REFUND DESK',
-        badge: badgeOverride || '💳 FINANCE REVIEWER',
-        badgeBg: 'rgba(16, 185, 129, 0.15)',
-        badgeBorder: 'rgba(16, 185, 129, 0.45)',
-        badgeColor: '#34D399',
-        icon: Award,
-        iconBg: 'linear-gradient(135deg, #065F46 0%, #10B981 50%, #34D399 100%)'
-      };
-    }
-    if (role === 'volunteer_checkin' || role === 'checkin_staff') {
-      return {
-        title: titleOverride || 'GATE ENTRY & CHECK-IN DESK',
-        badge: badgeOverride || '🎟️ GATE CHECK-IN STAFF',
-        badgeBg: 'rgba(245, 158, 11, 0.15)',
-        badgeBorder: 'rgba(245, 158, 11, 0.45)',
-        badgeColor: '#FBBF24',
-        icon: Award,
-        iconBg: 'linear-gradient(135deg, #92400E 0%, #D97706 50%, #FBBF24 100%)'
-      };
-    }
     // Department Coordinator
     return {
       title: titleOverride || `DEPARTMENT OF ${adminUser.departmentName?.toUpperCase() || adminUser.departmentCode || 'ENGINEERING'}`,

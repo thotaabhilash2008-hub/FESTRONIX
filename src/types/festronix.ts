@@ -83,7 +83,6 @@ export interface Teammate {
   qrGenerated?: boolean;
   registeredAt?: string;
   isLeader?: boolean;
-  joinedViaInvite?: boolean;
 }
 
 export interface AdditionalMember {
@@ -194,7 +193,6 @@ export interface Announcement {
   type: 'urgent' | 'general' | 'prize' | 'workshop';
   scope: 'fest-wide' | 'department';
   departmentCode?: string;
-  clusterCode?: string;
   date: string;
 }
 

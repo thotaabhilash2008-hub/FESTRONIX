@@ -2,14 +2,6 @@
 -- FESTRONIX 2026 - COMPLETE ALL-IN-ONE SUPABASE SETUP
 -- Run this entire script in Supabase Dashboard -> SQL Editor
 -- ============================================================
---
--- ⚠️  DEPRECATED — INITIAL PROVISIONING ONLY.
--- This legacy script contains a permissive `registrations` SELECT policy
--- (USING (true)) and other broad grants. Running it AFTER the scoped RBAC
--- migrations will ADD permissive policies and can expose registrations
--- across departments and CSE clusters. Do not re-run on a configured
--- project; use the timestamped migrations instead.
--- ============================================================
 
 -- PART 1: TABLES, CONSTRAINTS & STORED FUNCTIONS
 -- ============================================================

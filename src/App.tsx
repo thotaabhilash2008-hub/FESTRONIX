@@ -9,6 +9,7 @@ import { FullscreenIntro } from './components/FullscreenIntro';
 const EventDetailModal = lazy(() => import('./components/EventDetailModal').then(module => ({ default: module.EventDetailModal })));
 const RegistrationModal = lazy(() => import('./components/RegistrationModal').then(module => ({ default: module.RegistrationModal })));
 const DigitalPassModal = lazy(() => import('./components/DigitalPassModal').then(module => ({ default: module.DigitalPassModal })));
+const MultiPassModal = lazy(() => import('./components/MultiPassModal').then(module => ({ default: module.MultiPassModal })));
 const AdminPortal = lazy(() => import('./components/admin/AdminPortal').then(module => ({ default: module.AdminPortal })));
 const PublicSponsorsPage = lazy(() => import('./components/PublicSponsorsPage').then(module => ({ default: module.PublicSponsorsPage })));
 const AllEventsPage = lazy(() => import('./components/AllEventsPage'));
@@ -17,18 +18,15 @@ const TermsAndConditionsPage = lazy(() => import('./components/legal/TermsAndCon
 const RefundPolicyPage = lazy(() => import('./components/legal/RefundPolicyPage').then(module => ({ default: module.RefundPolicyPage })));
 
 import { StorageService } from './services/storageService';
-import { fetchFirebasePublicEvents } from './services/firebasePublicEventService';
 import { AuthService } from './services/authService';
-import { FestEvent, Registration, Announcement, Department, User } from './types/festronix';
+import { FestEvent, Registration, Announcement, User } from './types/festronix';
 import { isSupabaseConfigured } from './lib/supabase';
-import { isFirebaseConfigured } from './lib/firebase';
 import { ScrollAnimationsProvider } from './components/animations';
 const KineticStage3D = lazy(() => import('./components/3d/KineticStage3D'));
 import { AboutSection } from './components/AboutSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
-const COMING_SOON_ONLY = false;
 
 const cachePassesOnDevice = (passes: Registration[]) => {
   if (typeof window === 'undefined' || passes.length === 0) return;
@@ -170,16 +168,14 @@ export const App: React.FC = () => {
   const [isRegistrationPageOpen, setIsRegistrationPageOpen] = useState<boolean>(() => Boolean(getRegistrationSlug()));
   const [registrationSlug, setRegistrationSlug] = useState<string>(getRegistrationSlug);
 
+
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<User | null>(AuthService.getCurrentUser());
 
   // State
   const [events, setEvents] = useState<FestEvent[]>([]);
-  const [publicEvents, setPublicEvents] = useState<FestEvent[]>([]);
-  const [isEventsLoading, setIsEventsLoading] = useState<boolean>(true);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
 
   // Intro video & modals
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(false);
@@ -188,6 +184,7 @@ export const App: React.FC = () => {
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
   const [isPassesModalOpen, setIsPassesModalOpen] = useState<boolean>(false);
   const [activePassId, setActivePassId] = useState<string | undefined>(undefined);
+  const [isMultiPassModalOpen, setIsMultiPassModalOpen] = useState<boolean>(false);
 
   // The 3D stage pulls in Three.js and is decorative. Wait until the intro has
   // finished and the visitor is on the home view so it doesn't compete with
@@ -216,80 +213,32 @@ export const App: React.FC = () => {
 
 
   const refreshData = async () => {
-    setIsEventsLoading(true);
-    if (isFirebaseConfigured) {
-      // The public site must not request staff-only event/registration lists.
-      // Load each public Firebase projection independently so a problem with
-      // announcements or departments cannot hide approved public events.
-      setEvents([]);
-      setPublicEvents([]);
-      setRegistrations([]);
-      setAnnouncements([]);
-      setDepartments([]);
-
-      // The coming-soon page is intentionally independent of event and
-      // registration data. Skipping these public reads keeps the Firebase read
-      // budget available for staff sign-in on every device.
-      if (COMING_SOON_ONLY) {
-        setIsEventsLoading(false);
-        return;
-      }
-
-      const [eventsResult, announcementsResult, departmentsResult] = await Promise.allSettled([
-        fetchFirebasePublicEvents(),
-        StorageService.fetchAnnouncements(),
-        StorageService.fetchDepartments(),
-      ]);
-
-      if (eventsResult.status === 'fulfilled') {
-        setEvents(eventsResult.value);
-        setPublicEvents(eventsResult.value);
-      } else {
-        console.error('Firebase public events could not be loaded.', eventsResult.reason);
-      }
-      if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value);
-      else console.warn('Firebase public announcements could not be loaded.', announcementsResult.reason);
-      if (departmentsResult.status === 'fulfilled') setDepartments(departmentsResult.value);
-      else console.warn('Firebase public departments could not be loaded.', departmentsResult.reason);
-      setIsEventsLoading(false);
-      return;
-    }
-
     // The configured build is backend-only: never render an old browser cache
     // as if it were current public/admin data. Offline localStorage mode is
     // retained only for an explicitly unconfigured development build.
-    if (isFirebaseConfigured || isSupabaseConfigured()) {
+    if (isSupabaseConfigured()) {
       setEvents([]);
-      setPublicEvents([]);
       setRegistrations([]);
       setAnnouncements([]);
     } else {
-      const localEvents = StorageService.getEvents();
-      setEvents(localEvents);
-      setPublicEvents(localEvents);
+      setEvents(StorageService.getEvents());
       setRegistrations(StorageService.getRegistrations());
       setAnnouncements(StorageService.getAnnouncements());
-      setDepartments(StorageService.getDepartments());
     }
 
-    // Fetch event data from the selected backend and keep the public event
-    // projection separate from staff-only event details.
+    // 2. Fetch fresh data from Supabase backend in parallel
     try {
-      const [liveEvts, liveRegs, liveAnns, liveDepartments] = await Promise.all([
+      const [liveEvts, liveRegs, liveAnns] = await Promise.all([
         StorageService.fetchEvents(),
         StorageService.fetchRegistrations(),
-        StorageService.fetchAnnouncements(),
-        StorageService.fetchDepartments()
+        StorageService.fetchAnnouncements()
       ]);
       setEvents(liveEvts);
-      setDepartments(liveDepartments);
-      setPublicEvents(liveEvts);
       setRegistrations(liveRegs);
       setAnnouncements(liveAnns);
     } catch (err) {
       console.warn('Background sync warning:', err);
     }
-    setIsEventsLoading(false);
   };
 
   useEffect(() => {
@@ -477,6 +426,13 @@ export const App: React.FC = () => {
     handleOpenPassesPage(newReg.id);
   };
 
+  const handleMultiPassSuccess = (newRegs: Registration[]) => {
+    cachePassesOnDevice(newRegs);
+    setIsMultiPassModalOpen(false);
+    refreshData();
+    handleOpenPassesPage(newRegs[newRegs.length - 1]?.id);
+  };
+
   // Navigation handlers
   const handleNavigateExplore = () => {
     const el = document.getElementById('events');
@@ -489,19 +445,30 @@ export const App: React.FC = () => {
   };
 
   const handleStartEventRegistration = (evt: FestEvent) => {
-    // Checkout uses the event from the Firebase catalog; the trusted Firebase
-    // payment/registration backend revalidates price, status, and capacity.
-    const registrationEvent = events.find(event => event.id === evt.id || event.slug === evt.slug) ?? evt;
     setDetailEvent(null);
-    window.history.pushState(null, '', `/register/${encodeURIComponent(registrationEvent.slug || registrationEvent.id)}`);
-    setRegistrationSlug(registrationEvent.slug || registrationEvent.id);
+    window.history.pushState(null, '', `/register/${encodeURIComponent(evt.slug || evt.id)}`);
+    setRegistrationSlug(evt.slug || evt.id);
     setIsRegistrationPageOpen(true);
-    setRegisterEvent(registrationEvent);
+    setRegisterEvent(evt);
+  };
+
+  const handleStartMultiPass = () => {
+    setIsMultiPassModalOpen(true);
   };
 
   const activePassLookup = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('registration') || activePassId
     : activePassId;
+
+  // 1. Initial or replayed Fullscreen Intro
+  if (isIntroOpen) {
+    return (
+      <FullscreenIntro
+        isOpen={isIntroOpen}
+        onFinish={() => setIsIntroOpen(false)}
+      />
+    );
+  }
 
   // Render Legal Pages (/privacy, /terms, /refund)
   if (isPrivacyPageOpen) {
@@ -553,17 +520,16 @@ export const App: React.FC = () => {
     );
   }
 
-  if (!COMING_SOON_ONLY && isAllEventsPageOpen && !isRegistrationPageOpen && !isPassesPageOpen && !isAdminView) {
+  if (isAllEventsPageOpen && !isRegistrationPageOpen && !isPassesPageOpen && !isAdminView) {
     return (
       <Suspense fallback={null}>
         <AllEventsPage
-          events={publicEvents}
-          departments={departments}
-          isLoading={isEventsLoading}
+          events={events}
           passesCount={registrations.length}
           onBackToHome={handleBackFromAllEventsPage}
           onSelectEvent={evt => setDetailEvent(evt)}
           onRegisterEvent={handleStartEventRegistration}
+          onOpenMultiPass={handleStartMultiPass}
           onOpenPasses={() => handleOpenPassesPage()}
           onOpenAdmin={handleOpenAdmin}
           onOpenSponsors={handleOpenSponsorsPage}
@@ -574,6 +540,16 @@ export const App: React.FC = () => {
             event={detailEvent}
             onClose={() => setDetailEvent(null)}
             onRegister={handleStartEventRegistration}
+          />
+        )}
+
+        {isMultiPassModalOpen && (
+          <MultiPassModal
+            isOpen={isMultiPassModalOpen}
+            onClose={() => setIsMultiPassModalOpen(false)}
+            events={events}
+            currentUser={currentUser}
+            onSuccess={handleMultiPassSuccess}
           />
         )}
       </Suspense>
@@ -591,12 +567,16 @@ export const App: React.FC = () => {
           pageMode
           onClose={navigateHome}
           onBrowseEvents={handleOpenAllEventsPage}
+          onOpenMultiPass={() => {
+            navigateHome();
+            setIsMultiPassModalOpen(true);
+          }}
         />
       </Suspense>
     );
   }
 
-  if (!COMING_SOON_ONLY && isRegistrationPageOpen) {
+  if (isRegistrationPageOpen) {
     return registerEvent ? (
       <Suspense fallback={null}>
         <RegistrationModal
@@ -605,6 +585,10 @@ export const App: React.FC = () => {
           pageMode
           onClose={navigateHome}
           onSuccess={handleRegistrationSuccess}
+          onOpenMultiPass={() => {
+            navigateHome();
+            setIsMultiPassModalOpen(true);
+          }}
         />
       </Suspense>
     ) : (
@@ -624,12 +608,6 @@ export const App: React.FC = () => {
       <Suspense fallback={null}>
         <AdminPortal onBackToFest={handleBackFromAdmin} />
       </Suspense>
-    );
-  }
-
-  if (isIntroOpen) {
-    return (
-      <FullscreenIntro isOpen={isIntroOpen} onFinish={() => setIsIntroOpen(false)} />
     );
   }
 
@@ -653,12 +631,6 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* FULLSCREEN INTRO VIDEO: Edge-to-edge with no headings, borders, or frames */}
-      <FullscreenIntro
-        isOpen={isIntroOpen}
-        onFinish={() => setIsIntroOpen(false)}
-      />
-
       {/* Top Margin Obsidian Bar: Ensures 100% solid obsidian background above the floating navbar */}
       <div
         style={{
@@ -677,6 +649,7 @@ export const App: React.FC = () => {
       <Navbar
         onOpenIntro={() => setIsIntroOpen(true)}
         onOpenPasses={() => handleOpenPassesPage()}
+        onOpenMultiPass={handleStartMultiPass}
         announcements={announcements}
         passesCount={registrations.length}
         onNavigateExplore={handleNavigateExplore}
@@ -701,20 +674,21 @@ export const App: React.FC = () => {
 
         {/* UNIFIED EVENTS GLIMPSE: Popular, Day 1, Day 2 Infinite Marquees */}
         <EventsGlimpseSection
-          events={publicEvents}
+          events={events}
           onSelectEvent={evt => setDetailEvent(evt)}
           onRegisterEvent={handleStartEventRegistration}
           onViewAllEvents={handleOpenAllEventsPage}
         />
 
         {/* Engineering Departments Overview */}
-        <DepartmentsSection departments={departments} />
+        <DepartmentsSection />
 
         {/* Mega Cash Prizes & Perks */}
         <PrizesSection />
 
         {/* Closing Registration CTA: Final Cinematic Moment */}
         <RegistrationCtaSection
+          onOpenMultiPass={handleStartMultiPass}
           onExploreEvents={handleOpenAllEventsPage}
         />
       </main>
@@ -746,9 +720,26 @@ export const App: React.FC = () => {
             currentUser={currentUser}
             onClose={() => setRegisterEvent(null)}
             onSuccess={handleRegistrationSuccess}
+            onOpenMultiPass={() => {
+              setRegisterEvent(null);
+              handleStartMultiPass();
+            }}
           />
         </Suspense>
       )}
+
+      {isMultiPassModalOpen && (
+        <Suspense fallback={null}>
+          <MultiPassModal
+            isOpen={isMultiPassModalOpen}
+            onClose={() => setIsMultiPassModalOpen(false)}
+            events={events}
+            currentUser={currentUser}
+            onSuccess={handleMultiPassSuccess}
+          />
+        </Suspense>
+      )}
+
 
       {isPassesModalOpen && (
         <Suspense fallback={null}>
@@ -762,6 +753,10 @@ export const App: React.FC = () => {
               setActivePassId(undefined);
             }}
             onBrowseEvents={handleNavigateExplore}
+            onOpenMultiPass={() => {
+              setIsPassesModalOpen(false);
+              setIsMultiPassModalOpen(true);
+            }}
           />
         </Suspense>
       )}

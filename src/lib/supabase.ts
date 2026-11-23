@@ -1,26 +1,56 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { isFirebaseConfigured } from './firebase';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
 
-/**
- * Compatibility guard for code paths being removed during the migration.
- * The application must never connect to Supabase. Legacy call sites remain
- * temporarily so the Firebase migration can be reviewed incrementally; any
- * accidental invocation fails locally instead of making a network request.
- */
-const rejectSupabaseCall = () => {
-  throw new Error('Supabase has been disabled. Configure the Firebase backend and use its service adapter.');
+const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+export const isSupabaseConfigured = (): boolean => {
+  return (
+    Boolean(rawUrl) &&
+    Boolean(rawKey) &&
+    !rawUrl.includes('YOUR_PROJECT_ID') &&
+    !rawKey.includes('your-anon-key')
+  );
 };
 
-const disabledClient = new Proxy(rejectSupabaseCall, {
-  get: () => disabledClient,
-  apply: rejectSupabaseCall,
+const supabaseUrl = isSupabaseConfigured() ? rawUrl : 'https://placeholder.supabase.co';
+const supabaseAnonKey = isSupabaseConfigured() ? rawKey : 'placeholder-anon-key';
+const SUPABASE_REQUEST_TIMEOUT_MS = 15000;
+
+const fetchWithTimeout: typeof fetch = async (input, init) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
+  const relayAbort = () => controller.abort();
+
+  if (init?.signal) {
+    if (init.signal.aborted) controller.abort();
+    else init.signal.addEventListener('abort', relayAbort, { once: true });
+  }
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+    init?.signal?.removeEventListener('abort', relayAbort);
+  }
+};
+
+if (!isSupabaseConfigured()) {
+  console.warn(
+    'Festronix: Supabase credentials are not configured or are placeholders in .env. ' +
+    'The app is running in offline/localStorage compatibility mode. ' +
+    'Set valid VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to connect to your live database.'
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    fetch: fetchWithTimeout
+  }
 });
 
-// `any` keeps transitional guarded call sites type-checking without shipping
-// a client capable of issuing HTTP requests.
-export const supabase = disabledClient as unknown as SupabaseClient;
-export const isSupabaseConfigured = (): boolean => false;
-
-if (!isFirebaseConfigured && import.meta.env.DEV) {
-  console.warn('Festronix: Firebase is not configured. Local development data is active; Supabase is disabled.');
-}

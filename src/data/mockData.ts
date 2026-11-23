@@ -110,9 +110,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'Evaluation criteria: Technical Execution (40%), Benchmark Accuracy (30%), UI/UX (30%).'
     ],
     prizes: {
-      first: '₹15,000 Cash Prize',
-      second: '₹8,000',
-      third: '₹3,000'
+      first: 'Cash Prize & Certificate',
+      second: 'Cash Prize & Certificate',
+      third: 'Certificate of Appreciation'
     },
     eligibility: 'Open to all B.Tech / M.Tech / MCA / Degree students with valid college ID.',
     coordinatorName: 'M Raghavendra / Ch Bala Subramanyam / BJV Varma',
@@ -146,9 +146,9 @@ export const INITIAL_EVENTS: FestEvent[] = [
       'All bots must have remote radio fail-safe switches.'
     ],
     prizes: {
-      first: '₹15,000 + Trophy',
-      second: '₹7,000',
-      third: '₹3,000'
+      first: 'Cash Prize & Certificate',
+      second: 'Cash Prize & Certificate',
+      third: 'Certificate of Appreciation'
     },
     eligibility: 'Engineering undergraduates and polytechnic students.',
     coordinatorName: 'R Phani Vidyadhar',
@@ -418,34 +418,34 @@ export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
     scopeTag: 'super_admin',
     responsibilities: 'Central executive authority overseeing fest, departments, assignments, accounts, roles, content and reports.',
     accessBoundary: 'Fest-wide administration.',
-    accounts: ['Managed in Firebase Authentication and the Admin Portal.']
+    accounts: ['Managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Department Staff Coordinator',
     scopeTag: 'dept_chief_coordinator',
     responsibilities: 'Departmental authority monitoring department events, capacity, registrations and spot passes.',
     accessBoundary: "Their department's events.",
-    accounts: ['Department-scoped accounts are managed in Firebase Authentication and the Admin Portal.']
+    accounts: ['Department-scoped accounts are managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Event Coordinators',
     scopeTag: 'event_coordinator',
     responsibilities: 'Manage assigned event details, team check-in, scoring, and spot registrations.',
     accessBoundary: 'Assigned event(s) only unless separately authorised.',
-    accounts: ['Event-scoped accounts are managed in Firebase Authentication and the Admin Portal.']
+    accounts: ['Event-scoped accounts are managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Finance / payment reviewer',
     scopeTag: 'finance',
     responsibilities: 'Review payment evidence and collection reports.',
     accessBoundary: 'Payment data needed for assigned duties.',
-    accounts: ['Payment reviewer accounts are managed in Firebase Authentication and the Admin Portal.']
+    accounts: ['Payment reviewer accounts are managed in Supabase Auth and the Admin Portal.']
   },
   {
     role: 'Volunteer / check-in staff',
     scopeTag: 'volunteer',
     responsibilities: 'Scan tickets, validate QR passes, and support gate operations.',
     accessBoundary: 'Limited check-in access.',
-    accounts: ['Gate staff accounts are managed in Firebase Authentication and the Admin Portal.']
+    accounts: ['Gate staff accounts are managed in Supabase Auth and the Admin Portal.']
   }
 ];

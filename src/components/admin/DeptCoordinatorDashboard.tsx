@@ -5,19 +5,19 @@ import {
   Sparkles, Check, AlertCircle, RefreshCw, XCircle, Eye, Phone, Mail,
   Copy, Megaphone, UserPlus, FileSpreadsheet, ShieldCheck, Award, Camera, StopCircle,
   Percent, ChevronRight, Share2, Printer, MapPin, Calendar, Bell, Filter, HelpCircle, KeyRound, TrendingUp,
-  Upload
+  Upload, X
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import confetti from 'canvas-confetti';
 import { AdminRole, AdminUser, AdminAuthService } from '../../services/adminAuthService';
 import { StorageService } from '../../services/storageService';
 import { isSupabaseConfigured } from '../../lib/supabase';
-import { isFirebaseConfigured } from '../../lib/firebase';
 import { getEventRegistrationBlockReason } from '../../lib/eventRegistration';
-import { Department, FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
+import { FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
+import { DEPARTMENTS } from '../../data/mockData';
 import { AdminHeader } from './AdminHeader';
 import { DeptSidebar } from './DeptSidebar';
-import { ConfirmActionModal } from './ConfirmActionModal';
+import { EventOverviewGrid, EventOverviewItem } from './EventOverviewGrid';
 
 interface DeptCoordinatorDashboardProps {
   adminUser: AdminUser;
@@ -30,9 +30,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   onLogout,
   onSwitchToFest
 }) => {
-  // Never infer a department from a malformed account. An empty code fails
-  // closed: no events, registrations or announcements fall into scope.
-  const deptCode = (adminUser.departmentCode || '').trim().toUpperCase();
+  const deptCode = adminUser.departmentCode || 'CSE';
   const clusterCode = adminUser.clusterCode?.toUpperCase();
   const clusterLabel = clusterCode
     ? ({ 'CSE-1': '1st Cluster · Verma', 'CSE-2': '2nd Cluster · Balu', 'CSE-3': '3rd Cluster · Raghavendra' } as Record<string, string>)[clusterCode] || clusterCode
@@ -44,16 +42,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const isDeptChief = adminUser.role === 'dept_chief_coordinator' || adminUser.role === 'dept_coordinator';
   const scopeDisplayName = isEventCoord
     ? 'Assigned Events'
-    : !deptCode
-      ? 'Unassigned department'
-      : clusterLabel ? `${deptCode} · ${clusterLabel}` : deptCode;
+    : clusterLabel ? `${deptCode} · ${clusterLabel}` : deptCode;
   const [assignedEventIds, setAssignedEventIds] = useState<string[]>(() =>
     [...new Set((adminUser.assignedEvents || []).map(value => String(value).trim()).filter(Boolean))]
   );
-  const [departments, setDepartments] = useState<Department[]>(() =>
-    isFirebaseConfigured ? [] : StorageService.getDepartments()
-  );
-  const deptInfo = departments.find(department => department.code.toUpperCase() === deptCode);
+  const deptInfo = StorageService.getDepartments().find(d => d.code.toUpperCase() === deptCode.toUpperCase()) ||
+                   DEPARTMENTS.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
 
   const eventMatchesAssignments = (event: FestEvent, eventIds: string[]): boolean =>
     eventIds.some(id => id.toLowerCase() === event.id.toLowerCase());
@@ -68,18 +62,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       ? true
       : Boolean(clusterCode) && event.clusterCode?.toUpperCase() === clusterCode);
 
-  // Only the authoritative event UUID may scope a registration. Titles and
-  // slugs can be renamed or duplicated and would attach another event's roster.
-  const registrationMatchesEvents = (registration: Registration, scopedEvents: FestEvent[]): boolean =>
-    scopedEvents.some(event => event.id === registration.eventId);
-
-  // Department announcements must match both the department and the exact CSE
-  // cluster. A cluster coordinator must never see another cluster's notice.
-  const announcementMatchesScope = (announcement: { scope: string; departmentCode?: string; clusterCode?: string }): boolean => {
-    if (announcement.scope === 'fest-wide') return true;
-    if (announcement.scope !== 'department') return false;
-    if ((announcement.departmentCode || '').toUpperCase() !== deptCode.toUpperCase()) return false;
-    return (announcement.clusterCode || '').toUpperCase() === (clusterCode || '').toUpperCase();
+  const registrationMatchesEvents = (registration: Registration, scopedEvents: FestEvent[]): boolean => {
+    const ids = new Set(scopedEvents.map(event => event.id));
+    const slugs = new Set(scopedEvents.map(event => event.slug));
+    const titles = new Set(scopedEvents.map(event => event.title.toLowerCase()));
+    return ids.has(registration.eventId) || slugs.has(registration.eventId) || titles.has(registration.eventTitle.toLowerCase());
   };
 
   const initialScopedEvents = StorageService.getEvents().filter(event =>
@@ -112,11 +99,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   });
   // A configured Supabase project is authoritative for department operations.
   // Do not render cached demo events while the first live read is in flight.
-  const [events, setEvents] = useState<FestEvent[]>(() => isFirebaseConfigured || isSupabaseConfigured() ? [] : initialScopedEvents);
-  const [registrations, setRegistrations] = useState<Registration[]>(() => isFirebaseConfigured || isSupabaseConfigured() ? [] : initialScopedRegistrations);
+  const [events, setEvents] = useState<FestEvent[]>(() => isSupabaseConfigured() ? [] : initialScopedEvents);
+  const [registrations, setRegistrations] = useState<Registration[]>(() => isSupabaseConfigured() ? [] : initialScopedRegistrations);
   const [eventAccessError, setEventAccessError] = useState<string | null>(null);
-  const [deptSyncError, setDeptSyncError] = useState<string | null>(null);
-  const [lastSuccessfulSync, setLastSuccessfulSync] = useState<Date | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
     isEventCoord ? [] : StorageService.getAnnouncements().filter(a =>
       a.scope === 'fest-wide' ||
@@ -185,13 +170,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   });
 
   // Event coordinators start in analytics and never receive the event-management tab.
-  type DashboardTab = 'events' | 'revenue' | 'checkin' | 'security';
+  type DashboardTab = 'events' | 'analysis' | 'revenue' | 'checkin' | 'security';
   const [activeTab, setActiveTab] = useState<DashboardTab>(isEventCoord ? 'revenue' : 'events');
+  const [selectedAnalysisEventId, setSelectedAnalysisEventId] = useState<string | null>(null);
 
   // Revenue Analysis States & Filters (Scoped strictly to this department / assigned events)
   const [deptRevenueSearch, setDeptRevenueSearch] = useState('');
   const [deptRevenueStatusFilter, setDeptRevenueStatusFilter] = useState<'all' | 'verified' | 'verification_pending' | 'rejected'>('all');
   const [deptRevenueEventFilter, setDeptRevenueEventFilter] = useState<string>('all');
+  const [deptRevenueTypeFilter, setDeptRevenueTypeFilter] = useState<'all' | 'team' | 'single'>('all');
+  const [coordViewingTeamMembers, setCoordViewingTeamMembers] = useState<Registration | null>(null);
 
   // Attendance Check-in Event Filter & Attendee Search
   const [checkInEventFilter, setCheckInEventFilter] = useState<string>('all');
@@ -227,8 +215,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Edit Event Modal State (8.1 • Edit event details, rules, team limits, fee, capacity, deadline, schedule and venue)
   const [editingEvent, setEditingEvent] = useState<FestEvent | null>(null);
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
-  const [eventPendingDelete, setEventPendingDelete] = useState<FestEvent | null>(null);
-  const [eventDeleteError, setEventDeleteError] = useState<string | null>(null);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [eventCreateError, setEventCreateError] = useState('');
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -288,7 +274,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
 
     const refresh = (async () => {
-      if (!isFirebaseConfigured && !isSupabaseConfigured()) {
+      if (!isSupabaseConfigured()) {
         const all = StorageService.getEvents();
         const scopedEvts = all.filter(event => isEventCoord
           ? eventMatchesAssignments(event, assignedEventIds)
@@ -312,7 +298,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           totalCapacity: scopedEvts.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
           checkedInCount: localRegs.filter(r => r.checkedIn).length
         });
-        setAnnouncements(isEventCoord ? [] : StorageService.getAnnouncements().filter(announcementMatchesScope));
+        setAnnouncements(isEventCoord ? [] :
+          StorageService.getAnnouncements().filter(a =>
+            a.scope === 'fest-wide' ||
+            (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+          )
+        );
       }
 
       try {
@@ -322,24 +313,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           : [];
         if (isEventCoord) setAssignedEventIds(refreshedAssignedIds);
 
-        const [eventsResult, registrationsResult, announcementsResult, adminsResult] = await Promise.allSettled([
+        const [liveEvts, liveRegs, liveAnnouncements, liveAdmins] = await Promise.all([
           isEventCoord
             ? StorageService.fetchLiveEventsForIds(refreshedAssignedIds)
-            : isFirebaseConfigured || isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
+            : isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
           isEventCoord
             ? StorageService.fetchRegistrationsForEvents(refreshedAssignedIds)
             : StorageService.fetchRegistrations(),
           isEventCoord ? Promise.resolve([] as Announcement[]) : StorageService.fetchAnnouncements(),
           isDeptChief ? AdminAuthService.fetchAdmins() : Promise.resolve([] as AdminUser[])
         ]);
-        if (eventsResult.status === 'rejected') throw eventsResult.reason;
-        const liveEvts = eventsResult.value;
-        const liveRegs = registrationsResult.status === 'fulfilled' ? registrationsResult.value : [];
-        const liveAnnouncements = announcementsResult.status === 'fulfilled' ? announcementsResult.value : [];
-        const liveAdmins = adminsResult.status === 'fulfilled' ? adminsResult.value : [];
-        if (registrationsResult.status === 'rejected') console.warn('Scoped registrations could not be loaded.', registrationsResult.reason);
-        if (announcementsResult.status === 'rejected') console.warn('Scoped announcements could not be loaded.', announcementsResult.reason);
-        if (adminsResult.status === 'rejected') console.warn('Department staff directory could not be loaded.', adminsResult.reason);
         const updatedScopedEvents = isEventCoord
           ? liveEvts.filter(event => eventMatchesAssignments(event, refreshedAssignedIds))
           : liveEvts.filter(eventMatchesScope);
@@ -351,12 +334,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               registrationMatchesEvents(registration, updatedScopedEvents)
             );
         setRegistrations(updatedScopedRegistrations);
-        setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(announcementMatchesScope));
-        if (isDeptChief && adminsResult.status === 'fulfilled') {
+        setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(a =>
+          a.scope === 'fest-wide' ||
+          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+        ));
+        if (isDeptChief) {
           setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
         }
-        setDeptSyncError(null);
-        setLastSuccessfulSync(new Date());
         setDeptStats({
           totalRegistrations: updatedScopedRegistrations.length,
           verifiedCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verified').length,
@@ -378,9 +362,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           setEvents([]);
           setRegistrations([]);
           setAnnouncements([]);
-        } else {
-          // Department coordinators previously kept stale rows with no warning.
-          setDeptSyncError('Live sync failed. The data below may be out of date.');
         }
       }
     })();
@@ -398,11 +379,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   };
 
   useEffect(() => {
-    if (!isEventCoord) {
-      void StorageService.fetchDepartments()
-        .then(setDepartments)
-        .catch(error => console.warn('Department details could not be loaded from Firebase.', error));
-    }
     refreshDeptData();
 
     // Listen to real-time local updates and cross-tab storage changes
@@ -415,7 +391,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     };
 
     const handleAnnouncementsUpdate = () => {
-      setAnnouncements(isEventCoord ? [] : StorageService.getAnnouncements().filter(announcementMatchesScope));
+      setAnnouncements(isEventCoord ? [] :
+        StorageService.getAnnouncements().filter(a =>
+          a.scope === 'fest-wide' ||
+          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+        )
+      );
     };
 
     const handleStorageChange = (e: StorageEvent) => {
@@ -450,7 +431,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
     if (eventScope === 'assigned') {
       const assignedIds = new Set(assignedEventsList.map(e => e.id));
-      return registrations.filter(r => assignedIds.has(r.eventId));
+      const assignedSlugs = new Set(assignedEventsList.map(e => e.slug));
+      const assignedTitles = new Set(assignedEventsList.map(e => e.title.toLowerCase()));
+      return registrations.filter(r => assignedIds.has(r.eventId) || assignedSlugs.has(r.eventId) || assignedTitles.has(r.eventTitle.toLowerCase()));
     }
     return registrations.filter(registration => registrationMatchesEvents(registration, events));
   }, [eventScope, assignedEventsList, registrations, events, isEventCoord]);
@@ -458,7 +441,11 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   // Registrations scoped to the specific event chosen in the check-in dropdown
   const checkInRegistrations = useMemo(() => {
     if (checkInEventFilter === 'all') return scopedRegistrations;
-    return scopedRegistrations.filter(r => r.eventId === checkInEventFilter);
+    const targetEvent = visibleEvents.find(e => e.id === checkInEventFilter);
+    return scopedRegistrations.filter(r =>
+      r.eventId === checkInEventFilter ||
+      (!isEventCoord && targetEvent && r.eventTitle.toLowerCase() === targetEvent.title.toLowerCase())
+    );
   }, [checkInEventFilter, scopedRegistrations, visibleEvents, isEventCoord]);
 
   // Filtered attendees for the check-in attendee directory table
@@ -540,7 +527,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     // Event-wise revenue breakdown (ONLY for this coordinator's visible events)
     const eventBreakdown = visibleEvents.map(ev => {
-      const evRegs = scopedRegistrations.filter(r => r.eventId === ev.id);
+      const evRegs = scopedRegistrations.filter(r =>
+        r.eventId === ev.id || (!isEventCoord && r.eventTitle?.toLowerCase() === ev.title.toLowerCase())
+      );
       const verifiedRegs = evRegs.filter(r => r.paymentStatus === 'verified');
       const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
       const verifiedRev = verifiedRegs.reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
@@ -601,12 +590,42 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         (r.leaderName && r.leaderName.toLowerCase().includes(q)) ||
         (r.leaderRoll && r.leaderRoll.toLowerCase().includes(q)) ||
         (r.leaderEmail && r.leaderEmail.toLowerCase().includes(q)) ||
+        (r.teamName && r.teamName.toLowerCase().includes(q)) ||
+        (r.teamCode && r.teamCode.toLowerCase().includes(q)) ||
         (r.eventTitle && r.eventTitle.toLowerCase().includes(q)) ||
         (r.transactionId && r.transactionId.toLowerCase().includes(q)) ||
         (r.razorpayPaymentId && r.razorpayPaymentId.toLowerCase().includes(q));
-      return matchEvent && matchStatus && matchSearch;
+
+      const isTeam = Boolean(
+        (r.teamName && r.teamName.trim().length > 0) ||
+        (r.teamCode && r.teamCode.trim().length > 0) ||
+        (Array.isArray(r.teammates) && r.teammates.length > 0) ||
+        r.format === 'team'
+      );
+      const matchType =
+        deptRevenueTypeFilter === 'all' ||
+        (deptRevenueTypeFilter === 'team' && isTeam) ||
+        (deptRevenueTypeFilter === 'single' && !isTeam);
+
+      return matchEvent && matchStatus && matchSearch && matchType;
     });
-  }, [scopedRegistrations, deptRevenueEventFilter, deptRevenueStatusFilter, deptRevenueSearch]);
+  }, [scopedRegistrations, deptRevenueEventFilter, deptRevenueStatusFilter, deptRevenueSearch, deptRevenueTypeFilter]);
+
+  const deptOverviewItems = useMemo<EventOverviewItem[]>(() => {
+    return visibleEvents.map(event => {
+      const eventRegs = scopedRegistrations.filter(r =>
+        r.eventId === event.id ||
+        (!isEventCoord && r.eventTitle.toLowerCase() === event.title.toLowerCase())
+      );
+      return {
+        key: event.id,
+        event,
+        title: event.title,
+        departmentCode: event.departmentCode || deptCode,
+        registrations: eventRegs
+      };
+    });
+  }, [visibleEvents, scopedRegistrations, isEventCoord, deptCode]);
 
   const handleExportDeptRevenueCSV = () => {
     const headers = [
@@ -655,10 +674,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       window.alert('Only the department coordinator can update event settings.');
       return;
     }
-    if (event.status !== 'open' && event.approvalStatus !== 'approved') {
-      window.alert('This event must be approved by SAC before it can be opened for registrations.');
-      return;
-    }
     try {
       const nextStatus = event.status === 'open' ? 'closed' : 'open';
       const updated = { ...event, status: nextStatus as any };
@@ -677,17 +692,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       return;
     }
     if (!editingEvent) return;
-    if (editingEvent.status === 'open' && editingEvent.approvalStatus !== 'approved') {
-      window.alert('This event must be approved by SAC before it can be opened for registrations.');
-      return;
-    }
     try {
-      // Unapproved events may only remain in the submitted state. The DB
-      // trigger rejects other status values for department accounts.
-      const payload = editingEvent.approvalStatus === 'approved'
-        ? editingEvent
-        : { ...editingEvent, status: 'pending_approval' as any };
-      await StorageService.updateEvent(payload);
+      await StorageService.updateEvent(editingEvent);
       setEditingEvent(null);
       await refreshDeptData();
       confetti({ particleCount: 50, spread: 45 });
@@ -696,26 +702,20 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
   };
 
-  const handleDeleteDepartmentEvent = (event: FestEvent) => {
+  const handleDeleteDepartmentEvent = async (event: FestEvent) => {
     if (!isDeptChief) {
       window.alert('Only the department coordinator can delete department events.');
       return;
     }
-    setEventDeleteError(null);
-    setEventPendingDelete(event);
-  };
+    const confirmed = window.confirm(`Permanently delete "${event.title}"? Its registrations, tickets, and event-coordinator assignments will also be deleted. Events with Razorpay order history must be reconciled before they can be removed. This cannot be undone.`);
+    if (!confirmed) return;
 
-  const confirmDeleteDepartmentEvent = async () => {
-    const event = eventPendingDelete;
-    if (!event || deletingEventId) return;
     setDeletingEventId(event.id);
-    setEventDeleteError(null);
     try {
       await StorageService.deleteEvent(event.id, event.slug);
-      setEventPendingDelete(null);
       await refreshDeptData();
     } catch (error) {
-      setEventDeleteError((error as Error).message || 'Unable to permanently delete the event.');
+      window.alert((error as Error).message || 'Unable to permanently delete the event.');
     } finally {
       setDeletingEventId(null);
     }
@@ -831,7 +831,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       venue,
       description: description || 'Exciting engineering challenge hosted by the department.',
       rules: rulesArr.length > 0 ? rulesArr : ['Valid college ID required', 'Report 15 minutes before start'],
-      prizes: { first: '₹15,000 Cash + Certificate', second: '₹8,000 Cash' },
+      prizes: { first: 'Cash Prize + Certificate', second: 'Cash Prize + Certificate' },
       eligibility: 'All Engineering Students',
       coordinatorName,
       coordinatorPhone,
@@ -1010,12 +1010,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     cleanVal = cleanVal.replace(/^(token|id|registration|pass):\s*/i, '').trim();
     const query = cleanVal.toLowerCase();
 
-    // Only ever search the server-scoped roster. Falling back to the master
-    // local pool could display another department's participant PII before the
-    // event-mismatch guard runs.
-    const primaryPool = registrations.length > 0 ? registrations : scopedRegistrations;
+    // Check in scopedRegistrations / department registrations / master pool
+    const allRegs = StorageService.getRegistrations();
+    const primaryPool = isEventCoord
+      ? scopedRegistrations
+      : (registrations.length > 0 ? registrations : scopedRegistrations);
 
-    const matchingReg = primaryPool.find(
+    let matchingReg = primaryPool.find(
       r => (r.id && r.id.toLowerCase() === query) ||
            (r.qrToken && r.qrToken.toLowerCase() === query) ||
            (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
@@ -1023,6 +1024,17 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
            (r.teamCode && r.teamCode.toLowerCase() === query) ||
            (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase() === query))
     );
+
+    if (!matchingReg && !isEventCoord) {
+      matchingReg = allRegs.find(
+        r => (r.id && r.id.toLowerCase() === query) ||
+             (r.qrToken && r.qrToken.toLowerCase() === query) ||
+             (r.leaderRoll && r.leaderRoll.toLowerCase() === query) ||
+             (r.buyerRoll && r.buyerRoll.toLowerCase() === query) ||
+             (r.teamCode && r.teamCode.toLowerCase() === query) ||
+             (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase() === query))
+      );
+    }
 
     if (!matchingReg) {
       setCheckInResult({
@@ -1034,13 +1046,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
 
     if (isEventCoord) {
-      const belongsToAssignedEvent = visibleEvents.some(event => event.id === matchingReg!.eventId);
+      const belongsToAssignedEvent = visibleEvents.some(event =>
+        event.id === matchingReg!.eventId || event.slug === matchingReg!.eventId
+      );
 
       if (!belongsToAssignedEvent) {
         setCheckInResult({
           success: false,
           status: 'EVENT_MISMATCH',
           message: 'This pass is not for an event assigned to your coordinator account.',
+          registration: matchingReg,
         });
         return;
       }
@@ -1048,13 +1063,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
     // Event-specific validation when a specific event dropdown is selected
     if (checkInEventFilter !== 'all') {
-      const isMatchingEvent = matchingReg.eventId === checkInEventFilter;
+      const selectedEvent = visibleEvents.find(e => e.id === checkInEventFilter);
+      const isMatchingEvent = matchingReg.eventId === checkInEventFilter ||
+        (!isEventCoord && selectedEvent && matchingReg.eventTitle.toLowerCase() === selectedEvent.title.toLowerCase());
 
       if (!isMatchingEvent) {
         setCheckInResult({
           success: false,
           status: 'EVENT_MISMATCH',
-          message: `Notice: This pass is for "${matchingReg.eventTitle}", but your desk is filtered for a different event. Switch the dropdown to validate this student.`
+          message: `Notice: This pass is for "${matchingReg.eventTitle}", but your desk is filtered for "${selectedEvent?.title || 'Selected Event'}". Switch the dropdown to validate this student.`,
+          registration: matchingReg
         });
         return;
       }
@@ -1254,8 +1272,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       message: broadcastMessage.trim(),
       type: broadcastType,
       scope: 'department',
-      departmentCode: deptCode,
-      clusterCode: isCseDepartment ? clusterCode : undefined
+      departmentCode: deptCode
     });
 
     setIsBroadcastOpen(false);
@@ -1275,7 +1292,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Export Dept / Filtered CSV (8.1 • Export event data)
   const handleExportCSV = (scopeName: 'filtered' | 'all') => {
-    const targetList = scopeName === 'filtered' ? filteredRoster : scopedRegistrations;
+    const targetList = scopeName === 'filtered' ? filteredRoster : registrations;
     const headers = [
       'Reg ID', 'Event Title', 'Student Name', 'Roll Number', 'Team Name',
       'Team Code', 'Email', 'Phone', 'College', 'Fee (INR)', 'Payment Status',
@@ -1316,7 +1333,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       'Checked-In (Turnout)', 'Turnout %'
     ];
     const rows = events.map(evt => {
-      const evtRegs = registrations.filter(r => r.eventId === evt.id);
+      const evtRegs = registrations.filter(r => r.eventId === evt.id || r.eventTitle.toLowerCase() === evt.title.toLowerCase());
       const verifiedRegs = evtRegs.filter(r => r.paymentStatus === 'verified');
       const checkedInCount = evtRegs.filter(r => r.checkedIn).length;
       const totalRev = verifiedRegs.reduce((acc, r) => acc + (Number(r.fee) || 0), 0);
@@ -1507,7 +1524,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   const handleStaffDelete = async (staff: AdminUser) => {
     if (!managedStaffRoles.has(staff.role as ManagedStaffRole)) return;
-    if (!window.confirm(`Permanently delete ${staff.fullName}'s account? This removes their Firebase Authentication account, profile, portal role, and event assignments. The action cannot be undone.`)) return;
+    if (!window.confirm(`Permanently delete ${staff.fullName}'s account? This removes their Supabase Auth account, profile, portal role, and event assignments. The action cannot be undone.`)) return;
     setStaffError('');
     setStaffMessage('');
     try {
@@ -1623,18 +1640,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
         {/* Main Content Area */}
         <main className="admin-content-container" style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
-
-        {deptSyncError && (
-          <div role="alert" style={{ marginBottom: '18px', padding: '12px 16px', borderRadius: '10px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.45)', color: '#FCD34D', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-            <span>
-              {deptSyncError}
-              {lastSuccessfulSync ? ` Last successful sync: ${lastSuccessfulSync.toLocaleString()}.` : ' No successful sync this session.'}
-            </span>
-            <button type="button" onClick={() => void refreshDeptData()} style={{ background: 'transparent', border: '1px solid rgba(245,158,11,0.5)', borderRadius: '6px', color: '#FCD34D', padding: '5px 10px', cursor: 'pointer', fontWeight: 700 }}>
-              Retry
-            </button>
-          </div>
-        )}
 
         {/* Copy Feedback Toast */}
         {copyFeedback && (
@@ -1879,7 +1884,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 Security & Access
               </h3>
               <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: '5px 0 0' }}>
-                Change the password for {adminUser.email}. Your current password is verified securely by Firebase Authentication.
+                Change the password for {adminUser.email}. Your current password is verified securely by Supabase Auth.
               </p>
             </div>
 
@@ -2015,7 +2020,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '18px' }}>
                 {visibleEvents.map(event => {
-                  const eventRegs = registrations.filter(r => r.eventId === event.id);
+                  const eventRegs = registrations.filter(r => r.eventId === event.id || r.eventTitle.toLowerCase() === event.title.toLowerCase());
                   const fillPct = event.capacity > 0 ? Math.round((eventRegs.length / event.capacity) * 100) : 0;
                   const isAssigned = isEventAssigned(event);
 
@@ -2253,6 +2258,22 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               )}
             </section>
+          </div>
+        )}
+
+        {/* TAB: EVENT WISE ANALYSIS */}
+        {activeTab === 'analysis' && (!isEventCoord || visibleEvents.length > 0) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <EventOverviewGrid
+              items={deptOverviewItems}
+              mode="payments"
+              onSelect={eventKey => {
+                setDeptRevenueEventFilter(eventKey);
+                setActiveTab('revenue');
+              }}
+              isSuperAdmin={false}
+              userDepartment={deptCode}
+            />
           </div>
         )}
 
@@ -2840,11 +2861,31 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     <option value="rejected">Rejected Only</option>
                   </select>
 
-                  {(deptRevenueEventFilter !== 'all' || deptRevenueStatusFilter !== 'all' || deptRevenueSearch) && (
+                  {/* Registration Type Filter */}
+                  <select
+                    value={deptRevenueTypeFilter}
+                    onChange={e => setDeptRevenueTypeFilter(e.target.value as any)}
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 26, 53, 0.9)',
+                      border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                      color: '#38BDF8',
+                      fontSize: '0.78rem',
+                      fontWeight: 700
+                    }}
+                  >
+                    <option value="all" style={{ background: '#101B35', color: '#FFFFFF' }}>View All Participants</option>
+                    <option value="team" style={{ background: '#101B35', color: '#38BDF8' }}>View as Team</option>
+                    <option value="single" style={{ background: '#101B35', color: '#34D399' }}>Single Registration Only</option>
+                  </select>
+
+                  {(deptRevenueEventFilter !== 'all' || deptRevenueStatusFilter !== 'all' || deptRevenueTypeFilter !== 'all' || deptRevenueSearch) && (
                     <button
                       onClick={() => {
                         setDeptRevenueEventFilter('all');
                         setDeptRevenueStatusFilter('all');
+                        setDeptRevenueTypeFilter('all');
                         setDeptRevenueSearch('');
                       }}
                       style={{
@@ -2899,15 +2940,48 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                             {r.id}
                           </td>
                           <td style={{ padding: '12px 12px' }}>
-                            <div style={{ color: '#FFFFFF', fontWeight: 600 }}>{r.leaderName || 'Individual Delegate'}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{r.leaderRoll || r.leaderEmail}</div>
+                            {Boolean((r.teamName && r.teamName.trim().length > 0) || (r.teamCode && r.teamCode.trim().length > 0) || (Array.isArray(r.teammates) && r.teammates.length > 0) || r.format === 'team') ? (
+                              <div>
+                                <div style={{ color: '#38BDF8', fontWeight: 800, fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <Users size={13} />
+                                  <span>{r.teamName || `Team ${r.teamCode || r.id}`}</span>
+                                </div>
+                                <div style={{ marginTop: '4px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCoordViewingTeamMembers(r)}
+                                    style={{
+                                      background: 'rgba(56, 189, 248, 0.12)',
+                                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                                      color: '#38BDF8',
+                                      borderRadius: '5px',
+                                      padding: '2px 8px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <Users size={11} />
+                                    <span>View Team Members ({1 + (r.teammates?.length || 0)})</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ color: '#FFFFFF', fontWeight: 600 }}>{r.leaderName || 'Individual Delegate'}</div>
+                                <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{r.leaderRoll || r.leaderEmail}</div>
+                              </>
+                            )}
                           </td>
-                          <td style={{ padding: '12px 12px', color: '#DCE3E5' }}>
-                            {r.eventTitle}
-                          </td>
-                          <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 800, color: '#FFFFFF' }}>
-                            ₹{Number(r.fee) || 0}
-                          </td>
+                            <td style={{ padding: '12px 12px', color: '#DCE3E5' }}>
+                              {r.eventTitle}
+                            </td>
+                            <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 800, color: '#FFFFFF' }}>
+                              ₹{Number(r.fee) || 0}
+                            </td>
                           <td style={{ padding: '12px 12px', textAlign: 'center' }}>
                             <span
                               style={{
@@ -3032,7 +3106,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 >
                   <option value="all">{isEventCoord ? '🎯 All assigned events' : `🏢 All ${scopeDisplayName} Events`} ({visibleEvents.length})</option>
                   {visibleEvents.map(event => {
-                    const eventRegsCount = scopedRegistrations.filter(r => r.eventId === event.id).length;
+                    const eventRegsCount = scopedRegistrations.filter(r =>
+                      r.eventId === event.id || (!isEventCoord && r.eventTitle.toLowerCase() === event.title.toLowerCase())
+                    ).length;
                     return (
                       <option key={event.id} value={event.id}>
                         🎯 {event.title} • {event.date} ({eventRegsCount} registered)
@@ -3378,7 +3454,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
               {!editingStaffId && staffAccountMode === 'existing' && (
                 <div style={{ padding: '13px 14px', borderRadius: '10px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(56,189,248,0.4)' }}>
-                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Firebase staff account</div>
+                  <div style={{ color: '#E0F2FE', fontWeight: 800, fontSize: '0.86rem', marginBottom: '4px' }}>Use an existing Supabase account</div>
                   <div style={{ color: '#BAE6FD', fontSize: '0.75rem', lineHeight: 1.45, marginBottom: '10px' }}>Enter the account email or username. No duplicate login is created and the existing password remains unchanged.</div>
                   <label style={{ color: '#CBD5E1', fontSize: '0.78rem' }}>
                     Existing account email or username *
@@ -4230,14 +4306,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                   value={editingEvent.status}
                   onChange={e => setEditingEvent({
                     ...editingEvent,
-                    // Approval status is global-admin only; never mutate it here.
-                    status: e.target.value as any
+                    status: e.target.value as any,
+                    approvalStatus: e.target.value === 'open' ? 'approved' : editingEvent.approvalStatus
                   })}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(16, 26, 53, 0.9)', border: '1px solid rgba(220, 227, 229, 0.2)', color: '#FFFFFF' }}
                 >
-                  {editingEvent.approvalStatus === 'approved' && (
-                    <option value="open">Open (Published & Accepting Registrations)</option>
-                  )}
+                  <option value="open">Open (Published & Accepting Registrations)</option>
                   <option value="closed">Closed (Registrations Paused)</option>
                   <option value="pending_approval">Pending SAC Approval</option>
                 </select>
@@ -4561,6 +4635,230 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         </div>
       )}
 
+      {/* View Team Members Modal */}
+      {coordViewingTeamMembers && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 10, 24, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 110,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setCoordViewingTeamMembers(null)}
+        >
+          <div
+            style={{
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#0F1A35',
+              borderRadius: '16px',
+              border: '1.5px solid rgba(56, 189, 248, 0.4)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)',
+              padding: '24px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid rgba(220, 227, 229, 0.1)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38BDF8'
+                }}>
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 style={{ color: '#FFFFFF', margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>
+                    {coordViewingTeamMembers.teamName || 'Team Squad Roster'}
+                  </h3>
+                  <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '2px' }}>
+                    Event: <span style={{ color: '#DCE3E5', fontWeight: 600 }}>{coordViewingTeamMembers.eventTitle}</span> • Reg ID: <span style={{ color: '#38BDF8', fontFamily: 'monospace' }}>{coordViewingTeamMembers.id}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCoordViewingTeamMembers(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#A8B3C2',
+                  borderRadius: '6px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: '10px',
+              marginBottom: '20px',
+              background: 'rgba(16, 26, 53, 0.7)',
+              padding: '12px',
+              borderRadius: '10px',
+              border: '1px solid rgba(220, 227, 229, 0.1)'
+            }}>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Team Code</div>
+                <div style={{ fontSize: '0.88rem', color: '#38BDF8', fontWeight: 800, fontFamily: 'monospace', marginTop: '2px' }}>
+                  {coordViewingTeamMembers.teamCode || 'N/A'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Total Members</div>
+                <div style={{ fontSize: '0.88rem', color: '#FFFFFF', fontWeight: 800, marginTop: '2px' }}>
+                  {1 + (coordViewingTeamMembers.teammates?.length || 0)} Members
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Registration Fee</div>
+                <div style={{ fontSize: '0.88rem', color: '#34D399', fontWeight: 800, marginTop: '2px' }}>
+                  ₹{coordViewingTeamMembers.fee}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Payment Status</div>
+                <div style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  marginTop: '2px',
+                  color: coordViewingTeamMembers.paymentStatus === 'verified' ? '#34D399' : coordViewingTeamMembers.paymentStatus === 'verification_pending' ? '#FBBF24' : '#F87171'
+                }}>
+                  {coordViewingTeamMembers.paymentStatus.toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            {/* Members List */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.78rem', color: '#7DD3FC', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '10px' }}>
+                All Team Members ({1 + (coordViewingTeamMembers.teammates?.length || 0)})
+              </div>
+
+              {/* Leader */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.6) 0%, rgba(16, 26, 53, 0.8) 100%)',
+                border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '10px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      background: 'rgba(56, 189, 248, 0.2)',
+                      border: '1px solid #38BDF8',
+                      color: '#38BDF8',
+                      fontSize: '0.66rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase'
+                    }}>
+                      Leader
+                    </span>
+                    <strong style={{ color: '#FFFFFF', fontSize: '0.92rem' }}>{coordViewingTeamMembers.leaderName}</strong>
+                  </div>
+                  <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
+                    {coordViewingTeamMembers.leaderRoll}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                  <div>Email: <span style={{ color: '#CBD5E1' }}>{coordViewingTeamMembers.leaderEmail || '—'}</span></div>
+                  <div>Phone: <span style={{ color: '#CBD5E1' }}>{coordViewingTeamMembers.leaderPhone || '—'}</span></div>
+                  <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{coordViewingTeamMembers.leaderCollege || 'Vardhaman College of Engineering'}</span></div>
+                </div>
+              </div>
+
+              {/* Teammates */}
+              {(!coordViewingTeamMembers.teammates || coordViewingTeamMembers.teammates.length === 0) ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: '#94A3B8', fontSize: '0.78rem', background: 'rgba(16, 26, 53, 0.4)', borderRadius: '8px' }}>
+                  No additional teammates listed.
+                </div>
+              ) : (
+                coordViewingTeamMembers.teammates.map((tm, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'rgba(16, 26, 53, 0.6)',
+                      border: '1px solid rgba(220, 227, 229, 0.12)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(220, 227, 229, 0.2)',
+                          color: '#A8B3C2',
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase'
+                        }}>
+                          Member #{idx + 2}
+                        </span>
+                        <strong style={{ color: '#FFFFFF', fontSize: '0.88rem' }}>{tm.name || 'Unnamed Member'}</strong>
+                      </div>
+                      <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
+                        {tm.rollNumber || '—'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                      <div>Email: <span style={{ color: '#CBD5E1' }}>{tm.email || '—'}</span></div>
+                      <div>Phone: <span style={{ color: '#CBD5E1' }}>{tm.phone || '—'}</span></div>
+                      {tm.college && <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{tm.college}</span></div>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid rgba(220, 227, 229, 0.1)', paddingTop: '14px' }}>
+              <button
+                type="button"
+                onClick={() => setCoordViewingTeamMembers(null)}
+                className="btn-cyber-primary"
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '0.82rem',
+                  background: 'linear-gradient(135deg, #1C2B59 0%, #283B78 50%, #38BDF8 100%)'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Proof Lightbox */}
       {selectedProofUrl && (
         <div
@@ -4604,18 +4902,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
             </button>
           </div>
         </div>
-      )}
-
-      {eventPendingDelete && (
-        <ConfirmActionModal
-          title="Delete event permanently?"
-          message={`“${eventPendingDelete.title}” and all of its registrations, tickets, passes, teams, claims, email records, and event-coordinator assignments will be removed. The event itself is hidden from the site and admin list.`}
-          confirmLabel="Delete event"
-          busy={deletingEventId === eventPendingDelete.id}
-          error={eventDeleteError}
-          onConfirm={() => void confirmDeleteDepartmentEvent()}
-          onCancel={() => { setEventPendingDelete(null); setEventDeleteError(null); }}
-        />
       )}
       </div>
     </div>

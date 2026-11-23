@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, CalendarDays, MapPin, Users, Crown, ArrowRight, Inbox, Flame, Gamepad2, Code2, Wrench, Presentation, Building2, LayoutGrid, Filter, X } from 'lucide-react';
-import { Department, FestEvent } from '../types/festronix';
+import { FestEvent } from '../types/festronix';
+import { DEPARTMENTS } from '../data/mockData';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
 export function isEventBothDays(dateStr: string | undefined): boolean {
@@ -41,7 +42,6 @@ export function getEventDayBadge(dateStr: string | undefined): { label: string; 
 
 interface EventCatalogProps {
   events: FestEvent[];
-  departments?: Department[];
   onSelectEvent: (event: FestEvent) => void;
   onRegisterEvent: (event: FestEvent) => void;
   selectedDept?: string;
@@ -56,7 +56,6 @@ interface EventCatalogProps {
 
 export const EventCatalog: React.FC<EventCatalogProps> = ({
   events,
-  departments = [],
   onSelectEvent,
   onRegisterEvent,
   selectedDept: extSelectedDept,
@@ -92,13 +91,13 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
   const day2Count = useMemo(() => events.filter(e => isEventOnDay(e.date, '2')).length, [events]);
 
   const departmentOptions = useMemo(() => {
-    const knownCodes = new Set(departments.map(department => department.code.toUpperCase()));
+    const knownCodes = new Set(DEPARTMENTS.map(department => department.code.toUpperCase()));
     const additionalCodes = [...new Set(events.map(event => event.departmentCode.trim()).filter(Boolean))]
       .filter(code => !knownCodes.has(code.toUpperCase()))
       .sort((left, right) => left.localeCompare(right));
 
     return [
-      ...departments,
+      ...DEPARTMENTS,
       ...additionalCodes.map(code => ({
         id: `dept-${code.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
         code,
@@ -109,7 +108,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
         iconName: 'Building'
       }))
     ];
-  }, [departments, events]);
+  }, [events]);
 
   const categories = [
     { key: 'all', label: 'All Categories', icon: <LayoutGrid size={14} /> },

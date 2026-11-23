@@ -1,6 +1,6 @@
 import React from 'react';
 import { Cpu, Globe, Radio, Zap, Wrench, Building2, BrainCircuit, Briefcase, Mail, Database } from 'lucide-react';
-import type { Department } from '../types/festronix';
+import { DEPARTMENTS } from '../data/mockData';
 import { ScrollReveal } from './animations';
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -15,9 +15,9 @@ const iconMap: Record<string, React.ReactNode> = {
   Briefcase: <Briefcase size={18} color="#38BDF8" />
 };
 
-export const DepartmentsSection: React.FC<{ departments: Department[] }> = ({ departments }) => {
-  const engineeringDepartments = departments.filter(department => department.code.toUpperCase() !== 'SAC');
-  const duplicatedDepartments = [...engineeringDepartments, ...engineeringDepartments];
+export const DepartmentsSection: React.FC = () => {
+  // Duplicate array for seamless infinite looping
+  const duplicatedDepartments = [...DEPARTMENTS, ...DEPARTMENTS];
 
   return (
     <section id="departments" className="public-section departments-section" style={{ padding: '80px 0 70px', maxWidth: '100%', margin: '0 auto', position: 'relative', zIndex: 10, overflow: 'hidden' }}>
@@ -54,7 +54,7 @@ export const DepartmentsSection: React.FC<{ departments: Department[] }> = ({ de
               display: 'inline-block'
             }}
           >
-            {engineeringDepartments.length} PARTICIPATING <span style={{ color: '#38BDF8' }}>DEPARTMENTS</span>
+            9 PARTICIPATING <span style={{ color: '#38BDF8' }}>DEPARTMENTS</span>
           </h2>
 
           <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.96rem, 1.4vw, 1.05rem)', lineHeight: 1.7 }}>
@@ -63,7 +63,7 @@ export const DepartmentsSection: React.FC<{ departments: Department[] }> = ({ de
         </div>
       </ScrollReveal>
 
-      {engineeringDepartments.length > 0 ? (
+      {/* Infinite Horizontal Scrolling Track */}
       <div className="dept-marquee-container">
         <div className="dept-marquee-track">
           {duplicatedDepartments.map((dept, index) => (
@@ -168,11 +168,6 @@ export const DepartmentsSection: React.FC<{ departments: Department[] }> = ({ de
           ))}
         </div>
       </div>
-      ) : (
-        <p role="status" style={{ textAlign: 'center', color: '#94A3B8' }}>
-          Department information is temporarily unavailable.
-        </p>
-      )}
     </section>
   );
 };

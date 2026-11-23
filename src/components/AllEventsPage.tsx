@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Code2,
   Crown,
+  Download,
   Gamepad2,
   Inbox,
   LayoutGrid,
@@ -18,19 +19,19 @@ import {
   Wrench,
   X
 } from 'lucide-react';
-import { Department, FestEvent } from '../types/festronix';
+import { FestEvent } from '../types/festronix';
+import { DEPARTMENTS } from '../data/mockData';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 import { isEventBothDays, isEventOnDay } from './EventCatalog';
 import { Footer } from './Footer';
 
 interface AllEventsPageProps {
   events: FestEvent[];
-  departments: Department[];
-  isLoading?: boolean;
   passesCount: number;
   onBackToHome: () => void;
   onSelectEvent: (event: FestEvent) => void;
   onRegisterEvent: (event: FestEvent) => void;
+  onOpenMultiPass: () => void;
   onOpenPasses: () => void;
   onOpenAdmin?: () => void;
   onOpenSponsors?: () => void;
@@ -70,12 +71,11 @@ function getCategoryLabel(category: FestEvent['category']): string {
 
 export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   events,
-  departments,
-  isLoading = false,
   passesCount,
   onBackToHome,
   onSelectEvent,
   onRegisterEvent,
+  onOpenMultiPass,
   onOpenPasses,
   onOpenAdmin,
   onOpenSponsors
@@ -89,19 +89,19 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
 
   const departmentOptions = useMemo(() => {
-    const knownCodes = new Set(departments.map(d => d.code.toUpperCase()));
+    const knownCodes = new Set(DEPARTMENTS.map(d => d.code.toUpperCase()));
     const extraCodes = [...new Set(events.map(e => e.departmentCode.trim()).filter(Boolean))]
       .filter(code => !knownCodes.has(code.toUpperCase()))
       .sort((a, b) => a.localeCompare(b));
 
     return [
-      ...departments.map(d => ({ code: d.code, name: d.name })),
+      ...DEPARTMENTS.map(d => ({ code: d.code, name: d.name })),
       ...extraCodes.map(code => ({
         code,
         name: code.toUpperCase() === 'SAC' ? 'Student Activity Council' : `${code} Events`
       }))
     ];
-  }, [departments, events]);
+  }, [events]);
 
   const categories = [
     { key: 'all', label: 'All', icon: <LayoutGrid size={14} /> },
@@ -285,7 +285,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             </div>
           </div>
 
-          {/* 1st Prize */}
+          {/* Prizes & Awards */}
           <div
             style={{
               display: 'flex',
@@ -300,7 +300,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
           >
             <Crown size={14} color="#FBBF24" style={{ flexShrink: 0 }} />
             <span style={{ fontSize: '0.78rem', color: '#FBBF24', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              1st Prize: {event.prizes?.first || 'Trophy & Certificate'}
+              Cash Prizes & Certificates
             </span>
           </div>
         </div>
@@ -421,7 +421,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#FBBF24', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
-            {event.prizes?.first || 'Trophy'}
+            Cash Prizes & Certificates
           </div>
         </div>
 
@@ -514,14 +514,15 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+
           <button
             type="button"
             onClick={onOpenPasses}
             className="btn-cyber-gold"
-            style={{ padding: '8px 16px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+            style={{ padding: '8px 16px', fontSize: '0.82rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <Ticket size={14} />
-            <span>My Passes{passesCount > 0 ? ` (${passesCount})` : ''}</span>
+            <Download size={14} />
+            <span>Download Your Pass</span>
           </button>
         </div>
       </header>
@@ -889,7 +890,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
         </section>
 
         {/* Events Display */}
-        {isLoading ? (
+        {events.length === 0 ? (
           <div
             className="cyber-card"
             style={{ padding: '64px 24px', textAlign: 'center', color: '#94A3B8' }}
@@ -899,19 +900,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             </h2>
             <p style={{ fontSize: '0.9rem', margin: 0 }}>
               Fetching the complete FESTRONIX 2026 event schedule.
-            </p>
-          </div>
-        ) : events.length === 0 ? (
-          <div
-            className="cyber-card"
-            style={{ padding: '64px 24px', textAlign: 'center', color: '#94A3B8' }}
-          >
-            <Inbox size={40} color="#38BDF8" style={{ margin: '0 auto 12px' }} />
-            <h2 style={{ color: '#FFFFFF', fontSize: '1.2rem', marginBottom: '8px' }}>
-              Festival Schedule Unavailable
-            </h2>
-            <p style={{ fontSize: '0.9rem', margin: 0 }}>
-              The event schedule could not be loaded right now. Please try again shortly.
             </p>
           </div>
         ) : filteredEvents.length === 0 ? (

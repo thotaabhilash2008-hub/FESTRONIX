@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, Upload, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Plus, Minus,
-  ShieldCheck, Users
+  X, User, Mail, Phone, School, QrCode, Upload, CheckCircle2, ArrowRight, 
+  ArrowLeft, AlertTriangle, Layers, Plus, Minus, Copy, Check, Users, 
+  Share2, ShieldCheck, Search, Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { FestEvent, Teammate, Registration, User as UserType, AdditionalMember } from '../types/festronix';
+import { FestEvent, Teammate, Registration, User as UserType, Team, AdditionalMember } from '../types/festronix';
 import { StorageService } from '../services/storageService';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { isFirebaseConfigured } from '../lib/firebase';
+import { EmailService } from '../services/emailService';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 import { sendRegistrationPassEmail } from '../services/registrationEmailService';
 import { completeRazorpayCheckout } from '../services/razorpayService';
-import { LocalQrCode } from './LocalQrCode';
 
 interface RegistrationModalProps {
   event: FestEvent | null;
@@ -32,7 +32,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 }) => {
   const isTeamEvent = event ? event.format !== 'individual' : false;
 
-  // Step State
+  // Step & Mode State
+  const [teamMode, setTeamMode] = useState<'create' | 'join'>('create');
   const [step, setStep] = useState<number>(1);
   const [passQuantity, setPassQuantity] = useState<number>(1);
   const [additionalMembers, setAdditionalMembers] = useState<AdditionalMember[]>([]);
@@ -60,10 +61,43 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     college: currentUser?.college || 'Vardhaman College of Engineering',
     rollNumber: currentUser?.rollNumber || ''
   });
+  // Public registrations use a stable browser-session identity only for
+  // keeping a guest-created team reservation coherent. It is not an auth
+  // account and is never used to grant admin or participant permissions.
+  const [guestLeaderId] = useState(() => `guest-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`);
+
   // Team Specific States
   const [teamName, setTeamName] = useState<string>('');
   const [generatedTeamCode, setGeneratedTeamCode] = useState<string>('');
+  const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [teammates, setTeammates] = useState<Teammate[]>([]);
+  const [newTeammateAlert, setNewTeammateAlert] = useState<string | null>(null);
+
+  // Join Team Specific States
+  const [joinCodeInput, setJoinCodeInput] = useState<string>('');
+  const [verifiedTeam, setVerifiedTeam] = useState<Team | null>(null);
+  const [joinLookupError, setJoinLookupError] = useState<string | null>(null);
+  const [joinConfirmation, setJoinConfirmation] = useState<string | null>(null);
+  const [isVerifyingCode, setIsVerifyingCode] = useState<boolean>(false);
+
+  const isLeaderOfVerifiedTeam = Boolean(
+    currentUser && verifiedTeam && (verifiedTeam.isCurrentUserLeader || (
+      (verifiedTeam.leaderRoll && currentUser.rollNumber && verifiedTeam.leaderRoll.trim().toUpperCase() === currentUser.rollNumber.trim().toUpperCase()) ||
+      (verifiedTeam.leaderEmail && currentUser.email && verifiedTeam.leaderEmail.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
+    ))
+  );
+
+  const isAlreadyMemberOfVerifiedTeam = Boolean(
+    currentUser && verifiedTeam && (verifiedTeam.isCurrentUserMember || verifiedTeam.members?.some(
+      m => (m.rollNumber && currentUser.rollNumber && m.rollNumber.trim().toUpperCase() === currentUser.rollNumber.trim().toUpperCase()) ||
+           (m.email && currentUser.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
+    ))
+  );
+  const verifiedTeamMemberCount = verifiedTeam
+    ? Math.max(verifiedTeam.memberCount ?? 0, verifiedTeam.members?.length ?? 0)
+    : 0;
+  const verifiedTeamTotalCount = verifiedTeam ? 1 + verifiedTeamMemberCount : 0;
+  const verifiedLeaderStatus = verifiedTeam?.leaderRegistrationStatus || verifiedTeam?.paymentStatus || 'membership_pending';
 
   // Payment States
   const [transactionId, setTransactionId] = useState('');
@@ -90,41 +124,206 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     };
   }, [event, pageMode]);
 
-  // Prefill the leader profile, create a hidden team reference for registration,
-  // and prepare the minimum required teammate forms. No team record is written
-  // while the participant is editing the form.
+  // Sync user credentials & initialize generated team code
   useEffect(() => {
-    if (!currentUser) return;
-    setLeader({
-      name: currentUser.fullName,
-      email: currentUser.email,
-      phone: currentUser.phone,
-      college: currentUser.college,
-      rollNumber: currentUser.rollNumber
-    });
-  }, [currentUser]);
+    if (currentUser) {
+      setLeader({
+        name: currentUser.fullName,
+        email: currentUser.email,
+        phone: currentUser.phone,
+        college: currentUser.college,
+        rollNumber: currentUser.rollNumber
+      });
+    }
+    if (event && isTeamEvent) {
+      const code = generatedTeamCode || StorageService.generateTeamCode(event.departmentCode || event.slug || 'FX');
+      if (!generatedTeamCode) {
+        setGeneratedTeamCode(code);
+      }
+      // Team names must be intentionally entered by the participant. Do not
+      // prefill a generic or leader-derived squad name.
+    }
+  }, [currentUser, event, isTeamEvent]);
 
+  // Real-time synchronization of squad members for team leader
   useEffect(() => {
-    if (!event || !isTeamEvent) return;
-    setGeneratedTeamCode(StorageService.generateTeamCode(event.departmentCode || event.slug || 'FX'));
-    setTeamName('');
-    setTeammates(Array.from({ length: Math.max(0, event.minTeamSize - 1) }, () => ({
-      name: '', email: '', phone: '', college: '', rollNumber: ''
-    })));
-  }, [event?.id]);
+    if (!isTeamEvent || !generatedTeamCode) return;
+
+    const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+    const syncLiveMembers = (team: Team) => {
+      if (!team || team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() !== normCode) return;
+      const liveMembers = team.members || [];
+
+      setTeammates(prev => {
+        const merged = [...prev];
+        const newlyAdded: Teammate[] = [];
+        let changed = false;
+
+        liveMembers.forEach(member => {
+          const memberRoll = (member.rollNumber || '').trim().toUpperCase();
+          const existingIndex = merged.findIndex(
+            current => memberRoll && (current.rollNumber || '').trim().toUpperCase() === memberRoll
+          );
+
+          if (existingIndex < 0) {
+            merged.push(member);
+            newlyAdded.push(member);
+            changed = true;
+            return;
+          }
+
+          // Public dashboards redact contact fields. When the leader verifies
+          // their details, the checkout roster RPC returns the saved contacts;
+          // merge them into the existing name/roll entry instead of treating it
+          // as a duplicate and leaving the inputs blank.
+          const existing = merged[existingIndex];
+          const updated = {
+            ...existing,
+            ...member,
+            name: member.name?.trim() || existing.name,
+            rollNumber: member.rollNumber?.trim() || existing.rollNumber,
+            email: member.email?.trim() || existing.email || '',
+            phone: member.phone?.trim() || existing.phone || '',
+            college: member.college?.trim() || existing.college || leader.college
+          };
+          if (updated.name !== existing.name || updated.rollNumber !== existing.rollNumber ||
+              updated.email !== existing.email || updated.phone !== existing.phone || updated.college !== existing.college) {
+            merged[existingIndex] = updated;
+            changed = true;
+          }
+        });
+
+        if (newlyAdded.length > 0) {
+          const names = newlyAdded.map(m => `${m.name} (${m.rollNumber})`).join(', ');
+          setNewTeammateAlert(`🎉 Teammate Joined: ${names} just joined your squad via code ${generatedTeamCode}!`);
+          setTimeout(() => setNewTeammateAlert(null), 8000);
+          confetti({
+            particleCount: 75,
+            spread: 60,
+            origin: { y: 0.65 }
+          });
+        }
+        return changed ? merged : prev;
+      });
+    };
+
+    // 1. Initial check from StorageService
+    const existing = StorageService.getTeams().find(
+      t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
+    );
+    if (existing) syncLiveMembers(existing);
+
+    // 2. Window event listener
+    const handleTeamsUpdated = (e: any) => {
+      if (e?.detail?.team) {
+        syncLiveMembers(e.detail.team);
+      }
+    };
+    window.addEventListener('festronix:teams-updated', handleTeamsUpdated);
+
+    // 3. Cross-tab BroadcastChannel listener
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('festronix_teams_sync_bus');
+        bc.onmessage = evt => {
+          if (evt.data?.team) {
+            syncLiveMembers(evt.data.team);
+          }
+        };
+      }
+    } catch {}
+
+    // 4. Polling fallback every 1500ms
+    const intervalId = setInterval(async () => {
+      if (leader.rollNumber.trim() && leader.email.trim() && leader.phone.trim()) {
+        const checkoutTeam = await StorageService.fetchTeamCheckoutRoster(
+          generatedTeamCode,
+          leader.rollNumber,
+          leader.email,
+          leader.phone,
+          event?.id
+        ).catch(() => null);
+        if (checkoutTeam) {
+          syncLiveMembers(checkoutTeam);
+          return;
+        }
+      }
+      const lookup = await StorageService.findTeamWithValidation(generatedTeamCode);
+      if (lookup.team) syncLiveMembers(lookup.team);
+    }, 1500);
+
+    return () => {
+      window.removeEventListener('festronix:teams-updated', handleTeamsUpdated);
+      if (bc) {
+        bc.close();
+      }
+      clearInterval(intervalId);
+    };
+  }, [isTeamEvent, generatedTeamCode, leader.rollNumber, leader.email, leader.phone, leader.college, event?.id]);
 
   if (!event) return null;
 
   const maxTeammates = event.format === 'individual' ? 0 : event.maxTeamSize - 1;
   const minTeammates = event.format === 'individual' ? 0 : event.minTeamSize - 1;
 
-  const handleTeamNameChange = (newName: string) => setTeamName(newName);
+  const handleCopyCode = () => {
+    if (!generatedTeamCode) return;
+    navigator.clipboard.writeText(generatedTeamCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
+  };
+
+  const handleTeamNameChange = (newName: string) => {
+    setTeamName(newName);
+    if (generatedTeamCode && event && isTeamEvent && leader.name.trim() && leader.email.trim() && leader.rollNumber.trim()) {
+      StorageService.reserveOrRegisterTeam({
+        teamCode: generatedTeamCode,
+        teamName: newName,
+        eventId: event.id,
+        eventTitle: event.title,
+        registrationId: '',
+        leaderId: currentUser?.id || guestLeaderId,
+        leaderName: leader.name || currentUser?.fullName || '',
+        leaderRoll: leader.rollNumber || currentUser?.rollNumber || '',
+        leaderEmail: leader.email || currentUser?.email || '',
+        leaderPhone: leader.phone || currentUser?.phone || '',
+        leaderCollege: leader.college || currentUser?.college || '',
+        members: teammates,
+        maxTeamSize: event.maxTeamSize || 4,
+        minTeamSize: event.minTeamSize || 2
+      }).catch(() => {});
+    }
+  };
+
+  const updateLeaderAndSyncTeam = (updatedLeader: typeof leader) => {
+    setLeader(updatedLeader);
+    if (generatedTeamCode && event && isTeamEvent && updatedLeader.name.trim() && updatedLeader.email.trim() && updatedLeader.rollNumber.trim()) {
+      StorageService.reserveOrRegisterTeam({
+        teamCode: generatedTeamCode,
+        teamName: teamName.trim(),
+        eventId: event.id,
+        eventTitle: event.title,
+        registrationId: '',
+        leaderId: currentUser?.id || guestLeaderId,
+        leaderName: updatedLeader.name || 'Team Leader',
+        leaderRoll: updatedLeader.rollNumber || '',
+        leaderEmail: updatedLeader.email || '',
+        leaderPhone: updatedLeader.phone || '',
+        leaderCollege: updatedLeader.college || 'Vardhaman College of Engineering',
+        members: teammates,
+        maxTeamSize: event.maxTeamSize || 4,
+        minTeamSize: event.minTeamSize || 2
+      }).catch(() => {});
+    }
+  };
 
   const handleAddTeammateSlot = () => {
     if (teammates.length < maxTeammates) {
       setTeammates([
         ...teammates,
-        { name: '', email: '', phone: '', college: '', rollNumber: '' }
+        { name: '', email: '', phone: '', college: leader.college, rollNumber: '' }
       ]);
     }
   };
@@ -140,8 +339,40 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const handleRemoveTeammate = (index: number) => {
-    setTeammates(current => current.filter((_, i) => i !== index));
-    setErrorMessage('');
+    const memberToRemove = teammates[index];
+    setTeammates(teammates.filter((_, i) => i !== index));
+    if (generatedTeamCode && memberToRemove) {
+      StorageService.removeTeamMember(generatedTeamCode, memberToRemove.rollNumber || memberToRemove.email);
+    }
+  };
+
+  // Live Team Verification for Join Flow
+  const handleVerifyJoinCode = async (codeToVerify?: string) => {
+    const raw = (codeToVerify !== undefined ? codeToVerify : joinCodeInput).trim();
+    if (!raw) {
+      setVerifiedTeam(null);
+      setJoinLookupError('Please enter a team code.');
+      return;
+    }
+
+    setIsVerifyingCode(true);
+    setJoinLookupError(null);
+    setJoinConfirmation(null);
+
+    try {
+      const dashboard = await StorageService.fetchTeamDashboard(raw, event.id);
+      if (!dashboard) {
+        setVerifiedTeam(null);
+        setJoinLookupError('Team not found or you do not have access to this team.');
+      } else {
+        setVerifiedTeam(dashboard);
+        setJoinLookupError(null);
+      }
+    } catch {
+      setJoinLookupError('Failed to lookup team code. Please check your connection.');
+    } finally {
+      setIsVerifyingCode(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,12 +406,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setErrorMessage(registrationBlockReason);
       return false;
     }
-    if (!leader.name.trim() || !leader.email.trim() || !leader.phone.trim() || !leader.college.trim() || !leader.rollNumber.trim()) {
+    if (!leader.name.trim() || !leader.email.trim() || !leader.phone.trim() || !leader.rollNumber.trim()) {
       setErrorMessage('Please fill in all participant / leader details.');
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leader.email.trim())) {
-      setErrorMessage('Enter a valid email address for the team leader.');
       return false;
     }
     // Duplicate check for leader
@@ -189,7 +416,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       setErrorMessage(`You (${leader.rollNumber.trim()}) are already registered for this event (Pass ID: ${dup.existingReg.id}). Duplicate registrations are not permitted.`);
       return false;
     }
-    if (isTeamEvent && !teamName.trim()) {
+    if (isTeamEvent && teamMode === 'create' && !teamName.trim()) {
       setErrorMessage('Please enter a team name for your squad.');
       return false;
     }
@@ -238,10 +465,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const validateStep2 = () => {
     const totalTeamSize = 1 + teammates.length;
     if (isTeamEvent) {
-      if (totalTeamSize < event.minTeamSize) {
-        setErrorMessage(`This event requires at least ${event.minTeamSize} team members. Add all required teammate details to continue.`);
-        return false;
-      }
       if (totalTeamSize > event.maxTeamSize) {
         setErrorMessage(`This event permits a maximum of ${event.maxTeamSize} team members.`);
         return false;
@@ -249,27 +472,95 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
 
     const seenRolls = new Set<string>();
-    seenRolls.add(leader.rollNumber.trim().toUpperCase());
+    seenRolls.add(leader.rollNumber.trim().toLowerCase());
+    const liveTeamMembers = generatedTeamCode
+      ? StorageService.getTeams().find(
+          team => team.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+        )?.members || []
+      : [];
 
     for (let i = 0; i < teammates.length; i++) {
       const tm = teammates[i];
-      if (!tm.name.trim() || !tm.email.trim() || !tm.phone.trim() || !tm.college.trim() || !tm.rollNumber.trim()) {
-        setErrorMessage(`Enter the name, email, phone, college/institution, and roll number for Teammate #${i + 1}.`);
+      if (!tm.name.trim() || !tm.phone.trim() || !tm.rollNumber.trim()) {
+        setErrorMessage(`Please complete all details for Teammate #${i + 1}.`);
         return false;
       }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tm.email.trim())) {
-        setErrorMessage(`Enter a valid email address for Teammate #${i + 1}.`);
-        return false;
-      }
-      const cleanRoll = tm.rollNumber.trim().toUpperCase();
+      const cleanRoll = tm.rollNumber.trim().toLowerCase();
       if (seenRolls.has(cleanRoll)) {
         setErrorMessage(`Duplicate roll number detected: ${tm.rollNumber.trim()} is used more than once.`);
         return false;
       }
       seenRolls.add(cleanRoll);
+
+      // Check if teammate is already registered
+      const tmDup = StorageService.checkDuplicateRegistration(event.id, cleanRoll);
+      const isAlreadyJoinedToThisTeam = liveTeamMembers.some(
+        member => member.rollNumber.trim().toLowerCase() === cleanRoll
+      );
+      if (tmDup.isDuplicate && tmDup.existingReg && !isAlreadyJoinedToThisTeam) {
+        setErrorMessage(`Teammate ${tm.name} (${tm.rollNumber}) is already registered for this event (Pass ID: ${tmDup.existingReg.id}).`);
+        return false;
+      }
     }
     setErrorMessage('');
     return true;
+  };
+
+  // Handle Join Team Submission
+  const handleConfirmJoinTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!leader.name.trim() || !leader.email.trim() || !leader.phone.trim() || !leader.rollNumber.trim()) {
+      setErrorMessage('Please fill in your name, email, phone number, and roll number to join this team.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leader.email.trim())) {
+      setErrorMessage('Enter a valid email address so the team can contact you and deliver your pass.');
+      return;
+    }
+
+    if (!verifiedTeam) {
+      setErrorMessage('Please enter and verify a valid team code first.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const memberData: Teammate = {
+        name: leader.name.trim() || currentUser?.fullName || '',
+        email: leader.email.trim() || currentUser?.email || '',
+        phone: leader.phone.trim() || currentUser?.phone || '',
+        college: leader.college.trim() || currentUser?.college || 'Vardhaman College of Engineering',
+        rollNumber: leader.rollNumber.trim() || currentUser?.rollNumber || ''
+      };
+
+      const joinRes = await StorageService.joinTeam(verifiedTeam.teamCode, memberData);
+
+      if (!joinRes.success) {
+        setErrorMessage(joinRes.error || 'Failed to join team. Please check the code.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Fire celebratory confetti!
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+
+      const refreshedTeam = await StorageService.fetchTeamDashboard(verifiedTeam.teamCode, event.id).catch(() => null);
+      setVerifiedTeam(refreshedTeam || joinRes.team || verifiedTeam);
+      setJoinConfirmation(
+        `Team membership reserved successfully. You are in ${verifiedTeam.teamName}; the Team Leader must complete checkout before your official registration and QR pass are issued.`
+      );
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Error joining team. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const buildRegistrationBatch = async (
@@ -277,10 +568,58 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     transactionReference?: string,
     paymentProof?: string
   ): Promise<Array<Omit<Registration, 'id' | 'qrToken' | 'checkedIn'>>> => {
+    const signedInUser = currentUser;
+    let finalTeammates = teammates;
+
+    if (isTeamEvent && generatedTeamCode) {
+      const normCode = generatedTeamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      const liveTeam = await StorageService.fetchTeamCheckoutRoster(
+        generatedTeamCode,
+        leader.rollNumber,
+        leader.email,
+        leader.phone,
+        event.id
+      ).catch(() =>
+        StorageService.getTeams().find(
+          t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode
+        ) || null
+      );
+      const alreadyJoinedRolls = new Set(
+        (liveTeam?.members || [])
+          .map(member => member.rollNumber.trim().toUpperCase())
+          .filter(Boolean)
+      );
+      StorageService.getRegistrations()
+        .filter(registration => registration.teamCode && registration.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === normCode)
+        .forEach(registration => {
+          const registeredRoll = (registration.leaderRoll || registration.buyerRoll || '').trim().toUpperCase();
+          if (registeredRoll && registeredRoll !== leader.rollNumber.trim().toUpperCase()) alreadyJoinedRolls.add(registeredRoll);
+        });
+      finalTeammates = finalTeammates.filter(
+        teammate => !alreadyJoinedRolls.has(teammate.rollNumber.trim().toUpperCase())
+      );
+    }
+
     if (isTeamEvent) {
       if (!teamName.trim() || !generatedTeamCode.trim()) {
-        throw new Error('Enter a team name and all required teammate details before checkout.');
+        throw new Error('Create a valid team name and team code before submitting the registration.');
       }
+      await StorageService.reserveOrRegisterTeam({
+        teamCode: generatedTeamCode.trim(),
+        teamName: teamName.trim(),
+        eventId: event.id,
+        eventTitle: event.title,
+        registrationId: '',
+        leaderId: signedInUser?.id || guestLeaderId,
+        leaderName: leader.name.trim(),
+        leaderRoll: leader.rollNumber.trim().toUpperCase(),
+        leaderEmail: leader.email.trim(),
+        leaderPhone: leader.phone.trim(),
+        leaderCollege: leader.college.trim(),
+        members: finalTeammates,
+        maxTeamSize: event.maxTeamSize,
+        minTeamSize: event.minTeamSize
+      });
     }
 
     const dateNow = new Date().toISOString().replace('T', ' ').slice(0, 16);
@@ -299,7 +638,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         leaderCollege: leader.college.trim(),
         leaderRoll: isLeaderPass ? leader.rollNumber.trim() : memberInfo!.rollNumber.trim().toUpperCase(),
         deptSection: memberInfo ? memberInfo.deptSection.trim().toUpperCase() : undefined,
-        teammates: isTeamEvent ? teammates : [],
+        teammates: isTeamEvent ? finalTeammates : [],
         format: event.format,
         teamName: isTeamEvent ? teamName.trim() : undefined,
         teamCode: isTeamEvent ? generatedTeamCode.trim() : undefined,
@@ -313,16 +652,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     });
   };
 
-  const finishSuccessfulRegistration = (created: Registration[], sendEmail = true) => {
+  const finishSuccessfulRegistration = (created: Registration[]) => {
     const finalReg = created[created.length - 1];
     confetti({ particleCount: 110, spread: 75, origin: { y: 0.6 } });
     if (!finalReg) return;
 
-    // The pass is already stored and can be opened immediately. For Razorpay
-    // registrations the backend sends the email only after the captured payment
-    // is verified, so the browser must not fire a second/earlier delivery.
+    // The pass is already stored and can be opened immediately. Email delivery
+    // remains independent so a provider outage cannot cause duplicate retries.
     onSuccess(finalReg);
-    if (!sendEmail) return;
     void Promise.all(created.map(registration => sendRegistrationPassEmail(registration)))
       .then(emailResults => {
         const emailFailure = emailResults.find(result => !result.sent);
@@ -339,7 +676,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     try {
       const batch = await buildRegistrationBatch(event.fee > 0 ? 'verification_pending' : 'not_applicable');
       const created = await completeRazorpayCheckout(event, batch, setRazorpayMode);
-      finishSuccessfulRegistration(created, false);
+      finishSuccessfulRegistration(created);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Razorpay payment could not be confirmed. If your bank shows a charge, check My Passes before retrying; the server will complete or refund it.');
     } finally {
@@ -369,7 +706,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         setErrorMessage('Please upload the payment transaction screenshot.');
         return;
       }
-      if (!isFirebaseConfigured && isSupabaseConfigured() && !screenshotFile) {
+      if (isSupabaseConfigured() && !screenshotFile) {
         setErrorMessage('Select the payment screenshot file so it can be uploaded securely.');
         return;
       }
@@ -461,48 +798,115 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </div>
         )}
 
-        {/* Multi-Pass Shortcut (Only for solo passes) */}
-        {!isTeamEvent && onOpenMultiPass && (
+        {/* TEAM MODE SELECTOR: Create vs Join (ONLY SHOWN FOR TEAM / DUO EVENTS) */}
+        {isTeamEvent && (
           <div
             style={{
-              padding: '10px 14px',
-              background: 'rgba(40, 59, 120, 0.25)',
-              border: '1px solid rgba(120, 149, 147, 0.35)',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '0.78rem'
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              marginBottom: '20px',
+              background: 'rgba(16, 26, 53, 0.7)',
+              padding: '6px',
+              borderRadius: '12px',
+              border: '1px solid rgba(120, 149, 147, 0.25)'
             }}
           >
-            <span style={{ color: '#DCE3E5' }}>
-              Want to buy passes for multiple solo events simultaneously?
-            </span>
             <button
               type="button"
               onClick={() => {
-                onClose();
-                onOpenMultiPass();
+                setTeamMode('create');
+                setStep(1);
+                setErrorMessage('');
               }}
               style={{
-                background: 'none',
-                border: 'none',
-                color: '#BACEBB',
-                fontWeight: 700,
+                padding: '12px 14px',
+                borderRadius: '8px',
+                border: teamMode === 'create' ? '1px solid #789593' : '1px solid transparent',
+                background: teamMode === 'create' ? 'linear-gradient(135deg, rgba(40, 59, 120, 0.8) 0%, rgba(62, 66, 100, 0.8) 100%)' : 'transparent',
+                color: teamMode === 'create' ? '#FFFFFF' : '#A8B3C2',
                 cursor: 'pointer',
+                textAlign: 'left',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
+                alignItems: 'flex-start',
+                gap: '10px',
+                transition: 'all 0.2s ease'
               }}
             >
-              <span>Open Multi-Pass Desk →</span>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: teamMode === 'create' ? '#BACEBB' : 'rgba(255, 255, 255, 0.08)',
+                  color: teamMode === 'create' ? '#101A35' : '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <Users size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF' }}>
+                  Create a New Team
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px' }}>
+                  Be Team Leader & generate invite code
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTeamMode('join');
+                setErrorMessage('');
+              }}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '8px',
+                border: teamMode === 'join' ? '1px solid #789593' : '1px solid transparent',
+                background: teamMode === 'join' ? 'linear-gradient(135deg, rgba(40, 59, 120, 0.8) 0%, rgba(62, 66, 100, 0.8) 100%)' : 'transparent',
+                color: teamMode === 'join' ? '#FFFFFF' : '#A8B3C2',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: teamMode === 'join' ? '#BACEBB' : 'rgba(255, 255, 255, 0.08)',
+                  color: teamMode === 'join' ? '#101A35' : '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <Users size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF' }}>
+                  Join Existing Team
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px' }}>
+                  Have a team code? Join your squad
+                </div>
+              </div>
             </button>
           </div>
         )}
 
-        {/* Progress Tracker Steps */}
-        {(
+        {/* Progress Tracker Steps (Only in Create Team & Solo Flow) */}
+        {(!isTeamEvent || teamMode === 'create') && (
           <div
             style={{
               display: 'flex',
@@ -556,7 +960,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   2
                 </span>
                 <span style={{ fontSize: '0.82rem', color: step >= 2 ? '#BACEBB' : '#64748b', fontWeight: 600 }}>
-                  Team Members
+                  Squad Roster (Optional)
                 </span>
               </div>
             )}
@@ -610,9 +1014,486 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         )}
 
         {/* ============================================================== */}
-        {/* TEAM / SOLO PARTICIPANT DETAILS (STEP 1) */}
+        {/* CASE A: JOIN EXISTING TEAM FLOW (Only for team events in join mode) */}
         {/* ============================================================== */}
-        {step === 1 && (
+        {isTeamEvent && teamMode === 'join' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Auto-filled User Status */}
+            {currentUser ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'rgba(52, 211, 153, 0.12)',
+                  border: '1px solid rgba(52, 211, 153, 0.35)',
+                  borderRadius: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircle2 size={16} color="#34D399" />
+                  <span style={{ fontSize: '0.8rem', color: '#DCE3E5' }}>
+                    Joining as verified participant: <strong style={{ color: '#FFFFFF' }}>{currentUser.fullName}</strong> ({currentUser.rollNumber})
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: 'rgba(52, 211, 153, 0.2)',
+                    color: '#34D399',
+                    fontWeight: 700
+                  }}
+                >
+                  DELEGATE
+                </span>
+              </div>
+            ) : null}
+
+            {/* Team Code Input Card */}
+            <div
+              style={{
+                padding: '18px',
+                background: 'rgba(16, 26, 53, 0.85)',
+                border: '1px solid rgba(120, 149, 147, 0.35)',
+                borderRadius: '12px'
+              }}
+            >
+              <label style={{ fontSize: '0.82rem', color: '#DCE3E5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>
+                ENTER TEAM INVITE CODE *
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="cyber-input"
+                  placeholder="e.g. FX-CSE-6443"
+                  value={joinCodeInput}
+                  onChange={e => {
+                    const val = e.target.value.toUpperCase();
+                    setJoinCodeInput(val);
+                    const cleanLen = val.replace(/[^A-Za-z0-9]/g, '').length;
+                    if (cleanLen >= 4) {
+                      handleVerifyJoinCode(val);
+                    } else {
+                      setVerifiedTeam(null);
+                      setJoinLookupError(null);
+                    }
+                  }}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '1rem',
+                    letterSpacing: '0.08em',
+                    fontWeight: 700,
+                    textTransform: 'uppercase'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleVerifyJoinCode()}
+                  className="btn-cyber-primary"
+                  style={{ padding: '0 18px', whiteSpace: 'nowrap', fontSize: '0.84rem' }}
+                  disabled={isVerifyingCode}
+                >
+                  <Search size={15} />
+                  <span>{isVerifyingCode ? 'Checking...' : 'Verify Code'}</span>
+                </button>
+              </div>
+
+              {joinLookupError && (
+                <div style={{ color: '#f87171', fontSize: '0.76rem', marginTop: '8px', fontWeight: 600 }}>
+                  ⚠️ {joinLookupError}
+                </div>
+              )}
+              {joinConfirmation && (
+                <div
+                  style={{
+                    color: '#A7F3D0',
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    border: '1px solid rgba(52, 211, 153, 0.45)',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    marginTop: '8px',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    lineHeight: 1.45
+                  }}
+                >
+                  ✓ {joinConfirmation}
+                </div>
+              )}
+            </div>
+
+            {/* Live Verified Squad Card */}
+            {verifiedTeam && (
+              <div
+                style={{
+                  padding: '18px',
+                  background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(16, 26, 53, 0.95) 100%)',
+                  border: isLeaderOfVerifiedTeam ? '1px solid #F59E0B' : '1px solid rgba(52, 211, 153, 0.45)',
+                  borderRadius: '12px',
+                  boxShadow: isLeaderOfVerifiedTeam ? '0 0 20px rgba(245, 158, 11, 0.15)' : '0 0 20px rgba(52, 211, 153, 0.15)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.68rem', color: isLeaderOfVerifiedTeam ? '#FBBF24' : '#34D399', fontWeight: 800, letterSpacing: '0.08em' }}>
+                      {isLeaderOfVerifiedTeam ? 'YOUR SQUAD (LEADER FOUND)' : 'SQUAD VERIFIED & READY'}
+                    </span>
+                    <h4 style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: '2px 0 0', fontWeight: 700 }}>
+                      {verifiedTeam.teamName}
+                    </h4>
+                    <div style={{ fontSize: '0.76rem', color: '#A8B3C2', marginTop: '2px' }}>
+                      Leader: <strong style={{ color: '#DCE3E5' }}>{verifiedTeam.leaderName}</strong>
+                      {verifiedTeam.leaderRoll && ` (${verifiedTeam.leaderRoll})`}
+                      {verifiedTeam.leaderCollege && ` • ${verifiedTeam.leaderCollege}`}
+                    </div>
+                  </div>
+
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontWeight: 800,
+                      color: '#BACEBB',
+                      background: 'rgba(40, 59, 120, 0.5)',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(120, 149, 147, 0.4)',
+                      fontSize: '0.82rem'
+                    }}
+                  >
+                    {verifiedTeam.teamCode}
+                  </span>
+                </div>
+
+                {/* Leader Self-Join Notice */}
+                {isLeaderOfVerifiedTeam && (
+                  <div
+                    style={{
+                      margin: '10px 0',
+                      padding: '12px 14px',
+                      background: 'rgba(245, 158, 11, 0.15)',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FBBF24', fontWeight: 700, fontSize: '0.82rem' }}>
+                      <Crown size={16} />
+                      <span>You are the Team Leader of this squad!</span>
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: '#FEF3C7', lineHeight: 1.4 }}>
+                      You created <strong>"{verifiedTeam.teamName}"</strong>. Share code <strong style={{ color: '#FBBF24', fontFamily: 'monospace' }}>{verifiedTeam.teamCode}</strong> with your squad teammates so they can join directly.
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTeamMode('create');
+                          setGeneratedTeamCode(verifiedTeam.teamCode);
+                          setTeamName(verifiedTeam.teamName);
+                        }}
+                        className="btn-cyber-primary"
+                        style={{ padding: '6px 14px', fontSize: '0.76rem' }}
+                      >
+                        <span>Manage Squad (Leader Desk)</span>
+                        <ArrowRight size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(verifiedTeam.teamCode);
+                          setCopiedCode(true);
+                          setTimeout(() => setCopiedCode(false), 2500);
+                        }}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          borderRadius: '6px',
+                          color: '#FFFFFF',
+                          padding: '6px 12px',
+                          fontSize: '0.76rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Copy size={12} />
+                        <span>{copiedCode ? 'Code Copied!' : 'Copy Code'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Already Joined Notice */}
+                {isAlreadyMemberOfVerifiedTeam && !isLeaderOfVerifiedTeam && (
+                  <div
+                    style={{
+                      margin: '10px 0',
+                      padding: '10px 14px',
+                      background: 'rgba(52, 211, 153, 0.15)',
+                      border: '1px solid #34D399',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#34D399',
+                      fontSize: '0.8rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>You are already a member of this squad. Your official registration and QR pass will be issued after the Team Leader completes checkout.</span>
+                  </div>
+                )}
+
+                {/* Squad Members & Capacity Roster */}
+                <div style={{ marginTop: '12px', borderTop: '1px solid rgba(220, 227, 229, 0.15)', paddingTop: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
+                      Squad Roster ({verifiedTeamTotalCount} / {verifiedTeam.maxTeamSize} Members):
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        color: verifiedTeamTotalCount < verifiedTeam.maxTeamSize ? '#34D399' : '#f87171',
+                        fontWeight: 700
+                      }}
+                    >
+                      {verifiedTeamTotalCount < verifiedTeam.maxTeamSize
+                        ? `${verifiedTeam.maxTeamSize - verifiedTeamTotalCount} Slot(s) Remaining`
+                        : 'Squad is Full'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <div
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(40, 59, 120, 0.4)',
+                        border: '1px solid rgba(120, 149, 147, 0.4)',
+                        fontSize: '0.74rem',
+                        color: '#FFFFFF'
+                      }}
+                    >
+                      <div>👑 {verifiedTeam.leaderName} (Leader)</div>
+                      <div style={{ fontSize: '0.64rem', color: verifiedTeam.leaderQrGenerated ? '#34D399' : '#FBBF24', marginTop: '2px' }}>
+                        {verifiedLeaderStatus === 'membership_pending' ? 'MEMBERSHIP RESERVED' : verifiedLeaderStatus.toUpperCase().replace('_', ' ')}
+                        {' • '}{verifiedTeam.leaderQrGenerated ? 'QR GENERATED' : 'QR NOT GENERATED'}
+                      </div>
+                    </div>
+
+                    {verifiedTeam.members?.map((m, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid rgba(220, 227, 229, 0.15)',
+                          fontSize: '0.74rem',
+                          color: '#BACEBB'
+                        }}
+                      >
+                        <div>👤 {m.name} ({m.rollNumber})</div>
+                        <div style={{ fontSize: '0.64rem', color: m.qrGenerated ? '#34D399' : '#FBBF24', marginTop: '2px' }}>
+                          {(m.registrationStatus || 'membership_pending').toUpperCase().replace('_', ' ')}
+                          {' • '}{m.qrGenerated ? 'QR GENERATED' : 'QR NOT GENERATED'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Payment Disclaimer depending on leader's payment */}
+                {!isLeaderOfVerifiedTeam && (
+                  ['membership_pending', 'payment_required'].includes(verifiedLeaderStatus) ? (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '10px 14px',
+                        background: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        borderRadius: '8px',
+                        fontSize: '0.74rem',
+                        color: '#FEF3C7',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      ⏳ <strong>Leader Checkout Pending:</strong> Team Leader {verifiedTeam.leaderName} has not finalized the team registration. No official member registrations or QR passes are issued yet.
+                    </div>
+                  ) : verifiedLeaderStatus === 'verification_pending' ? (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '10px 14px',
+                        background: 'rgba(245, 158, 11, 0.12)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        borderRadius: '8px',
+                        fontSize: '0.74rem',
+                        color: '#FEF3C7',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      ⏳ <strong>Payment Under Review:</strong> The team checkout was submitted. QR passes are generated but remain inactive until payment is verified.
+                    </div>
+                  ) : verifiedLeaderStatus === 'rejected' ? (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '10px 14px',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        borderRadius: '8px',
+                        fontSize: '0.74rem',
+                        color: '#FCA5A5',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      ⚠ <strong>Payment Rejected:</strong> The Team Leader must correct the payment and resubmit checkout before member passes become active.
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginTop: '14px',
+                        padding: '8px 12px',
+                        background: 'rgba(52, 211, 153, 0.08)',
+                        borderRadius: '6px',
+                        fontSize: '0.72rem',
+                        color: '#a7f3d0'
+                      }}
+                    >
+                      ✓ <strong>Team Registration Confirmed:</strong> The Team Leader payment is verified. Your official participant registration and QR pass are active.
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* Joining Participant Details Review */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.76rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                  YOUR FULL NAME *
+                </label>
+                <input
+                  type="text"
+                  className="cyber-input"
+                  value={leader.name}
+                  onChange={e => setLeader({ ...leader, name: e.target.value })}
+                  placeholder="e.g. Priyanshu Roy"
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.76rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                  YOUR ROLL / STUDENT ID *
+                </label>
+                <input
+                  type="text"
+                  className="cyber-input"
+                  value={leader.rollNumber}
+                  onChange={e => setLeader({ ...leader, rollNumber: e.target.value })}
+                  placeholder="e.g. 23VCEIT201"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.76rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                  EMAIL FOR YOUR PASS AND TEAM CONTACT *
+                </label>
+                <input
+                  type="email"
+                  className="cyber-input"
+                  value={leader.email}
+                  onChange={e => setLeader({ ...leader, email: e.target.value })}
+                  placeholder="student@college.edu"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.76rem', color: '#A8B3C2', display: 'block', marginBottom: '4px' }}>
+                  PHONE (WHATSAPP) *
+                </label>
+                <input
+                  type="tel"
+                  className="cyber-input"
+                  value={leader.phone}
+                  onChange={e => setLeader({ ...leader, phone: e.target.value })}
+                  placeholder="+91 98765 43210"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              {isLeaderOfVerifiedTeam ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeamMode('create');
+                    if (verifiedTeam) {
+                      setGeneratedTeamCode(verifiedTeam.teamCode);
+                      setTeamName(verifiedTeam.teamName);
+                    }
+                  }}
+                  className="btn-cyber-primary"
+                  style={{ padding: '10px 24px', fontSize: '0.88rem' }}
+                >
+                  <Crown size={16} />
+                  <span>Switch to Squad Leader View</span>
+                </button>
+              ) : isAlreadyMemberOfVerifiedTeam ? (
+                <div
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    background: 'rgba(52, 211, 153, 0.15)',
+                    border: '1px solid #34D399',
+                    color: '#34D399',
+                    fontSize: '0.84rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Already Joined (Pass Active)</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConfirmJoinTeam}
+                  disabled={!verifiedTeam || isSubmitting || (verifiedTeamTotalCount >= verifiedTeam.maxTeamSize)}
+                  className="btn-cyber-primary"
+                  style={{
+                    padding: '10px 24px',
+                    fontSize: '0.88rem',
+                    opacity: (!verifiedTeam || (verifiedTeamTotalCount >= verifiedTeam.maxTeamSize)) ? 0.5 : 1
+                  }}
+                >
+                  <span>{isSubmitting ? 'Joining Squad...' : 'Confirm & Join Team'}</span>
+                  <CheckCircle2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* CASE B: CREATE TEAM / SOLO PARTICIPANT (STEP 1)                */}
+        {/* ============================================================== */}
+        {(!isTeamEvent || teamMode === 'create') && step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Auto-filled User Status */}
             {currentUser ? (
@@ -648,24 +1529,116 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               </div>
             ) : null}
 
+            {/* TEAM CREATION CARD: Generated Code & Team Name */}
             {isTeamEvent && (
-              <div style={{ padding: '16px', background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(16, 26, 53, 0.95) 100%)', border: '1px solid rgba(120, 149, 147, 0.35)', borderRadius: '12px' }}>
-                <label style={{ fontSize: '0.78rem', color: '#BACEBB', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-                  SQUAD / TEAM NAME *
-                </label>
-                <input
-                  type="text"
-                  className="cyber-input"
-                  placeholder="e.g. Cyber Titans"
-                  value={teamName}
-                  onChange={e => handleTeamNameChange(e.target.value)}
-                  required
-                />
-                <div style={{ fontSize: '0.76rem', color: '#A8B3C2', marginTop: '8px', lineHeight: 1.45 }}>
-                  Enter the details for every teammate on the next step. Everyone is registered together after checkout.
+              <div
+                style={{
+                  padding: '16px',
+                  background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.95) 0%, rgba(16, 26, 53, 0.95) 100%)',
+                  border: '1px solid rgba(120, 149, 147, 0.35)',
+                  borderRadius: '12px'
+                }}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px', alignItems: 'center' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#BACEBB', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                      SQUAD / TEAM NAME *
+                    </label>
+                    <input
+                      type="text"
+                      className="cyber-input"
+                      placeholder="e.g. Cyber Titans"
+                      value={teamName}
+                      onChange={e => handleTeamNameChange(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.74rem', color: '#A8B3C2', display: 'block', marginBottom: '6px' }}>
+                      GENERATED TEAM INVITE CODE
+                    </label>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: 'rgba(16, 26, 53, 0.9)',
+                        border: '1px solid rgba(120, 149, 147, 0.4)',
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '0.98rem',
+                          fontWeight: 800,
+                          color: '#BACEBB',
+                          letterSpacing: '0.08em'
+                        }}
+                      >
+                        {generatedTeamCode}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyCode}
+                        style={{
+                          background: copiedCode ? 'rgba(52, 211, 153, 0.2)' : 'rgba(40, 59, 120, 0.4)',
+                          border: `1px solid ${copiedCode ? '#34D399' : 'rgba(120, 149, 147, 0.4)'}`,
+                          borderRadius: '6px',
+                          color: copiedCode ? '#34D399' : '#DCE3E5',
+                          padding: '4px 8px',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {copiedCode ? <Check size={12} /> : <Copy size={12} />}
+                        <span>{copiedCode ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: '12px',
+                    paddingTop: '10px',
+                    borderTop: '1px solid rgba(220, 227, 229, 0.1)',
+                    fontSize: '0.72rem',
+                    color: '#A8B3C2'
+                  }}
+                >
+                  <span>
+                    Teammates can use this code to join your squad directly via their portal.
+                  </span>
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                      `Hey squad! Join my team "${teamName || 'Festronix Team'}" for ${event.title} at Festronix 2026! Use Team Code: ${generatedTeamCode}`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      color: '#25D366',
+                      textDecoration: 'none',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Share2 size={12} />
+                    <span>Invite on WhatsApp</span>
+                  </a>
                 </div>
               </div>
             )}
+
             <div style={{ fontSize: '0.88rem', color: '#DCE3E5', fontWeight: 600, letterSpacing: '0.04em' }}>
               {isTeamEvent ? 'Team Leader Details:' : 'Primary Participant Details:'}
             </div>
@@ -679,7 +1652,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 className="cyber-input"
                 placeholder="e.g. Rahul Sharma"
                 value={leader.name}
-                onChange={e => setLeader({ ...leader, name: e.target.value })}
+                onChange={e => updateLeaderAndSyncTeam({ ...leader, name: e.target.value })}
               />
             </div>
 
@@ -693,7 +1666,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="rahul@college.edu"
                   value={leader.email}
-                  onChange={e => setLeader({ ...leader, email: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, email: e.target.value })}
                 />
               </div>
 
@@ -706,7 +1679,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="+91 98765 43210"
                   value={leader.phone}
-                  onChange={e => setLeader({ ...leader, phone: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, phone: e.target.value })}
                 />
               </div>
             </div>
@@ -721,7 +1694,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="e.g. Vardhaman College of Engineering"
                   value={leader.college}
-                  onChange={e => setLeader({ ...leader, college: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, college: e.target.value })}
                 />
               </div>
 
@@ -734,7 +1707,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="cyber-input"
                   placeholder="22VCECS104"
                   value={leader.rollNumber}
-                  onChange={e => setLeader({ ...leader, rollNumber: e.target.value })}
+                  onChange={e => updateLeaderAndSyncTeam({ ...leader, rollNumber: e.target.value })}
                 />
               </div>
             </div>
@@ -951,17 +1924,39 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         )}
 
         {/* ============================================================== */}
-        {/* STEP 2: Manually Enter Teammate Details */}
+        {/* STEP 2: Optional Teammates Slot Allocation (For Team Events)   */}
         {/* ============================================================== */}
-        {isTeamEvent && step === 2 && (
+        {isTeamEvent && teamMode === 'create' && step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Live Teammate Joined Banner */}
+            {newTeammateAlert && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                  border: '1px solid #34D399',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 0 20px rgba(52, 211, 153, 0.2)'
+                }}
+              >
+                <CheckCircle2 size={16} color="#34D399" />
+                <span>{newTeammateAlert}</span>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: '0.92rem', color: '#FFFFFF', fontWeight: 700 }}>
-                  Enter Every Team Member
+                  Add Teammates Directly (Optional)
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#A8B3C2' }}>
-                  {teammates.length + 1} / {event.maxTeamSize} members • minimum {event.minTeamSize}
+                  {teammates.length + 1} / {event.maxTeamSize} Squad Members
                 </div>
               </div>
 
@@ -972,11 +1967,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   className="btn-cyber-secondary"
                   style={{ padding: '6px 12px', fontSize: '0.78rem' }}
                 >
-                  + Add Teammate
+                  + Add Member Now
                 </button>
               )}
             </div>
 
+            {/* Smart Invitation Notice */}
             <div
               style={{
                 padding: '12px 14px',
@@ -988,7 +1984,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 lineHeight: 1.5
               }}
             >
-              Enter each teammate’s name, email, phone, college/institution, and roll number here. All team members are registered together after payment is verified.
+              💡 <strong>Industry Standard Flexibility:</strong> You don't need all teammate details right now! You can register your team first and share your team code (<strong style={{ color: '#BACEBB' }}>{generatedTeamCode}</strong>) with teammates so they can join later.
             </div>
 
             {teammates.length === 0 ? (
@@ -1002,7 +1998,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 }}
               >
                 <p style={{ color: '#A8B3C2', fontSize: '0.86rem', marginBottom: '12px' }}>
-                  Add teammate details to continue. This event requires at least {minTeammates} teammate(s) in addition to the team leader.
+                  No members added manually yet. Teammates can join using code <strong>{generatedTeamCode}</strong>.
                 </p>
                 <button
                   type="button"
@@ -1043,8 +2039,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleRemoveTeammate(idx)}
-                        disabled={teammates.length <= minTeammates}
-                        title={teammates.length <= minTeammates ? 'The event minimum team size must be met.' : 'Remove teammate'}
                         style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '0.74rem' }}
                       >
                         Remove
@@ -1058,7 +2052,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         placeholder="Teammate Full Name *"
                         value={tm.name}
                         onChange={e => handleUpdateTeammate(idx, 'name', e.target.value)}
-                        required
                       />
                       <input
                         type="text"
@@ -1066,7 +2059,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         placeholder="Roll / Student ID *"
                         value={tm.rollNumber}
                         onChange={e => handleUpdateTeammate(idx, 'rollNumber', e.target.value)}
-                        required
                       />
                     </div>
 
@@ -1074,10 +2066,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       <input
                         type="email"
                         className="cyber-input"
-                        placeholder="Email for teammate’s individual pass *"
+                        placeholder="Email for separate pass email (optional)"
                         value={tm.email || ''}
                         onChange={e => handleUpdateTeammate(idx, 'email', e.target.value)}
-                        required
                       />
                       <input
                         type="tel"
@@ -1088,16 +2079,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         required
                       />
                     </div>
-
-                    <input
-                      type="text"
-                      className="cyber-input"
-                      placeholder="College / Institution Name *"
-                      value={tm.college || ''}
-                      onChange={e => handleUpdateTeammate(idx, 'college', e.target.value)}
-                      required
-                      style={{ marginTop: '8px' }}
-                    />
                   </div>
                 ))}
 
@@ -1116,7 +2097,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     }}
                   >
                     <span>
-                      <strong>{maxTeammates - teammates.length} additional teammate slot(s) available.</strong>
+                      <strong>{maxTeammates - teammates.length} more slot(s) available.</strong> Teammates can join using code <strong style={{ color: '#FFFFFF', fontFamily: 'monospace' }}>{generatedTeamCode}</strong>.
                     </span>
                     <button
                       type="button"
@@ -1171,9 +2152,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   borderRadius: '10px'
                 }}
               >
-                <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.7rem', color: '#34D399', fontWeight: 800, letterSpacing: '0.06em' }}>
-                    TEAM ROSTER READY FOR PAYMENT
+                    SQUAD ROSTER READY FOR PAYMENT
+                  </span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#BACEBB', background: 'rgba(40, 59, 120, 0.4)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.74rem' }}>
+                    {generatedTeamCode}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.92rem', color: '#FFFFFF', fontWeight: 700, marginTop: '4px' }}>
@@ -1183,7 +2167,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   Teammates ({teammates.length}):{' '}
                   {teammates.length > 0
                     ? teammates.map(t => `${t.name || 'Member'} (${t.rollNumber || 'ID'})`).join(', ')
-                    : 'No additional teammates'}
+                    : 'None added yet (teammates can also join later using code)'}
                 </div>
               </div>
             )}
@@ -1246,10 +2230,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             >
               {/* QR Code Presentation */}
               <div style={{ textAlign: 'center', background: '#FFFFFF', padding: '12px', borderRadius: '10px' }}>
-                <LocalQrCode
-                  value={`upi://pay?pa=festronix2026@vce&pn=Festronix%20VCE&am=${event.fee * passQuantity}&cu=INR`}
-                  size={135}
-                  alt="UPI payment QR"
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=festronix2026@vce%26pn=Festronix%20VCE%26am=${event.fee * passQuantity}%26cu=INR`}
+                  alt="UPI Payment QR"
+                  style={{ width: '135px', height: '135px', display: 'block', margin: '0 auto' }}
                 />
                 <div style={{ fontSize: '0.7rem', color: '#101A35', fontWeight: 800, marginTop: '6px' }}>
                   SCAN WITH ANY UPI APP

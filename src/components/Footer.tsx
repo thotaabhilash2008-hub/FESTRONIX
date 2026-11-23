@@ -229,7 +229,7 @@ export const Footer: React.FC<FooterProps> = ({
                   }}
                 >
                   <img
-                    src="/vencorpia_logo.png"
+                    src="/vencorpia_transparent.png"
                     alt="Vencorpia"
                     style={{
                       height: '22px',
@@ -282,29 +282,6 @@ export const Footer: React.FC<FooterProps> = ({
                   </div>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Sanvi Homes</span>
                 </a>
-
-                <span
-                  title="Student Activity Council — Vardhaman College of Engineering"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#F3F0EA'
-                  }}
-                >
-                  <div style={{ background: '#FFFFFF', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                    <img
-                      src="/sac-vmeg logo.jpeg"
-                      alt="SAC VMEG"
-                      style={{ height: '20px', width: 'auto', objectFit: 'contain' }}
-                    />
-                  </div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>SAC VMEG</span>
-                </span>
               </div>
             </div>
 

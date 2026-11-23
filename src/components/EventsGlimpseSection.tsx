@@ -30,10 +30,6 @@ const CompactEventCard: React.FC<{
   onSelect: () => void;
   onRegister: () => void;
 }> = ({ event, onSelect, onRegister }) => {
-  const cleanPrize = (event.prizes?.first || 'Trophy')
-    .replace(/Cash Prize|Worth Prizes/gi, '')
-    .trim();
-
   return (
     <div className="event-glimpse-card">
       {/* Top Header: Dept & Format */}
@@ -64,11 +60,11 @@ const CompactEventCard: React.FC<{
 
       {/* Prize & Fee Row */}
       <div className="event-glimpse-prize-fee">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F59E0B', fontSize: '0.74rem', fontWeight: 700 }}>
-          <Trophy size={12} color="#F59E0B" />
-          <span>{cleanPrize}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F59E0B', fontSize: '0.73rem', fontWeight: 700, minWidth: 0, overflow: 'hidden' }}>
+          <Trophy size={12} color="#F59E0B" style={{ flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Cash Prizes & Certificates</span>
         </div>
-        <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38BDF8' }}>
+        <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38BDF8', flexShrink: 0, marginLeft: '6px' }}>
           {event.fee === 0 ? 'Free Entry' : `₹${event.fee}`}
         </div>
       </div>
