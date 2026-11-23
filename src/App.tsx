@@ -6,6 +6,7 @@ import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
 import { Footer } from './components/Footer';
 import { FullscreenIntro } from './components/FullscreenIntro';
+import { SiteAccessGate, isSiteAccessGranted } from './components/SiteAccessGate';
 const EventDetailModal = lazy(() => import('./components/EventDetailModal').then(module => ({ default: module.EventDetailModal })));
 const RegistrationModal = lazy(() => import('./components/RegistrationModal').then(module => ({ default: module.RegistrationModal })));
 const DigitalPassModal = lazy(() => import('./components/DigitalPassModal').then(module => ({ default: module.DigitalPassModal })));
@@ -179,6 +180,7 @@ export const App: React.FC = () => {
 
   // Intro video & modals
   const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
+  const [isSiteUnlocked, setIsSiteUnlocked] = useState<boolean>(() => isSiteAccessGranted());
   const [isKineticStageReady, setIsKineticStageReady] = useState<boolean>(false);
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
@@ -191,7 +193,7 @@ export const App: React.FC = () => {
   // the initial route and content for bandwidth or startup time.
   useEffect(() => {
     if (
-      isIntroOpen || isAdminView || isSponsorsPageOpen || isPassesPageOpen ||
+      isIntroOpen || !isSiteUnlocked || isAdminView || isSponsorsPageOpen || isPassesPageOpen ||
       isAllEventsPageOpen || isPrivacyPageOpen || isTermsPageOpen ||
       isRefundPageOpen || isRegistrationPageOpen || isKineticStageReady
     ) return;
@@ -200,6 +202,7 @@ export const App: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [
     isIntroOpen,
+    isSiteUnlocked,
     isAdminView,
     isSponsorsPageOpen,
     isPassesPageOpen,
@@ -460,6 +463,25 @@ export const App: React.FC = () => {
     ? new URLSearchParams(window.location.search).get('registration') || activePassId
     : activePassId;
 
+  // 1. Initial or replayed Fullscreen Intro
+  if (isIntroOpen) {
+    return (
+      <FullscreenIntro
+        isOpen={isIntroOpen}
+        onFinish={() => setIsIntroOpen(false)}
+      />
+    );
+  }
+
+  // 2. Site passcode protection: requires password after the intro video
+  if (!isSiteUnlocked) {
+    return (
+      <SiteAccessGate
+        onUnlock={() => setIsSiteUnlocked(true)}
+      />
+    );
+  }
+
   // Render Legal Pages (/privacy, /terms, /refund)
   if (isPrivacyPageOpen) {
     return (
@@ -619,12 +641,6 @@ export const App: React.FC = () => {
           zIndex: 0,
           background: 'radial-gradient(ellipse 70% 35% at 50% 0%, rgba(30, 58, 138, 0.16) 0%, transparent 80%)'
         }}
-      />
-
-      {/* FULLSCREEN INTRO VIDEO: Edge-to-edge with no headings, borders, or frames */}
-      <FullscreenIntro
-        isOpen={isIntroOpen}
-        onFinish={() => setIsIntroOpen(false)}
       />
 
       {/* Top Margin Obsidian Bar: Ensures 100% solid obsidian background above the floating navbar */}
