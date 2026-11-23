@@ -8,17 +8,7 @@ interface SiteAccessGateProps {
 const ACCESS_PASSWORD = 'vmeg@cc';
 export const ACCESS_STORAGE_KEY = 'festronix_access_unlocked';
 
-export const isSiteAccessGranted = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  try {
-    return (
-      sessionStorage.getItem(ACCESS_STORAGE_KEY) === 'granted' ||
-      localStorage.getItem(ACCESS_STORAGE_KEY) === 'granted'
-    );
-  } catch {
-    return false;
-  }
-};
+export const isSiteAccessGranted = (): boolean => true;
 
 export const SiteAccessGate: React.FC<SiteAccessGateProps> = ({ onUnlock }) => {
   const [passcode, setPasscode] = useState('');
