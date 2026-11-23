@@ -59,7 +59,7 @@ const FORMAT_OPTIONS = [
 
 // Status badge color helper
 const getStatusStyle = (event: FestEvent) => {
-  const isFull = event.status === 'full' || event.registeredCount >= event.capacity;
+  const isFull = event.status === 'full';
   if (isFull) return { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.4)', text: '#f87171', label: 'Full' };
   if (event.status === 'closed') return { bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.4)', text: '#94A3B8', label: 'Closed' };
   if (event.fee === 0) return { bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.4)', text: '#34D399', label: 'Free' };
@@ -74,7 +74,6 @@ const EventCard: React.FC<{
 }> = ({ event, onSelect, onRegister }) => {
   const blockReason = getEventRegistrationBlockReason(event);
   const status = getStatusStyle(event);
-  const fillPct = event.capacity > 0 ? Math.min(100, Math.round((event.registeredCount / event.capacity) * 100)) : 0;
 
   return (
     <div
@@ -180,27 +179,6 @@ const EventCard: React.FC<{
           {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
         </div>
       </div>
-
-      {/* Capacity Bar */}
-      {event.capacity > 0 && (
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#64748B', marginBottom: '4px' }}>
-            <span>{event.registeredCount} registered</span>
-            <span>{event.capacity} capacity ({fillPct}%)</span>
-          </div>
-          <div style={{ height: '3px', borderRadius: '9999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${fillPct}%`,
-                borderRadius: '9999px',
-                background: fillPct >= 90 ? '#f87171' : fillPct >= 70 ? '#F59E0B' : '#38BDF8',
-                transition: 'width 0.5s ease'
-              }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: '8px' }}>
