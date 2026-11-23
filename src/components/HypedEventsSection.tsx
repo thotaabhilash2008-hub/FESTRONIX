@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Flame, Trophy, Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
+import { Flame, Trophy, Calendar, MapPin, ArrowRight } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { Tilt3DCard } from './3d/Tilt3DCard';
 import { ScrollReveal } from './animations';
@@ -122,7 +122,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                 
               }}
             >
-              The most popular events based on live student registrations across all 9 engineering departments.
+              The most popular events across all 9 engineering departments.
             </p>
           </div>
         </ScrollReveal>
@@ -139,7 +139,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
           >
             {hypedEvents.map((evt, idx) => {
               const badge = getRankBadge(idx);
-              const isFull = evt.registeredCount >= evt.capacity || evt.status === 'full';
+              const isFull = evt.status === 'full';
               const registrationBlockReason = getEventRegistrationBlockReason(evt);
 
               return (
@@ -279,9 +279,8 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                             fontSize: '0.78rem'
                           }}
                         >
-                          <span style={{ color: '#E2E8F0', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <Users size={13} color="#38BDF8" />
-                            {evt.registeredCount} Enrolled
+                          <span style={{ color: '#E2E8F0', fontWeight: 700 }}>
+                            FESTRONIX 2026
                           </span>
                           <span style={{ color: isFull ? '#FB7185' : '#34D399', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             {isFull ? 'Full' : 'Open'}
