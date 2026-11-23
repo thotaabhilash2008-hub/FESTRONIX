@@ -144,30 +144,84 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
       const searchTarget = isFourDigits ? `FEST-2026-${rawQuery}` : rawQuery;
       const normalizedRaw = rawQuery.toLowerCase();
       const normalizedTarget = searchTarget.toLowerCase();
+      const normalizedTeamQuery = normalizeTeamCode(rawQuery);
+
+      const matchesPass = (r: Registration) => {
+        const idLower = (r.id || '').toLowerCase();
+        const teamCodeNormalized = normalizeTeamCode(r.teamCode);
+
+        // 1. Team Code Match (exact or normalized alphanumeric)
+        if (normalizedTeamQuery && teamCodeNormalized && teamCodeNormalized === normalizedTeamQuery) {
+          return true;
+        }
+
+        // 2. Pass Number / ID Match
+        if (isFourDigits) {
+          if (idLower === normalizedTarget || idLower.endsWith(normalizedRaw)) {
+            return true;
+          }
+        } else {
+          if (idLower === normalizedRaw || idLower === normalizedTarget) {
+            return true;
+          }
+        }
+
+        // 3. QR Token Match
+        if (r.qrToken && r.qrToken.toLowerCase() === normalizedRaw) {
+          return true;
+        }
+
+        // 4. Roll number or Email Match
+        if (r.leaderRoll && r.leaderRoll.toLowerCase() === normalizedRaw) return true;
+        if (r.leaderEmail && r.leaderEmail.toLowerCase() === normalizedRaw) return true;
+        if (Array.isArray(r.teammates)) {
+          if (r.teammates.some(tm =>
+            (tm.rollNumber && tm.rollNumber.toLowerCase() === normalizedRaw) ||
+            (tm.email && tm.email.toLowerCase() === normalizedRaw)
+          )) {
+            return true;
+          }
+        }
+
+        return false;
+      };
 
       // Check local cache first
       const allCached = mergePasses(initialRegistrations, readGuestPassCache());
-      const localMatches = allCached.filter(r => {
-        const idLower = (r.id || '').toLowerCase();
-        if (isFourDigits) {
-          return idLower === normalizedTarget || idLower.endsWith(normalizedRaw);
-        }
-        return idLower === normalizedRaw || (r.qrToken && r.qrToken.toLowerCase() === normalizedRaw);
-      });
+      const localMatches = allCached.filter(matchesPass);
 
       // Query Supabase backend
       let remoteMatches: Registration[] = [];
       try {
-        const found = await StorageService.lookupPublicPasses(searchTarget);
-        remoteMatches = found.filter(r => {
-          const idLower = (r.id || '').toLowerCase();
-          if (isFourDigits) {
-            return idLower === normalizedTarget || idLower.endsWith(normalizedRaw);
+        let found = await StorageService.lookupPublicPasses(searchTarget);
+        // If 4 digits yielded no results with FEST-2026-XXXX, also try searching the raw query
+        if (found.length === 0 && isFourDigits) {
+          try {
+            const rawFound = await StorageService.lookupPublicPasses(rawQuery);
+            if (rawFound.length > 0) {
+              found = rawFound;
+            }
+          } catch {
+            // ignore
           }
-          return idLower === normalizedRaw || (r.qrToken && r.qrToken.toLowerCase() === normalizedRaw);
-        });
+        }
+        // If query looks like a team code (e.g. user entered TM-XXXX but searchTarget was altered or normalized)
+        if (found.length === 0 && normalizedTeamQuery && normalizedTeamQuery !== rawQuery.toUpperCase()) {
+          try {
+            const teamFound = await StorageService.lookupPublicPasses(normalizedTeamQuery);
+            if (teamFound.length > 0) {
+              found = teamFound;
+            }
+          } catch {
+            // ignore
+          }
+        }
+        remoteMatches = found.filter(matchesPass);
+        // If found has results from backend lookup but local filter was overly strict, retain found
+        if (remoteMatches.length === 0 && found.length > 0) {
+          remoteMatches = found;
+        }
       } catch (err: any) {
-        // If 4-digit lookup fails, we only rely on local if available
         console.warn('Backend lookup error:', err);
       }
 
@@ -185,8 +239,8 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           setLiveRegistrations([]);
           setLookupError(
             isFourDigits
-              ? `No pass found ending in digits "${rawQuery}". Please check your pass number.`
-              : `No pass found matching "${rawQuery}". Please verify your Pass Number (e.g., FEST-2026-XXXX).`
+              ? `No pass found ending in "${rawQuery}" or matching team code "${rawQuery}". Please check your pass number or team code.`
+              : `No pass found matching "${rawQuery}". Please verify your Pass Number (e.g. FEST-2026-XXXX) or Team Code (e.g. TM-XXXX).`
           );
         }
       }
@@ -566,7 +620,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
             color: '#BACEBB',
             lineHeight: 1.4
           }}>
-            Enter your <strong>Pass Number</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>FEST-2026-1234</span>) or simply the <strong>last 4 digits</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>1234</span>) to view and download your pass.
+            Enter your <strong>Pass Number</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>FEST-2026-1234</span>), <strong>last 4 digits</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>1234</span>), or <strong>Team Code</strong> (e.g. <span style={{ color: '#38BDF8', fontFamily: "'Space Grotesk', monospace" }}>TM-8492</span>) to view and download your pass.
           </p>
 
           <form onSubmit={handleSearchPass}>
@@ -582,7 +636,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   className="cyber-input"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Enter Pass No or Last 4 Digits (e.g. 4821)"
+                  placeholder="Enter Pass No, Last 4 Digits, or Team Code (e.g. TM-8492)"
                   autoFocus
                   style={{
                     paddingLeft: '36px',
@@ -1390,7 +1444,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               Search Your Pass to View & Download
             </h2>
             <p style={{ color: '#BACEBB', fontSize: '0.84rem', maxWidth: '440px', margin: 0, lineHeight: 1.5 }}>
-              For your privacy, passes are only displayed once verified. Enter your full <strong>Pass Number</strong> (e.g. <code>FEST-2026-XXXX</code>) or the <strong>last 4 digits</strong> above to access your official ticket.
+              For your privacy, passes are only displayed once verified. Enter your full <strong>Pass Number</strong> (e.g. <code>FEST-2026-XXXX</code>), <strong>last 4 digits</strong>, or <strong>Team Code</strong> (e.g. <code>TM-8492</code>) above to access your official ticket.
             </p>
           </div>
         )}
