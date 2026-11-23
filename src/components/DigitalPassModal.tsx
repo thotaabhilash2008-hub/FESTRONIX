@@ -422,21 +422,59 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
           <title>Festronix Pass – ${reg?.id ?? ''}</title>
           ${styles}
           <style>
-            @page { size: A5 landscape; margin: 10mm; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            @page {
+              size: A4 portrait;
+              margin: 10mm;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box !important;
+            }
+            html, body {
+              width: 100% !important;
+              height: auto !important;
+              min-height: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #080C16 !important;
+              overflow: visible !important;
+            }
             body {
-              margin: 0;
-              background: #080C16;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              font-family: 'Space Grotesk', sans-serif;
+              display: block !important;
+              font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             }
             .ticket-wrapper {
-              width: 100%;
-              max-width: 760px;
-              page-break-inside: avoid;
+              width: 100% !important;
+              max-width: 720px !important;
+              margin: 0 auto !important;
+              padding: 20px 24px !important;
+              border-radius: 14px !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
+              page-break-before: avoid !important;
+              break-before: avoid !important;
+              box-sizing: border-box !important;
+            }
+            @media print {
+              html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+              }
+              .ticket-wrapper {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+                margin: 0 auto !important;
+                transform: scale(0.96);
+                transform-origin: top center;
+              }
             }
           </style>
         </head>
@@ -690,7 +728,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               }}
             />
 
-            {/* Ticket Header: VCE Brand & Institutional Authority */}
+            {/* Ticket Header: VCE Brand, Festronix Logo & Pass Status */}
             <div
               style={{
                 display: 'flex',
@@ -698,18 +736,19 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 alignItems: 'center',
                 gap: '12px',
                 flexWrap: 'wrap',
-                paddingBottom: '14px',
+                paddingBottom: '12px',
                 borderBottom: '1px solid rgba(136, 178, 174, 0.25)',
                 position: 'relative',
                 zIndex: 1
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Left: VCE Crest & Name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <img
                   src="/vce_logo.png"
                   alt="Vardhaman College of Engineering"
                   style={{
-                    height: '42px',
+                    height: '38px',
                     width: 'auto',
                     objectFit: 'contain',
                     filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5))'
@@ -718,7 +757,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 <div>
                   <div
                     style={{
-                      fontSize: '0.74rem',
+                      fontSize: '0.72rem',
                       color: '#BACEBB',
                       letterSpacing: '0.12em',
                       fontWeight: 800,
@@ -730,18 +769,44 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   </div>
                   <div
                     style={{
-                      fontSize: '0.62rem',
+                      fontSize: '0.6rem',
                       color: '#88B2AE',
                       letterSpacing: '0.05em',
                       textTransform: 'uppercase',
                       fontWeight: 600
                     }}
                   >
-                    Autonomous Institute • NAAC A++ • FESTRONIX 2026
+                    Autonomous Institute • NAAC A++
                   </div>
                 </div>
               </div>
 
+              {/* Center: Official Festronix Logo Badge */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  background: 'rgba(28, 43, 89, 0.5)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)'
+                }}
+              >
+                <img
+                  src="/festronix_3d_title_clean.png"
+                  alt="Festronix 2026"
+                  style={{
+                    height: '20px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.5))'
+                  }}
+                />
+              </div>
+
+              {/* Right: Pass Status Badge */}
               <div>{getStatusBadge(effectivePaymentStatus || reg.paymentStatus)}</div>
             </div>
 
@@ -753,9 +818,9 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 justifyContent: 'space-between',
                 gap: '12px',
                 flexWrap: 'wrap',
-                margin: '12px 0 14px',
-                padding: '8px 14px',
-                borderRadius: '10px',
+                margin: '10px 0 12px',
+                padding: '6px 12px',
+                borderRadius: '8px',
                 background: 'linear-gradient(90deg, rgba(28, 43, 89, 0.75) 0%, rgba(14, 23, 46, 0.85) 100%)',
                 border: '1px solid rgba(136, 178, 174, 0.3)',
                 boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06)',
@@ -763,11 +828,11 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 zIndex: 1
               }}
             >
-              {/* Sanvi Homes Logo */}
+              {/* Sanvi Homes Logo - Transparent without white background */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
-                    fontSize: '0.62rem',
+                    fontSize: '0.6rem',
                     color: '#38BDF8',
                     fontWeight: 800,
                     letterSpacing: '0.14em',
@@ -779,21 +844,18 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                 </span>
                 <div
                   style={{
-                    background: '#FFFFFF',
-                    padding: '3px 8px',
-                    borderRadius: '5px',
                     display: 'flex',
-                    alignItems: 'center',
-                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)'
+                    alignItems: 'center'
                   }}
                 >
                   <img
-                    src="/sanvi_homes_logo.png"
+                    src="/sanvi_homes_transparent.png"
                     alt="Sanvi Homes"
                     style={{
-                      height: '18px',
+                      height: '22px',
                       width: 'auto',
-                      objectFit: 'contain'
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 6px rgba(56, 189, 248, 0.45))'
                     }}
                   />
                 </div>
@@ -803,7 +865,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span
                   style={{
-                    fontSize: '0.62rem',
+                    fontSize: '0.6rem',
                     color: '#38BDF8',
                     fontWeight: 800,
                     letterSpacing: '0.14em',
@@ -817,18 +879,14 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '3px 8px',
-                    borderRadius: '5px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)'
+                    gap: '6px'
                   }}
                 >
                   <img
                     src="/vencorpia_transparent.png"
                     alt="Vencorpia"
                     style={{
-                      height: '18px',
+                      height: '20px',
                       width: 'auto',
                       objectFit: 'contain',
                       filter: 'drop-shadow(0 0 6px rgba(0, 194, 255, 0.45))'
@@ -836,7 +894,7 @@ export const DigitalPassModal: React.FC<DigitalPassModalProps> = ({
                   />
                   <span
                     style={{
-                      fontSize: '0.82rem',
+                      fontSize: '0.8rem',
                       fontWeight: 700,
                       color: '#F8FAFC',
                       fontFamily: "'Space Grotesk', sans-serif",
