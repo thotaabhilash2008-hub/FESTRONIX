@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowRight, Calendar, CheckCircle2, Clock, IndianRupee, Users, XCircle, Search, Building2, ArrowUpDown } from 'lucide-react';
+import { ArrowRight, Calendar, CheckCircle2, Clock, IndianRupee, Users, XCircle, Search, Building2, ArrowUpDown, BarChart3 } from 'lucide-react';
 import { FestEvent, Registration } from '../../types/festronix';
 import { StorageService } from '../../services/storageService';
 
@@ -150,6 +150,22 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({
     });
   }, [enrichedItems, isCoord, effectiveDept, deptFilter, searchQuery, sortBy]);
 
+  const analytics = useMemo(() => {
+    const departmentMap: Record<string, { code: string; events: number; registrations: number; capacity: number; collected: number }> = {};
+    filteredItems.forEach(data => {
+      const code = (data.item.departmentCode || 'GENERAL').toUpperCase();
+      if (!departmentMap[code]) departmentMap[code] = { code, events: 0, registrations: 0, capacity: 0, collected: 0 };
+      departmentMap[code].events += 1;
+      departmentMap[code].registrations += data.displayRecords.length;
+      departmentMap[code].capacity += data.capacity;
+      departmentMap[code].collected += data.totalCollected;
+    });
+    return {
+      departments: Object.values(departmentMap).sort((a, b) => b.registrations - a.registrations),
+      topEvents: [...filteredItems].sort((a, b) => b.displayRecords.length - a.displayRecords.length).slice(0, 6)
+    };
+  }, [filteredItems]);
+
   return (
     <div>
       {/* Header Title */}
@@ -288,6 +304,63 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({
           </button>
         )}
       </div>
+
+      {/* Visual analytics for the selected event directory */}
+      {mode === 'payments' && filteredItems.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(280px, 1fr)', gap: '14px', marginBottom: '18px' }}>
+          <div style={{ background: 'rgba(20, 31, 62, 0.82)', border: '1px solid rgba(56, 189, 248, 0.22)', borderRadius: '14px', padding: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h5 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem', fontWeight: 800 }}>Event Registration Performance</h5>
+                <p style={{ margin: '4px 0 0', color: '#94A3B8', fontSize: '0.72rem' }}>Registrations compared with each event capacity.</p>
+              </div>
+              <BarChart3 size={19} color="#38BDF8" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {analytics.topEvents.map(data => {
+                const value = data.displayRecords.length;
+                const width = data.capacity > 0 ? Math.min(100, Math.round((value / data.capacity) * 100)) : 0;
+                return (
+                  <div key={data.item.key} title={`${data.item.title}: ${value} registered of ${data.capacity}`}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '4px', fontSize: '0.7rem' }}>
+                      <span style={{ color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.item.title}</span>
+                      <strong style={{ color: '#38BDF8', whiteSpace: 'nowrap' }}>{value}/{data.capacity}</strong>
+                    </div>
+                    <div style={{ height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                      <div style={{ width: `${width}%`, height: '100%', borderRadius: '999px', background: width >= 90 ? '#F87171' : width >= 70 ? '#FBBF24' : '#38BDF8' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ background: 'rgba(20, 31, 62, 0.82)', border: '1px solid rgba(192, 132, 252, 0.22)', borderRadius: '14px', padding: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h5 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem', fontWeight: 800 }}>Department Overview</h5>
+                <p style={{ margin: '4px 0 0', color: '#94A3B8', fontSize: '0.72rem' }}>Events, registrations, capacity, and collections.</p>
+              </div>
+              <Building2 size={19} color="#C084FC" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {analytics.departments.slice(0, 7).map(dept => {
+                const width = dept.capacity > 0 ? Math.min(100, Math.round((dept.registrations / dept.capacity) * 100)) : 0;
+                return (
+                  <div key={dept.code} title={`${dept.code}: ${dept.registrations} registrations, ₹${dept.collected.toLocaleString('en-IN')} collected`}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '4px', fontSize: '0.7rem' }}>
+                      <span style={{ color: '#E2E8F0', fontWeight: 800 }}>{dept.code} <span style={{ color: '#64748B', fontWeight: 400 }}>({dept.events})</span></span>
+                      <span style={{ color: '#C084FC' }}>{dept.registrations} regs</span>
+                    </div>
+                    <div style={{ height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                      <div style={{ width: `${width}%`, height: '100%', borderRadius: '999px', background: 'linear-gradient(90deg, #7C3AED, #C084FC)' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredItems.length === 0 ? (
         <div style={{ padding: '48px 20px', textAlign: 'center', background: 'rgba(20, 31, 62, 0.6)', border: '1px dashed rgba(220, 227, 229, 0.2)', borderRadius: '16px' }}>
