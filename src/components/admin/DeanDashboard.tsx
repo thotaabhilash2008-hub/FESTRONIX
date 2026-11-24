@@ -1250,8 +1250,126 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       (r.teamName && r.teamName.trim().length > 0) ||
       (r.teamCode && r.teamCode.trim().length > 0) ||
       (Array.isArray(r.teammates) && r.teammates.length > 0) ||
-      r.format === 'team'
+      r.format !== 'individual'
     );
+  };
+
+  const normalizeTeamCode = (teamCode?: string) =>
+    (teamCode || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+  const getRelatedTeamRegistrations = (registration: Registration): Registration[] => {
+    const normalizedCode = normalizeTeamCode(registration.teamCode);
+    if (!normalizedCode) return [registration];
+    return registrations.filter(candidate =>
+      candidate.eventId === registration.eventId &&
+      normalizeTeamCode(candidate.teamCode) === normalizedCode
+    );
+  };
+
+  const getTeamCheckoutRegistration = (registration: Registration): Registration => {
+    const related = getRelatedTeamRegistrations(registration);
+    return related.find(candidate => (candidate.teammates?.length || 0) > 0) ||
+      related.find(candidate => candidate.fee > 0) ||
+      registration;
+  };
+
+  const getTeamRoster = (registration: Registration) => {
+    const checkout = getTeamCheckoutRegistration(registration);
+    const related = getRelatedTeamRegistrations(registration);
+    const members: Array<{
+      name: string;
+      email: string;
+      phone: string;
+      college: string;
+      rollNumber: string;
+      role: 'Leader' | 'Member';
+      registrationId?: string;
+      checkedIn?: boolean;
+      paymentStatus?: PaymentStatus;
+    }> = [];
+
+    const addMember = (
+      member: { name?: string; email?: string; phone?: string; college?: string; rollNumber?: string },
+      role: 'Leader' | 'Member',
+      pass?: Registration
+    ) => {
+      const rollNumber = (member.rollNumber || '').trim();
+      const email = (member.email || '').trim();
+      const identity = rollNumber
+        ? `roll:${rollNumber.toLowerCase()}`
+        : email
+          ? `email:${email.toLowerCase()}`
+          : `name:${(member.name || '').trim().toLowerCase()}|phone:${(member.phone || '').replace(/\D/g, '')}`;
+      const existing = members.find(candidate => {
+        const candidateIdentity = candidate.rollNumber
+          ? `roll:${candidate.rollNumber.trim().toLowerCase()}`
+          : candidate.email
+            ? `email:${candidate.email.trim().toLowerCase()}`
+            : `name:${candidate.name.trim().toLowerCase()}|phone:${candidate.phone.replace(/\D/g, '')}`;
+        return candidateIdentity === identity;
+      });
+
+      if (existing) {
+        existing.name = member.name?.trim() || existing.name;
+        existing.email = member.email?.trim() || existing.email;
+        existing.phone = member.phone?.trim() || existing.phone;
+        existing.college = member.college?.trim() || existing.college;
+        existing.rollNumber = rollNumber || existing.rollNumber;
+        if (role === 'Leader') existing.role = 'Leader';
+        if (pass) {
+          existing.registrationId = pass.id;
+          existing.checkedIn = pass.checkedIn;
+          existing.paymentStatus = pass.paymentStatus;
+        }
+        return;
+      }
+
+      members.push({
+        name: member.name?.trim() || 'Unnamed participant',
+        email: email,
+        phone: member.phone?.trim() || '',
+        college: member.college?.trim() || '',
+        rollNumber,
+        role,
+        registrationId: pass?.id,
+        checkedIn: pass?.checkedIn,
+        paymentStatus: pass?.paymentStatus
+      });
+    };
+
+    addMember({
+      name: checkout.leaderName,
+      email: checkout.leaderEmail,
+      phone: checkout.leaderPhone,
+      college: checkout.leaderCollege,
+      rollNumber: checkout.leaderRoll
+    }, 'Leader', checkout);
+
+    (checkout.teammates || []).forEach(teammate => {
+      const teammatePass = related.find(candidate =>
+        candidate.leaderRoll.trim().toLowerCase() === (teammate.rollNumber || '').trim().toLowerCase()
+      );
+      addMember({
+        name: teammate.name,
+        email: teammate.email,
+        phone: teammate.phone,
+        college: teammate.college,
+        rollNumber: teammate.rollNumber
+      }, 'Member', teammatePass);
+    });
+
+    related.forEach(candidate => {
+      const isLeader = candidate.leaderRoll.trim().toLowerCase() === checkout.leaderRoll.trim().toLowerCase();
+      addMember({
+        name: candidate.leaderName,
+        email: candidate.leaderEmail,
+        phone: candidate.leaderPhone,
+        college: candidate.leaderCollege,
+        rollNumber: candidate.leaderRoll
+      }, isLeader ? 'Leader' : 'Member', candidate);
+    });
+
+    return members;
   };
 
   // Filtered Roster
@@ -4541,10 +4659,23 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   fontWeight: 700
                 }}
               >
-                <option value="all" style={{ background: '#101B35', color: '#FFFFFF' }}>View All Participants</option>
-                <option value="team" style={{ background: '#101B35', color: '#38BDF8' }}>View as Team</option>
-                <option value="single" style={{ background: '#101B35', color: '#34D399' }}>Single Registration Only</option>
+                <option value="all" style={{ background: '#101B35', color: '#FFFFFF' }}>All Registrations</option>
+                <option value="team" style={{ background: '#101B35', color: '#38BDF8' }}>Team / Duo Registrations</option>
+                <option value="single" style={{ background: '#101B35', color: '#34D399' }}>Solo Registrations</option>
               </select>
+            </div>
+
+            <div style={{
+              margin: '0 0 12px',
+              padding: '10px 14px',
+              borderRadius: '9px',
+              border: '1px solid rgba(56, 189, 248, 0.22)',
+              background: 'rgba(14, 116, 144, 0.1)',
+              color: '#A8B3C2',
+              fontSize: '0.78rem',
+              lineHeight: 1.5
+            }}>
+              Team registrations create one QR pass per person. The team checkout shows the fee once; teammate passes show ₹0 because they are included in that checkout. Use <strong style={{ color: '#7DD3FC' }}>View Full Team Roster</strong> to see everyone together.
             </div>
 
             {/* Table */}
@@ -4583,77 +4714,87 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#BACEBB', fontWeight: 700 }}>
                         {r.id}
                       </td>
-                      {isTeamRegistration(r) ? (
-                        <>
-                          <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '6px',
-                                background: 'rgba(56, 189, 248, 0.15)',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#38BDF8',
-                                flexShrink: 0
-                              }}>
-                                <Users size={14} />
-                              </div>
-                              <div>
-                                <div style={{ color: '#38BDF8', fontWeight: 800, fontSize: '0.88rem' }}>
-                                  {r.teamName || `Team ${r.teamCode || r.id}`}
-                                </div>
-                                {r.teamCode && (
-                                  <div style={{ fontSize: '0.7rem', color: '#BACEBB', fontFamily: 'monospace' }}>
-                                    Code: {r.teamCode}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setViewingTeamMembers(r)}
-                              style={{
-                                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(40, 59, 120, 0.35) 100%)',
-                                border: '1px solid rgba(56, 189, 248, 0.45)',
-                                color: '#38BDF8',
-                                borderRadius: '6px',
-                                padding: '5px 10px',
-                                fontSize: '0.74rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                whiteSpace: 'nowrap'
-                              }}
-                              title="View all team members"
-                            >
-                              <Users size={13} />
-                              <span>View Team Members ({1 + (r.teammates?.length || 0)})</span>
-                            </button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
-                            {r.leaderName}
-                            <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderEmail} • {r.leaderPhone}</div>
-                          </td>
-                          <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
-                            {r.leaderRoll}
-                          </td>
-                        </>
-                      )}
+                      <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
+                        {r.leaderName}
+                        <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderEmail || '—'} • {r.leaderPhone || '—'}</div>
+                        {isTeamRegistration(r) && (
+                          <div style={{ marginTop: '4px', fontSize: '0.7rem', color: '#7DD3FC' }}>
+                            Team: {r.teamName || `Team ${r.teamCode || r.id}`}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
+                        <div>{r.leaderRoll || '—'}</div>
+                        {isTeamRegistration(r) && (
+                          <button
+                            type="button"
+                            onClick={() => setViewingTeamMembers(r)}
+                            style={{
+                              marginTop: '6px',
+                              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(40, 59, 120, 0.35) 100%)',
+                              border: '1px solid rgba(56, 189, 248, 0.45)',
+                              color: '#7DD3FC',
+                              borderRadius: '6px',
+                              padding: '5px 8px',
+                              fontFamily: 'inherit',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title="View the combined team roster and individual pass details"
+                          >
+                            <Users size={12} />
+                            <span>Full Roster ({getTeamRoster(r).length})</span>
+                          </button>
+                        )}
+                      </td>
                       <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
                         <div>{r.eventTitle}</div>
+                        {isTeamRegistration(r) && (() => {
+                          const checkout = getTeamCheckoutRegistration(r);
+                          const isCheckout = checkout.id === r.id;
+                          return (
+                            <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                border: `1px solid ${isCheckout ? 'rgba(56, 189, 248, 0.35)' : 'rgba(167, 139, 250, 0.35)'}`,
+                                background: isCheckout ? 'rgba(56, 189, 248, 0.1)' : 'rgba(167, 139, 250, 0.1)',
+                                color: isCheckout ? '#7DD3FC' : '#C4B5FD',
+                                fontSize: '0.62rem',
+                                fontWeight: 800,
+                                letterSpacing: '0.03em'
+                              }}>
+                                {r.format === 'duo'
+                                  ? (isCheckout ? 'DUO CHECKOUT' : 'INCLUDED DUO PASS')
+                                  : (isCheckout ? 'TEAM CHECKOUT' : 'INCLUDED TEAM PASS')}
+                              </span>
+                              <span style={{ color: '#94A3B8', fontSize: '0.68rem' }}>
+                                {getTeamRoster(r).length} people · {r.teamCode || r.teamName}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#BACEBB', fontWeight: 700 }}>
                         ₹{r.fee}
+                        {isTeamRegistration(r) && (() => {
+                          const checkout = getTeamCheckoutRegistration(r);
+                          const rosterCount = getTeamRoster(r).length;
+                          return checkout.id !== r.id && checkout.fee > 0 ? (
+                            <div style={{ marginTop: '4px', color: '#A8B3C2', fontSize: '0.66rem', lineHeight: 1.35 }}>
+                              Included in ₹{checkout.fee} team checkout
+                            </div>
+                          ) : checkout.id === r.id && rosterCount > 1 ? (
+                            <div style={{ marginTop: '4px', color: '#7DD3FC', fontSize: '0.66rem', lineHeight: 1.35 }}>
+                              Covers team of {rosterCount}
+                            </div>
+                          ) : null;
+                        })()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span
@@ -8082,7 +8223,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     {viewingTeamMembers.teamName || 'Team Squad Roster'}
                   </h3>
                   <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '2px' }}>
-                    Event: <span style={{ color: '#DCE3E5', fontWeight: 600 }}>{viewingTeamMembers.eventTitle}</span> • Reg ID: <span style={{ color: '#38BDF8', fontFamily: 'monospace' }}>{viewingTeamMembers.id}</span>
+                    Event: <span style={{ color: '#DCE3E5', fontWeight: 600 }}>{viewingTeamMembers.eventTitle}</span> • Team code: <span style={{ color: '#38BDF8', fontFamily: 'monospace' }}>{viewingTeamMembers.teamCode || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -8126,13 +8267,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div>
                 <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Total Members</div>
                 <div style={{ fontSize: '0.88rem', color: '#FFFFFF', fontWeight: 800, marginTop: '2px' }}>
-                  {1 + (viewingTeamMembers.teammates?.length || 0)} Members
+                  {getTeamRoster(viewingTeamMembers).length} Members
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Registration Fee</div>
+                <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Team Checkout Fee</div>
                 <div style={{ fontSize: '0.88rem', color: '#34D399', fontWeight: 800, marginTop: '2px' }}>
-                  ₹{viewingTeamMembers.fee}
+                  ₹{getTeamCheckoutRegistration(viewingTeamMembers).fee}
                 </div>
               </div>
               <div>
@@ -8141,9 +8282,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   fontSize: '0.74rem',
                   fontWeight: 800,
                   marginTop: '2px',
-                  color: viewingTeamMembers.paymentStatus === 'verified' ? '#34D399' : viewingTeamMembers.paymentStatus === 'verification_pending' ? '#FBBF24' : '#F87171'
+                  color: getTeamCheckoutRegistration(viewingTeamMembers).paymentStatus === 'verified' ? '#34D399' : getTeamCheckoutRegistration(viewingTeamMembers).paymentStatus === 'verification_pending' ? '#FBBF24' : '#F87171'
                 }}>
-                  {viewingTeamMembers.paymentStatus.toUpperCase()}
+                  {getTeamCheckoutRegistration(viewingTeamMembers).paymentStatus.toUpperCase()}
                 </div>
               </div>
             </div>
@@ -8151,89 +8292,52 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             {/* Members List */}
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '0.78rem', color: '#7DD3FC', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.05em', marginBottom: '10px' }}>
-                All Team Members ({1 + (viewingTeamMembers.teammates?.length || 0)})
+                All Team Members ({getTeamRoster(viewingTeamMembers).length})
               </div>
-
-              {/* Member 1: Team Leader */}
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(28, 43, 89, 0.6) 0%, rgba(16, 26, 53, 0.8) 100%)',
-                border: '1.5px solid rgba(56, 189, 248, 0.35)',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                marginBottom: '10px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{
-                      background: 'rgba(56, 189, 248, 0.2)',
-                      border: '1px solid #38BDF8',
-                      color: '#38BDF8',
-                      fontSize: '0.66rem',
-                      fontWeight: 800,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      textTransform: 'uppercase'
-                    }}>
-                      Leader
-                    </span>
-                    <strong style={{ color: '#FFFFFF', fontSize: '0.92rem' }}>{viewingTeamMembers.leaderName}</strong>
-                  </div>
-                  <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
-                    {viewingTeamMembers.leaderRoll}
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
-                  <div>Email: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderEmail || '—'}</span></div>
-                  <div>Phone: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderPhone || '—'}</span></div>
-                  <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{viewingTeamMembers.leaderCollege || 'Vardhaman College of Engineering'}</span></div>
-                </div>
-              </div>
-
-              {/* Teammates */}
-              {(!viewingTeamMembers.teammates || viewingTeamMembers.teammates.length === 0) ? (
-                <div style={{ padding: '12px', textAlign: 'center', color: '#94A3B8', fontSize: '0.78rem', background: 'rgba(16, 26, 53, 0.4)', borderRadius: '8px' }}>
-                  No additional teammates listed.
-                </div>
-              ) : (
-                viewingTeamMembers.teammates.map((tm, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: 'rgba(16, 26, 53, 0.6)',
-                      border: '1px solid rgba(220, 227, 229, 0.12)',
-                      borderRadius: '10px',
-                      padding: '12px 14px',
-                      marginBottom: '8px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid rgba(220, 227, 229, 0.2)',
-                          color: '#A8B3C2',
-                          fontSize: '0.66rem',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          textTransform: 'uppercase'
-                        }}>
-                          Member #{idx + 2}
-                        </span>
-                        <strong style={{ color: '#FFFFFF', fontSize: '0.88rem' }}>{tm.name || 'Unnamed Member'}</strong>
-                      </div>
-                      <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
-                        {tm.rollNumber || '—'}
+              {getTeamRoster(viewingTeamMembers).map((member, idx) => (
+                <div
+                  key={`${member.rollNumber || member.email || member.name}-${idx}`}
+                  style={{
+                    background: member.role === 'Leader' ? 'linear-gradient(135deg, rgba(28, 43, 89, 0.6) 0%, rgba(16, 26, 53, 0.8) 100%)' : 'rgba(16, 26, 53, 0.6)',
+                    border: `1px solid ${member.role === 'Leader' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(220, 227, 229, 0.12)'}`,
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        background: member.role === 'Leader' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                        border: `1px solid ${member.role === 'Leader' ? '#38BDF8' : 'rgba(220, 227, 229, 0.2)'}`,
+                        color: member.role === 'Leader' ? '#38BDF8' : '#A8B3C2',
+                        fontSize: '0.66rem',
+                        fontWeight: 800,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase'
+                      }}>
+                        {member.role}
                       </span>
+                      <strong style={{ color: '#FFFFFF', fontSize: '0.9rem' }}>{member.name}</strong>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
-                      <div>Email: <span style={{ color: '#CBD5E1' }}>{tm.email || '—'}</span></div>
-                      <div>Phone: <span style={{ color: '#CBD5E1' }}>{tm.phone || '—'}</span></div>
-                      {tm.college && <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{tm.college}</span></div>}
-                    </div>
+                    <span style={{ fontFamily: 'monospace', color: '#BACEBB', fontSize: '0.8rem', fontWeight: 700 }}>
+                      {member.rollNumber || '—'}
+                    </span>
                   </div>
-                ))
-              )}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                    <div>Email: <span style={{ color: '#CBD5E1' }}>{member.email || '—'}</span></div>
+                    <div>Phone: <span style={{ color: '#CBD5E1' }}>{member.phone || '—'}</span></div>
+                    <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{member.college || '—'}</span></div>
+                    {member.registrationId && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        Pass: <span style={{ color: '#7DD3FC', fontFamily: 'monospace' }}>{member.registrationId}</span>
+                        {' · '}{member.checkedIn ? <span style={{ color: '#34D399' }}>Checked in</span> : <span style={{ color: '#FBBF24' }}>Not checked in</span>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Actions */}
