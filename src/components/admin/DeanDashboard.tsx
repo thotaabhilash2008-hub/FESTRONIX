@@ -99,7 +99,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   // Search & Filter States
   const [rosterSearch, setRosterSearch] = useState('');
   const [rosterDeptFilter, setRosterDeptFilter] = useState('all');
-  const [rosterPaymentFilter, setRosterPaymentFilter] = useState('all');
   const [rosterCheckInFilter, setRosterCheckInFilter] = useState<'all' | 'checked_in' | 'not_checked_in'>('all');
   const [rosterTypeFilter, setRosterTypeFilter] = useState<'all' | 'team' | 'single' | 'all_passes'>('all');
   const [viewingTeamMembers, setViewingTeamMembers] = useState<Registration | null>(null);
@@ -1334,7 +1333,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       
       const regDept = StorageService.resolveDepartmentForRegistration(r, events);
       const matchDept = rosterDeptFilter === 'all' || regDept === rosterDeptFilter.toUpperCase();
-      const matchPay = rosterPaymentFilter === 'all' || r.paymentStatus === rosterPaymentFilter;
       const matchCheckIn = 
         rosterCheckInFilter === 'all' || 
         (rosterCheckInFilter === 'checked_in' && r.checkedIn) || 
@@ -1347,16 +1345,16 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         (rosterTypeFilter === 'team' && isTeam) ||
         (rosterTypeFilter === 'single' && !isTeam);
 
-      return matchSearch && matchDept && matchPay && matchCheckIn && matchType;
+      return matchSearch && matchDept && matchCheckIn && matchType;
     });
-  }, [registrations, consolidatedRosterRegistrations, selectedRosterEventId, events, rosterSearch, rosterDeptFilter, rosterPaymentFilter, rosterCheckInFilter, rosterTypeFilter]);
+  }, [registrations, consolidatedRosterRegistrations, selectedRosterEventId, events, rosterSearch, rosterDeptFilter, rosterCheckInFilter, rosterTypeFilter]);
 
   const rosterPageCount = Math.max(1, Math.ceil(filteredRoster.length / ROSTER_PAGE_SIZE));
   const paginatedRoster = filteredRoster.slice((rosterPage - 1) * ROSTER_PAGE_SIZE, rosterPage * ROSTER_PAGE_SIZE);
 
   useEffect(() => {
     setRosterPage(1);
-  }, [rosterSearch, rosterDeptFilter, rosterPaymentFilter, rosterCheckInFilter, rosterTypeFilter, selectedRosterEventId]);
+  }, [rosterSearch, rosterDeptFilter, rosterCheckInFilter, rosterTypeFilter, selectedRosterEventId]);
 
   useEffect(() => {
     if (rosterPage > rosterPageCount) setRosterPage(rosterPageCount);
@@ -4556,24 +4554,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 {departments.map(d => (
                   <option key={d.code} value={d.code}>{d.code}</option>
                 ))}
-              </select>
-
-              <select
-                value={rosterPaymentFilter}
-                onChange={e => setRosterPaymentFilter(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  background: 'rgba(16, 26, 53, 0.9)',
-                  border: '1px solid rgba(220, 227, 229, 0.2)',
-                  color: '#FFFFFF',
-                  fontSize: '0.82rem'
-                }}
-              >
-                <option value="all">All Payment Statuses</option>
-                <option value="verified">Verified</option>
-                <option value="verification_pending">Pending</option>
-                <option value="rejected">Rejected</option>
               </select>
 
               <select
