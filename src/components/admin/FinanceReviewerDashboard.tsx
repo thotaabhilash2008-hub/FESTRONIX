@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   CreditCard, IndianRupee, CheckCircle2, XCircle, Clock, Search, 
   Filter, Download, ArrowRight, LogOut, Eye, RefreshCw, AlertCircle, Sparkles, Shield,
@@ -9,7 +9,16 @@ import { AdminUser } from '../../services/adminAuthService';
 import { isViewablePaymentProof, StorageService } from '../../services/storageService';
 import { Registration, PaymentStatus, FestEvent, FestStats, RazorpayRefundOrder, Department } from '../../types/festronix';
 import { registrationRevenueAmount } from '../../lib/revenue';
+import { isFirebaseConfigured } from '../../lib/firebase';
+import {
+  FirebaseStaffPaymentService,
+  StaffPaymentOrder,
+  paidOrderTotalPaise,
+} from '../../services/firebaseStaffPaymentService';
 import { AdminHeader } from './AdminHeader';
+
+const statsWithRevenue = (stats: FestStats, orders: StaffPaymentOrder[]): FestStats =>
+  orders.length === 0 ? stats : { ...stats, totalCollected: Math.round(paidOrderTotalPaise(orders) / 100) };
 
 interface FinanceReviewerDashboardProps {
   adminUser: AdminUser;
@@ -22,6 +31,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   onLogout,
   onSwitchToFest
 }) => {
+  const paymentOrdersRef = useRef<StaffPaymentOrder[]>([]);
   const [stats, setStats] = useState<FestStats>(() => StorageService.getStats());
   const [registrations, setRegistrations] = useState<Registration[]>(() => StorageService.getRegistrations());
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -50,11 +60,16 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   };
 
   const refreshData = async () => {
-    setStats(StorageService.getStats());
+    setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
     setRegistrations(filterRegistrationsToScope(StorageService.getRegistrations(), StorageService.getEvents()));
     try {
-      const [liveRegistrations, liveEvents] = await Promise.all([StorageService.fetchRegistrations(), StorageService.fetchEvents()]);
-      setStats(StorageService.getStats());
+      const [liveRegistrations, liveEvents, paymentOrders] = await Promise.all([
+        StorageService.fetchRegistrations(),
+        StorageService.fetchEvents(),
+        isFirebaseConfigured ? FirebaseStaffPaymentService.list() : Promise.resolve([] as StaffPaymentOrder[]),
+      ]);
+      paymentOrdersRef.current = paymentOrders;
+      setStats(statsWithRevenue(StorageService.getStats(), paymentOrders));
       setRegistrations(filterRegistrationsToScope(liveRegistrations, liveEvents));
     } catch (error) {
       console.warn('Finance dashboard sync warning:', error);
@@ -76,11 +91,11 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
       .catch(error => console.warn('Finance department list could not be loaded from Firebase.', error));
     void refreshData();
     const handleRegistrations = () => {
-      setStats(StorageService.getStats());
+      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
       setRegistrations(StorageService.getRegistrations());
     };
     const handleEvents = () => {
-      setStats(StorageService.getStats());
+      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
     };
     const handleStorage = (event: StorageEvent) => {
       if (event.key === 'festronix_registrations_v1' || event.key === 'festronix_events_v1') {

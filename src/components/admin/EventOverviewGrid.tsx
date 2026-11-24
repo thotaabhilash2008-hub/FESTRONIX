@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, Calendar, CheckCircle2, Clock, IndianRupee, Users, XCircle } from 'lucide-react';
 import { FestEvent, Registration } from '../../types/festronix';
 import { sumVerifiedRegistrationRevenue } from '../../lib/revenue';
+import { StaffPaymentOrder, paidOrderTotalForEventPaise } from '../../services/firebaseStaffPaymentService';
 
 export interface EventOverviewItem {
   key: string;
@@ -15,6 +16,7 @@ interface EventOverviewGridProps {
   items: EventOverviewItem[];
   mode: 'registrations' | 'payments';
   onSelect: (eventKey: string) => void;
+  paymentOrders?: StaffPaymentOrder[];
 }
 
 const panelStyle: React.CSSProperties = {
@@ -29,7 +31,7 @@ const panelStyle: React.CSSProperties = {
   transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease'
 };
 
-export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({ items, mode, onSelect }) => {
+export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({ items, mode, onSelect, paymentOrders = [] }) => {
   if (items.length === 0) {
     return (
       <div style={{ padding: '48px 20px', textAlign: 'center', background: 'rgba(20, 31, 62, 0.6)', border: '1px dashed rgba(220, 227, 229, 0.2)', borderRadius: '16px' }}>
@@ -55,7 +57,10 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({ items, mod
           const pending = records.filter(r => r.paymentStatus === 'verification_pending').length;
           const verified = records.filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable').length;
           const rejected = records.filter(r => r.paymentStatus === 'rejected').length;
-          const totalCollected = sumVerifiedRegistrationRevenue(records);
+          const eventId = item.event?.id || item.key;
+          const totalCollected = paymentOrders.length > 0
+            ? Math.round(paidOrderTotalForEventPaise(paymentOrders, eventId) / 100)
+            : sumVerifiedRegistrationRevenue(records);
           const capacity = item.event?.capacity || 0;
           const fill = capacity > 0 ? Math.min(100, Math.round((records.length / capacity) * 100)) : 0;
 

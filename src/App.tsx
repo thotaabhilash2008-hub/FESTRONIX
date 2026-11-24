@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
+import { GlitchOpeningHeroSection } from './components/GlitchOpeningHeroSection';
 import { EventsGlimpseSection } from './components/EventsGlimpseSection';
 import { DepartmentsSection } from './components/DepartmentsSection';
 import { PrizesSection } from './components/PrizesSection';
@@ -28,7 +29,35 @@ import { AboutSection } from './components/AboutSection';
 import { RegistrationCtaSection } from './components/RegistrationCtaSection';
 
 const GUEST_PASS_CACHE_KEY = 'festronix_guest_pass_cache_v1';
-const COMING_SOON_ONLY = false;
+const COMING_SOON_ONLY = import.meta.env.VITE_COMING_SOON_ONLY !== 'false';
+
+// Opening page shown while registrations are paused. It keeps the original
+// coming-soon backdrop and brand lockup, with a glitch/restoration status.
+// The normal site is restored when COMING_SOON_ONLY is flipped to false.
+const ComingSoonPage: React.FC = () => (
+  <ScrollAnimationsProvider>
+    <div
+      className="public-site-shell coming-soon-shell"
+      style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
+    >
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+          background: 'radial-gradient(ellipse 70% 35% at 50% 0%, rgba(30, 58, 138, 0.16) 0%, transparent 80%)'
+        }}
+      />
+      <main
+        className="public-main coming-soon-main"
+        style={{ flex: 1, position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column' }}
+      >
+        <GlitchOpeningHeroSection />
+      </main>
+    </div>
+  </ScrollAnimationsProvider>
+);
 
 const cachePassesOnDevice = (passes: Registration[]) => {
   if (typeof window === 'undefined' || passes.length === 0) return;
@@ -182,7 +211,7 @@ export const App: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
 
   // Intro video & modals
-  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(false);
+  const [isIntroOpen, setIsIntroOpen] = useState<boolean>(true);
   const [isKineticStageReady, setIsKineticStageReady] = useState<boolean>(false);
   const [detailEvent, setDetailEvent] = useState<FestEvent | null>(null);
   const [registerEvent, setRegisterEvent] = useState<FestEvent | null>(null);
@@ -627,9 +656,12 @@ export const App: React.FC = () => {
     );
   }
 
-  if (isIntroOpen) {
+  if (COMING_SOON_ONLY) {
     return (
-      <FullscreenIntro isOpen={isIntroOpen} onFinish={() => setIsIntroOpen(false)} />
+      <>
+        <FullscreenIntro isOpen={isIntroOpen} onFinish={() => setIsIntroOpen(false)} />
+        <ComingSoonPage />
+      </>
     );
   }
 

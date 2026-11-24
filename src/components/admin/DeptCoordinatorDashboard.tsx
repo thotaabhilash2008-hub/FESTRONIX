@@ -343,16 +343,33 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         ]);
         if (eventsResult.status === 'rejected') throw eventsResult.reason;
         const liveEvts = eventsResult.value;
-        const liveRegs = registrationsResult.status === 'fulfilled' ? registrationsResult.value : [];
         const liveAnnouncements = announcementsResult.status === 'fulfilled' ? announcementsResult.value : [];
         const liveAdmins = adminsResult.status === 'fulfilled' ? adminsResult.value : [];
-        if (registrationsResult.status === 'rejected') console.warn('Scoped registrations could not be loaded.', registrationsResult.reason);
         if (announcementsResult.status === 'rejected') console.warn('Scoped announcements could not be loaded.', announcementsResult.reason);
         if (adminsResult.status === 'rejected') console.warn('Department staff directory could not be loaded.', adminsResult.reason);
         const updatedScopedEvents = isEventCoord
           ? liveEvts.filter(event => eventMatchesAssignments(event, refreshedAssignedIds))
           : liveEvts.filter(eventMatchesScope);
         setEvents(updatedScopedEvents);
+
+        if (registrationsResult.status === 'rejected') {
+          console.warn('Scoped registrations could not be loaded.', registrationsResult.reason);
+          const detail = registrationsResult.reason instanceof Error
+            ? registrationsResult.reason.message
+            : 'The request failed.';
+          setDeptSyncError(`Live registrations could not be refreshed: ${detail} Showing the last successful registration data.`);
+          if (!isEventCoord) setAnnouncements(liveAnnouncements.filter(announcementMatchesScope));
+          if (isDeptChief && adminsResult.status === 'fulfilled') {
+            setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
+          }
+          setDeptStats(prev => ({
+            ...prev,
+            totalCapacity: updatedScopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0)
+          }));
+          return;
+        }
+
+        const liveRegs = registrationsResult.value;
         const updatedScopedRegistrations = isEventCoord
           ? liveRegs.filter(registration => registrationMatchesAssignedEvents(registration, updatedScopedEvents))
           : liveRegs.filter(registration =>

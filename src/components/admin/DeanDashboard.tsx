@@ -31,6 +31,7 @@ import {
   StaffPaymentOrder,
   paidOrderTotalPaise,
   paidOrderTotalForDepartmentPaise,
+  paidOrderTotalForEventPaise,
 } from '../../services/firebaseStaffPaymentService';
 import { AdminHeader } from './AdminHeader';
 import { AdminSidebar, AdminNavTab } from './AdminSidebar';
@@ -1404,11 +1405,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       }
     });
 
-    const totalGross = totalVerified + totalPending;
-    const avgPerDelegate = verifiedCount > 0 ? Math.round(totalVerified / verifiedCount) : 0;
+    // Captured Razorpay orders are authoritative for money. Registration rows
+    // remain the source for counts and pending/rejected states.
+    const ordersAvailable = paymentOrders.length > 0;
+    const orderVerifiedRupees = ordersAvailable ? Math.round(paidOrderTotalPaise(paymentOrders) / 100) : totalVerified;
+    const totalGross = orderVerifiedRupees + totalPending;
+    const avgPerDelegate = verifiedCount > 0 ? Math.round(orderVerifiedRupees / verifiedCount) : 0;
     const totalPotentialCapacityRevenue = events.reduce((sum, e) => sum + ((e.capacity || 0) * (e.fee || 0)), 0);
     const capacityMonetizationRate = totalPotentialCapacityRevenue > 0
-      ? Math.min(100, Math.round((totalVerified / totalPotentialCapacityRevenue) * 100))
+      ? Math.min(100, Math.round((orderVerifiedRupees / totalPotentialCapacityRevenue) * 100))
       : 0;
 
     // Department Breakdown
@@ -1462,6 +1467,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       }
     });
 
+    if (ordersAvailable) {
+      Object.values(deptMap).forEach(dept => {
+        dept.verifiedRev = Math.round(paidOrderTotalForDepartmentPaise(paymentOrders, dept.code) / 100);
+        dept.grossRev = dept.verifiedRev + dept.pendingRev;
+      });
+    }
+
     const deptList = Object.values(deptMap).sort((a, b) => b.verifiedRev - a.verifiedRev);
 
     // Top Earning Events
@@ -1469,7 +1481,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       const evRegs = registrations.filter(r => r.eventId === ev.id);
       const verifiedRegs = evRegs.filter(r => r.paymentStatus === 'verified');
       const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
-      const verifiedRev = sumVerifiedRegistrationRevenue(evRegs);
+      const verifiedRev = ordersAvailable
+        ? Math.round(paidOrderTotalForEventPaise(paymentOrders, ev.id) / 100)
+        : sumVerifiedRegistrationRevenue(evRegs);
       const pendingRev = sumPendingRegistrationRevenue(evRegs);
       return {
         id: ev.id,
@@ -1487,7 +1501,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     }).sort((a, b) => b.verifiedRev - a.verifiedRev);
 
     return {
-      totalVerified,
+      totalVerified: orderVerifiedRupees,
       totalPending,
       totalRejected,
       totalGross,
@@ -1504,7 +1518,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       deptList,
       eventRevenueList
     };
-  }, [registrations, events, departments]);
+  }, [registrations, events, departments, paymentOrders]);
 
   const filteredRevenueRegistrations = useMemo(() => {
     return registrations.filter(r => {
@@ -2370,7 +2384,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
         {activeTab === 'payments' && (
           <div>
             {!selectedPaymentEventId ? (
-              <EventOverviewGrid items={eventOverviewItems} mode="payments" onSelect={setSelectedPaymentEventId} />
+              <EventOverviewGrid items={eventOverviewItems} mode="payments" onSelect={setSelectedPaymentEventId} paymentOrders={paymentOrders} />
             ) : (
             <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #FBBF24', background: 'rgba(251, 191, 36, 0.06)', flexWrap: 'wrap' }}>
@@ -4425,7 +4439,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
             </div>
 
             {activeTab === 'registrations' && !selectedRosterEventId ? (
-              <EventOverviewGrid items={eventOverviewItems} mode="registrations" onSelect={setSelectedRosterEventId} />
+              <EventOverviewGrid items={eventOverviewItems} mode="registrations" onSelect={setSelectedRosterEventId} paymentOrders={paymentOrders} />
             ) : (
             <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', padding: '12px 14px', borderLeft: '3px solid #38BDF8', background: 'rgba(56, 189, 248, 0.06)', flexWrap: 'wrap' }}>
