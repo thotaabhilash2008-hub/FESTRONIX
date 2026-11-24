@@ -275,7 +275,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     }
 
     const refresh = (async () => {
-      if (!isSupabaseConfigured()) {
+      if (!isFirebaseConfigured && !isSupabaseConfigured()) {
         const all = StorageService.getEvents();
         const scopedEvts = all.filter(event => isEventCoord
           ? eventMatchesAssignments(event, assignedEventIds)
@@ -295,16 +295,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           rejectedCount: localRegs.filter(r => r.paymentStatus === 'rejected').length,
           spotCount: localRegs.filter(r => r.source === 'spot').length,
           onlineCount: localRegs.filter(r => r.source !== 'spot').length,
-          totalCollected: localRegs.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+          totalCollected: sumVerifiedRegistrationRevenue(localRegs),
           totalCapacity: scopedEvts.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
           checkedInCount: localRegs.filter(r => r.checkedIn).length
         });
-        setAnnouncements(isEventCoord ? [] :
-          StorageService.getAnnouncements().filter(a =>
-            a.scope === 'fest-wide' ||
-            (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-          )
-        );
+        setAnnouncements(isEventCoord ? [] : StorageService.getAnnouncements().filter(announcementMatchesScope));
+        setDeptSyncError(null);
+        setLastSuccessfulSync(new Date());
+        return;
       }
 
       try {
@@ -317,7 +315,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         const [eventsResult, registrationsResult, announcementsResult, adminsResult] = await Promise.allSettled([
           isEventCoord
             ? StorageService.fetchLiveEventsForIds(refreshedAssignedIds)
-            : isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
+            : StorageService.fetchLiveEvents(),
           isEventCoord
             ? StorageService.fetchRegistrationsForEvents(refreshedAssignedIds)
             : StorageService.fetchRegistrations(),
@@ -325,35 +323,48 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           isDeptChief ? AdminAuthService.fetchAdmins() : Promise.resolve([] as AdminUser[])
         ]);
         if (eventsResult.status === 'rejected') throw eventsResult.reason;
-        if (registrationsResult.status === 'rejected') {
-          const reason = registrationsResult.reason;
-          const detail = reason instanceof Error ? reason.message : 'The registration service did not return data.';
-          throw new Error(`Could not load live registrations: ${detail}`);
-        }
-        if (announcementsResult.status === 'rejected') console.warn('Department announcements could not be refreshed.', announcementsResult.reason);
-        if (adminsResult.status === 'rejected') console.warn('Department staff list could not be refreshed.', adminsResult.reason);
         const liveEvts = eventsResult.value;
-        const liveRegs = registrationsResult.value;
+        const liveRegs = registrationsResult.status === 'fulfilled' ? registrationsResult.value : null;
+        const liveAnnouncements = announcementsResult.status === 'fulfilled' ? announcementsResult.value : [];
+        const liveAdmins = adminsResult.status === 'fulfilled' ? adminsResult.value : [];
+        if (announcementsResult.status === 'rejected') console.warn('Scoped announcements could not be loaded.', announcementsResult.reason);
+        if (adminsResult.status === 'rejected') console.warn('Department staff directory could not be loaded.', adminsResult.reason);
+
         const updatedScopedEvents = isEventCoord
           ? liveEvts.filter(event => eventMatchesAssignments(event, refreshedAssignedIds))
           : liveEvts.filter(eventMatchesScope);
         setEvents(updatedScopedEvents);
+
+        if (registrationsResult.status === 'rejected') {
+          console.warn('Scoped registrations could not be loaded.', registrationsResult.reason);
+          const detail = registrationsResult.reason instanceof Error
+            ? registrationsResult.reason.message
+            : 'The request failed.';
+          setDeptSyncError(`Live registrations could not be refreshed: ${detail} Showing the last successful registration data.`);
+          if (!isEventCoord) setAnnouncements(liveAnnouncements.filter(announcementMatchesScope));
+          if (isDeptChief && adminsResult.status === 'fulfilled') {
+            setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
+          }
+          setDeptStats(prev => ({
+            ...prev,
+            totalCapacity: updatedScopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0)
+          }));
+          return;
+        }
+
         const updatedScopedRegistrations = isEventCoord
-          ? liveRegs.filter(registration => registrationMatchesAssignedEvents(registration, updatedScopedEvents))
-          : liveRegs.filter(registration =>
+          ? (liveRegs || []).filter(registration => registrationMatchesAssignedEvents(registration, updatedScopedEvents))
+          : (liveRegs || []).filter(registration =>
               StorageService.resolveDepartmentForRegistration(registration, liveEvts) === deptCode.toUpperCase() &&
               registrationMatchesEvents(registration, updatedScopedEvents)
             );
         setRegistrations(updatedScopedRegistrations);
-        if (announcementsResult.status === 'fulfilled') {
-          setAnnouncements(isEventCoord ? [] : announcementsResult.value.filter(a =>
-            a.scope === 'fest-wide' ||
-            (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-          ));
-        }
+        setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(announcementMatchesScope));
         if (isDeptChief && adminsResult.status === 'fulfilled') {
-          setDepartmentStaff(filterDepartmentStaffByEventScope(adminsResult.value, updatedScopedEvents));
+          setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
         }
+        setDeptSyncError(null);
+        setLastSuccessfulSync(new Date());
         setDeptStats({
           totalRegistrations: updatedScopedRegistrations.length,
           verifiedCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verified').length,
@@ -361,25 +372,31 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           rejectedCount: updatedScopedRegistrations.filter(r => r.paymentStatus === 'rejected').length,
           spotCount: updatedScopedRegistrations.filter(r => r.source === 'spot').length,
           onlineCount: updatedScopedRegistrations.filter(r => r.source !== 'spot').length,
-          totalCollected: updatedScopedRegistrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0),
+          totalCollected: sumVerifiedRegistrationRevenue(updatedScopedRegistrations),
           totalCapacity: updatedScopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
           checkedInCount: updatedScopedRegistrations.filter(r => r.checkedIn).length
         });
-        setDeptSyncError(null);
-        setLastSuccessfulSync(new Date());
       } catch (err) {
         console.warn('Dept dashboard sync warning:', err);
         if (isEventCoord) {
-          // Fail closed: never leave stale department-wide or previous-account
-          // rows visible when assignment verification fails.
           setEventAccessError(err instanceof Error ? err.message : 'Unable to verify assigned event access.');
           setAssignedEventIds([]);
           setEvents([]);
           setRegistrations([]);
           setAnnouncements([]);
+          setDeptStats({
+            totalRegistrations: 0,
+            verifiedCount: 0,
+            pendingCount: 0,
+            rejectedCount: 0,
+            spotCount: 0,
+            onlineCount: 0,
+            totalCollected: 0,
+            totalCapacity: 0,
+            checkedInCount: 0
+          });
         } else {
-          const detail = err instanceof Error ? err.message : 'The server request failed.';
-          setDeptSyncError(`Live registration sync failed: ${detail} Showing the last successfully loaded data.`);
+          setDeptSyncError(err instanceof Error ? err.message : 'Live sync failed. The data below may be out of date.');
         }
       }
     })();
@@ -394,7 +411,6 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         void refreshDeptData();
       }
     }
-  };
 
   useEffect(() => {
     refreshDeptData();
