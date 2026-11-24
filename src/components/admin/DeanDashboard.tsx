@@ -1541,6 +1541,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       };
     }).sort((a, b) => b.verifiedRev - a.verifiedRev);
 
+    const dayMap: Record<string, { date: string; verified: number; pending: number; registrations: number }> = {};
+    registrations.forEach(r => {
+      const parsed = new Date(r.registrationDate || '');
+      if (Number.isNaN(parsed.getTime())) return;
+      const date = parsed.toISOString().slice(0, 10);
+      if (!dayMap[date]) dayMap[date] = { date, verified: 0, pending: 0, registrations: 0 };
+      dayMap[date].registrations++;
+      const fee = Number(r.fee) || 0;
+      if (r.paymentStatus === 'verified') dayMap[date].verified += fee;
+      if (r.paymentStatus === 'verification_pending') dayMap[date].pending += fee;
+    });
+    const dayWiseCollections = Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
+
     return {
       totalVerified,
       totalPending,
@@ -1557,7 +1570,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       totalPotentialCapacityRevenue,
       capacityMonetizationRate,
       deptList,
-      eventRevenueList
+      eventRevenueList,
+      dayWiseCollections
     };
   }, [registrations, events, departments]);
 
@@ -3913,6 +3927,65 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   ₹{revenueAnalytics.totalVerified.toLocaleString('en-IN')} of ₹{revenueAnalytics.totalPotentialCapacityRevenue.toLocaleString('en-IN')} theoretical cap
                 </div>
               </div>
+            </div>
+
+            {/* Day-Wise Collection Bar Graph */}
+            <div
+              style={{
+                background: 'rgba(20, 31, 62, 0.85)',
+                border: '1px solid rgba(56, 189, 248, 0.18)',
+                borderRadius: '16px',
+                padding: '24px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap', marginBottom: '22px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BarChart3 size={18} color="#38BDF8" />
+                    <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>Day-Wise Collection</h3>
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0' }}>
+                    Verified collections, pending payment value, and registration volume by registration date.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '14px', fontSize: '0.72rem', color: '#A8B3C2', alignItems: 'center' }}>
+                  <span><i style={{ display: 'inline-block', width: '9px', height: '9px', borderRadius: '2px', background: '#34D399', marginRight: '5px' }} />Verified</span>
+                  <span><i style={{ display: 'inline-block', width: '9px', height: '9px', borderRadius: '2px', background: '#FBBF24', marginRight: '5px' }} />Pending</span>
+                </div>
+              </div>
+
+              {revenueAnalytics.dayWiseCollections.length === 0 ? (
+                <div style={{ minHeight: '180px', display: 'grid', placeItems: 'center', color: '#64748B', fontSize: '0.82rem' }}>
+                  No dated registration collections are available yet.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', paddingBottom: '6px' }}>
+                  <div style={{ minWidth: `${Math.max(620, revenueAnalytics.dayWiseCollections.length * 86)}px`, height: '250px', display: 'flex', alignItems: 'stretch', gap: '14px', borderBottom: '1px solid rgba(220, 227, 229, 0.16)', padding: '12px 8px 0' }}>
+                    {revenueAnalytics.dayWiseCollections.map(day => {
+                      const total = day.verified + day.pending;
+                      const maxTotal = Math.max(...revenueAnalytics.dayWiseCollections.map(item => item.verified + item.pending), 1);
+                      const verifiedHeight = Math.max(0, Math.round((day.verified / maxTotal) * 190));
+                      const pendingHeight = Math.max(0, Math.round((day.pending / maxTotal) * 190));
+                      return (
+                        <div key={day.date} title={`${day.date}: ₹${total.toLocaleString('en-IN')} total, ${day.registrations} registrations`} style={{ flex: '1 0 58px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ height: '198px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.68rem', color: '#E2E8F0', marginBottom: '5px', whiteSpace: 'nowrap' }}>₹{total.toLocaleString('en-IN')}</span>
+                            <div style={{ width: '34px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                              <div style={{ height: `${pendingHeight}px`, background: 'linear-gradient(180deg, #FBBF24, #B7791F)', borderRadius: '4px 4px 0 0' }} />
+                              <div style={{ height: `${verifiedHeight}px`, background: 'linear-gradient(180deg, #34D399, #047857)', borderRadius: pendingHeight ? '0' : '4px 4px 0 0' }} />
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#CBD5E1', fontWeight: 700 }}>{new Date(`${day.date}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
+                            <div style={{ fontSize: '0.64rem', color: '#64748B' }}>{day.registrations} regs</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Department-Wise Revenue Comparison Table */}
