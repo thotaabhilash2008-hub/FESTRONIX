@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Flame, Trophy, Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
+import { Flame, Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { Tilt3DCard } from './3d/Tilt3DCard';
 import { ScrollReveal } from './animations';
@@ -243,29 +243,24 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                         </span>
                       </div>
 
-                      {/* Prize Highlight */}
-                      {evt.prizes?.first && (
-                        <div
-                          style={{
-                            padding: '12px 16px',
-                            borderRadius: '10px',
-                            background: '#162238',
-                            border: '1px solid #1E293B',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            marginBottom: '20px'
-                          }}
-                        >
-                          <Trophy size={16} color="#FBBF24" />
-                          <span style={{ fontSize: '0.82rem', color: '#E2E8F0' }}>
-                            1st Prize:{' '}
-                            <strong style={{ color: '#FBBF24', fontWeight: 800 }}>
-                              {evt.prizes.first}
-                            </strong>
-                          </span>
-                        </div>
-                      )}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
+                          background: '#162238',
+                          border: '1px solid #1E293B',
+                          marginBottom: '16px'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.78rem', color: '#94A3B8', fontWeight: 600 }}>Registration fee:</span>
+                        <strong style={{ fontSize: '0.84rem', color: evt.fee === 0 ? '#34D399' : '#38BDF8' }}>
+                          {evt.fee === 0 ? 'FREE' : `₹${evt.fee}`}
+                        </strong>
+                      </div>
+
                     </div>
 
                     {/* Progress & Actions */}
@@ -333,7 +328,7 @@ export const HypedEventsSection: React.FC<HypedEventsSectionProps> = ({
                             opacity: registrationBlockReason ? 0.4 : 1
                           }}
                         >
-                          {isFull ? 'Sold Out' : registrationBlockReason ? 'Registration Closed' : evt.fee === 0 ? 'Register Free' : `₹${evt.fee} Register`}
+                          {isFull ? 'Sold Out' : registrationBlockReason ? 'Registration Closed' : evt.fee === 0 ? 'Register Free' : 'Register'}
                         </button>
                       </div>
                     </div>

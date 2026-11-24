@@ -3,7 +3,6 @@ import {
   Flame,
   Calendar,
   MapPin,
-  Trophy,
   Users,
   Zap,
   Rocket,
@@ -58,14 +57,11 @@ const CompactEventCard: React.FC<{
         </div>
       </div>
 
-      {/* Prize & Fee Row */}
+      {/* Entry Fee */}
       <div className="event-glimpse-prize-fee">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F59E0B', fontSize: '0.73rem', fontWeight: 700, minWidth: 0, overflow: 'hidden' }}>
-          <Trophy size={12} color="#F59E0B" style={{ flexShrink: 0 }} />
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Cash Prizes & Certificates</span>
-        </div>
+        <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>Registration fee:</span>
         <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38BDF8', flexShrink: 0, marginLeft: '6px' }}>
-          {event.fee === 0 ? 'Free Entry' : `₹${event.fee}`}
+          {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
         </div>
       </div>
 
@@ -482,7 +478,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
           </h2>
 
           <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.92rem, 1.3vw, 1.02rem)', lineHeight: 1.6 }}>
-            A glimpse into Vardhaman's flagship battlegrounds. Select any arena for full rules, prizes, and registrations.
+            A glimpse into Vardhaman's flagship battlegrounds. Select any arena for full rules, event details, and registration.
           </p>
 
           {onViewAllEvents && (

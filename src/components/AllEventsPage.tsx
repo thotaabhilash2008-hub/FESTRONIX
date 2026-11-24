@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CalendarDays,
   Code2,
-  Crown,
   Download,
   Gamepad2,
   Inbox,
@@ -285,24 +284,6 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
             </div>
           </div>
 
-          {/* Prizes & Awards */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '9px 12px',
-              borderRadius: '8px',
-              background: '#162238',
-              border: '1px solid #1E293B',
-              marginBottom: '18px'
-            }}
-          >
-            <Crown size={14} color="#FBBF24" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: '0.78rem', color: '#FBBF24', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Cash Prizes & Certificates
-            </span>
-          </div>
         </div>
 
         {/* Bottom Pricing & Actions */}
@@ -317,7 +298,7 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
           }}
         >
           <div>
-            <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 600 }}>Entry Fee</div>
+            <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 600 }}>Registration fee:</div>
             <div
               style={{
                 fontSize: '1.15rem',
@@ -417,11 +398,9 @@ export const AllEventsPage: React.FC<AllEventsPageProps> = ({
         </div>
 
         <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 600 }}>Registration fee:</div>
           <div style={{ fontSize: '0.98rem', fontWeight: 800, color: event.fee === 0 ? '#34D399' : '#FFFFFF' }}>
             {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: '#FBBF24', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
-            Cash Prizes & Certificates
           </div>
         </div>
 

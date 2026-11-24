@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Calendar, MapPin, Users, Trophy, Shield, Phone, Mail, ArrowRight, Clock } from 'lucide-react';
+import { X, Calendar, MapPin, Users, Shield, Phone, Mail, ArrowRight, Clock } from 'lucide-react';
 import { FestEvent } from '../types/festronix';
 import { getEventRegistrationBlockReason } from '../lib/eventRegistration';
 
@@ -8,14 +8,6 @@ interface EventDetailModalProps {
   onClose: () => void;
   onRegister: (event: FestEvent) => void;
 }
-
-const formatPrizeDetail = (prize?: string, fallback = 'Cash Prize & Certificate'): string => {
-  if (!prize) return fallback;
-  if (/15[,.]?000|8[,.]?000|10[,.]?000/i.test(prize)) {
-    return fallback;
-  }
-  return prize;
-};
 
 export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   event,
@@ -169,32 +161,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           <p style={{ color: '#A8B3C2', lineHeight: 1.65, fontSize: '0.95rem' }}>
             {event.description}
           </p>
-        </div>
-
-        {/* Prizes Section */}
-        <div style={{ marginBottom: '24px' }}>
-          <h4 className="font-title" style={{ fontSize: '1rem', color: '#DCE3E5', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Trophy size={18} color="#FBBF24" />
-            <span>AWARDS & RECOGNITION</span>
-          </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-            <div style={{ padding: '12px', background: 'rgba(40, 59, 120, 0.35)', border: '1px solid rgba(120, 149, 147, 0.4)', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.75rem', color: '#BACEBB', fontWeight: 700 }}>FIRST PRIZE</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF' }}>{formatPrizeDetail(event.prizes.first, 'Cash Prize & Certificate of Merit')}</div>
-            </div>
-            {event.prizes.second && (
-              <div style={{ padding: '12px', background: 'rgba(220, 227, 229, 0.05)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.75rem', color: '#A8B3C2', fontWeight: 700 }}>SECOND PRIZE</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF' }}>{formatPrizeDetail(event.prizes.second, 'Cash Prize & Certificate')}</div>
-              </div>
-            )}
-            {event.prizes.third && (
-              <div style={{ padding: '12px', background: 'rgba(220, 227, 229, 0.05)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.75rem', color: '#A8B3C2', fontWeight: 700 }}>THIRD PRIZE</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF' }}>{formatPrizeDetail(event.prizes.third, 'Certificate of Appreciation')}</div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Rules & Guidelines */}
