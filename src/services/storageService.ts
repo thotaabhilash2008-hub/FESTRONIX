@@ -738,6 +738,7 @@ export class StorageService {
       if (rawCode) return `CODE:${rawCode}`;
       const rawName = r.teamName ? r.teamName.trim().toLowerCase() : '';
       if (rawName) return `NAME:${r.eventId || r.eventTitle}:${rawName}`;
+      if (Array.isArray(r.teammates) && r.teammates.length > 0) return `LEADER:${r.eventId || r.eventTitle}:${r.id}`;
       return null;
     };
 

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ArrowRight, Calendar, CheckCircle2, Clock, IndianRupee, Users, XCircle, Search, Building2, ArrowUpDown } from 'lucide-react';
 import { FestEvent, Registration } from '../../types/festronix';
+import { StorageService } from '../../services/storageService';
 
 export interface EventOverviewItem {
   key: string;
@@ -9,6 +10,27 @@ export interface EventOverviewItem {
   departmentCode: string;
   registrations: Registration[];
 }
+
+export const isTeamEventItem = (item: EventOverviewItem): boolean => {
+  const fmt = item.event?.format;
+  if (fmt === 'team' || fmt === 'duo') return true;
+  if (fmt === 'individual') return false;
+
+  // Check team size if configured on event
+  if (item.event?.minTeamSize && item.event.minTeamSize > 1) return true;
+  if (item.event?.maxTeamSize && item.event.maxTeamSize > 1) return true;
+
+  // If format is not explicitly defined on event, inspect registration metadata
+  return item.registrations.some(r =>
+    Boolean(
+      r.teamCode ||
+      r.teamName ||
+      (Array.isArray(r.teammates) && r.teammates.length > 0) ||
+      r.format === 'team' ||
+      r.format === 'duo'
+    )
+  );
+};
 
 interface EventOverviewGridProps {
   items: EventOverviewItem[];
@@ -54,52 +76,79 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({
     return Array.from(set).sort();
   }, [items]);
 
+  // Enrich items with team vs solo registration consolidation
+  const enrichedItems = useMemo(() => {
+    return items.map(item => {
+      const isTeam = isTeamEventItem(item);
+      // For team events, consolidate companion passes so each team counts as 1 registration.
+      // For solo events, keep all individual registrations.
+      const displayRecords = isTeam
+        ? StorageService.consolidateTeamRegistrations(item.registrations)
+        : item.registrations;
+
+      const pending = displayRecords.filter(r => r.paymentStatus === 'verification_pending').length;
+      const verified = displayRecords.filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable').length;
+      const rejected = displayRecords.filter(r => r.paymentStatus === 'rejected').length;
+      const totalCollected = item.registrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + Number(r.fee || 0), 0);
+      const capacity = item.event?.capacity || 0;
+      const fill = capacity > 0 ? Math.min(100, Math.round((displayRecords.length / capacity) * 100)) : 0;
+
+      return {
+        item,
+        isTeam,
+        displayRecords,
+        pending,
+        verified,
+        rejected,
+        totalCollected,
+        capacity,
+        fill
+      };
+    });
+  }, [items]);
+
   // Filter and sort the events list
   const filteredItems = useMemo(() => {
-    let result = items;
+    let result = enrichedItems;
 
     // 1. Department Scope / Filter
     if (isCoord) {
-      result = result.filter(item => (item.departmentCode || '').toUpperCase() === effectiveDept);
+      result = result.filter(data => (data.item.departmentCode || '').toUpperCase() === effectiveDept);
     } else if (deptFilter !== 'all') {
-      result = result.filter(item => (item.departmentCode || '').toUpperCase() === deptFilter.toUpperCase());
+      result = result.filter(data => (data.item.departmentCode || '').toUpperCase() === deptFilter.toUpperCase());
     }
 
     // 2. Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      result = result.filter(item =>
-        item.title.toLowerCase().includes(q) ||
-        (item.departmentCode && item.departmentCode.toLowerCase().includes(q))
+      result = result.filter(data =>
+        data.item.title.toLowerCase().includes(q) ||
+        (data.item.departmentCode && data.item.departmentCode.toLowerCase().includes(q))
       );
     }
 
     // 3. Sorting (Default: Department-wise)
     return [...result].sort((a, b) => {
       if (sortBy === 'dept') {
-        const deptComp = (a.departmentCode || 'ZZZ').localeCompare(b.departmentCode || 'ZZZ');
+        const deptComp = (a.item.departmentCode || 'ZZZ').localeCompare(b.item.departmentCode || 'ZZZ');
         if (deptComp !== 0) return deptComp;
-        return a.title.localeCompare(b.title);
+        return a.item.title.localeCompare(b.item.title);
       }
       if (sortBy === 'name') {
-        return a.title.localeCompare(b.title);
+        return a.item.title.localeCompare(b.item.title);
       }
       if (sortBy === 'registrations') {
-        return b.registrations.length - a.registrations.length;
+        return b.displayRecords.length - a.displayRecords.length;
       }
       if (sortBy === 'revenue') {
-        const revA = a.registrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + Number(r.fee || 0), 0);
-        const revB = b.registrations.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + Number(r.fee || 0), 0);
-        return revB - revA;
+        return b.totalCollected - a.totalCollected;
       }
       if (sortBy === 'pending') {
-        const pendA = a.registrations.filter(r => r.paymentStatus === 'verification_pending').length;
-        const pendB = b.registrations.filter(r => r.paymentStatus === 'verification_pending').length;
-        return pendB - pendA;
+        return b.pending - a.pending;
       }
       return 0;
     });
-  }, [items, isCoord, effectiveDept, deptFilter, searchQuery, sortBy]);
+  }, [enrichedItems, isCoord, effectiveDept, deptFilter, searchQuery, sortBy]);
 
   return (
     <div>
@@ -252,14 +301,8 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '14px' }}>
-          {filteredItems.map(item => {
+          {filteredItems.map(({ item, isTeam, displayRecords, pending, verified, rejected, totalCollected, capacity, fill }) => {
             const records = item.registrations;
-            const pending = records.filter(r => r.paymentStatus === 'verification_pending').length;
-            const verified = records.filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable').length;
-            const rejected = records.filter(r => r.paymentStatus === 'rejected').length;
-            const totalCollected = records.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + Number(r.fee || 0), 0);
-            const capacity = item.event?.capacity || 0;
-            const fill = capacity > 0 ? Math.min(100, Math.round((records.length / capacity) * 100)) : 0;
 
             return (
               <button
@@ -267,6 +310,11 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({
                 type="button"
                 style={panelStyle}
                 onClick={() => onSelect(item.key)}
+                title={
+                  isTeam
+                    ? `${displayRecords.length} teams registered (${records.length} total participants) · Click to view`
+                    : `${records.length} participants registered · Click to view`
+                }
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
                   e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.7)';
@@ -285,29 +333,62 @@ export const EventOverviewGrid: React.FC<EventOverviewGridProps> = ({
                     </span>
                     <h5 style={{ margin: '10px 0 4px', fontSize: '1rem', lineHeight: 1.25, color: '#FFFFFF' }}>{item.title}</h5>
                     <div style={{ color: '#94A3B8', fontSize: '0.72rem' }}>
-                      {item.event?.format ? item.event.format.toUpperCase() : 'EVENT'} • {item.event?.status || 'LIVE'}
+                      {item.event?.format ? item.event.format.toUpperCase() : isTeam ? 'TEAM' : 'INDIVIDUAL'} • {item.event?.status || 'LIVE'}
                     </div>
                   </div>
                   <ArrowRight size={18} color="#38BDF8" style={{ flex: '0 0 auto', marginTop: '3px' }} />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '18px' }}>
-                  <div><Users size={14} color="#38BDF8" /><strong style={{ display: 'block', marginTop: '3px', fontSize: '1rem' }}>{records.length}</strong><span style={{ color: '#94A3B8', fontSize: '0.66rem' }}>Registered</span></div>
-                  <div><Clock size={14} color="#FBBF24" /><strong style={{ display: 'block', marginTop: '3px', fontSize: '1rem', color: pending ? '#FBBF24' : '#DCE3E5' }}>{pending}</strong><span style={{ color: '#94A3B8', fontSize: '0.66rem' }}>Pending</span></div>
-                  <div><CheckCircle2 size={14} color="#34D399" /><strong style={{ display: 'block', marginTop: '3px', fontSize: '1rem', color: '#34D399' }}>{verified}</strong><span style={{ color: '#94A3B8', fontSize: '0.66rem' }}>Cleared</span></div>
+                  <div>
+                    <Users size={14} color="#38BDF8" />
+                    <strong style={{ display: 'block', marginTop: '3px', fontSize: '1rem' }}>
+                      {displayRecords.length}
+                    </strong>
+                    <span style={{ color: '#94A3B8', fontSize: '0.66rem' }}>
+                      {isTeam ? 'Teams' : 'Registered'}
+                    </span>
+                  </div>
+                  <div>
+                    <Clock size={14} color="#FBBF24" />
+                    <strong style={{ display: 'block', marginTop: '3px', fontSize: '1rem', color: pending ? '#FBBF24' : '#DCE3E5' }}>
+                      {pending}
+                    </strong>
+                    <span style={{ color: '#94A3B8', fontSize: '0.66rem' }}>
+                      Pending
+                    </span>
+                  </div>
+                  <div>
+                    <CheckCircle2 size={14} color="#34D399" />
+                    <strong style={{ display: 'block', marginTop: '3px', fontSize: '1rem', color: '#34D399' }}>
+                      {verified}
+                    </strong>
+                    <span style={{ color: '#94A3B8', fontSize: '0.66rem' }}>
+                      Cleared
+                    </span>
+                  </div>
                 </div>
 
                 {mode === 'payments' ? (
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(220, 227, 229, 0.1)', fontSize: '0.72rem' }}>
-                    <span style={{ color: '#A8B3C2' }}><XCircle size={13} color="#F87171" style={{ verticalAlign: 'middle', marginRight: '4px' }} />{rejected} rejected</span>
-                    <span style={{ color: '#34D399' }}><IndianRupee size={12} style={{ verticalAlign: 'middle' }} />{totalCollected.toLocaleString()} verified</span>
+                    <span style={{ color: '#A8B3C2' }}>
+                      <XCircle size={13} color="#F87171" style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                      {rejected} rejected
+                    </span>
+                    <span style={{ color: '#34D399' }}>
+                      <IndianRupee size={12} style={{ verticalAlign: 'middle' }} />
+                      {totalCollected.toLocaleString()} verified
+                    </span>
                   </div>
                 ) : (
                   <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(220, 227, 229, 0.1)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#A8B3C2', fontSize: '0.7rem', marginBottom: '6px' }}>
-                      <span>Capacity</span><span>{records.length}{capacity ? ` / ${capacity}` : ''} ({fill}%)</span>
+                      <span>Capacity</span>
+                      <span>{displayRecords.length}{capacity ? ` / ${capacity}` : ''} {isTeam ? 'teams' : ''} ({fill}%)</span>
                     </div>
-                    <div style={{ height: '5px', borderRadius: '4px', background: 'rgba(8, 12, 22, 0.8)', overflow: 'hidden' }}><div style={{ height: '100%', width: `${fill}%`, background: 'linear-gradient(90deg, #38BDF8, #34D399)', borderRadius: '4px' }} /></div>
+                    <div style={{ height: '5px', borderRadius: '4px', background: 'rgba(8, 12, 22, 0.8)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${fill}%`, background: 'linear-gradient(90deg, #38BDF8, #34D399)', borderRadius: '4px' }} />
+                    </div>
                   </div>
                 )}
               </button>
