@@ -102,6 +102,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [events, setEvents] = useState<FestEvent[]>(() => isSupabaseConfigured() ? [] : initialScopedEvents);
   const [registrations, setRegistrations] = useState<Registration[]>(() => isSupabaseConfigured() ? [] : initialScopedRegistrations);
   const [eventAccessError, setEventAccessError] = useState<string | null>(null);
+  const [deptSyncError, setDeptSyncError] = useState<string | null>(null);
+  const [lastSuccessfulSync, setLastSuccessfulSync] = useState<Date | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
     isEventCoord ? [] : StorageService.getAnnouncements().filter(a =>
       a.scope === 'fest-wide' ||
@@ -265,9 +267,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const refreshQueuedRef = useRef(false);
 
   const refreshDeptData = async (): Promise<void> => {
-    // Realtime can report registrations, members, tickets, and payment proof
-    // changes separately. Coalesce those notifications instead of starting
-    // several identical Supabase reads that abort one another.
+    // Coalesce simultaneous refresh requests from polling, focus, and local UI
+    // updates so each coordinator session has at most one backend read in flight.
     if (refreshInFlightRef.current) {
       refreshQueuedRef.current = true;
       return refreshInFlightRef.current;
@@ -313,7 +314,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           : [];
         if (isEventCoord) setAssignedEventIds(refreshedAssignedIds);
 
-        const [liveEvts, liveRegs, liveAnnouncements, liveAdmins] = await Promise.all([
+        const [eventsResult, registrationsResult, announcementsResult, adminsResult] = await Promise.allSettled([
           isEventCoord
             ? StorageService.fetchLiveEventsForIds(refreshedAssignedIds)
             : isSupabaseConfigured() ? StorageService.fetchLiveEvents() : StorageService.fetchEvents(),
@@ -323,6 +324,16 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           isEventCoord ? Promise.resolve([] as Announcement[]) : StorageService.fetchAnnouncements(),
           isDeptChief ? AdminAuthService.fetchAdmins() : Promise.resolve([] as AdminUser[])
         ]);
+        if (eventsResult.status === 'rejected') throw eventsResult.reason;
+        if (registrationsResult.status === 'rejected') {
+          const reason = registrationsResult.reason;
+          const detail = reason instanceof Error ? reason.message : 'The registration service did not return data.';
+          throw new Error(`Could not load live registrations: ${detail}`);
+        }
+        if (announcementsResult.status === 'rejected') console.warn('Department announcements could not be refreshed.', announcementsResult.reason);
+        if (adminsResult.status === 'rejected') console.warn('Department staff list could not be refreshed.', adminsResult.reason);
+        const liveEvts = eventsResult.value;
+        const liveRegs = registrationsResult.value;
         const updatedScopedEvents = isEventCoord
           ? liveEvts.filter(event => eventMatchesAssignments(event, refreshedAssignedIds))
           : liveEvts.filter(eventMatchesScope);
@@ -334,12 +345,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               registrationMatchesEvents(registration, updatedScopedEvents)
             );
         setRegistrations(updatedScopedRegistrations);
-        setAnnouncements(isEventCoord ? [] : liveAnnouncements.filter(a =>
-          a.scope === 'fest-wide' ||
-          (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
-        ));
-        if (isDeptChief) {
-          setDepartmentStaff(filterDepartmentStaffByEventScope(liveAdmins, updatedScopedEvents));
+        if (announcementsResult.status === 'fulfilled') {
+          setAnnouncements(isEventCoord ? [] : announcementsResult.value.filter(a =>
+            a.scope === 'fest-wide' ||
+            (a.scope === 'department' && (!a.departmentCode || a.departmentCode.toUpperCase() === deptCode.toUpperCase()))
+          ));
+        }
+        if (isDeptChief && adminsResult.status === 'fulfilled') {
+          setDepartmentStaff(filterDepartmentStaffByEventScope(adminsResult.value, updatedScopedEvents));
         }
         setDeptStats({
           totalRegistrations: updatedScopedRegistrations.length,
@@ -352,6 +365,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           totalCapacity: updatedScopedEvents.reduce((sum, event) => sum + (Number(event.capacity) || 0), 0),
           checkedInCount: updatedScopedRegistrations.filter(r => r.checkedIn).length
         });
+        setDeptSyncError(null);
+        setLastSuccessfulSync(new Date());
       } catch (err) {
         console.warn('Dept dashboard sync warning:', err);
         if (isEventCoord) {
@@ -362,6 +377,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           setEvents([]);
           setRegistrations([]);
           setAnnouncements([]);
+        } else {
+          const detail = err instanceof Error ? err.message : 'The server request failed.';
+          setDeptSyncError(`Live registration sync failed: ${detail} Showing the last successfully loaded data.`);
         }
       }
     })();
@@ -381,7 +399,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   useEffect(() => {
     refreshDeptData();
 
-    // Listen to real-time local updates and cross-tab storage changes
+    // Configured backend reads also emit these cache events. Listening to them
+    // here would start another backend read after every fetch and loop forever.
     const handleRegsUpdate = () => {
       refreshDeptData();
     };
@@ -405,16 +424,37 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       }
     };
 
-    window.addEventListener('festronix:regs-updated', handleRegsUpdate);
-    window.addEventListener('festronix:events-updated', handleEventsUpdate);
-    window.addEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
+    const localMode = !isSupabaseConfigured();
+    if (localMode) {
+      window.addEventListener('festronix:regs-updated', handleRegsUpdate);
+      window.addEventListener('festronix:events-updated', handleEventsUpdate);
+      window.addEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
+    }
     window.addEventListener('storage', handleStorageChange);
 
+    let resumeRefreshTimeout: number | undefined;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      window.clearTimeout(resumeRefreshTimeout);
+      resumeRefreshTimeout = window.setTimeout(() => void refreshDeptData(), 250);
+    };
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshDeptData();
+    }, 60_000);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
     return () => {
-      window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
-      window.removeEventListener('festronix:events-updated', handleEventsUpdate);
-      window.removeEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
+      if (localMode) {
+        window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
+        window.removeEventListener('festronix:events-updated', handleEventsUpdate);
+        window.removeEventListener('festronix:announcements-updated', handleAnnouncementsUpdate);
+      }
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.clearInterval(refreshInterval);
+      window.clearTimeout(resumeRefreshTimeout);
     };
   }, [deptCode, clusterCode, isDeptChief, isEventCoord]);
 
@@ -1640,6 +1680,18 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
         {/* Main Content Area */}
         <main className="admin-content-container" style={{ padding: '24px 28px', maxWidth: '1440px', width: '100%', boxSizing: 'border-box' }}>
+
+        {deptSyncError && !isEventCoord && (
+          <div role="alert" style={{ marginBottom: '18px', padding: '12px 16px', borderRadius: '10px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.45)', color: '#FCD34D', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <span>
+              {deptSyncError}
+              {lastSuccessfulSync ? ` Last successful sync: ${lastSuccessfulSync.toLocaleString()}.` : ' No successful sync this session.'}
+            </span>
+            <button type="button" onClick={() => void refreshDeptData()} style={{ background: 'transparent', border: '1px solid rgba(245,158,11,0.5)', borderRadius: '6px', color: '#FCD34D', padding: '5px 10px', cursor: 'pointer', fontWeight: 700 }}>
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Copy Feedback Toast */}
         {copyFeedback && (
