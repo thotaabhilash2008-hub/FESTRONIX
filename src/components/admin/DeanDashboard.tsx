@@ -1372,6 +1372,50 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     return true;
   });
 
+  // Event-scoped payment metrics for the selected-event approval desk.
+  // These intentionally ignore the status tab so the chart always shows the
+  // complete distribution for the selected event and active search filters.
+  const paymentChartRows = useMemo(() => {
+    const source = selectedPaymentEvent?.registrations || registrations;
+    const search = paymentSearch.toLowerCase().trim();
+
+    return source.filter(registration => {
+      if (search) {
+        const matchesSearch = [
+          registration.leaderName,
+          registration.leaderRoll,
+          registration.transactionId,
+          registration.eventTitle,
+          registration.id
+        ].some(value => String(value || '').toLowerCase().includes(search));
+        if (!matchesSearch) return false;
+      }
+
+      if (paymentDeptFilter !== 'all') {
+        const department = StorageService.resolveDepartmentForRegistration(registration, events);
+        if (department !== paymentDeptFilter.toUpperCase()) return false;
+      }
+
+      return true;
+    });
+  }, [events, paymentDeptFilter, paymentSearch, registrations, selectedPaymentEvent]);
+
+  const paymentStatusCounts = useMemo(() => ({
+    pending: paymentChartRows.filter(registration => registration.paymentStatus === 'verification_pending').length,
+    verified: paymentChartRows.filter(registration => registration.paymentStatus === 'verified').length,
+    rejected: paymentChartRows.filter(registration => registration.paymentStatus === 'rejected').length,
+    notApplicable: paymentChartRows.filter(registration => registration.paymentStatus === 'not_applicable').length
+  }), [paymentChartRows]);
+
+  const paymentChartTotal = paymentChartRows.length;
+  const paymentChartMax = Math.max(
+    paymentStatusCounts.pending,
+    paymentStatusCounts.verified,
+    paymentStatusCounts.rejected,
+    paymentStatusCounts.notApplicable,
+    1
+  );
+
   // Filtered Events
   const filteredEvents = events.filter(e => {
     const matchSearch = 
@@ -2458,46 +2502,44 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </p>
               </div>
 
-              {/* Status Filter Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {/* Status KPI filters */}
+              <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' }}>
                 {[
-                  { id: 'pending', label: 'Pending Review', count: stats.pendingCount, color: '#FBBF24' },
-                  { id: 'verified', label: 'Verified Passes', count: stats.verifiedCount, color: '#34D399' },
-                  { id: 'rejected', label: 'Rejected', count: stats.rejectedCount, color: '#f87171' },
-                  { id: 'all', label: 'All Transactions', count: registrations.length, color: '#DCE3E5' }
+                  { id: 'pending', label: 'Pending review', count: paymentStatusCounts.pending, color: '#FBBF24', icon: Clock, helper: 'Needs approval' },
+                  { id: 'verified', label: 'Verified passes', count: paymentStatusCounts.verified + paymentStatusCounts.notApplicable, color: '#34D399', icon: CheckCircle2, helper: 'Cleared to enter' },
+                  { id: 'rejected', label: 'Rejected', count: paymentStatusCounts.rejected, color: '#F87171', icon: XCircle, helper: 'Requires attention' },
+                  { id: 'all', label: 'All transactions', count: paymentChartTotal, color: '#38BDF8', icon: BarChart3, helper: 'Event total' }
                 ].map(item => {
                   const isSel = paymentStatusFilter === item.id;
+                  const Icon = item.icon;
                   return (
                     <button
                       key={item.id}
                       onClick={() => setPaymentStatusFilter(item.id as any)}
                       style={{
-                        background: isSel ? 'rgba(40, 59, 120, 0.65)' : 'rgba(20, 31, 62, 0.7)',
-                        border: isSel ? `1px solid ${item.color}` : '1px solid rgba(220, 227, 229, 0.15)',
-                        borderRadius: '8px',
-                        padding: '6px 12px',
-                        color: isSel ? '#FFFFFF' : '#A8B3C2',
-                        fontSize: '0.76rem',
-                        fontWeight: isSel ? 700 : 500,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        textAlign: 'left',
+                        background: isSel ? `linear-gradient(135deg, ${item.color}20, rgba(20, 31, 62, 0.95))` : 'rgba(20, 31, 62, 0.7)',
+                        border: isSel ? `1px solid ${item.color}` : '1px solid rgba(148, 163, 184, 0.2)',
+                        borderRadius: '12px',
+                        padding: '12px 13px 11px',
+                        color: '#FFFFFF',
                         cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
+                        boxShadow: isSel ? `0 8px 22px ${item.color}18` : 'none',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <span>{item.label}</span>
-                      <span
-                        style={{
-                          background: isSel ? item.color : 'rgba(255, 255, 255, 0.1)',
-                          color: isSel ? '#101A35' : '#DCE3E5',
-                          borderRadius: '9999px',
-                          padding: '1px 6px',
-                          fontSize: '0.68rem',
-                          fontWeight: 800
-                        }}
-                      >
-                        {item.count}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '7px', color: isSel ? item.color : '#A8B3C2', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          <Icon size={15} />
+                          {item.label}
+                        </span>
+                        {isSel && <span style={{ color: item.color, fontSize: '0.62rem', fontWeight: 800 }}>ACTIVE</span>}
+                      </div>
+                      <div style={{ color: '#FFFFFF', fontSize: '1.5rem', lineHeight: 1, fontWeight: 850, marginTop: '12px' }}>{item.count}</div>
+                      <div style={{ color: '#94A3B8', fontSize: '0.7rem', marginTop: '5px' }}>{item.helper}</div>
+                      <div style={{ height: '3px', marginTop: '11px', borderRadius: '999px', background: isSel ? item.color : 'rgba(148, 163, 184, 0.2)', opacity: isSel ? 1 : 0.65 }} />
                     </button>
                   );
                 })}
@@ -2559,6 +2601,33 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Event-scoped payment status bar chart */}
+            <div style={{ background: 'linear-gradient(135deg, rgba(20, 31, 62, 0.96), rgba(15, 23, 42, 0.92))', border: '1px solid rgba(56, 189, 248, 0.22)', borderRadius: '16px', padding: '18px 20px', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ color: '#38BDF8', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Live event payment analytics</div>
+                  <h4 style={{ color: '#FFFFFF', fontSize: '1rem', margin: '4px 0 0' }}>Payment status distribution</h4>
+                </div>
+                <div style={{ color: '#A8B3C2', fontSize: '0.76rem' }}>{paymentChartTotal} matching transactions</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '14px', alignItems: 'end' }}>
+                {[
+                  { label: 'Pending', value: paymentStatusCounts.pending, color: '#FBBF24' },
+                  { label: 'Verified', value: paymentStatusCounts.verified, color: '#34D399' },
+                  { label: 'Rejected', value: paymentStatusCounts.rejected, color: '#F87171' },
+                  { label: 'No payment', value: paymentStatusCounts.notApplicable, color: '#94A3B8' }
+                ].map(bar => (
+                  <div key={bar.label} style={{ minWidth: 0 }}>
+                    <div style={{ height: '130px', display: 'flex', alignItems: 'flex-end', padding: '0 10px', borderBottom: '1px solid rgba(148, 163, 184, 0.2)', background: 'repeating-linear-gradient(to top, transparent 0, transparent 31px, rgba(148, 163, 184, 0.08) 32px)' }}>
+                      <div title={`${bar.label}: ${bar.value}`} style={{ width: '100%', minHeight: bar.value > 0 ? '8px' : '2px', height: `${Math.max((bar.value / paymentChartMax) * 100, bar.value > 0 ? 6 : 2)}%`, borderRadius: '7px 7px 2px 2px', background: `linear-gradient(180deg, ${bar.color}, ${bar.color}99)`, boxShadow: `0 0 18px ${bar.color}44`, transition: 'height 0.35s ease' }} />
+                    </div>
+                    <div style={{ color: '#FFFFFF', fontSize: '1.15rem', fontWeight: 800, marginTop: '8px' }}>{bar.value}</div>
+                    <div style={{ color: '#A8B3C2', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bar.label}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
