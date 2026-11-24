@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { 
   CreditCard, IndianRupee, CheckCircle2, XCircle, Clock, Search, 
   Filter, Download, ArrowRight, LogOut, Eye, RefreshCw, AlertCircle, Sparkles, Shield,
-  Check, X, FileText, AlertTriangle
+  Check, X, FileText, AlertTriangle, BarChart3
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminUser } from '../../services/adminAuthService';
@@ -13,6 +13,7 @@ import { isFirebaseConfigured } from '../../lib/firebase';
 import {
   FirebaseStaffPaymentService,
   StaffPaymentOrder,
+  dailyPaidOrderCollections,
   paidOrderTotalPaise,
 } from '../../services/firebaseStaffPaymentService';
 import { AdminHeader } from './AdminHeader';
@@ -32,6 +33,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   onSwitchToFest
 }) => {
   const paymentOrdersRef = useRef<StaffPaymentOrder[]>([]);
+  const [paymentOrders, setPaymentOrders] = useState<StaffPaymentOrder[]>([]);
   const [stats, setStats] = useState<FestStats>(() => StorageService.getStats());
   const [registrations, setRegistrations] = useState<Registration[]>(() => StorageService.getRegistrations());
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -51,6 +53,9 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
   const [rejectingRegId, setRejectingRegId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  const dayWiseCollections = useMemo(() => dailyPaidOrderCollections(paymentOrders), [paymentOrders]);
+  const maxDayCollection = Math.max(...dayWiseCollections.map(day => day.amountRupees), 1);
+
   const filterRegistrationsToScope = (items: Registration[], eventItems: FestEvent[]) => {
     if (!departmentScope) return items;
     return items.filter(registration => {
@@ -69,6 +74,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
         isFirebaseConfigured ? FirebaseStaffPaymentService.list() : Promise.resolve([] as StaffPaymentOrder[]),
       ]);
       paymentOrdersRef.current = paymentOrders;
+      setPaymentOrders(paymentOrders);
       setStats(statsWithRevenue(StorageService.getStats(), paymentOrders));
       setRegistrations(filterRegistrationsToScope(liveRegistrations, liveEvents));
     } catch (error) {
@@ -90,6 +96,7 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
     try {
       const orders = await FirebaseStaffPaymentService.list();
       paymentOrdersRef.current = orders;
+      setPaymentOrders(orders);
       setStats(statsWithRevenue(StorageService.getStats(), orders));
     } catch (error) {
       console.warn('Firebase payment orders could not be refreshed.', error);
@@ -309,6 +316,53 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
               Invalid payment evidence or mismatched amount
             </div>
           </div>
+        </div>
+
+        {/* Day-wise Razorpay Collection Graph */}
+        <div className="admin-card" style={{ padding: '24px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '0 0 4px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BarChart3 size={17} color="#34D399" />
+                <span>Day-wise Razorpay Collections</span>
+              </h2>
+              <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: 0 }}>
+                Captured paid orders only, refunds excluded. Dates follow Asia/Kolkata time.
+              </p>
+            </div>
+            <span style={{ fontSize: '0.72rem', color: '#34D399', background: 'rgba(52, 211, 153, 0.12)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
+              {dayWiseCollections.reduce((sum, day) => sum + day.orders, 0)} paid orders • ₹{dayWiseCollections.reduce((sum, day) => sum + day.amountRupees, 0).toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          {dayWiseCollections.length === 0 ? (
+            <div style={{ padding: '36px', textAlign: 'center', color: '#94A3B8', border: '1px dashed rgba(220, 227, 229, 0.18)', borderRadius: '12px' }}>
+              No captured Razorpay orders available to chart yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', height: '230px', overflowX: 'auto', padding: '12px 4px 4px' }}>
+              {dayWiseCollections.map(day => {
+                const barHeight = Math.max(10, Math.round((day.amountRupees / maxDayCollection) * 160));
+                return (
+                  <div key={day.date} style={{ minWidth: '74px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', height: '100%' }}>
+                    <div
+                      title={`${day.date}: ₹${day.amountRupees.toLocaleString('en-IN')} from ${day.orders} paid order(s)`}
+                      style={{
+                        width: '44px',
+                        height: `${barHeight}px`,
+                        borderRadius: '8px 8px 3px 3px',
+                        background: day.amountRupees > 0 ? 'linear-gradient(180deg, #34D399 0%, #059669 100%)' : 'rgba(148, 163, 184, 0.14)',
+                        border: day.amountRupees > 0 ? '1px solid rgba(52, 211, 153, 0.5)' : '1px dashed rgba(148, 163, 184, 0.25)'
+                      }}
+                    />
+                    <div style={{ fontSize: '0.74rem', color: '#FFFFFF', fontWeight: 800 }}>₹{day.amountRupees.toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>{day.label}</div>
+                    <div style={{ fontSize: '0.64rem', color: '#64748B' }}>{day.orders} order{day.orders === 1 ? '' : 's'}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Razorpay Duplicate-Payment Refunds */}

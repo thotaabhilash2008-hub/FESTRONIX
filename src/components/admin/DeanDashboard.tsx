@@ -31,6 +31,7 @@ import { groupRegistrationsForDisplay, RegistrationDisplayGroup } from '../../li
 import {
   FirebaseStaffPaymentService,
   StaffPaymentOrder,
+  dailyPaidOrderCollections,
   paidOrderTotalPaise,
   paidOrderTotalForDepartmentPaise,
   paidOrderTotalForEventPaise,
@@ -1547,6 +1548,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       };
     }).sort((a, b) => b.verifiedRev - a.verifiedRev);
 
+    const dayWiseCollections = dailyPaidOrderCollections(paymentOrders);
+
     return {
       totalVerified: orderVerifiedRupees,
       totalPending,
@@ -1563,7 +1566,9 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       totalPotentialCapacityRevenue,
       capacityMonetizationRate,
       deptList,
-      eventRevenueList
+      eventRevenueList,
+      dayWiseCollections,
+      maxDayCollection: Math.max(...dayWiseCollections.map(day => day.amountRupees), 1),
     };
   }, [registrations, events, departments, paymentOrders]);
 
@@ -3915,6 +3920,80 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   ₹{revenueAnalytics.totalVerified.toLocaleString('en-IN')} collected from verified registrations
                 </div>
               </div>
+            </div>
+
+            {/* Day-wise Razorpay Collection Graph */}
+            <div
+              style={{
+                background: 'rgba(20, 31, 62, 0.85)',
+                border: '1px solid rgba(52, 211, 153, 0.22)',
+                borderRadius: '16px',
+                padding: '24px',
+                marginBottom: '18px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BarChart3 size={18} color="#34D399" />
+                    <h3 className="font-title" style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+                      Day-wise Razorpay Collections
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '4px 0 0' }}>
+                    Captured paid orders only, refunds excluded. Dates follow Asia/Kolkata time.
+                  </p>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color: '#34D399',
+                    background: 'rgba(52, 211, 153, 0.12)',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(52, 211, 153, 0.3)'
+                  }}
+                >
+                  {revenueAnalytics.dayWiseCollections.reduce((sum, day) => sum + day.orders, 0)} paid orders • ₹{revenueAnalytics.dayWiseCollections.reduce((sum, day) => sum + day.amountRupees, 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {revenueAnalytics.dayWiseCollections.length === 0 ? (
+                <div style={{ padding: '36px', textAlign: 'center', color: '#94A3B8', border: '1px dashed rgba(220,227,229,0.18)', borderRadius: '12px' }}>
+                  No captured Razorpay orders available to chart yet.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', height: '230px', overflowX: 'auto', padding: '12px 4px 4px' }}>
+                  {revenueAnalytics.dayWiseCollections.map(day => {
+                    const barHeight = Math.max(10, Math.round((day.amountRupees / revenueAnalytics.maxDayCollection) * 160));
+                    return (
+                      <div
+                        key={day.date}
+                        style={{ minWidth: '74px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', height: '100%' }}
+                      >
+                        <div
+                          title={`${day.date}: ₹${day.amountRupees.toLocaleString('en-IN')} from ${day.orders} paid order(s)`}
+                          style={{
+                            width: '44px',
+                            height: `${barHeight}px`,
+                            borderRadius: '8px 8px 3px 3px',
+                            background: day.amountRupees > 0
+                              ? 'linear-gradient(180deg, #34D399 0%, #059669 100%)'
+                              : 'rgba(148, 163, 184, 0.14)',
+                            border: day.amountRupees > 0 ? '1px solid rgba(52, 211, 153, 0.5)' : '1px dashed rgba(148, 163, 184, 0.25)'
+                          }}
+                        />
+                        <div style={{ fontSize: '0.74rem', color: '#FFFFFF', fontWeight: 800 }}>
+                          ₹{day.amountRupees.toLocaleString('en-IN')}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>{day.label}</div>
+                        <div style={{ fontSize: '0.64rem', color: '#64748B' }}>{day.orders} order{day.orders === 1 ? '' : 's'}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Department-Wise Revenue Comparison Table */}

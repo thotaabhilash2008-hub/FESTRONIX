@@ -29,6 +29,13 @@ interface ListPaymentOrdersResponse {
   orders: StaffPaymentOrder[];
 }
 
+export interface DailyPaymentCollection {
+  date: string;
+  label: string;
+  amountRupees: number;
+  orders: number;
+}
+
 export const FirebaseStaffPaymentService = {
   async list(): Promise<StaffPaymentOrder[]> {
     if (!firebaseApp) throw new Error('Firebase is not configured for this environment.');
@@ -42,6 +49,67 @@ export function paidOrderTotalPaise(orders: StaffPaymentOrder[]): number {
   return orders
     .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded')
     .reduce((total, order) => total + (Number(order.amountPaise) || 0), 0);
+}
+
+function istDayKey(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const part = (type: string) => parts.find(item => item.type === type)?.value || '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+/** Day-wise Razorpay collections in IST, using paid non-refunded orders only. */
+export function dailyPaidOrderCollections(orders: StaffPaymentOrder[]): DailyPaymentCollection[] {
+  const byDay = new Map<string, { amountPaise: number; orders: number }>();
+
+  orders
+    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded')
+    .forEach(order => {
+      const key = istDayKey(order.createdAt);
+      const amount = Number(order.amountPaise) || 0;
+      if (!key || amount <= 0) return;
+      const current = byDay.get(key) || { amountPaise: 0, orders: 0 };
+      byDay.set(key, { amountPaise: current.amountPaise + amount, orders: current.orders + 1 });
+    });
+
+  const activeKeys = [...byDay.keys()].sort();
+  if (activeKeys.length === 0) return [];
+
+  const firstDay = Date.parse(`${activeKeys[0]}T00:00:00Z`);
+  const lastDay = Date.parse(`${activeKeys[activeKeys.length - 1]}T00:00:00Z`);
+  const span = Math.round((lastDay - firstDay) / 86_400_000) + 1;
+  const keys: string[] = [];
+
+  // Fill quiet days so gaps are visible, but avoid a giant axis for old test data.
+  if (span > 0 && span <= 45) {
+    const cursor = new Date(firstDay);
+    for (let index = 0; index < span; index += 1) {
+      keys.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  } else {
+    keys.push(...activeKeys);
+  }
+
+  return keys.map(key => {
+    const entry = byDay.get(key);
+    return {
+      date: key,
+      label: new Date(`${key}T12:00:00Z`).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        timeZone: 'UTC',
+      }),
+      amountRupees: Math.round((entry?.amountPaise || 0) / 100),
+      orders: entry?.orders || 0,
+    };
+  });
 }
 
 export function paidOrderTotalForDepartmentPaise(orders: StaffPaymentOrder[], departmentCode: string): number {
