@@ -81,8 +81,48 @@ const EMPTY_STATS: FestStats = {
 // for a manual refresh. Paused while the tab is hidden to avoid needless reads.
 const DASHBOARD_REFRESH_MS = 2 * 60 * 1000;
 
-const statsWithRevenue = (stats: FestStats, orders: StaffPaymentOrder[]): FestStats =>
-  orders.length === 0 ? stats : { ...stats, totalCollected: Math.round(paidOrderTotalPaise(orders) / 100) };
+const paidOrderCoverageKeys = (orders: StaffPaymentOrder[]): Set<string> => {
+  const keys = new Set<string>();
+  orders
+    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded')
+    .forEach(order => {
+      [order.id, order.orderId, order.paymentId, ...order.registrationIds].forEach(value => {
+        if (value) keys.add(String(value));
+      });
+      order.items.forEach(item => {
+        [item.registrationId, item.displayId].forEach(value => {
+          if (value) keys.add(String(value));
+        });
+      });
+    });
+  return keys;
+};
+
+const verifiedRegistrationsNotCoveredByPaidOrders = (
+  registrations: Registration[],
+  orders: StaffPaymentOrder[]
+): Registration[] => {
+  const coveredKeys = paidOrderCoverageKeys(orders);
+  return registrations.filter(registration =>
+    registration.paymentStatus === 'verified' &&
+    ![
+      registration.id,
+      registration.razorpayOrderId,
+      registration.transactionId
+    ].some(value => value && coveredKeys.has(String(value)))
+  );
+};
+
+const statsWithRevenue = (stats: FestStats, orders: StaffPaymentOrder[], registrations: Registration[]): FestStats => {
+  if (orders.length === 0) return stats;
+  const unmatchedVerifiedRevenue = sumVerifiedRegistrationRevenue(
+    verifiedRegistrationsNotCoveredByPaidOrders(registrations, orders)
+  );
+  return {
+    ...stats,
+    totalCollected: Math.round(paidOrderTotalPaise(orders) / 100) + unmatchedVerifiedRevenue
+  };
+};
 
 const cseClusterLabel = (clusterCode?: string): string => {
   const normalized = clusterCode?.trim().toUpperCase();
@@ -165,6 +205,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'pending' | 'verified' | 'rejected' | 'all'>('all');
   const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(null);
   const [selectedRosterEventId, setSelectedRosterEventId] = useState<string | null>(null);
+  const [selectedRosterTeam, setSelectedRosterTeam] = useState<RegistrationDisplayGroup | null>(null);
 
   // Revenue Analysis States & Filters (Super Admin overall view)
   const [revenueDeptFilter, setRevenueDeptFilter] = useState('all');
@@ -329,7 +370,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       paymentOrdersRef.current = orders;
       setPaymentOrders(orders);
       if (eventsResult.status === 'fulfilled' && registrationsResult.status === 'fulfilled') {
-        setStats(statsWithRevenue(StorageService.getStats(), orders));
+        setStats(statsWithRevenue(StorageService.getStats(), orders, registrationsResult.value));
       }
     })();
     dashboardRefreshInFlightRef.current = refresh;
@@ -346,7 +387,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       const orders = await FirebaseStaffPaymentService.list();
       paymentOrdersRef.current = orders;
       setPaymentOrders(orders);
-      setStats(statsWithRevenue(StorageService.getStats(), orders));
+      setStats(statsWithRevenue(StorageService.getStats(), orders, registrations));
     } catch (error) {
       console.warn('Firebase payment orders could not be refreshed.', error);
     }
@@ -356,13 +397,14 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     void refreshAllData();
 
     const handleRegsUpdate = () => {
-      setRegistrations(StorageService.getRegistrations());
-      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
+      const nextRegistrations = StorageService.getRegistrations();
+      setRegistrations(nextRegistrations);
+      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current, nextRegistrations));
     };
 
     const handleEventsUpdate = () => {
       setEvents(StorageService.getEvents());
-      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
+      setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current, registrations));
     };
 
     const handleDeptsUpdate = () => {
@@ -1496,9 +1538,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     });
 
     // Captured Razorpay orders are authoritative for money. Registration rows
-    // remain the source for counts and pending/rejected states.
+    // remain the source for counts and pending/rejected states. Manually
+    // recovered verified rows are added when no paid order covers them.
     const ordersAvailable = paymentOrders.length > 0;
-    const orderVerifiedRupees = ordersAvailable ? Math.round(paidOrderTotalPaise(paymentOrders) / 100) : totalVerified;
+    const unmatchedVerifiedRegistrations = ordersAvailable
+      ? verifiedRegistrationsNotCoveredByPaidOrders(registrations, paymentOrders)
+      : [];
+    const orderVerifiedRupees = ordersAvailable
+      ? Math.round(paidOrderTotalPaise(paymentOrders) / 100) + sumVerifiedRegistrationRevenue(unmatchedVerifiedRegistrations)
+      : totalVerified;
     const totalGross = orderVerifiedRupees + totalPending;
     const avgPerDelegate = verifiedCount > 0 ? Math.round(orderVerifiedRupees / verifiedCount) : 0;
     const totalPotentialCapacityRevenue = events.reduce((sum, e) => sum + ((e.capacity || 0) * (e.fee || 0)), 0);
@@ -1559,7 +1607,13 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
     if (ordersAvailable) {
       Object.values(deptMap).forEach(dept => {
-        dept.verifiedRev = Math.round(paidOrderTotalForDepartmentPaise(paymentOrders, dept.code) / 100);
+        const unmatchedDeptRegistrations = unmatchedVerifiedRegistrations.filter(registration => {
+          const event = events.find(candidate => candidate.id === registration.eventId);
+          const department = (registration.departmentCode || event?.departmentCode || 'OTHER').toUpperCase();
+          return department === dept.code.toUpperCase();
+        });
+        dept.verifiedRev = Math.round(paidOrderTotalForDepartmentPaise(paymentOrders, dept.code) / 100)
+          + sumVerifiedRegistrationRevenue(unmatchedDeptRegistrations);
         dept.grossRev = dept.verifiedRev + dept.pendingRev;
       });
     }
@@ -1573,6 +1627,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       const pendingRegs = evRegs.filter(r => r.paymentStatus === 'verification_pending');
       const verifiedRev = ordersAvailable
         ? Math.round(paidOrderTotalForEventPaise(paymentOrders, ev.id) / 100)
+          + sumVerifiedRegistrationRevenue(unmatchedVerifiedRegistrations.filter(registration => registration.eventId === ev.id))
         : sumVerifiedRegistrationRevenue(evRegs);
       const pendingRev = sumPendingRegistrationRevenue(evRegs);
       return {
@@ -2240,8 +2295,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               {departments.map(dept => {
                 const deptOrderPaise = paidOrderTotalForDepartmentPaise(paymentOrders, dept.code);
                 const baseDeptStats = StorageService.getDepartmentStats(dept.code);
+                const unmatchedDeptRevenue = sumVerifiedRegistrationRevenue(
+                  verifiedRegistrationsNotCoveredByPaidOrders(registrations, paymentOrders).filter(registration => {
+                    const event = events.find(candidate => candidate.id === registration.eventId);
+                    const registrationDepartment = (registration.departmentCode || event?.departmentCode || 'OTHER').toUpperCase();
+                    return registrationDepartment === dept.code.toUpperCase();
+                  })
+                );
                 const deptStats: FestStats = deptOrderPaise > 0
-                  ? { ...baseDeptStats, totalCollected: Math.round(deptOrderPaise / 100) }
+                  ? { ...baseDeptStats, totalCollected: Math.round(deptOrderPaise / 100) + unmatchedDeptRevenue }
                   : baseDeptStats;
                 const deptEvents = events.filter(e => e.departmentCode.toUpperCase() === dept.code.toUpperCase());
                 const deptCoords = coordinators.filter(c => c.departmentCode?.toUpperCase() === dept.code.toUpperCase());
@@ -4771,9 +4833,18 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
                         {group.isTeam ? `${group.members.length} delegates` : r.leaderRoll}
                         {group.isTeam && (
-                          <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>
-                            {group.members.slice(0, 3).map(member => member.rollNumber || member.name).join(', ')}
-                            {group.members.length > 3 ? '…' : ''}
+                          <div style={{ marginTop: '5px' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginBottom: '5px' }}>
+                              {group.members.slice(0, 3).map(member => member.rollNumber || member.name).join(', ')}
+                              {group.members.length > 3 ? '…' : ''}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRosterTeam(group)}
+                              style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(56, 189, 248, 0.4)', background: 'rgba(56, 189, 248, 0.1)', color: '#38BDF8', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              View team
+                            </button>
                           </div>
                         )}
                       </td>
@@ -8082,6 +8153,58 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Proof Viewer Lightbox Modal */}
+      {selectedRosterTeam && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${selectedRosterTeam.teamName || 'Team'} members`}
+          style={{ position: 'fixed', inset: 0, zIndex: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(2, 6, 23, 0.82)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setSelectedRosterTeam(null)}
+        >
+          <div
+            onClick={event => event.stopPropagation()}
+            style={{ width: 'min(760px, 100%)', maxHeight: 'min(720px, 90vh)', overflowY: 'auto', background: '#101A35', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '18px', padding: '22px', boxShadow: '0 24px 80px rgba(0, 0, 0, 0.5)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
+              <div>
+                <div style={{ color: '#38BDF8', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Full team roster</div>
+                <h3 style={{ color: '#FFFFFF', fontSize: '1.25rem', margin: '5px 0 4px' }}>{selectedRosterTeam.teamName || 'Team'}</h3>
+                <div style={{ color: '#A8B3C2', fontSize: '0.78rem' }}>{selectedRosterTeam.teamCode || 'No team code'} • {selectedRosterTeam.representative.eventTitle}</div>
+              </div>
+              <button type="button" onClick={() => setSelectedRosterTeam(null)} style={{ border: '1px solid rgba(220, 227, 229, 0.2)', background: 'rgba(255, 255, 255, 0.06)', color: '#DCE3E5', borderRadius: '8px', padding: '7px 10px', cursor: 'pointer', fontWeight: 700 }}>Close</button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {selectedRosterTeam.members.map(member => {
+                const leaderRegistration = selectedRosterTeam.registrations.find(registration => (registration.leaderRoll || registration.buyerRoll) === member.rollNumber);
+                const teammate = selectedRosterTeam.registrations.flatMap(registration => registration.teammates || []).find(candidate => candidate.rollNumber === member.rollNumber);
+                const details = leaderRegistration
+                  ? { email: leaderRegistration.leaderEmail, phone: leaderRegistration.leaderPhone, college: leaderRegistration.leaderCollege, status: leaderRegistration.paymentStatus, checkedIn: leaderRegistration.checkedIn }
+                  : { email: teammate?.email || '', phone: teammate?.phone || '', college: teammate?.college || selectedRosterTeam.representative.leaderCollege, status: selectedRosterTeam.paymentStatus, checkedIn: selectedRosterTeam.registrations.some(registration => registration.teammates?.some(candidate => candidate.rollNumber === member.rollNumber) && registration.checkedIn) };
+
+                return (
+                  <div key={member.rollNumber || member.name} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.2fr) minmax(130px, 0.8fr) minmax(180px, 1fr)', gap: '12px', alignItems: 'center', padding: '13px 14px', borderRadius: '12px', background: 'rgba(20, 31, 62, 0.86)', border: '1px solid rgba(148, 163, 184, 0.18)' }}>
+                    <div>
+                      <div style={{ color: '#FFFFFF', fontWeight: 800, fontSize: '0.86rem' }}>{member.name}</div>
+                      <div style={{ color: '#38BDF8', fontFamily: 'monospace', fontSize: '0.74rem', marginTop: '3px' }}>{member.rollNumber || 'Roll unavailable'}</div>
+                    </div>
+                    <div style={{ color: '#A8B3C2', fontSize: '0.72rem', lineHeight: 1.6 }}>
+                      <div>{details.email || 'Email unavailable'}</div>
+                      <div>{details.phone || 'Phone unavailable'}</div>
+                    </div>
+                    <div style={{ color: '#A8B3C2', fontSize: '0.72rem', lineHeight: 1.6 }}>
+                      <div>{details.college || 'College unavailable'}</div>
+                      <div style={{ color: details.checkedIn ? '#34D399' : '#94A3B8', fontWeight: 700 }}>{details.checkedIn ? 'Checked in' : 'Not checked in'} • {String(details.status || 'unknown').replace('_', ' ')}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

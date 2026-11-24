@@ -10,7 +10,6 @@ import {
   Bell,
   BarChart3,
   UserCog,
-  Settings,
   Layers,
   ShieldCheck,
   Briefcase,
@@ -31,8 +30,7 @@ export type AdminNavTab =
   | 'roster'
   | 'reports'
   | 'structure'
-  | 'users'
-  | 'settings';
+  | 'users';
 
 interface AdminSidebarProps {
   activeTab: AdminNavTab;
@@ -68,8 +66,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { id: 'coordinators' as AdminNavTab, label: 'Event Coordinators', icon: Users },
     { id: 'roster' as AdminNavTab, label: 'Participants', icon: Layers },
     { id: 'reports' as AdminNavTab, label: 'Analytics & Reports', icon: BarChart3 },
-    { id: 'structure' as AdminNavTab, label: 'User Management', icon: UserCog },
-    { id: 'settings' as AdminNavTab, label: 'Settings', icon: Settings }
+    { id: 'structure' as AdminNavTab, label: 'User Management', icon: UserCog }
   ];
 
   const [open, setOpen] = useState(false);
