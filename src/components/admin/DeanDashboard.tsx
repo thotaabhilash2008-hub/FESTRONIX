@@ -1405,6 +1405,25 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     return matchSearch && matchDept && matchStatus && matchCategory;
   });
 
+  const eventAnalysis = useMemo(() => {
+    const byDepartment: Record<string, { code: string; events: number; registrations: number; capacity: number }> = {};
+    const eventRows = filteredEvents.map(event => {
+      const registrationsForEvent = registrations.filter(r => r.eventId === event.id || r.eventId === event.slug || r.eventTitle === event.title);
+      const registrationsCount = registrationsForEvent.length;
+      const utilization = event.capacity > 0 ? Math.min(100, Math.round((registrationsCount / event.capacity) * 100)) : 0;
+      const code = event.departmentCode.toUpperCase();
+      if (!byDepartment[code]) byDepartment[code] = { code, events: 0, registrations: 0, capacity: 0 };
+      byDepartment[code].events++;
+      byDepartment[code].registrations += registrationsCount;
+      byDepartment[code].capacity += Number(event.capacity) || 0;
+      return { event, registrations: registrationsCount, utilization };
+    });
+    return {
+      eventRows: eventRows.sort((a, b) => b.registrations - a.registrations),
+      departments: Object.values(byDepartment).sort((a, b) => b.registrations - a.registrations)
+    };
+  }, [filteredEvents, registrations]);
+
   // Filtered Coordinators
   const filteredCoordinators = coordinators.filter(c => {
     const matchSearch = 
@@ -2947,6 +2966,62 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <option value="non-technical">Non-Technical</option>
                 <option value="departmental">Departmental</option>
               </select>
+            </div>
+
+            {/* Event and Department Analytics */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(300px, 1fr)', gap: '16px', marginBottom: '18px' }}>
+              <div style={{ background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '16px', padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', gap: '10px' }}>
+                  <div>
+                    <h3 className="font-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', margin: 0 }}>Event Registration Performance</h3>
+                    <p style={{ fontSize: '0.74rem', color: '#94A3B8', margin: '4px 0 0' }}>Top events by registered participants in the active filter scope.</p>
+                  </div>
+                  <BarChart3 size={20} color="#38BDF8" />
+                </div>
+                {eventAnalysis.eventRows.length === 0 ? <div style={{ color: '#64748B', fontSize: '0.8rem', padding: '28px 0' }}>No events match the selected filters.</div> : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {eventAnalysis.eventRows.slice(0, 8).map(({ event, registrations: count, utilization }) => (
+                      <div key={event.id} title={`${event.title}: ${count} registrations, ${utilization}% capacity`}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px', fontSize: '0.72rem' }}>
+                          <span style={{ color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</span>
+                          <strong style={{ color: '#38BDF8', whiteSpace: 'nowrap' }}>{count} / {event.capacity}</strong>
+                        </div>
+                        <div style={{ height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                          <div style={{ width: `${utilization}%`, height: '100%', borderRadius: '999px', background: utilization >= 90 ? '#F87171' : utilization >= 70 ? '#FBBF24' : '#38BDF8' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(192, 132, 252, 0.2)', borderRadius: '16px', padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', gap: '10px' }}>
+                  <div>
+                    <h3 className="font-title" style={{ fontSize: '1.05rem', color: '#FFFFFF', margin: 0 }}>Department Event Overview</h3>
+                    <p style={{ fontSize: '0.74rem', color: '#94A3B8', margin: '4px 0 0' }}>Events, registrations, and capacity by department.</p>
+                  </div>
+                  <Building2 size={20} color="#C084FC" />
+                </div>
+                {eventAnalysis.departments.length === 0 ? <div style={{ color: '#64748B', fontSize: '0.8rem', padding: '28px 0' }}>No department data available.</div> : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '11px' }}>
+                    {eventAnalysis.departments.slice(0, 8).map(dept => {
+                      const fill = dept.capacity > 0 ? Math.min(100, Math.round((dept.registrations / dept.capacity) * 100)) : 0;
+                      return (
+                        <div key={dept.code}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.72rem' }}>
+                            <span style={{ color: '#E2E8F0', fontWeight: 700 }}>{dept.code} <span style={{ color: '#64748B', fontWeight: 400 }}>({dept.events} events)</span></span>
+                            <span style={{ color: '#C084FC' }}>{dept.registrations} regs</span>
+                          </div>
+                          <div style={{ height: '7px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                            <div style={{ width: `${fill}%`, height: '100%', borderRadius: '999px', background: 'linear-gradient(90deg, #7C3AED, #C084FC)' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Events Grid */}
