@@ -620,8 +620,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
       ? `${deptCode} · ${clusterLabel}`
       : (deptInfo?.name || deptCode);
 
+  const consolidatedScopedRegistrations = useMemo(() => {
+    return StorageService.consolidateTeamRegistrations(scopedRegistrations);
+  }, [scopedRegistrations]);
+
   const filteredDeptRevenueRegistrations = useMemo(() => {
-    return scopedRegistrations.filter(r => {
+    return consolidatedScopedRegistrations.filter(r => {
       const matchEvent = deptRevenueEventFilter === 'all' || r.eventId === deptRevenueEventFilter;
       const matchStatus = deptRevenueStatusFilter === 'all' || r.paymentStatus === deptRevenueStatusFilter;
       const q = deptRevenueSearch.trim().toLowerCase();
@@ -640,7 +644,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         (r.teamName && r.teamName.trim().length > 0) ||
         (r.teamCode && r.teamCode.trim().length > 0) ||
         (Array.isArray(r.teammates) && r.teammates.length > 0) ||
-        r.format === 'team'
+        r.format === 'team' ||
+        r.format === 'duo'
       );
       const matchType =
         deptRevenueTypeFilter === 'all' ||
@@ -649,7 +654,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
       return matchEvent && matchStatus && matchSearch && matchType;
     });
-  }, [scopedRegistrations, deptRevenueEventFilter, deptRevenueStatusFilter, deptRevenueSearch, deptRevenueTypeFilter]);
+  }, [consolidatedScopedRegistrations, deptRevenueEventFilter, deptRevenueStatusFilter, deptRevenueSearch, deptRevenueTypeFilter]);
 
   const deptOverviewItems = useMemo<EventOverviewItem[]>(() => {
     return visibleEvents.map(event => {
@@ -4788,7 +4793,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div>
                 <div style={{ fontSize: '0.68rem', color: '#88B2AE', textTransform: 'uppercase', fontWeight: 700 }}>Registration Fee</div>
                 <div style={{ fontSize: '0.88rem', color: '#34D399', fontWeight: 800, marginTop: '2px' }}>
-                  ₹{coordViewingTeamMembers.fee}
+                  ₹{coordViewingTeamMembers.fee} <span style={{ fontSize: '0.7rem', color: '#A8B3C2', fontWeight: 500 }}>(Covers Team)</span>
                 </div>
               </div>
               <div>
@@ -4838,10 +4843,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     {coordViewingTeamMembers.leaderRoll}
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', fontSize: '0.76rem', color: '#94A3B8' }}>
                   <div>Email: <span style={{ color: '#CBD5E1' }}>{coordViewingTeamMembers.leaderEmail || '—'}</span></div>
                   <div>Phone: <span style={{ color: '#CBD5E1' }}>{coordViewingTeamMembers.leaderPhone || '—'}</span></div>
-                  <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{coordViewingTeamMembers.leaderCollege || 'Vardhaman College of Engineering'}</span></div>
+                  <div>College: <span style={{ color: '#CBD5E1' }}>{coordViewingTeamMembers.leaderCollege || 'Vardhaman College of Engineering'}</span></div>
+                  <div>Pass Fee: <span style={{ color: '#34D399', fontWeight: 700 }}>Paid ₹{coordViewingTeamMembers.fee} (Covers Team)</span></div>
+                  <div>Reg ID: <span style={{ color: '#38BDF8', fontFamily: 'monospace' }}>{coordViewingTeamMembers.id}</span></div>
+                  <div>Gate Status: <span style={{ color: coordViewingTeamMembers.checkedIn ? '#34D399' : '#A8B3C2', fontWeight: 700 }}>{coordViewingTeamMembers.checkedIn ? `Checked In (${coordViewingTeamMembers.checkedInAt || 'Gate'})` : 'Not Arrived'}</span></div>
                 </div>
               </div>
 
@@ -4882,10 +4890,15 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                         {tm.rollNumber || '—'}
                       </span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '4px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px', fontSize: '0.76rem', color: '#94A3B8' }}>
                       <div>Email: <span style={{ color: '#CBD5E1' }}>{tm.email || '—'}</span></div>
                       <div>Phone: <span style={{ color: '#CBD5E1' }}>{tm.phone || '—'}</span></div>
-                      {tm.college && <div style={{ gridColumn: '1 / -1' }}>College: <span style={{ color: '#CBD5E1' }}>{tm.college}</span></div>}
+                      <div>College: <span style={{ color: '#CBD5E1' }}>{tm.college || coordViewingTeamMembers.leaderCollege || 'Vardhaman College of Engineering'}</span></div>
+                      <div>Pass Fee: <span style={{ color: '#38BDF8', fontWeight: 700 }}>Included in Team Pass (₹0)</span></div>
+                      {tm.id && (
+                        <div>Pass ID: <span style={{ color: '#CBD5E1', fontFamily: 'monospace' }}>{tm.id}</span></div>
+                      )}
+                      <div>Gate Status: <span style={{ color: tm.checkedIn ? '#34D399' : '#A8B3C2', fontWeight: 700 }}>{tm.checkedIn ? `Checked In (${tm.checkedInAt || 'Gate'})` : 'Not Arrived'}</span></div>
                     </div>
                   </div>
                 ))

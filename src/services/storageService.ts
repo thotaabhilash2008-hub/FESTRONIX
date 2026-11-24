@@ -723,6 +723,120 @@ export class StorageService {
     }
   }
 
+  /**
+   * Consolidates registrations so that teams with companion/zero-fee member passes
+   * are represented by a single primary registration entry (with the full fee and
+   * all teammates attached), eliminating duplicate ₹0 rows from participant lists.
+   */
+  static consolidateTeamRegistrations(registrations: Registration[]): Registration[] {
+    const cloudTeams = this.getTeams();
+    const teamGroups = new Map<string, Registration[]>();
+    const nonTeamRegistrations: Registration[] = [];
+
+    const getTeamKey = (r: Registration): string | null => {
+      const rawCode = r.teamCode ? r.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : '';
+      if (rawCode) return `CODE:${rawCode}`;
+      const rawName = r.teamName ? r.teamName.trim().toLowerCase() : '';
+      if (rawName) return `NAME:${r.eventId || r.eventTitle}:${rawName}`;
+      return null;
+    };
+
+    for (const r of registrations) {
+      const key = getTeamKey(r);
+      if (key) {
+        const group = teamGroups.get(key) || [];
+        group.push(r);
+        teamGroups.set(key, group);
+      } else {
+        nonTeamRegistrations.push(r);
+      }
+    }
+
+    const consolidatedTeams: Registration[] = [];
+
+    teamGroups.forEach(members => {
+      // Find the primary registration:
+      // Prefer registration with fee > 0, then leader with teammates, then earliest
+      let primary = members.find(m => Number(m.fee || 0) > 0);
+      if (!primary) {
+        primary = members.find(m => Array.isArray(m.teammates) && m.teammates.length > 0) || members[0];
+      }
+
+      // Collect all teammates across all member registrations and cloud teams
+      const teammateMap = new Map<string, Teammate>();
+      const leaderRollNorm = (primary.leaderRoll || '').trim().toUpperCase();
+
+      // 1. Existing teammates on primary
+      if (Array.isArray(primary.teammates)) {
+        primary.teammates.forEach(tm => {
+          const rollKey = tm.rollNumber ? tm.rollNumber.trim().toUpperCase() : tm.name.trim().toLowerCase();
+          if (rollKey && rollKey !== leaderRollNorm) {
+            teammateMap.set(rollKey, { ...tm });
+          }
+        });
+      }
+
+      // 2. Companion registrations in the same team (zero-fee member passes)
+      members.forEach(m => {
+        if (m.id !== primary!.id) {
+          const rollKey = m.leaderRoll ? m.leaderRoll.trim().toUpperCase() : m.leaderName.trim().toLowerCase();
+          if (rollKey && rollKey !== leaderRollNorm) {
+            const existing = teammateMap.get(rollKey);
+            teammateMap.set(rollKey, {
+              name: m.leaderName || existing?.name || 'Teammate',
+              rollNumber: m.leaderRoll || existing?.rollNumber || '',
+              email: m.leaderEmail || existing?.email || '',
+              phone: m.leaderPhone || existing?.phone || '',
+              college: m.leaderCollege || existing?.college || 'Vardhaman College of Engineering',
+              deptSection: m.deptSection || existing?.deptSection,
+              registrationStatus: m.paymentStatus,
+              qrGenerated: Boolean(m.qrToken),
+              registeredAt: m.registrationDate,
+              id: m.id,
+              checkedIn: m.checkedIn,
+              checkedInAt: m.checkedInAt
+            });
+          }
+        }
+      });
+
+      // 3. Match from cloud teams table if team code matches
+      const rawCode = primary.teamCode ? primary.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : '';
+      if (rawCode) {
+        const teamObj = cloudTeams.find(t => t.teamCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === rawCode);
+        if (teamObj && Array.isArray(teamObj.members)) {
+          teamObj.members.forEach(tm => {
+            const rollKey = tm.rollNumber ? tm.rollNumber.trim().toUpperCase() : tm.name.trim().toLowerCase();
+            if (rollKey && rollKey !== leaderRollNorm) {
+              if (!teammateMap.has(rollKey)) {
+                teammateMap.set(rollKey, {
+                  name: tm.name || 'Teammate',
+                  rollNumber: tm.rollNumber || '',
+                  email: tm.email || '',
+                  phone: tm.phone || '',
+                  college: tm.college || primary!.leaderCollege || 'Vardhaman College of Engineering'
+                });
+              }
+            }
+          });
+        }
+      }
+
+      const mergedTeammates = Array.from(teammateMap.values());
+      const resolvedTeamName = primary.teamName || members.find(m => m.teamName)?.teamName || '';
+      const resolvedTeamCode = primary.teamCode || members.find(m => m.teamCode)?.teamCode || '';
+
+      consolidatedTeams.push({
+        ...primary,
+        teamName: resolvedTeamName,
+        teamCode: resolvedTeamCode,
+        teammates: mergedTeammates
+      });
+    });
+
+    return [...consolidatedTeams, ...nonTeamRegistrations];
+  }
+
   static saveRegistrations(regs: Registration[]): void {
     localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(regs));
     if (typeof window !== 'undefined') {
