@@ -947,7 +947,7 @@ export const EventCatalog: React.FC<EventCatalogProps> = ({
                   >
                     <div>
                       <div style={{ fontSize: '0.65rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Entry Fee
+                        Registration fee
                       </div>
                       <div
                         style={{

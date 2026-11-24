@@ -170,6 +170,9 @@ const EventCard: React.FC<{
           marginBottom: '12px'
         }}
       >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#94A3B8', fontSize: '0.78rem', fontWeight: 700 }}>
+          <span>Registration fee</span>
+        </div>
         <div style={{ fontSize: '0.78rem', fontWeight: 800, color: event.fee === 0 ? '#34D399' : '#38BDF8' }}>
           {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
         </div>

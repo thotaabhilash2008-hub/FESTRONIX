@@ -58,7 +58,10 @@ const CompactEventCard: React.FC<{
       </div>
 
       {/* Entry Fee */}
-      <div className="event-glimpse-prize-fee" style={{ justifyContent: 'flex-end' }}>
+      <div className="event-glimpse-prize-fee">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94A3B8', fontSize: '0.74rem', fontWeight: 700 }}>
+          <span>Registration fee</span>
+        </div>
         <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38BDF8' }}>
           {event.fee === 0 ? 'Free Entry' : `₹${event.fee}`}
         </div>
