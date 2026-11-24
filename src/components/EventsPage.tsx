@@ -7,7 +7,6 @@ import {
   Calendar,
   MapPin,
   Users,
-  Trophy,
   ArrowRight,
   Zap,
   Flame,
@@ -158,11 +157,11 @@ const EventCard: React.FC<{
         </div>
       </div>
 
-      {/* Prize & Fee */}
+      {/* Entry Fee */}
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           padding: '8px 10px',
           background: 'rgba(15,23,42,0.6)',
@@ -171,10 +170,6 @@ const EventCard: React.FC<{
           marginBottom: '12px'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#F59E0B', fontSize: '0.78rem', fontWeight: 700 }}>
-          <Trophy size={13} color="#F59E0B" />
-          <span>{event.prizes.first.replace(/Cash Prize|Worth Prizes/gi, '').trim()}</span>
-        </div>
         <div style={{ fontSize: '0.78rem', fontWeight: 800, color: event.fee === 0 ? '#34D399' : '#38BDF8' }}>
           {event.fee === 0 ? 'FREE' : `₹${event.fee}`}
         </div>
@@ -290,11 +285,6 @@ export const EventsPage: React.FC<EventsPageProps> = ({
   }, [events, searchQuery, categoryFilter, dayFilter, formatFilter, deptFilter, feeFilter, sortBy]);
 
   const freeCount = events.filter(e => e.fee === 0).length;
-  const totalPrizePool = events.reduce((acc, e) => {
-    const match = e.prizes.first.match(/(\d[\d,]*)/);
-    return acc + (match ? parseInt(match[1].replace(/,/g, '')) : 0);
-  }, 0);
-
   const clearFilters = () => {
     setSearchQuery('');
     setCategoryFilter('all');
@@ -659,10 +649,6 @@ export const EventsPage: React.FC<EventsPageProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#94A3B8' }}>
             <Flame size={13} color="#34D399" />
             <span><strong style={{ color: '#34D399' }}>{freeCount}</strong> free events</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#94A3B8' }}>
-            <Trophy size={13} color="#F59E0B" />
-            <span>Prize pool worth <strong style={{ color: '#F59E0B' }}>₹1,00,000+</strong></span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#94A3B8' }}>
             <Rocket size={13} color="#A855F7" />

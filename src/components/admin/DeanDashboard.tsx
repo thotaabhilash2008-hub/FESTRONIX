@@ -24,8 +24,10 @@ import {
   registrationRevenueAmount,
   registrationRevenueKey,
   sumPendingRegistrationRevenue,
+  sumRegistrationRevenueForRows,
   sumVerifiedRegistrationRevenue,
 } from '../../lib/revenue';
+import { groupRegistrationsForDisplay, RegistrationDisplayGroup } from '../../lib/registrationDisplay';
 import {
   FirebaseStaffPaymentService,
   StaffPaymentOrder,
@@ -338,6 +340,18 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     }
   };
 
+  const refreshPaymentOrdersOnly = async (): Promise<void> => {
+    if (!isFirebaseConfigured) return;
+    try {
+      const orders = await FirebaseStaffPaymentService.list();
+      paymentOrdersRef.current = orders;
+      setPaymentOrders(orders);
+      setStats(statsWithRevenue(StorageService.getStats(), orders));
+    } catch (error) {
+      console.warn('Firebase payment orders could not be refreshed.', error);
+    }
+  };
+
   useEffect(() => {
     void refreshAllData();
 
@@ -379,8 +393,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') void refreshAllData();
     };
+    const handlePaymentsUpdate = () => {
+      void refreshPaymentOrdersOnly();
+    };
     const refreshTimer = window.setInterval(handleVisibilityChange, DASHBOARD_REFRESH_MS);
 
+    window.addEventListener('festronix:payments-updated', handlePaymentsUpdate);
     window.addEventListener('festronix:regs-updated', handleRegsUpdate);
     window.addEventListener('festronix:events-updated', handleEventsUpdate);
     window.addEventListener('festronix:departments-updated', handleDeptsUpdate);
@@ -392,6 +410,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     return () => {
       window.clearInterval(refreshTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('festronix:payments-updated', handlePaymentsUpdate);
       window.removeEventListener('festronix:regs-updated', handleRegsUpdate);
       window.removeEventListener('festronix:events-updated', handleEventsUpdate);
       window.removeEventListener('festronix:departments-updated', handleDeptsUpdate);
@@ -552,6 +571,26 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       }
     } catch (error) {
       window.alert((error as Error).message || 'Unable to update gate check-in status.');
+    }
+  };
+
+  // A squad is displayed and checked in as one unit while passes stay per-member in Firebase.
+  const handleToggleRegistrationGroupCheckIn = async (group: RegistrationDisplayGroup) => {
+    if (group.registrations.length <= 1) {
+      await handleToggleCheckIn(group.representative.id);
+      return;
+    }
+    const shouldCheckIn = !group.allCheckedIn;
+    try {
+      for (const registration of group.registrations) {
+        if (registration.checkedIn === shouldCheckIn) continue;
+        const res = await StorageService.toggleCheckInRegistration(registration.id, adminUser.fullName);
+        if (!res.success) throw new Error('One or more squad passes could not be updated.');
+      }
+      if (shouldCheckIn) confetti({ particleCount: 50, spread: 45, origin: { y: 0.7 } });
+      await refreshAllData();
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update squad check-in status.');
     }
   };
 
@@ -1160,23 +1199,26 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
   // CSV Export Handler
   const handleExportCSV = () => {
-    const headers = ['Registration ID', 'Event Title', 'Leader Name', 'Roll Number', 'Team Name', 'Team Code', 'Email', 'Phone', 'College', 'Format', 'Fee (INR)', 'Payment Status', 'Transaction ID', 'Checked In'];
-    const rows = registrations.map(r => [
-      r.id,
-      `"${r.eventTitle.replace(/"/g, '""')}"`,
-      `"${r.leaderName.replace(/"/g, '""')}"`,
-      r.leaderRoll,
-      `"${(r.teamName || 'Solo').replace(/"/g, '""')}"`,
-      r.teamCode || 'N/A',
-      r.leaderEmail,
-      r.leaderPhone,
-      `"${r.leaderCollege.replace(/"/g, '""')}"`,
-      r.format,
-      r.fee,
-      r.paymentStatus,
-      r.transactionId || 'N/A',
-      r.checkedIn ? 'YES' : 'NO'
-    ]);
+    const headers = ['Entry ID', 'Event Title', 'Participant / Squad', 'Roll / Members', 'Team Name', 'Team Code', 'Email', 'Phone', 'College', 'Format', 'Fee (INR)', 'Payment Status', 'Transaction ID', 'Checked In'];
+    const rows = groupRegistrationsForDisplay(registrations).map(group => {
+      const r = group.representative;
+      return [
+        group.displayId,
+        `"${r.eventTitle.replace(/"/g, '""')}"`,
+        `"${(group.isTeam ? group.teamName || 'Team' : r.leaderName).replace(/"/g, '""')}"`,
+        `"${group.isTeam ? group.members.map(member => `${member.name}${member.rollNumber ? ` (${member.rollNumber})` : ''}`).join('; ') : r.leaderRoll}"`,
+        `"${(group.teamName || 'Solo').replace(/"/g, '""')}"`,
+        group.teamCode || 'N/A',
+        r.leaderEmail,
+        r.leaderPhone,
+        `"${r.leaderCollege.replace(/"/g, '""')}"`,
+        r.format,
+        sumRegistrationRevenueForRows(group.registrations),
+        group.paymentStatus,
+        group.registrations.find(row => row.transactionId)?.transactionId || 'N/A',
+        group.allCheckedIn ? 'YES' : group.anyCheckedIn ? 'PARTIAL' : 'NO'
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -1259,28 +1301,33 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     );
   }, [coordinators, editingEvent]);
 
-  // Filtered Roster
-  const filteredRoster = registrations.filter(r => {
+  // Filtered Roster — squad rows are collapsed into a single display entry.
+  const filteredRoster = groupRegistrationsForDisplay(registrations).filter(group => {
+    const r = group.representative;
     if (selectedRosterEventId) {
       const event = events.find(candidate => candidate.id === r.eventId || candidate.slug === r.eventId || candidate.title === r.eventTitle);
       const eventKey = event?.id || r.eventId || `title:${r.eventTitle}`;
       if (eventKey !== selectedRosterEventId) return false;
     }
-    const matchSearch = 
-      r.leaderName.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-      r.leaderRoll.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-      r.eventTitle.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-      r.id.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-      (r.teamName && r.teamName.toLowerCase().includes(rosterSearch.toLowerCase())) ||
-      (r.teamCode && r.teamCode.toLowerCase().includes(rosterSearch.toLowerCase()));
+    const query = rosterSearch.trim().toLowerCase();
+    const searchable = [
+      r.leaderName,
+      r.leaderRoll,
+      r.eventTitle,
+      r.id,
+      group.teamName,
+      group.teamCode,
+      ...group.members.flatMap(member => [member.name, member.rollNumber]),
+    ];
+    const matchSearch = !query || searchable.some(value => String(value || '').toLowerCase().includes(query));
     
     const regDept = StorageService.resolveDepartmentForRegistration(r, events);
     const matchDept = rosterDeptFilter === 'all' || regDept === rosterDeptFilter.toUpperCase();
-    const matchPay = rosterPaymentFilter === 'all' || r.paymentStatus === rosterPaymentFilter;
-    const matchCheckIn = 
-      rosterCheckInFilter === 'all' || 
-      (rosterCheckInFilter === 'checked_in' && r.checkedIn) || 
-      (rosterCheckInFilter === 'not_checked_in' && !r.checkedIn);
+    const matchPay = rosterPaymentFilter === 'all' || group.paymentStatus === rosterPaymentFilter;
+    const matchCheckIn =
+      rosterCheckInFilter === 'all' ||
+      (rosterCheckInFilter === 'checked_in' && group.anyCheckedIn) ||
+      (rosterCheckInFilter === 'not_checked_in' && !group.anyCheckedIn);
 
     return matchSearch && matchDept && matchPay && matchCheckIn;
   });
@@ -1584,20 +1631,21 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   };
 
   const handleExportRosterCSV = () => {
-    const headers = ['Registration ID', 'Event Name', 'Participant / Leader Name', 'Roll Number', 'Email', 'College', 'Department / Section', 'Phone', 'Payment Status', 'Gate Checked In'];
-    const rows = registrations.map(r => {
+    const headers = ['Entry ID', 'Event Name', 'Participant / Squad', 'Roll / Members', 'Email', 'College', 'Department / Section', 'Phone', 'Payment Status', 'Gate Checked In'];
+    const rows = groupRegistrationsForDisplay(registrations).map(group => {
+      const r = group.representative;
       const ev = events.find(e => e.id === r.eventId);
       return [
-        r.id,
+        group.displayId,
         `"${ev?.title || r.eventTitle || 'Unknown'}"`,
-        `"${r.leaderName || ''}"`,
-        r.leaderRoll || '',
+        `"${(group.isTeam ? group.teamName || 'Team' : r.leaderName || '').replace(/"/g, '""')}"`,
+        `"${group.isTeam ? group.members.map(member => `${member.name}${member.rollNumber ? ` (${member.rollNumber})` : ''}`).join('; ') : r.leaderRoll || ''}"`,
         r.leaderEmail || '',
         `"${r.leaderCollege || ''}"`,
         `"${r.deptSection || r.departmentCode || ''}"`,
         r.leaderPhone || '',
-        r.paymentStatus,
-        r.checkedIn ? 'YES' : 'NO'
+        group.paymentStatus,
+        group.allCheckedIn ? 'YES' : group.anyCheckedIn ? 'PARTIAL' : 'NO'
       ].join(',');
     });
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
@@ -1612,11 +1660,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
   const handleExportAttendanceCSV = () => {
     const headers = [
-      'Registration ID',
+      'Entry ID',
       'Department',
       'Event Name',
-      'Participant / Leader Name',
-      'Roll Number',
+      'Participant / Squad',
+      'Roll / Members',
       'Email',
       'College',
       'Phone',
@@ -1625,22 +1673,23 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
       'Check-In Timestamp',
       'Verified Status'
     ];
-    const rows = registrations.map(r => {
+    const rows = groupRegistrationsForDisplay(registrations).map(group => {
+      const r = group.representative;
       const ev = events.find(e => e.id === r.eventId);
       const dept = r.departmentCode || ev?.departmentCode || 'CENTRAL';
       return [
-        r.id,
+        group.displayId,
         `"${dept}"`,
         `"${(ev?.title || r.eventTitle || '').replace(/"/g, '""')}"`,
-        `"${(r.leaderName || '').replace(/"/g, '""')}"`,
-        `"${r.leaderRoll || ''}"`,
+        `"${(group.isTeam ? group.teamName || 'Team' : r.leaderName || '').replace(/"/g, '""')}"`,
+        `"${group.isTeam ? group.members.map(member => `${member.name}${member.rollNumber ? ` (${member.rollNumber})` : ''}`).join('; ') : r.leaderRoll || ''}"`,
         `"${r.leaderEmail || ''}"`,
         `"${(r.leaderCollege || '').replace(/"/g, '""')}"`,
         r.leaderPhone || '',
         r.source || 'online',
-        r.checkedIn ? 'YES' : 'NO',
-        `"${r.checkedInAt || ''}"`,
-        r.paymentStatus
+        group.allCheckedIn ? 'YES' : group.anyCheckedIn ? 'PARTIAL' : 'NO',
+        `"${group.registrations.find(row => row.checkedIn)?.checkedInAt || ''}"`,
+        group.paymentStatus
       ].join(',');
     });
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
@@ -4552,8 +4601,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.15)', background: 'rgba(16, 26, 53, 0.6)', color: '#A8B3C2' }}>
                     <th style={{ padding: '12px 16px' }}>Reg ID</th>
-                    <th style={{ padding: '12px 16px' }}>Student Delegate</th>
-                    <th style={{ padding: '12px 16px' }}>Roll Number</th>
+                    <th style={{ padding: '12px 16px' }}>Participant / Squad</th>
+                    <th style={{ padding: '12px 16px' }}>Roll / Members</th>
                     <th style={{ padding: '12px 16px' }}>Event</th>
                     <th style={{ padding: '12px 16px' }}>Fee</th>
                     <th style={{ padding: '12px 16px' }}>Payment</th>
@@ -4561,9 +4610,15 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedRoster.map(r => (
+                  {paginatedRoster.map(group => {
+                    const r = group.representative;
+                    const status = group.paymentStatus;
+                    const statusVerified = status === 'verified';
+                    const statusPending = status === 'verification_pending';
+                    const checkedIn = group.allCheckedIn;
+                    return (
                     <tr
-                      key={r.id}
+                      key={group.key}
                       style={{
                         borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
                         transition: 'background 0.15s'
@@ -4572,25 +4627,38 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#BACEBB', fontWeight: 700 }}>
-                        {r.id}
+                        {group.displayId}
+                        {group.isTeam && (
+                          <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>
+                            {group.memberCount} members • {group.registrations.length} passes
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#FFFFFF', fontWeight: 600 }}>
-                        {r.leaderName}
-                        <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>{r.leaderEmail} • {r.leaderPhone}</div>
+                        {group.isTeam ? group.teamName || 'Team' : r.leaderName}
+                        <div style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>
+                          {group.isTeam ? `Contact: ${r.leaderName} • ` : ''}{r.leaderEmail} • {r.leaderPhone}
+                        </div>
                       </td>
                       <td style={{ padding: '12px 16px', color: '#DCE3E5', fontFamily: 'monospace' }}>
-                        {r.leaderRoll}
+                        {group.isTeam ? `${group.members.length} delegates` : r.leaderRoll}
+                        {group.isTeam && (
+                          <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>
+                            {group.members.slice(0, 3).map(member => member.rollNumber || member.name).join(', ')}
+                            {group.members.length > 3 ? '…' : ''}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#FFFFFF' }}>
                         <div>{r.eventTitle}</div>
-                        {(r.teamName || r.teamCode) && (
+                        {group.isTeam && (
                           <div style={{ fontSize: '0.72rem', color: '#BACEBB', marginTop: '2px' }}>
-                            Squad: <strong>{r.teamName || 'Team'}</strong> <span style={{ fontFamily: 'monospace', color: '#A8B3C2' }}>({r.teamCode})</span>
+                            Squad: <strong>{group.teamName || 'Team'}</strong> <span style={{ fontFamily: 'monospace', color: '#A8B3C2' }}>({group.teamCode})</span>
                           </div>
                         )}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#BACEBB', fontWeight: 700 }}>
-                        ₹{registrationRevenueAmount(r)}
+                        ₹{sumRegistrationRevenueForRows(group.registrations)}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <span
@@ -4600,19 +4668,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             borderRadius: '4px',
                             fontWeight: 700,
                             background: 
-                              r.paymentStatus === 'verified' ? 'rgba(52, 211, 153, 0.15)' :
-                              r.paymentStatus === 'verification_pending' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                              statusVerified ? 'rgba(52, 211, 153, 0.15)' :
+                              statusPending ? 'rgba(251, 191, 36, 0.15)' : 'rgba(239, 68, 68, 0.15)',
                             color:
-                              r.paymentStatus === 'verified' ? '#34D399' :
-                              r.paymentStatus === 'verification_pending' ? '#FBBF24' : '#f87171'
+                              statusVerified ? '#34D399' :
+                              statusPending ? '#FBBF24' : '#f87171'
                           }}
                         >
-                          {r.paymentStatus.toUpperCase()}
+                          {status.toUpperCase()}
                         </span>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <button
-                          onClick={() => handleToggleCheckIn(r.id)}
+                          onClick={() => handleToggleRegistrationGroupCheckIn(group)}
                           style={{
                             fontSize: '0.72rem',
                             padding: '4px 10px',
@@ -4622,24 +4690,25 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px',
-                            background: r.checkedIn ? 'rgba(52, 211, 153, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                            border: `1px solid ${r.checkedIn ? 'rgba(52, 211, 153, 0.4)' : 'rgba(220, 227, 229, 0.2)'}`,
-                            color: r.checkedIn ? '#34D399' : '#A8B3C2'
+                            background: checkedIn ? 'rgba(52, 211, 153, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                            border: `1px solid ${checkedIn ? 'rgba(52, 211, 153, 0.4)' : 'rgba(220, 227, 229, 0.2)'}`,
+                            color: checkedIn ? '#34D399' : '#A8B3C2'
                           }}
-                          title={r.checkedIn ? 'Click to revert check-in status' : 'Click to grant gate admission'}
+                          title={checkedIn ? 'Click to revert squad check-in' : 'Click to check in the whole squad'}
                         >
-                          {r.checkedIn ? <CheckCircle2 size={13} /> : <Clock size={13} />}
-                          <span>{r.checkedIn ? `CHECKED IN (${r.checkedInAt || 'Gate'})` : '+ CHECK IN NOW'}</span>
+                          {checkedIn ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                          <span>{checkedIn ? 'CHECKED IN' : group.anyCheckedIn ? 'PARTIAL • CHECK ALL' : '+ CHECK IN NOW'}</span>
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginTop: '14px', flexWrap: 'wrap' }}>
               <span style={{ color: '#94A3B8', fontSize: '0.78rem' }}>
-                Showing {filteredRoster.length === 0 ? 0 : (rosterPage - 1) * ROSTER_PAGE_SIZE + 1}–{Math.min(rosterPage * ROSTER_PAGE_SIZE, filteredRoster.length)} of {filteredRoster.length} participants
+                Showing {filteredRoster.length === 0 ? 0 : (rosterPage - 1) * ROSTER_PAGE_SIZE + 1}–{Math.min(rosterPage * ROSTER_PAGE_SIZE, filteredRoster.length)} of {filteredRoster.length} entries (squads count once)
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button

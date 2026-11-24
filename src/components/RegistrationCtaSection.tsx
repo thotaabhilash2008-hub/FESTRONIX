@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ticket, ArrowRight, Trophy, Shield, QrCode } from 'lucide-react';
+import { Ticket, ArrowRight, QrCode } from 'lucide-react';
 import { Tilt3DCard } from './3d/Tilt3DCard';
 import { ScrollReveal } from './animations';
 
@@ -102,9 +102,7 @@ export const RegistrationCtaSection: React.FC<RegistrationCtaSectionProps> = ({
               }}
             >
               {[
-                { icon: <QrCode size={16} color="#38BDF8" />, text: 'Instant Digital Pass & QR Entry' },
-                { icon: <Shield size={16} color="#34D399" />, text: 'Official College Certificate' },
-                { icon: <Trophy size={16} color="#FBBF24" />, text: '₹1,00,000+ Prize Pool Access' }
+                { icon: <QrCode size={16} color="#38BDF8" />, text: 'Instant Digital Pass & QR Entry' }
               ].map((perk, i) => (
                 <div
                   key={i}

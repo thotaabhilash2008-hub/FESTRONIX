@@ -4,7 +4,6 @@ import { HeroSection } from './components/HeroSection';
 import { GlitchOpeningHeroSection } from './components/GlitchOpeningHeroSection';
 import { EventsGlimpseSection } from './components/EventsGlimpseSection';
 import { DepartmentsSection } from './components/DepartmentsSection';
-import { PrizesSection } from './components/PrizesSection';
 import { Footer } from './components/Footer';
 import { FullscreenIntro } from './components/FullscreenIntro';
 const EventDetailModal = lazy(() => import('./components/EventDetailModal').then(module => ({ default: module.EventDetailModal })));
@@ -503,6 +502,8 @@ export const App: React.FC = () => {
     cachePassesOnDevice([newReg]);
     setRegisterEvent(null);
     refreshData();
+    // Make Razorpay/KPI totals refresh immediately in any open staff dashboard.
+    window.dispatchEvent(new CustomEvent('festronix:payments-updated'));
     handleOpenPassesPage(newReg.id);
   };
 
@@ -741,9 +742,6 @@ export const App: React.FC = () => {
 
         {/* Engineering Departments Overview */}
         <DepartmentsSection departments={departments} />
-
-        {/* Mega Cash Prizes & Perks */}
-        <PrizesSection />
 
         {/* Closing Registration CTA: Final Cinematic Moment */}
         <RegistrationCtaSection

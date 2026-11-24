@@ -116,9 +116,9 @@ export const PrivacyPolicyPage: React.FC<PrivacyPolicyPageProps> = ({
               </p>
             </div>
             <div style={{ background: 'rgba(20, 31, 62, 0.65)', border: '1px solid rgba(220, 227, 229, 0.12)', borderRadius: '12px', padding: '18px' }}>
-              <div style={{ color: '#C084FC', fontWeight: 700, fontSize: '0.92rem', marginBottom: '6px' }}>Certification & Prize Disbursement</div>
+              <div style={{ color: '#C084FC', fontWeight: 700, fontSize: '0.92rem', marginBottom: '6px' }}>Event Results & Updates</div>
               <p style={{ color: '#94A3B8', fontSize: '0.84rem', lineHeight: 1.6, margin: 0 }}>
-                Issuing authenticated certificates of participation/merit and coordinating cash prize distributions to recognized winners.
+                Sharing official result announcements and event updates with registered participants.
               </p>
             </div>
             <div style={{ background: 'rgba(20, 31, 62, 0.65)', border: '1px solid rgba(220, 227, 229, 0.12)', borderRadius: '12px', padding: '18px' }}>

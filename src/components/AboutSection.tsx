@@ -280,7 +280,7 @@ export const AboutSection: React.FC = () => {
                 </h3>
 
                 <p style={{ color: '#CBD5E1', fontSize: '0.94rem', lineHeight: 1.7 }}>
-                  Podium finishers and standout competitors take home cash rewards from the ₹1,00,000+ prize pool, official trophies, and merit certificates verified by SAC Vardhaman.
+                  Event winners and recognition details will be announced through official Festronix channels.
                 </p>
               </div>
 
@@ -299,7 +299,7 @@ export const AboutSection: React.FC = () => {
                 }}
               >
                 <Award size={14} color="#38BDF8" />
-                <span>₹1,00,000+ PRIZE POOL</span>
+                <span>OFFICIAL RESULTS & UPDATES</span>
               </div>
             </div>
           </Tilt3DCard>

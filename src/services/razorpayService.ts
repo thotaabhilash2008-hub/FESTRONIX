@@ -285,6 +285,7 @@ export async function completeRazorpayBatchCheckout(
             throw new Error('Payment was verified, but the server did not return every participant pass. Check My Passes before retrying.');
           }
           complete(registrations);
+          window.dispatchEvent(new CustomEvent('festronix:payments-updated'));
         } catch (error) {
           fail(error);
         }

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Trophy, Radio, LayoutGrid } from 'lucide-react';
+import { Flame, CalendarDays, ArrowRight, Users, QrCode, Ticket, Radio, LayoutGrid } from 'lucide-react';
 import { Festronix3DTitle } from './Festronix3DTitle';
 import { HeroAnimation } from './animations';
 
@@ -402,7 +402,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           }}
         >
           {[
-            { icon: <Trophy size={14} color="#FBBF24" />, value: '₹1,00,000+', label: 'Prize Pool' },
             { icon: <Users size={14} color="#38BDF8" />, value: '3,500+', label: 'Competitors' },
             { icon: <Flame size={14} color="#38BDF8" />, value: '30+ Arenas', label: '9 Branches' },
             { icon: <QrCode size={14} color="#34D399" />, value: 'Crypto Pass', label: 'Instant Check-in' }

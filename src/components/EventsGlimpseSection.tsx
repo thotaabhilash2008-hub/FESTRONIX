@@ -3,7 +3,6 @@ import {
   Flame,
   Calendar,
   MapPin,
-  Trophy,
   Users,
   Zap,
   Rocket,
@@ -30,10 +29,6 @@ const CompactEventCard: React.FC<{
   onSelect: () => void;
   onRegister: () => void;
 }> = ({ event, onSelect, onRegister }) => {
-  const cleanPrize = (event.prizes?.first || 'Trophy')
-    .replace(/Cash Prize|Worth Prizes/gi, '')
-    .trim();
-
   return (
     <div className="event-glimpse-card">
       {/* Top Header: Dept & Format */}
@@ -62,12 +57,8 @@ const CompactEventCard: React.FC<{
         </div>
       </div>
 
-      {/* Prize & Fee Row */}
-      <div className="event-glimpse-prize-fee">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F59E0B', fontSize: '0.74rem', fontWeight: 700 }}>
-          <Trophy size={12} color="#F59E0B" />
-          <span>{cleanPrize}</span>
-        </div>
+      {/* Entry Fee */}
+      <div className="event-glimpse-prize-fee" style={{ justifyContent: 'flex-end' }}>
         <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38BDF8' }}>
           {event.fee === 0 ? 'Free Entry' : `₹${event.fee}`}
         </div>
@@ -486,7 +477,7 @@ export const EventsGlimpseSection: React.FC<EventsGlimpseSectionProps> = ({
           </h2>
 
           <p style={{ color: '#CBD5E1', maxWidth: '660px', margin: '0 auto', fontSize: 'clamp(0.92rem, 1.3vw, 1.02rem)', lineHeight: 1.6 }}>
-            A glimpse into Vardhaman's flagship battlegrounds. Select any arena for full rules and prizes.
+            A glimpse into Vardhaman's flagship battlegrounds. Select any arena for full rules and details.
           </p>
 
           {onViewAllEvents && (

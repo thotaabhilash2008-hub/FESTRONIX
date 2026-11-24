@@ -85,6 +85,17 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
     }
   };
 
+  const refreshPaymentOrdersOnly = async () => {
+    if (!isFirebaseConfigured) return;
+    try {
+      const orders = await FirebaseStaffPaymentService.list();
+      paymentOrdersRef.current = orders;
+      setStats(statsWithRevenue(StorageService.getStats(), orders));
+    } catch (error) {
+      console.warn('Firebase payment orders could not be refreshed.', error);
+    }
+  };
+
   useEffect(() => {
     void StorageService.fetchDepartments()
       .then(setDepartments)
@@ -97,15 +108,20 @@ export const FinanceReviewerDashboard: React.FC<FinanceReviewerDashboardProps> =
     const handleEvents = () => {
       setStats(statsWithRevenue(StorageService.getStats(), paymentOrdersRef.current));
     };
+    const handlePayments = () => {
+      void refreshPaymentOrdersOnly();
+    };
     const handleStorage = (event: StorageEvent) => {
       if (event.key === 'festronix_registrations_v1' || event.key === 'festronix_events_v1') {
         void refreshData();
       }
     };
+    window.addEventListener('festronix:payments-updated', handlePayments);
     window.addEventListener('festronix:regs-updated', handleRegistrations);
     window.addEventListener('festronix:events-updated', handleEvents);
     window.addEventListener('storage', handleStorage);
     return () => {
+      window.removeEventListener('festronix:payments-updated', handlePayments);
       window.removeEventListener('festronix:regs-updated', handleRegistrations);
       window.removeEventListener('festronix:events-updated', handleEvents);
       window.removeEventListener('storage', handleStorage);

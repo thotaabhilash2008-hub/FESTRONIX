@@ -31,6 +31,18 @@ export function sumPendingRegistrationRevenue(registrations: Registration[]): nu
   return sumRevenueForStatuses(registrations, ['verification_pending']);
 }
 
+/** Revenue for a set of rows (for example one displayed squad), counted once per order. */
+export function sumRegistrationRevenueForRows(registrations: Registration[]): number {
+  const byOrder = new Map<string, number>();
+  for (const registration of registrations) {
+    const amount = registrationRevenueAmount(registration);
+    if (amount <= 0) continue;
+    const key = registrationRevenueKey(registration);
+    byOrder.set(key, Math.max(byOrder.get(key) || 0, amount));
+  }
+  return [...byOrder.values()].reduce((total, amount) => total + amount, 0);
+}
+
 /** Stable key used to deduplicate participant rows belonging to one order. */
 export function registrationRevenueKey(registration: Registration): string {
   return registration.razorpayOrderId || registration.transactionId || `registration:${registration.id}`;

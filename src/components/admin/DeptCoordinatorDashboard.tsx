@@ -18,8 +18,10 @@ import {
   registrationRevenueAmount,
   registrationRevenueKey,
   sumPendingRegistrationRevenue,
+  sumRegistrationRevenueForRows,
   sumVerifiedRegistrationRevenue,
 } from '../../lib/revenue';
+import { groupRegistrationsForDisplay, RegistrationDisplayGroup } from '../../lib/registrationDisplay';
 import { Department, FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { AdminHeader } from './AdminHeader';
 import { DeptSidebar } from './DeptSidebar';
@@ -497,37 +499,47 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     return scopedRegistrations.filter(r => r.eventId === checkInEventFilter);
   }, [checkInEventFilter, scopedRegistrations, visibleEvents, isEventCoord]);
 
-  // Filtered attendees for the check-in attendee directory table
+  // Filtered attendees for the check-in attendee directory table. Squads show as one row.
   const filteredCheckInAttendees = useMemo(() => {
+    const groups = groupRegistrationsForDisplay(checkInRegistrations);
     const query = checkInAttendeeSearch.trim().toLowerCase();
-    if (!query) return checkInRegistrations;
-    return checkInRegistrations.filter(r =>
-      r.id.toLowerCase().includes(query) ||
-      r.leaderName.toLowerCase().includes(query) ||
-      (r.leaderRoll && r.leaderRoll.toLowerCase().includes(query)) ||
-      (r.buyerRoll && r.buyerRoll.toLowerCase().includes(query)) ||
-      (r.teamCode && r.teamCode.toLowerCase().includes(query)) ||
-      (r.teammates && r.teammates.some(t => t.rollNumber && t.rollNumber.toLowerCase().includes(query)))
-    );
+    if (!query) return groups;
+    return groups.filter(group => {
+      const r = group.representative;
+      const searchable = [
+        group.displayId,
+        r.leaderName,
+        r.leaderRoll,
+        r.buyerRoll,
+        group.teamName,
+        group.teamCode,
+        ...group.members.flatMap(member => [member.name, member.rollNumber]),
+      ];
+      return searchable.some(value => String(value || '').toLowerCase().includes(query));
+    });
   }, [checkInRegistrations, checkInAttendeeSearch]);
 
-  // Filtered Roster with Search and Status
+  // Filtered Roster with Search and Status. Squads show as one row.
   const filteredRoster = useMemo(() => {
-    return scopedRegistrations.filter(r => {
-      const matchesSearch =
-        r.leaderName.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-        r.leaderRoll.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-        r.eventTitle.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-        r.id.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-        (r.teamName && r.teamName.toLowerCase().includes(rosterSearch.toLowerCase())) ||
-        (r.teamCode && r.teamCode.toLowerCase().includes(rosterSearch.toLowerCase()));
-
+    return groupRegistrationsForDisplay(scopedRegistrations).filter(group => {
+      const r = group.representative;
+      const query = rosterSearch.trim().toLowerCase();
+      const searchable = [
+        group.displayId,
+        r.leaderName,
+        r.leaderRoll,
+        r.eventTitle,
+        group.teamName,
+        group.teamCode,
+        ...group.members.flatMap(member => [member.name, member.rollNumber]),
+      ];
+      const matchesSearch = !query || searchable.some(value => String(value || '').toLowerCase().includes(query));
       if (!matchesSearch) return false;
 
-      if (rosterStatusFilter === 'verified') return r.paymentStatus === 'verified';
-      if (rosterStatusFilter === 'verification_pending') return r.paymentStatus === 'verification_pending';
-      if (rosterStatusFilter === 'rejected') return r.paymentStatus === 'rejected';
-      if (rosterStatusFilter === 'checked_in') return r.checkedIn === true;
+      if (rosterStatusFilter === 'verified') return group.paymentStatus === 'verified';
+      if (rosterStatusFilter === 'verification_pending') return group.paymentStatus === 'verification_pending';
+      if (rosterStatusFilter === 'rejected') return group.paymentStatus === 'rejected';
+      if (rosterStatusFilter === 'checked_in') return group.allCheckedIn;
 
       return true;
     });
@@ -1258,6 +1270,27 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
     refreshDeptData();
   };
 
+  // Squads are displayed as one row; check-in still updates every Firebase pass in the squad.
+  const handleQuickCheckInGroupFromRoster = async (group: RegistrationDisplayGroup) => {
+    if (group.registrations.length <= 1) {
+      await handleQuickCheckInFromRoster(group.representative);
+      return;
+    }
+    const shouldCheckIn = !group.allCheckedIn;
+    try {
+      for (const registration of group.registrations) {
+        if (registration.checkedIn === shouldCheckIn) continue;
+        const res = await StorageService.checkInRegistration(registration.id, adminUser.fullName);
+        setCheckInResult(res);
+        if (!res.success) throw new Error(res.message || 'One or more squad passes could not be checked in.');
+      }
+      if (shouldCheckIn) confetti({ particleCount: 50, spread: 40 });
+    } catch (error) {
+      window.alert((error as Error).message || 'Unable to update squad check-in status.');
+    }
+    refreshDeptData();
+  };
+
   // Payment Verification Handler (8.1 • Review registrations and payment evidence)
   const handleVerifyPayment = async (regId: string, status: PaymentStatus, reason?: string) => {
     if (!isDeptChief) {
@@ -1312,28 +1345,31 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
 
   // Export Dept / Filtered CSV (8.1 • Export event data)
   const handleExportCSV = (scopeName: 'filtered' | 'all') => {
-    const targetList = scopeName === 'filtered' ? filteredRoster : scopedRegistrations;
+    const targetGroups = scopeName === 'filtered' ? filteredRoster : groupRegistrationsForDisplay(scopedRegistrations);
     const headers = [
-      'Reg ID', 'Event Title', 'Student Name', 'Roll Number', 'Team Name',
+      'Entry ID', 'Event Title', 'Participant / Squad', 'Roll / Members', 'Team Name',
       'Team Code', 'Email', 'Phone', 'College', 'Fee (INR)', 'Payment Status',
       'Checked In', 'Source', 'Transaction ID'
     ];
-    const rows = targetList.map(r => [
-      r.id,
-      `"${r.eventTitle.replace(/"/g, '""')}"`,
-      `"${r.leaderName.replace(/"/g, '""')}"`,
-      r.leaderRoll,
-      `"${(r.teamName || 'Solo').replace(/"/g, '""')}"`,
-      r.teamCode || 'N/A',
-      r.leaderEmail,
-      r.leaderPhone,
-      `"${r.leaderCollege.replace(/"/g, '""')}"`,
-      registrationRevenueAmount(r),
-      r.paymentStatus,
-      r.checkedIn ? 'YES' : 'NO',
-      r.source || 'online',
-      r.transactionId || 'N/A'
-    ]);
+    const rows = targetGroups.map(group => {
+      const r = group.representative;
+      return [
+        group.displayId,
+        `"${r.eventTitle.replace(/"/g, '""')}"`,
+        `"${(group.isTeam ? group.teamName || 'Team' : r.leaderName).replace(/"/g, '""')}"`,
+        `"${group.isTeam ? group.members.map(member => `${member.name}${member.rollNumber ? ` (${member.rollNumber})` : ''}`).join('; ') : r.leaderRoll}"`,
+        `"${(group.teamName || 'Solo').replace(/"/g, '""')}"`,
+        group.teamCode || 'N/A',
+        r.leaderEmail,
+        r.leaderPhone,
+        `"${r.leaderCollege.replace(/"/g, '""')}"`,
+        sumRegistrationRevenueForRows(group.registrations),
+        group.paymentStatus,
+        group.allCheckedIn ? 'YES' : group.anyCheckedIn ? 'PARTIAL' : 'NO',
+        r.source || 'online',
+        group.registrations.find(row => row.transactionId)?.transactionId || 'N/A'
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -3252,7 +3288,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     {checkInEventFilter === 'all' ? 'All Enrolled Attendees' : `Attendees: ${visibleEvents.find(e => e.id === checkInEventFilter)?.title}`}
                   </h4>
                   <div style={{ fontSize: '0.74rem', color: '#A8B3C2', marginTop: '2px' }}>
-                    Showing {filteredCheckInAttendees.length} delegates • Click "Check In" to mark attendance directly
+                    Showing {filteredCheckInAttendees.length} entries (squads count once) • Click "Check In" to mark attendance directly
                   </div>
                 </div>
 
@@ -3282,9 +3318,9 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.15)', background: 'rgba(16, 26, 53, 0.6)', color: '#A8B3C2' }}>
-                      <th style={{ padding: '10px 14px' }}>Reg ID</th>
-                      <th style={{ padding: '10px 14px' }}>Delegate</th>
-                      <th style={{ padding: '10px 14px' }}>Roll Number</th>
+                      <th style={{ padding: '10px 14px' }}>Entry ID</th>
+                      <th style={{ padding: '10px 14px' }}>Participant / Squad</th>
+                      <th style={{ padding: '10px 14px' }}>Roll / Members</th>
                       <th style={{ padding: '10px 14px' }}>Event</th>
                       <th style={{ padding: '10px 14px' }}>Attendance Status</th>
                       <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
@@ -3298,38 +3334,52 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                         </td>
                       </tr>
                     ) : (
-                      filteredCheckInAttendees.map(r => (
+                      filteredCheckInAttendees.map(group => {
+                        const r = group.representative;
+                        const checkedIn = group.allCheckedIn;
+                        return (
                         <tr
-                          key={r.id}
+                          key={group.key}
                           style={{
                             borderBottom: '1px solid rgba(220, 227, 229, 0.08)',
-                            background: r.checkedIn ? 'rgba(52, 211, 153, 0.04)' : 'transparent'
+                            background: checkedIn ? 'rgba(52, 211, 153, 0.04)' : 'transparent'
                           }}
                         >
-                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#DCE3E5' }}>{r.id}</td>
-                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#FFFFFF' }}>{r.leaderName}</td>
-                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#38BDF8' }}>{r.leaderRoll || r.buyerRoll || '—'}</td>
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#DCE3E5' }}>
+                            {group.displayId}
+                            {group.isTeam && <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>{group.memberCount} members</div>}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#FFFFFF' }}>
+                            {group.isTeam ? group.teamName || 'Team' : r.leaderName}
+                            {group.isTeam && <div style={{ fontSize: '0.68rem', color: '#A8B3C2' }}>Contact: {r.leaderName}</div>}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#38BDF8' }}>
+                            {group.isTeam
+                              ? group.members.slice(0, 3).map(member => member.rollNumber || member.name).join(', ') + (group.members.length > 3 ? '…' : '')
+                              : r.leaderRoll || r.buyerRoll || '—'}
+                          </td>
                           <td style={{ padding: '10px 14px', color: '#CBD5E1', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.eventTitle}>
                             {r.eventTitle}
+                            {group.isTeam && <div style={{ fontSize: '0.68rem', color: '#BACEBB' }}>Squad {group.teamCode}</div>}
                           </td>
                           <td style={{ padding: '10px 14px' }}>
-                            {r.checkedIn ? (
+                            {checkedIn ? (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(52, 211, 153, 0.15)', color: '#34D399', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>
                                 <CheckCircle2 size={11} /> CHECKED IN
                               </span>
                             ) : (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(251, 191, 36, 0.15)', color: '#FBBF24', border: '1px solid rgba(251, 191, 36, 0.4)', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700 }}>
-                                <Clock size={11} /> PENDING
+                                <Clock size={11} /> {group.anyCheckedIn ? 'PARTIAL' : 'PENDING'}
                               </span>
                             )}
                           </td>
                           <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                            {r.checkedIn ? (
+                            {checkedIn ? (
                               <span style={{ fontSize: '0.72rem', color: '#A8B3C2' }}>Checked in</span>
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => handleQuickCheckInFromRoster(r)}
+                                onClick={() => handleQuickCheckInGroupFromRoster(group)}
                                 style={{
                                   background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
                                   border: 'none',
@@ -3345,12 +3395,13 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                                 }}
                               >
                                 <CheckCircle2 size={12} />
-                                <span>Check In</span>
+                                <span>{group.anyCheckedIn ? 'Check All' : 'Check In'}</span>
                               </button>
                             )}
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

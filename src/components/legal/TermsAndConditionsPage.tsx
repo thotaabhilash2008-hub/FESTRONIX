@@ -144,7 +144,7 @@ export const TermsAndConditionsPage: React.FC<TermsAndConditionsPageProps> = ({
               2. <strong>Schedule Alterations:</strong> The organizing committee reserves the right to modify venue rooms, time slots, or rounds due to logistical necessities, weather contingencies, or academic schedules.
             </p>
             <p style={{ color: '#CBD5E1', fontSize: '0.9rem', lineHeight: 1.7, margin: 0 }}>
-              3. <strong>Cash Prize Distribution:</strong> Prize winners must present their authentic identification, PAN/bank credentials (where necessary for tax/statutory compliances), and sign official acknowledgment forms to receive cash awards.
+              3. <strong>Event Results:</strong> Winners will be announced through official Festronix channels, and any distribution of awards will follow the organizer's published guidelines.
             </p>
           </div>
         </section>
