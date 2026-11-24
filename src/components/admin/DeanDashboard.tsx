@@ -1220,10 +1220,17 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   };
 
   // Keep the admin workspaces event-scoped even though the live source is one registration stream.
+  const eventRegistrationMatches = (event: FestEvent, registration: Registration): boolean => {
+    const normalize = (value?: string | null) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const eventKeys = [event.id, event.slug, event.title].map(normalize).filter(Boolean);
+    const registrationKeys = [registration.eventId, registration.eventTitle].map(normalize).filter(Boolean);
+    return registrationKeys.some(key => eventKeys.includes(key));
+  };
+
   const eventOverviewItems = useMemo<EventOverviewItem[]>(() => {
     const byKey = new Map<string, EventOverviewItem>();
     const eventForRegistration = (registration: Registration) =>
-      events.find(event => event.id === registration.eventId || event.slug === registration.eventId || event.title === registration.eventTitle);
+      events.find(event => eventRegistrationMatches(event, registration));
 
     events.forEach(event => {
       byKey.set(event.id, {
@@ -1258,8 +1265,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const selectedRosterEvent = eventOverviewItems.find(item => item.key === selectedRosterEventId);
   const selectedPaymentEvent = eventOverviewItems.find(item => item.key === selectedPaymentEventId);
   const selectedEventMetrics = useMemo(() => {
-    const records = selectedPaymentEvent?.registrations || [];
     const event = selectedPaymentEvent?.event;
+    const records = event
+      ? registrations.filter(registration => eventRegistrationMatches(event, registration))
+      : selectedPaymentEvent?.registrations || [];
     const verified = records.filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable').length;
     const pending = records.filter(r => r.paymentStatus === 'verification_pending').length;
     const rejected = records.filter(r => r.paymentStatus === 'rejected').length;
@@ -1267,7 +1276,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
     const capacity = Number(event?.capacity || 0);
     const fill = capacity > 0 ? Math.min(100, Math.round((records.length / capacity) * 100)) : 0;
     return { records, event, verified, pending, rejected, collected, capacity, fill };
-  }, [selectedPaymentEvent]);
+  }, [selectedPaymentEvent, registrations]);
 
   const eventCoordinatorOptions = useMemo<Array<AdminUser & { assignedEvents?: string[] }>>(() => {
     if (!editingEvent) return [];
@@ -1376,8 +1385,12 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const filteredPayments = registrations.filter(r => {
     if (selectedPaymentEventId) {
       const event = events.find(candidate => candidate.id === r.eventId || candidate.slug === r.eventId || candidate.title === r.eventTitle);
-      const eventKey = event?.id || r.eventId || `title:${r.eventTitle}`;
-      if (eventKey !== selectedPaymentEventId) return false;
+      const selectedEvent = selectedPaymentEvent?.event;
+      if (selectedEvent && !eventRegistrationMatches(selectedEvent, r)) return false;
+      if (!selectedEvent) {
+        const eventKey = event?.id || r.eventId || `title:${r.eventTitle}`;
+        if (eventKey !== selectedPaymentEventId) return false;
+      }
     }
     if (paymentStatusFilter === 'pending' && r.paymentStatus !== 'verification_pending') return false;
     if (paymentStatusFilter === 'verified' && r.paymentStatus !== 'verified' && r.paymentStatus !== 'not_applicable') return false;
@@ -2488,10 +2501,10 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               {/* Status Filter Buttons */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {[
-                  { id: 'pending', label: 'Pending Review', count: stats.pendingCount, color: '#FBBF24' },
-                  { id: 'verified', label: 'Verified Passes', count: stats.verifiedCount, color: '#34D399' },
-                  { id: 'rejected', label: 'Rejected', count: stats.rejectedCount, color: '#f87171' },
-                  { id: 'all', label: 'All Transactions', count: registrations.length, color: '#DCE3E5' }
+                  { id: 'pending', label: 'Pending Review', count: selectedEventMetrics.pending, color: '#FBBF24' },
+                  { id: 'verified', label: 'Verified Passes', count: selectedEventMetrics.verified, color: '#34D399' },
+                  { id: 'rejected', label: 'Rejected', count: selectedEventMetrics.rejected, color: '#f87171' },
+                  { id: 'all', label: 'All Transactions', count: selectedEventMetrics.records.length, color: '#DCE3E5' }
                 ].map(item => {
                   const isSel = paymentStatusFilter === item.id;
                   return (
