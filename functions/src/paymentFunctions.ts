@@ -896,9 +896,26 @@ async function processCapturedPayment(razorpayOrderId: string, paymentId: string
     throw new Error(refund.success ? 'The payment did not match the stored order and has been refunded.' : 'The payment did not match the order; the refund needs manual review.');
   }
   if (order.status === 'paid' && order.result_payload) {
-    if (order.razorpay_payment_id === paymentId) {
+    const savedResult = order.result_payload as AnyRecord;
+    const hasPasses = Array.isArray(savedResult.registrations) && savedResult.registrations.length > 0;
+    if (order.razorpay_payment_id === paymentId && hasPasses) {
       await dispatchOrderEmails(db, razorpayOrderId);
-      return order.result_payload as AnyRecord;
+      return savedResult;
+    }
+    if (order.razorpay_payment_id === paymentId && !hasPasses) {
+      const payload = requestObject(order.payload);
+      const items = Array.isArray(payload.items) ? payload.items.map(value => requestObject(value)) : [];
+      const hasParticipantData = items.some(item =>
+        clean(item.leaderName ?? item.leader_name, 120) &&
+        EMAIL_PATTERN.test(normalizeEmail(item.leaderEmail ?? item.leader_email)) &&
+        clean(item.leaderRoll ?? item.leader_roll, 50)
+      );
+      if (!hasParticipantData) {
+        throw new Error('This captured payment was recovered without participant details, so no pass can be issued from it. Re-enter your registration details with the same payment ID or contact the fest desk; do not pay again.');
+      }
+      const recovered = await finalizeCapturedOrder(db, found.ref, paymentId, razorpayOrderId, REGISTRATION_ROLL_CLAIM_SECRET.value());
+      await dispatchOrderEmails(db, razorpayOrderId);
+      return recovered;
     }
     const refund = await refundCapturedPayment(paymentId, razorpayOrderId, Number(payment.amount), Number(payment.amount_refunded || 0), keyId, keySecret);
     await persistRefundOutcome(found.ref, order, paymentId, 'An additional captured payment was made for an already paid order.', refund);
