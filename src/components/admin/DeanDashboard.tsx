@@ -123,6 +123,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
   const [paymentDeptFilter, setPaymentDeptFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'pending' | 'verified' | 'rejected' | 'all'>('pending');
   const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(null);
+  const [selectedEventView, setSelectedEventView] = useState<'overview' | 'transactions'>('overview');
   const [selectedRosterEventId, setSelectedRosterEventId] = useState<string | null>(null);
 
   // Revenue Analysis States & Filters (Super Admin overall view)
@@ -1256,6 +1257,17 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
   const selectedRosterEvent = eventOverviewItems.find(item => item.key === selectedRosterEventId);
   const selectedPaymentEvent = eventOverviewItems.find(item => item.key === selectedPaymentEventId);
+  const selectedEventMetrics = useMemo(() => {
+    const records = selectedPaymentEvent?.registrations || [];
+    const event = selectedPaymentEvent?.event;
+    const verified = records.filter(r => r.paymentStatus === 'verified' || r.paymentStatus === 'not_applicable').length;
+    const pending = records.filter(r => r.paymentStatus === 'verification_pending').length;
+    const rejected = records.filter(r => r.paymentStatus === 'rejected').length;
+    const collected = records.filter(r => r.paymentStatus === 'verified').reduce((sum, r) => sum + (Number(r.fee) || 0), 0);
+    const capacity = Number(event?.capacity || 0);
+    const fill = capacity > 0 ? Math.min(100, Math.round((records.length / capacity) * 100)) : 0;
+    return { records, event, verified, pending, rejected, collected, capacity, fill };
+  }, [selectedPaymentEvent]);
 
   const eventCoordinatorOptions = useMemo<Array<AdminUser & { assignedEvents?: string[] }>>(() => {
     if (!editingEvent) return [];
@@ -2519,6 +2531,60 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               </div>
             </div>
 
+            {/* Selected-event command center */}
+            <div style={{ display: 'flex', gap: '6px', padding: '5px', marginBottom: '16px', background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(120, 149, 147, 0.24)', borderRadius: '12px', width: 'fit-content' }}>
+              {(['overview', 'transactions'] as const).map(view => (
+                <button key={view} type="button" onClick={() => setSelectedEventView(view)} style={{ padding: '8px 16px', borderRadius: '8px', border: selectedEventView === view ? '1px solid #38BDF8' : '1px solid transparent', background: selectedEventView === view ? 'rgba(56, 189, 248, 0.16)' : 'transparent', color: selectedEventView === view ? '#7DD3FC' : '#94A3B8', fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer' }}>
+                  {view === 'overview' ? 'Overview & Insights' : 'Transactions & Actions'}
+                </button>
+              ))}
+            </div>
+
+            {selectedEventView === 'overview' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '18px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px' }}>
+                  {[
+                    { label: 'Registered', value: selectedEventMetrics.records.length, color: '#38BDF8' },
+                    { label: 'Verified / Cleared', value: selectedEventMetrics.verified, color: '#34D399' },
+                    { label: 'Pending Review', value: selectedEventMetrics.pending, color: '#FBBF24' },
+                    { label: 'Collected', value: `₹${selectedEventMetrics.collected.toLocaleString('en-IN')}`, color: '#C084FC' }
+                  ].map(card => (
+                    <div key={card.label} style={{ padding: '16px', borderRadius: '12px', background: 'linear-gradient(145deg, rgba(20, 31, 62, 0.96), rgba(13, 22, 45, 0.96))', border: `1px solid ${card.color}44` }}>
+                      <div style={{ fontSize: '0.68rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 800 }}>{card.label}</div>
+                      <div style={{ fontSize: '1.55rem', color: card.color, fontWeight: 900, marginTop: '7px' }}>{card.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)', gap: '16px' }}>
+                  <div style={{ padding: '20px', borderRadius: '14px', background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(56, 189, 248, 0.22)' }}>
+                    <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem' }}>Registration Funnel</h4>
+                    <p style={{ margin: '4px 0 18px', color: '#94A3B8', fontSize: '0.74rem' }}>Operational status of every registration in this event.</p>
+                    {[
+                      { label: 'Verified / Cleared', value: selectedEventMetrics.verified, color: '#34D399' },
+                      { label: 'Pending Review', value: selectedEventMetrics.pending, color: '#FBBF24' },
+                      { label: 'Rejected', value: selectedEventMetrics.rejected, color: '#F87171' }
+                    ].map(row => (
+                      <div key={row.label} style={{ marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', color: '#CBD5E1', fontSize: '0.76rem' }}><span>{row.label}</span><strong style={{ color: row.color }}>{row.value}</strong></div>
+                        <div style={{ height: '9px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}><div style={{ width: `${selectedEventMetrics.records.length ? Math.round((row.value / selectedEventMetrics.records.length) * 100) : 0}%`, height: '100%', background: row.color, borderRadius: '999px' }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: '20px', borderRadius: '14px', background: 'rgba(20, 31, 62, 0.85)', border: '1px solid rgba(192, 132, 252, 0.22)' }}>
+                    <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1rem' }}>Capacity Health</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '16px' }}>
+                      <div style={{ width: '112px', height: '112px', borderRadius: '50%', background: `conic-gradient(#38BDF8 ${selectedEventMetrics.fill}%, rgba(255,255,255,0.08) 0)`, display: 'grid', placeItems: 'center' }}><div style={{ width: '78px', height: '78px', borderRadius: '50%', background: '#101A35', display: 'grid', placeItems: 'center', color: '#FFFFFF', fontWeight: 900, fontSize: '1.2rem' }}>{selectedEventMetrics.fill}%</div></div>
+                      <div style={{ color: '#A8B3C2', fontSize: '0.78rem', lineHeight: 1.8 }}><div><strong style={{ color: '#FFFFFF' }}>{selectedEventMetrics.records.length}</strong> registered</div><div><strong style={{ color: '#FFFFFF' }}>{selectedEventMetrics.capacity}</strong> capacity</div><div><strong style={{ color: '#38BDF8' }}>{Math.max(0, selectedEventMetrics.capacity - selectedEventMetrics.records.length)}</strong> remaining</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedEventView === 'transactions' && (
+            <>
+
             {/* Search and Department Filter Bar */}
             <div
               style={{
@@ -2835,6 +2901,8 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   );
                 })}
               </div>
+            )}
+            </>
             )}
             </>
             )}
