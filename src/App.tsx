@@ -680,7 +680,6 @@ export const App: React.FC = () => {
 
       {/* Floating Modern Navbar */}
       <Navbar
-        onOpenIntro={() => setIsIntroOpen(true)}
         onOpenPasses={() => handleOpenPassesPage()}
         onOpenMultiPass={handleStartMultiPass}
         announcements={announcements}
@@ -698,7 +697,6 @@ export const App: React.FC = () => {
         <HeroSection
           onExploreEvents={handleOpenAllEventsPage}
           onViewAllEvents={handleOpenAllEventsPage}
-          onOpenIntro={() => setIsIntroOpen(true)}
           onRegisterNow={handleOpenAllEventsPage}
         />
 

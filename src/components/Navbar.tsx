@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Ticket, Menu, X, Flame, Building2, Layers, ShoppingBag, LogIn, LogOut, Download, Play } from 'lucide-react';
+import { Ticket, Menu, X, Flame, Building2, Layers, ShoppingBag, LogIn, LogOut, Download } from 'lucide-react';
 import { Announcement } from '../types/festronix';
 
 interface NavbarProps {
-  onOpenIntro?: () => void;
   onOpenPasses: () => void;
   onOpenMultiPass: () => void;
   announcements: Announcement[];
@@ -19,7 +18,6 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onOpenIntro,
   onOpenPasses,
   onOpenMultiPass,
   announcements,
@@ -327,40 +325,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Action Icons & Passes */}
         <div className="navbar-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-
-          {/* Intro Video Button */}
-          {onOpenIntro && (
-            <button
-              onClick={onOpenIntro}
-              className="desktop-only"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: '#CBD5E1',
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '6px 8px',
-                transition: 'color 0.15s ease',
-                fontFamily: "'Space Grotesk', sans-serif",
-                whiteSpace: 'nowrap'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = '#38BDF8';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = '#CBD5E1';
-              }}
-              title="Watch Festronix Cinematic Intro Video"
-            >
-              <Play size={13} color="#38BDF8" fill="#38BDF8" />
-              <span>Intro</span>
-            </button>
-          )}
 
           {/* Public Sponsors & Partners Nav Link */}
           {onOpenSponsors && (
@@ -680,37 +644,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              {/* Option 5: Watch Intro Cinematic Video Button */}
-              {onOpenIntro && (
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenIntro();
-                  }}
-                  style={{
-                    background: 'rgba(40, 59, 120, 0.25)',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
-                    borderRadius: '12px',
-                    padding: '13px 16px',
-                    color: '#F3F0EA',
-                    fontSize: '0.88rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    boxShadow: '0 4px 16px rgba(40, 59, 120, 0.25)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Play size={18} color="#38BDF8" fill="#38BDF8" />
-                    <span>Watch Intro Video</span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: '#38BDF8', fontWeight: 700 }}>Play ▶</span>
-                </button>
-              )}
-
-              {/* Option 6: Official Partners (Connect Club & Vencorpia) */}
+              {/* Option 5: Official Partners (Connect Club & Vencorpia) */}
               <div
                 className="mobile-menu-action mobile-partners"
                 style={{
