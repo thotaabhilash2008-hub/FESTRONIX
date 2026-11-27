@@ -414,7 +414,7 @@ export const ORGANISATIONAL_STRUCTURE: OrganisationalRoleDefinition[] = [
     accounts: ['Direct registration without sign-in barrier; pass sent to email & visible on site.']
   },
   {
-    role: 'Asif Sir / CC / Vencorpia (SAC Super Admin)',
+    role: 'SAC Dean (Super Admin)',
     scopeTag: 'super_admin',
     responsibilities: 'Central executive authority overseeing fest, departments, assignments, accounts, roles, content and reports.',
     accessBoundary: 'Fest-wide administration.',

@@ -21,6 +21,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type AnyRecord = Record<string, unknown>;
+type EmailAttachment = { name: string; content: string };
 type CleanMember = { name: string; email: string; phone: string; college: string; rollNumber: string; deptSection: string };
 type CleanItem = {
   eventId: string; eventTitle: string; departmentCode: string; buyerRoll: string; leaderName: string;
@@ -986,6 +987,31 @@ function parseSender(value: string): { name: string; email: string } | null {
   return { name: name || 'FESTRONIX 2026', email };
 }
 
+function displayValue(value: unknown, fallback: string): string {
+  const text = String(value ?? '').trim();
+  return text || fallback;
+}
+
+function humanize(value: unknown): string {
+  return String(value ?? '').replace(/[_-]+/gu, ' ').replace(/\b\w/gu, character => character.toUpperCase()).trim();
+}
+
+function formatAmount(value: unknown): string {
+  const amount = Number(value ?? 0);
+  return Number.isFinite(amount) ? `₹${amount.toLocaleString('en-IN')}` : '₹0';
+}
+
+async function fetchEmailAsset(url: string, name: string): Promise<EmailAttachment | null> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+    if (!response.ok) return null;
+    const bytes = Buffer.from(await response.arrayBuffer());
+    return bytes.length ? { name, content: bytes.toString('base64') } : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * New registrations store the ticket at tickets/{registrationId}, but migrated
  * records kept their own ticket document ID and only reference the registration
@@ -1072,11 +1098,11 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
       for (let y = 0; y < matrix.size; y += 1) {
         const cells: string[] = [];
         for (let x = 0; x < matrix.size; x += 1) {
-          cells.push(`<td style="width:${cell}px;height:${cell}px;background:${matrix.data[y * matrix.size + x] ? '#07111F' : '#FFFFFF'}"></td>`);
+          cells.push(`<td bgcolor="${matrix.data[y * matrix.size + x] ? '#07111F' : '#FFFFFF'}" style="width:${cell}px;height:${cell}px;background-color:${matrix.data[y * matrix.size + x] ? '#07111F' : '#FFFFFF'}!important;padding:0;line-height:0;font-size:0"></td>`);
         }
         rows.push(`<tr style="height:${cell}px">${cells.join('')}</tr>`);
       }
-      qrBlock = `<div style="margin:22px 0;text-align:center"><div style="display:inline-block;background:#fff;padding:12px;border-radius:12px"><table role="img" aria-label="FESTRONIX entry QR" style="border-collapse:collapse"><tbody>${rows.join('')}</tbody></table></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`;
+      qrBlock = `<div style="margin:22px 0;text-align:center;color-scheme:light only"><div bgcolor="#FFFFFF" style="display:inline-block;background-color:#FFFFFF!important;padding:12px;border-radius:12px;box-shadow:0 0 0 1px #FFFFFF"><table role="img" aria-label="FESTRONIX entry QR" bgcolor="#FFFFFF" style="border-collapse:collapse;background-color:#FFFFFF!important"><tbody>${rows.join('')}</tbody></table></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`;
     } catch {
       // The attached PNG and token text remain available.
     }
@@ -1097,16 +1123,62 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
       // The hosted image and token text below remain available.
     }
   }
+  const firstName = participant.split(/\s+/u)[0] || participant;
+  const eventDate = displayValue(event.date_display, 'Date to be announced');
+  const eventTime = displayValue(event.time_display, 'Time to be announced');
+  const venue = displayValue(event.venue, 'Venue to be announced');
+  const whatsappGroupLink = clean(event.whatsapp_group_link || event.whatsappGroupLink, 1000);
+  const department = displayValue(registration.department_code || event.department_code, 'FESTRONIX');
+  const formatLabel = humanize(registration.format || event.format || 'individual').toUpperCase();
+  const teamName = clean(registration.team_name, 120);
+  const teamCode = clean(registration.team_code, 80);
+  const isTeam = Boolean(teamName || teamCode || ['team', 'duo'].includes(String(registration.format || event.format).toLowerCase()));
+  const ticketType = `${department} · ${formatLabel}`;
+  const quantity = isTeam ? '1' : '1';
+  const orderId = clean(registration.razorpay_order_id, 100) || clean(registration.transaction_id, 100) || displayId;
+  const transactionId = clean(registration.transaction_id, 100) || clean(registration.razorpay_payment_id, 100) || 'Not required';
+  const teamLine = isTeam
+    ? `Team: ${teamName || 'Team registration'}${teamCode ? ` (${teamCode})` : ''}`
+    : 'Individual registration';
+  const rules = Array.isArray(event.rules)
+    ? event.rules.map(rule => clean(rule, 220)).filter(Boolean).slice(0, 4)
+    : [];
+  const ruleRows = (rules.length ? rules : [
+    'Have your QR ready at the gate and keep your phone brightness high.',
+    'A valid college photo ID must match the pass holder name.',
+    'Each unique QR code is valid for one entry only.',
+  ]).map(rule => `<tr><td style="padding:0 0 10px 0;color:#DCE3E8;font-size:14px;line-height:21px;">&#9679;&nbsp; ${safe(rule)}</td></tr>`).join('');
+  const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`FESTRONIX 2026 · ${eventTitle}`)}&details=${encodeURIComponent(`${teamLine}\nPass: ${displayId}\n${passUrl}`)}&location=${encodeURIComponent(venue)}`;
+  const whatsappButton = whatsappGroupLink
+    ? `<div style="max-width:440px;margin:12px auto 0"><a href="${safe(whatsappGroupLink)}" style="display:block;background:#128C7E;color:#fff;text-align:center;padding:14px 12px;border-radius:50px;font-size:12px;font-weight:800;letter-spacing:1px">&#128172; JOIN EVENT WHATSAPP GROUP</a></div>`
+    : '';
+  const passStatus = safe(statusLabel.replace(' · ', ' &bull; '));
+  const assetUrl = (path: string) => `${site}/${path.split('/').map(encodeURIComponent).join('/')}`;
+  const imageAssets = await Promise.all([
+    fetchEmailAsset(assetUrl('festronix_3d_logo_transparent.png'), 'festronix-inline-logo.png'),
+    fetchEmailAsset(assetUrl('sanvi_homes_logo.png'), 'festronix-inline-sanvi.png'),
+    fetchEmailAsset(assetUrl('vencorpia_logo.png'), 'festronix-inline-vencorpia.png'),
+    fetchEmailAsset(assetUrl('sac-vmeg logo.jpeg'), 'festronix-inline-sac.jpeg'),
+  ]);
+  const inlineAttachments = imageAssets.filter((asset): asset is EmailAttachment => Boolean(asset));
+  const inlineSrc = (name: string, fallbackPath: string) => inlineAttachments.some(asset => asset.name === name)
+    ? `cid:${name}`
+    : assetUrl(fallbackPath);
+  const brandLogoHtml = `<a href="${safe(site)}" style="display:block"><img src="${safe(inlineSrc('festronix-inline-logo.png', 'festronix_3d_logo_transparent.png'))}" alt="FESTRONIX 2026" width="190" style="display:block;width:190px;max-width:100%;height:auto;object-fit:contain;margin:auto"></a>`;
+  const partnerLogosHtml = `<tr><td class="px" style="padding:30px 24px 0"><table role="presentation" width="100%" style="border-top:1px solid #263553"><tr><td align="center" style="padding-top:20px"><div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#94A3B8;text-transform:uppercase">PROUDLY POWERED BY OUR PARTNERS</div><table role="presentation" width="100%" style="margin-top:16px"><tr><td align="center" width="33%" style="padding:0 6px"><div style="background:#fff;padding:9px 8px;border-radius:8px"><img src="${safe(inlineSrc('festronix-inline-sanvi.png', 'sanvi_homes_logo.png'))}" alt="Sanvi Homes" width="104" style="display:block;width:104px;height:34px;object-fit:contain"></div><div style="font-size:9px;letter-spacing:1.4px;color:#94A3B8;text-transform:uppercase;padding-top:7px">Sanvi Homes</div></td><td align="center" width="33%" style="padding:0 6px"><div style="background:#fff;padding:9px 8px;border-radius:8px"><img src="${safe(inlineSrc('festronix-inline-vencorpia.png', 'vencorpia_logo.png'))}" alt="Vencorpia" width="104" style="display:block;width:104px;height:34px;object-fit:contain"></div><div style="font-size:9px;letter-spacing:1.4px;color:#94A3B8;text-transform:uppercase;padding-top:7px">Vencorpia</div></td><td align="center" width="33%" style="padding:0 6px"><div style="background:#fff;padding:9px 8px;border-radius:8px"><img src="${safe(inlineSrc('festronix-inline-sac.jpeg', 'sac-vmeg logo.jpeg'))}" alt="SAC VMEG" width="104" style="display:block;width:104px;height:34px;object-fit:contain"></div><div style="font-size:9px;letter-spacing:1.4px;color:#94A3B8;text-transform:uppercase;padding-top:7px">SAC VMEG</div></td></tr></table></td></tr></table></td></tr>`;
   const textContent = [
-    'FESTRONIX 2026 DIGITAL PASS', '', `Hello ${participant},`, '', 'Your registration is confirmed.',
+    'FESTRONIX 2026 DIGITAL PASS', '', `YOU\'RE IN, ${firstName}.`,
     `Event: ${eventTitle}`, `Registration ID: ${displayId}`, `Participant: ${participant}`,
-    `Roll number: ${clean(registration.leader_roll, 50) || 'Not provided'}`, `Status: ${statusLabel}`,
-    `Date: ${clean(event.date_display, 80)}`, `Time: ${clean(event.time_display, 80)}`, `Venue: ${clean(event.venue, 240)}`,
-    `Fee: ₹${fee}`, `Transaction ID: ${clean(registration.transaction_id, 100) || 'Not required'}`,
+    `Roll number: ${clean(registration.leader_roll, 50) || 'Not provided'}`, teamLine,
+    `Status: ${statusLabel}`, `Date: ${eventDate}`, `Time: ${eventTime}`, `Venue: ${venue}`,
+    ...(whatsappGroupLink ? [`Event WhatsApp group: ${whatsappGroupLink}`] : []),
+    `Fee: ₹${fee}`, `Transaction ID: ${transactionId}`,
     ...(qrToken ? [`Entry QR token: ${qrToken}`, 'Your entry QR is attached as a PNG and included in this email.'] : []),
-    `Open your live pass to display the entry QR: ${passUrl}`,
+    `Open your live pass: ${passUrl}`,
   ].join('\n');
-  const htmlContent = `<!doctype html><html><body style="margin:0;background:#080c16;color:#f8fafc;font-family:Arial,sans-serif;padding:24px"><main style="max-width:560px;margin:auto;background:#121d38;border:1px solid #334155;border-radius:18px;padding:28px"><div style="color:#38bdf8;font-weight:bold;letter-spacing:1px">FESTRONIX 2026 DIGITAL PASS</div><h1 style="font-size:24px">Your registration is confirmed</h1><p>Hello ${safe(participant)},</p><p><strong>${safe(eventTitle)}</strong><br>Registration ID: <strong>${safe(displayId)}</strong></p><p>Status: ${safe(statusLabel)}<br>Date: ${safe(event.date_display)} · ${safe(event.time_display)}<br>Venue: ${safe(event.venue)}<br>Fee: ₹${safe(fee)}</p>${qrBlock}<p>Your entry QR is included in this email and on your digital pass. Show either at the venue.</p><p><a href="${safe(passUrl)}" style="display:inline-block;background:#1684ef;color:white;padding:12px 18px;border-radius:8px;text-decoration:none">Open your pass</a></p><p style="color:#94a3b8;font-size:12px">Keep your pass private. Each ticket is valid for one check-in.</p></main></body></html>`;
+  const htmlContent = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>Your Festronix Pass</title><style>html,body{margin:0!important;padding:0!important;background:#080C16;color:#fff;font-family:Arial,Helvetica,sans-serif}table{border-collapse:collapse}a{text-decoration:none}.wrap{width:600px;max-width:600px}.ticket{width:360px;max-width:360px}.display{font-family:Impact,'Arial Narrow',Arial,sans-serif}@media screen and (max-width:620px){.wrap{width:100%!important;max-width:100%!important}.px{padding-left:18px!important;padding-right:18px!important}.ticket{width:100%!important;max-width:360px!important}.stack{display:block!important;width:100%!important;padding-left:0!important;padding-right:0!important;padding-bottom:12px!important}}</style></head><body><div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#080C16">You\'re in, ${safe(firstName)}. Your Festronix pass is confirmed.</div><table role="presentation" width="100%" bgcolor="#080C16"><tr><td align="center" style="padding:0 0 44px"><table role="presentation" class="wrap" width="600"><tr><td class="px" style="padding:30px 24px 10px"><table role="presentation" width="100%"><tr><td><span class="display" style="font-size:24px;letter-spacing:2px;color:#88B2AE">&#9889; FESTRONIX</span></td><td align="right"><span style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#94A3B8">ORDER #${safe(orderId)}</span></td></tr></table></td></tr><tr><td class="px" align="center" style="padding:22px 24px 20px"><div class="display" style="font-size:42px;line-height:1.04;text-transform:uppercase;letter-spacing:1px">YOU\'RE IN, <span style="color:#88B2AE">${safe(firstName)}</span>.</div><p style="margin:14px 0 0;font-size:15px;line-height:24px;color:#CBD5E1">Your official pass for <strong style="color:#fff">Festronix</strong> is confirmed.<br>Keep this email handy and present the QR code at the gate.</p><div style="display:inline-block;margin-top:14px;padding:7px 12px;border:1px solid ${safe(statusLabel === 'PAID · CONFIRMED' ? '#34D399' : '#38BDF8')};border-radius:20px;color:${safe(statusLabel === 'PAID · CONFIRMED' ? '#34D399' : '#38BDF8')};font-size:10px;font-weight:800;letter-spacing:1.5px">${passStatus}</div></td></tr><tr><td align="center" style="padding:10px 16px 20px"><table role="presentation" class="ticket" width="360"><tr><td bgcolor="#243C74" style="padding:28px 26px 24px"><div class="display" style="font-size:48px;line-height:.92;letter-spacing:1px">FESTRONIX</div><div class="display" style="font-size:15px;color:#BACEBB;letter-spacing:.8px;padding-top:5px">THE POWER OF THE MOMENT</div><div style="font-size:12px;font-weight:700;letter-spacing:1px;color:#BACEBB;text-transform:uppercase;padding-top:12px">${safe(eventTitle)}</div><div style="border-top:1px dashed rgba(220,227,232,.4);margin:18px 0 16px"></div><table role="presentation" width="100%"><tr><td width="55%" valign="top" style="padding-right:8px"><div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#B7CFF0">VENUE</div><div style="font-size:13px;font-weight:700;color:#fff;line-height:18px;padding-top:3px">${safe(venue)}<br><span style="color:#DCE3E8">Vardhaman College of Engineering</span></div></td><td width="45%" valign="top"><div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#B7CFF0">DATE &amp; DOORS</div><div style="font-size:13px;font-weight:700;color:#fff;line-height:18px;padding-top:3px">${safe(eventDate)}<br><span style="color:#DCE3E8">DOORS: ${safe(eventTime)}</span></div></td></tr></table><div style="border-top:1px dashed rgba(220,227,232,.4);margin-top:18px;padding-top:14px"><div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#B7CFF0">PASS HOLDER</div><div style="font-size:25px;line-height:1.05;color:#fff;letter-spacing:1px;text-transform:uppercase;padding-top:3px">${safe(participant)}</div><div style="font-size:12px;color:#DCE3E8;padding-top:7px">Roll: ${safe(clean(registration.leader_roll, 50) || 'Not provided')}</div>${teamName ? `<div style="font-size:12px;color:#BACEBB;padding-top:5px">TEAM: ${safe(teamName)}${teamCode ? ` · ${safe(teamCode)}` : ''}</div>` : ''}</div></td></tr><tr><td bgcolor="#6F9693" style="height:0;border-top:3px dotted #080C16;padding:0">&nbsp;</td></tr><tr><td align="center" bgcolor="#2E4E8C" style="padding:22px 26px 26px"><div style="font-size:14px;letter-spacing:2px;color:#E2E8F0;margin-bottom:14px">GATE ENTRY &bull; SCAN AT TURNSTILE</div>${qrBlock}<div style="font-family:'Courier New',monospace;font-size:12px;font-weight:700;color:#fff;letter-spacing:2px;padding-top:4px">${safe(displayId)}</div><div style="font-size:10px;line-height:15px;color:#E2E8F0;letter-spacing:1px;padding-top:6px">SCAN AT THE GATE &bull; ONE ENTRY PER CODE &bull; VALID PHOTO ID REQUIRED</div></td></tr></table></td></tr><tr><td class="px" align="center" style="padding:22px 24px 10px"><table role="presentation" width="100%" style="max-width:440px"><tr><td class="stack" width="50%" style="padding-right:8px"><a href="${safe(passUrl)}" style="display:block;background:#2E4E8C;color:#fff;text-align:center;padding:15px 12px;border-radius:50px;font-size:12px;font-weight:800;letter-spacing:1px">&#128241; OPEN LIVE PASS</a></td><td class="stack" width="50%" style="padding-left:8px"><a href="${safe(calendarUrl)}" style="display:block;border:2px solid #88B2AE;color:#88B2AE;text-align:center;padding:13px 12px;border-radius:50px;font-size:12px;font-weight:800;letter-spacing:1px">&#128197; ADD TO CALENDAR</a></td></tr></table>${whatsappButton}</td></tr><tr><td class="px" style="padding:28px 24px 0"><table role="presentation" width="100%" style="border-top:1px solid #263553"><tr><td class="stack" width="33%" valign="top" style="padding:20px 10px 0 0"><div style="font-size:10px;letter-spacing:1.5px;color:#94A3B8">&#9200; DOORS OPEN</div><div style="font-size:20px;color:#fff;padding-top:4px">${safe(eventTime)}</div></td><td class="stack" width="33%" valign="top" style="padding:20px 10px 0 0"><div style="font-size:10px;letter-spacing:1.5px;color:#94A3B8">&#128197; DATE</div><div style="font-size:20px;color:#fff;padding-top:4px">${safe(eventDate)}</div></td><td class="stack" width="34%" valign="top" style="padding:20px 0 0"><div style="font-size:10px;letter-spacing:1.5px;color:#94A3B8">&#128205; VENUE</div><div style="font-size:20px;color:#fff;padding-top:4px">${safe(venue)}</div></td></tr></table></td></tr><tr><td class="px" style="padding:32px 24px 0"><div class="display" style="font-size:20px;letter-spacing:1.5px;color:#88B2AE;padding-bottom:14px">GOOD TO KNOW</div><table role="presentation" width="100%">${ruleRows}</table></td></tr><tr><td class="px" style="padding:32px 24px 0"><table role="presentation" width="100%" style="border:1px solid #263553;border-radius:14px"><tr><td style="padding:20px 24px"><table role="presentation" width="100%"><tr><td style="font-size:13px;color:#A8B3C2;padding-bottom:10px">${safe(ticketType)} &times; ${quantity}</td><td align="right" style="font-size:13px;font-weight:600;color:#fff;padding-bottom:10px">${formatAmount(fee)}</td></tr><tr><td style="font-size:13px;font-weight:700;color:#88B2AE;border-top:1px solid #263553;padding-top:14px;text-transform:uppercase;letter-spacing:1.5px">Total paid</td><td align="right" style="font-size:24px;color:#88B2AE;border-top:1px solid #263553;padding-top:12px">${formatAmount(fee)}</td></tr></table></td></tr></table></td></tr><tr><td class="px" align="center" style="padding:40px 24px 44px"><div class="display" style="font-size:25px;letter-spacing:2px;color:#DCE3E8">THE POWER OF THE MOMENT</div><p style="margin:16px 0 0;font-size:12px;line-height:22px;color:#7E8D9F">Need help? <a href="mailto:admin@vardhaman.org" style="color:#88B2AE">admin@vardhaman.org</a><br><a href="${safe(passUrl)}" style="color:#A8B3C2;text-decoration:underline">Open Live Pass</a> &nbsp;&bull;&nbsp; <a href="${safe(`${site}/terms`)}" style="color:#A8B3AE;text-decoration:underline">Terms</a></p><p style="margin:12px 0 0;font-size:11px;color:#64748B">&copy; 2026 Festronix. All rights reserved.</p></td></tr></table></td></tr></table></body></html>`;
+  const htmlWithBranding = htmlContent.replace('<span class="display" style="font-size:24px;letter-spacing:2px;color:#88B2AE">&#9889; FESTRONIX</span>', brandLogoHtml);
+  const htmlWithPartners = htmlWithBranding.replace('<tr><td class="px" align="center" style="padding:40px 24px 44px"', `${partnerLogosHtml}<tr><td class="px" align="center" style="padding:40px 24px 44px"`);
   try {
     const providerResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -1116,8 +1188,8 @@ async function sendPassEmail(db: FirebaseFirestore.Firestore, deliveryToken: str
         to: [{ email: recipient, name: participant }],
         subject: `Your FESTRONIX pass — ${eventTitle}`,
         textContent,
-        htmlContent,
-        ...(qrAttachment ? { attachment: [qrAttachment] } : {}),
+        htmlContent: htmlWithPartners,
+        ...(qrAttachment || inlineAttachments.length ? { attachment: [...inlineAttachments, ...(qrAttachment ? [qrAttachment] : [])] } : {}),
       }),
       signal: AbortSignal.timeout(15_000),
     });

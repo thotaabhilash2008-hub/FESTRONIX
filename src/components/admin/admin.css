@@ -1412,3 +1412,93 @@
   .admin-sidebar-overlay { transition: none; }
 }
 
+/* Distinct visual language for the operational workspaces. Both pages share
+   navigation, but their purpose should be obvious at a glance. */
+.admin-specialized-page {
+  --special-accent: #38bdf8;
+  --special-surface: rgba(14, 30, 58, 0.78);
+}
+
+.admin-page-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 0 22px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--special-accent) 35%, transparent);
+  background: linear-gradient(120deg, var(--special-surface), rgba(8, 12, 22, 0.9));
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.18);
+}
+
+.admin-page-identity h2 {
+  margin: 4px 0 5px;
+  color: #fff;
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+  letter-spacing: -0.02em;
+}
+
+.admin-page-identity p {
+  margin: 0;
+  color: #a8b3c2;
+  font-size: 0.82rem;
+}
+
+.admin-page-eyebrow {
+  color: var(--special-accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-page-purpose-grid,
+.admin-participant-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  gap: 9px;
+  min-width: 330px;
+}
+
+.admin-page-purpose-grid div,
+.admin-participant-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 12px;
+  border-radius: 11px;
+  background: rgba(8, 12, 22, 0.44);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.admin-page-purpose-grid strong,
+.admin-participant-summary strong {
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.admin-page-purpose-grid span,
+.admin-participant-summary span {
+  color: #a8b3c2;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-page-identity-payment {
+  --special-accent: #fbbf24;
+  --special-surface: rgba(58, 36, 12, 0.78);
+}
+
+.admin-page-identity-payment .admin-page-purpose-grid strong { color: #fde68a; }
+.admin-page-identity-participants { --special-accent: #38bdf8; }
+.admin-page-identity-participants .admin-participant-summary strong { color: #7dd3fc; }
+
+@media (max-width: 760px) {
+  .admin-page-identity { align-items: stretch; flex-direction: column; padding: 18px; }
+  .admin-page-purpose-grid,
+  .admin-participant-summary { width: 100%; min-width: 0; }
+}
+

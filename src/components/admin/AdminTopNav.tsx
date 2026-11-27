@@ -29,13 +29,13 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
   const getRoleHeader = () => {
     if (adminUser.role === 'vencorpia') {
       return {
-        title: 'VENCORPIA EXECUTIVE CONSOLE',
+        title: 'FESTRONIX EXECUTIVE CONSOLE',
         badge: '👑 SUPER ADMIN • CENTRAL GOVERNANCE'
       };
     }
     if (adminUser.role === 'connect_club') {
       return {
-        title: 'CONNECT CLUB EXECUTIVE CONSOLE',
+        title: 'FESTRONIX EXECUTIVE CONSOLE',
         badge: '👑 SUPER ADMIN • CENTRAL GOVERNANCE'
       };
     }

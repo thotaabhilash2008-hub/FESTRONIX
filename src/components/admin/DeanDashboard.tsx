@@ -2540,7 +2540,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
         {/* TAB 2: PAYMENT VERIFICATION DESK */}
         {activeTab === 'payments' && (
-          <div>
+          <div className="admin-specialized-page admin-payment-page">
+            <div className="admin-page-identity admin-page-identity-payment">
+              <div>
+                <span className="admin-page-eyebrow">Finance operations</span>
+                <h2>Payment Control Center</h2>
+                <p>Review transaction evidence, resolve exceptions, and release verified entry passes.</p>
+              </div>
+              <div className="admin-page-purpose-grid">
+                <div><strong>01</strong><span>Review queue</span></div>
+                <div><strong>02</strong><span>Verify payments</span></div>
+                <div><strong>03</strong><span>Release passes</span></div>
+              </div>
+            </div>
             {!selectedPaymentEventId ? (
               <EventOverviewGrid items={eventOverviewItems} mode="payments" onSelect={setSelectedPaymentEventId} paymentOrders={paymentOrders} />
             ) : (
@@ -4657,7 +4669,19 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
 
         {/* TAB 6: MASTER STUDENT ROSTER & GATE ATTENDANCE */}
         {(activeTab === 'roster' || activeTab === 'registrations') && (
-          <div>
+          <div className="admin-specialized-page admin-participants-page">
+            <div className="admin-page-identity admin-page-identity-participants">
+              <div>
+                <span className="admin-page-eyebrow">Operations directory</span>
+                <h2>Participant &amp; Squad Registry</h2>
+                <p>Search delegates, inspect complete team rosters, and manage live gate attendance.</p>
+              </div>
+              <div className="admin-participant-summary">
+                <div><strong>{filteredRoster.reduce((total, group) => total + group.memberCount, 0)}</strong><span>Delegates</span></div>
+                <div><strong>{filteredRoster.filter(group => group.isTeam).length}</strong><span>Squads</span></div>
+                <div><strong>{filteredRoster.filter(group => group.anyCheckedIn).length}</strong><span>Checked in</span></div>
+              </div>
+            </div>
             <div
               style={{
                 display: 'flex',
@@ -4958,7 +4982,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                       borderRadius: '9999px'
                     }}
                   >
-                    👑 3 SUPER ADMIN BODIES ACTIVE
+                    👑 CENTRAL SUPER ADMINISTRATION
                   </span>
                 </div>
                 <p style={{ fontSize: '0.8rem', color: '#A8B3C2', margin: 0 }}>
@@ -4981,11 +5005,11 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <Award size={22} color="#fbbf24" />
                 <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#FFFFFF', fontWeight: 800 }}>
-                  3 Super Admins • Fest-wide Administration
+                  Fest-wide Administration
                 </h4>
               </div>
               <p style={{ fontSize: '0.82rem', color: '#DCE3E5', lineHeight: 1.5, margin: '0 0 16px' }}>
-                As configured, there are exactly <strong>3 Super Admins</strong> governing the entire technical festival across all 9 academic departments, finance verification, participant registries, content, and gate operations:
+                Central administration governs the technical festival across all academic departments, finance verification, participant registries, content, and gate operations:
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 <div style={{ background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '12px', padding: '14px' }}>
@@ -4995,19 +5019,6 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                   <div style={{ fontSize: '0.72rem', color: '#789593', marginTop: '6px' }}>Fest-wide administration</div>
                 </div>
 
-                <div style={{ background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 800, textTransform: 'uppercase' }}>Super Admin 2</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>CONNECT CLUB</div>
-                  <div style={{ fontSize: '0.76rem', color: '#A8B3C2' }}>Aditya Varma & Core Team • Media & Organizing</div>
-                  <div style={{ fontSize: '0.72rem', color: '#789593', marginTop: '6px' }}>Fest-wide administration</div>
-                </div>
-
-                <div style={{ background: 'rgba(16, 26, 53, 0.85)', border: '1px solid rgba(220, 227, 229, 0.15)', borderRadius: '12px', padding: '14px' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 800, textTransform: 'uppercase' }}>Super Admin 3</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>VENCORPIA</div>
-                  <div style={{ fontSize: '0.76rem', color: '#A8B3C2' }}>Executive Leadership Board • Tech & Innovation</div>
-                  <div style={{ fontSize: '0.72rem', color: '#789593', marginTop: '6px' }}>Fest-wide administration</div>
-                </div>
               </div>
             </div>
 
@@ -5044,7 +5055,7 @@ export const DeanDashboard: React.FC<DeanDashboardProps> = ({ adminUser, onLogou
                             </div>
                             {isSuper && (
                               <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginTop: '4px', fontWeight: 700 }}>
-                                (SAC DEAN, CONNECT CLUB, VENCORPIA)
+                                (Central FESTRONIX administration)
                               </div>
                             )}
                           </td>

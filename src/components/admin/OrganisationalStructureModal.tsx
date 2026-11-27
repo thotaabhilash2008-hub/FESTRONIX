@@ -132,7 +132,7 @@ export const OrganisationalStructureModal: React.FC<OrganisationalStructureModal
                       </div>
                       {isSuper && (
                         <div style={{ marginTop: '6px', fontSize: '0.72rem', color: '#fbbf24', fontWeight: 600 }}>
-                          (3 Super Admins: ASIF SIR, CONNECT CLUB, VENCORPIA)
+                          (Central FESTRONIX administration)
                         </div>
                       )}
                     </td>

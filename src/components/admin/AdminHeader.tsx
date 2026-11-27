@@ -52,7 +52,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     const role = adminUser.role;
     if (role === 'vencorpia') {
       return {
-        title: titleOverride || 'VENCORPIA EXECUTIVE CONSOLE',
+        title: titleOverride || 'FESTRONIX EXECUTIVE CONSOLE',
         badge: badgeOverride || '👑 SUPER ADMIN • FEST-WIDE LEADERSHIP',
         badgeBg: 'rgba(245, 158, 11, 0.15)',
         badgeBorder: 'rgba(245, 158, 11, 0.45)',
@@ -63,7 +63,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     }
     if (role === 'connect_club') {
       return {
-        title: titleOverride || 'CONNECT CLUB EXECUTIVE CONSOLE',
+        title: titleOverride || 'FESTRONIX EXECUTIVE CONSOLE',
         badge: badgeOverride || '👑 SUPER ADMIN • FEST-WIDE LEADERSHIP',
         badgeBg: 'rgba(245, 158, 11, 0.15)',
         badgeBorder: 'rgba(245, 158, 11, 0.45)',
