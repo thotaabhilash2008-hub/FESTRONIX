@@ -1120,26 +1120,12 @@ async function sendPassEmail(db, deliveryToken) {
     let fee = Number(registration.fee || 0);
     const statusLabel = paymentStatus === 'verified' ? 'PAID · CONFIRMED' : paymentStatus === 'not_applicable' ? 'CONFIRMED' : paymentStatus.toUpperCase();
     const safe = (value) => escapeHtml(value);
-    // Draw the QR with HTML table cells so it is visible even when Gmail blocks
-    // remote images and ignores CID/base64 images. A real PNG is attached too.
+    // Render the QR from a PNG endpoint so email clients cannot recolor the
+    // white quiet zone in dark mode. The same PNG is attached as a fallback.
     let qrBlock = qrToken ? `<p><strong>Entry QR token:</strong> ${safe(qrToken)}</p>` : '';
     if (qrToken) {
-        try {
-            const matrix = (0, qrcode_1.create)(qrToken, { errorCorrectionLevel: 'M' }).modules;
-            const cell = 8;
-            const rows = [];
-            for (let y = 0; y < matrix.size; y += 1) {
-                const cells = [];
-                for (let x = 0; x < matrix.size; x += 1) {
-                    cells.push(`<td bgcolor="${matrix.data[y * matrix.size + x] ? '#07111F' : '#FFFFFF'}" style="width:${cell}px;height:${cell}px;background-color:${matrix.data[y * matrix.size + x] ? '#07111F' : '#FFFFFF'}!important;padding:0;line-height:0;font-size:0"></td>`);
-                }
-                rows.push(`<tr style="height:${cell}px">${cells.join('')}</tr>`);
-            }
-            qrBlock = `<div style="margin:22px 0;text-align:center;color-scheme:light only"><div bgcolor="#FFFFFF" style="display:inline-block;background-color:#FFFFFF!important;padding:12px;border-radius:12px;box-shadow:0 0 0 1px #FFFFFF"><table role="img" aria-label="FESTRONIX entry QR" bgcolor="#FFFFFF" style="border-collapse:collapse;background-color:#FFFFFF!important"><tbody>${rows.join('')}</tbody></table></div><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`;
-        }
-        catch {
-            // The attached PNG and token text remain available.
-        }
+        const qrImageUrl = `${site}/api/qr/${encodeURIComponent(qrToken)}.png`;
+        qrBlock = `<div style="margin:22px auto;text-align:center;color-scheme:light only"><table role="presentation" align="center" bgcolor="#FFFFFF" style="border-collapse:separate;border-spacing:0;background-color:#FFFFFF!important;border-radius:12px"><tr><td align="center" bgcolor="#FFFFFF" style="padding:12px;background-color:#FFFFFF!important;border-radius:12px"><img src="${safe(qrImageUrl)}" width="230" height="230" alt="FESTRONIX entry QR code with a white background" style="display:block;width:230px;height:230px;max-width:100%;border:0;background-color:#FFFFFF;color-scheme:light only"></td></tr></table><div style="margin-top:10px;color:#94a3b8;font-size:12px;word-break:break-all">Token: ${safe(qrToken)}</div></div>`;
     }
     // Attach the QR as a real PNG: Gmail can hide remote images, so the
     // attachment guarantees the pass is usable from the email itself.
