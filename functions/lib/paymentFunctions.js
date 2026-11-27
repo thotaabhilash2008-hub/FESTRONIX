@@ -1221,7 +1221,7 @@ async function sendPassEmail(db, deliveryToken) {
             body: JSON.stringify({
                 sender,
                 to: [{ email: recipient, name: participant }],
-                subject: `Your FESTRONIX pass — ${eventTitle}`,
+                subject: `Your FESTRONIX pass — ${eventTitle} — ${displayId}`,
                 textContent,
                 htmlContent: htmlWithPartners,
                 ...(qrAttachment || inlineAttachments.length ? { attachment: [...inlineAttachments, ...(qrAttachment ? [qrAttachment] : [])] } : {}),
