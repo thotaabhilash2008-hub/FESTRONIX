@@ -1170,12 +1170,13 @@ async function sendPassEmail(db, deliveryToken) {
     const isTeam = Boolean(teamName || teamCode || ['team', 'duo'].includes(String(registration.format || event.format).toLowerCase()));
     if (isTeam && fee <= 0 && teamCode) {
         const teamPasses = await db.collection('registrations')
-            .where('event_id', '==', clean(registration.event_id, 80))
             .where('team_code', '==', teamCode)
             .get();
         const leaderPayment = teamPasses.docs
             .map(document => document.data())
-            .find(row => clean(row.buyer_roll, 50) === clean(row.leader_roll, 50) && Number(row.fee || 0) > 0);
+            .find(row => clean(row.event_id, 80) === clean(registration.event_id, 80)
+            && clean(row.buyer_roll, 50) === clean(row.leader_roll, 50)
+            && Number(row.fee || 0) > 0);
         if (leaderPayment)
             fee = Number(leaderPayment.fee);
     }
