@@ -14,6 +14,7 @@ export interface StaffPaymentOrder {
   id: string;
   orderId: string;
   paymentId?: string;
+  isManualAdjustment?: boolean;
   amountPaise: number;
   status: string;
   refundStatus: string;
@@ -47,7 +48,7 @@ export const FirebaseStaffPaymentService = {
 /** Razorpay-matching revenue: successful, non-refunded captured orders only. */
 export function paidOrderTotalPaise(orders: StaffPaymentOrder[]): number {
   return orders
-    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded')
+    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded' && !order.isManualAdjustment)
     .reduce((total, order) => total + (Number(order.amountPaise) || 0), 0);
 }
 
@@ -69,7 +70,7 @@ export function dailyPaidOrderCollections(orders: StaffPaymentOrder[]): DailyPay
   const byDay = new Map<string, { amountPaise: number; orders: number }>();
 
   orders
-    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded')
+    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded' && !order.isManualAdjustment)
     .forEach(order => {
       const key = istDayKey(order.createdAt);
       const amount = Number(order.amountPaise) || 0;
@@ -115,7 +116,7 @@ export function dailyPaidOrderCollections(orders: StaffPaymentOrder[]): DailyPay
 export function paidOrderTotalForDepartmentPaise(orders: StaffPaymentOrder[], departmentCode: string): number {
   const department = String(departmentCode || '').trim().toUpperCase();
   return orders
-    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded')
+    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded' && !order.isManualAdjustment)
     .filter(order => order.items.some(item => String(item.departmentCode || '').trim().toUpperCase() === department))
     .reduce((total, order) => total + (Number(order.amountPaise) || 0), 0);
 }
@@ -125,7 +126,7 @@ export function paidOrderTotalForEventPaise(orders: StaffPaymentOrder[], eventId
   const targetEventId = String(eventId || '').trim();
   if (!targetEventId) return 0;
   return orders
-    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded')
+    .filter(order => order.status === 'paid' && order.refundStatus !== 'succeeded' && !order.isManualAdjustment)
     .reduce((total, order) => {
       const matchedItems = order.items.filter(item => String(item.eventId || '').trim() === targetEventId);
       if (matchedItems.length === 0) {

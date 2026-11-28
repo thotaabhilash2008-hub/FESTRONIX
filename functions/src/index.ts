@@ -919,6 +919,7 @@ export const listStaffPaymentOrders = onCall({ enforceAppCheck: false, timeoutSe
       id: document.id,
       orderId: textField(row.razorpay_order_id) || document.id,
       paymentId: textField(row.razorpay_payment_id) || undefined,
+      isManualAdjustment: payload.adjustment === true,
       amountPaise: Number(row.amount_paise) || 0,
       status: textField(row.status) || 'unknown',
       refundStatus: textField(row.refund_status) || 'not_requested',
