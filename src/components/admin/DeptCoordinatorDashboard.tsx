@@ -22,6 +22,7 @@ import {
   sumVerifiedRegistrationRevenue,
 } from '../../lib/revenue';
 import { groupRegistrationsForDisplay, RegistrationDisplayGroup } from '../../lib/registrationDisplay';
+import { TeamRosterModal } from './TeamRosterModal';
 import { Department, FestEvent, Registration, FestStats, PaymentStatus, EventFormat, Announcement, Teammate } from '../../types/festronix';
 import { AdminHeader } from './AdminHeader';
 import { DeptSidebar } from './DeptSidebar';
@@ -204,6 +205,7 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
   const [deptRevenueSearch, setDeptRevenueSearch] = useState('');
   const [deptRevenueStatusFilter, setDeptRevenueStatusFilter] = useState<'all' | 'verified' | 'verification_pending' | 'rejected'>('all');
   const [deptRevenueEventFilter, setDeptRevenueEventFilter] = useState<string>('all');
+  const [selectedLedgerTeam, setSelectedLedgerTeam] = useState<RegistrationDisplayGroup | null>(null);
 
   // Attendance Check-in Event Filter & Attendee Search
   const [checkInEventFilter, setCheckInEventFilter] = useState<string>('all');
@@ -658,6 +660,22 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
         (r.eventTitle && r.eventTitle.toLowerCase().includes(q)) ||
         (r.transactionId && r.transactionId.toLowerCase().includes(q)) ||
         (r.razorpayPaymentId && r.razorpayPaymentId.toLowerCase().includes(q));
+      return matchEvent && matchStatus && matchSearch;
+    });
+  }, [scopedRegistrations, deptRevenueEventFilter, deptRevenueStatusFilter, deptRevenueSearch]);
+
+  const filteredDeptRevenueGroups = useMemo(() => {
+    const query = deptRevenueSearch.trim().toLowerCase();
+    return groupRegistrationsForDisplay(scopedRegistrations).filter(group => {
+      const matchEvent = deptRevenueEventFilter === 'all' || group.registrations.some(registration => registration.eventId === deptRevenueEventFilter);
+      const matchStatus = deptRevenueStatusFilter === 'all' || group.registrations.some(registration => registration.paymentStatus === deptRevenueStatusFilter);
+      const searchableValues = [group.displayId, group.teamCode, group.teamName, group.representative.eventTitle,
+        ...group.registrations.flatMap(registration => [
+          registration.id, registration.leaderName, registration.leaderRoll, registration.buyerRoll,
+          registration.leaderEmail, registration.leaderPhone, registration.transactionId, registration.razorpayPaymentId,
+          ...(registration.teammates || []).flatMap(member => [member.name, member.rollNumber, member.email, member.phone]),
+        ])];
+      const matchSearch = !query || searchableValues.some(value => String(value || '').toLowerCase().includes(query));
       return matchEvent && matchStatus && matchSearch;
     });
   }, [scopedRegistrations, deptRevenueEventFilter, deptRevenueStatusFilter, deptRevenueSearch]);
@@ -2824,10 +2842,12 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '14px' }}>
                 <div>
                   <h3 className="font-title" style={{ fontSize: '1.12rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
-                    {isEventCoord ? 'Assigned Event Registration Ledger' : `${deptCode} Registration Ledger`} ({filteredDeptRevenueRegistrations.length})
+                    {isEventCoord ? 'Assigned Event Registration Ledger' : `${deptCode} Registration Ledger`} ({filteredDeptRevenueGroups.length})
                   </h3>
                   <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '3px 0 0' }}>
-                    {isEventCoord ? 'Transaction records for explicitly assigned events only.' : `Granular transaction records strictly for ${deptCode} events.`}
+                    {isEventCoord
+                      ? 'Each registered team appears once. Open View team for its full roster; individual passes remain listed separately.'
+                      : `Registered teams appear once in this ${deptCode}-only view. Open View team to see each member and their pass status.`}
                   </p>
                 </div>
 
@@ -2917,13 +2937,14 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                 </div>
               </div>
 
-              {/* Transactions Table */}
+              {/* Team-aware registration ledger */}
               <div style={{ overflowX: 'auto', maxHeight: '480px', overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '760px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1080px' }}>
                   <thead style={{ position: 'sticky', top: 0, background: '#101B35', zIndex: 2 }}>
                     <tr style={{ borderBottom: '1px solid rgba(220, 227, 229, 0.16)', fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      <th style={{ padding: '10px 12px' }}>Registration ID</th>
-                      <th style={{ padding: '10px 12px' }}>Participant / Roll</th>
+                      <th style={{ padding: '10px 12px' }}>Registration / Team</th>
+                      <th style={{ padding: '10px 12px' }}>Participant / Squad</th>
+                      <th style={{ padding: '10px 12px' }}>Roll / Members</th>
                       <th style={{ padding: '10px 12px' }}>Event Arena</th>
                       <th style={{ padding: '10px 12px', textAlign: 'right' }}>Fee</th>
                       <th style={{ padding: '10px 12px', textAlign: 'center' }}>Channel</th>
@@ -2932,16 +2953,25 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDeptRevenueRegistrations.length === 0 ? (
+                    {filteredDeptRevenueGroups.length === 0 ? (
                       <tr>
-                        <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
+                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
                           No registration records match the selected filters.
                         </td>
                       </tr>
                     ) : (
-                      filteredDeptRevenueRegistrations.slice(0, 50).map(r => (
+                      filteredDeptRevenueGroups.slice(0, 50).map(group => {
+                        const r = group.representative;
+                        const groupFee = sumRegistrationRevenueForRows(group.registrations);
+                        const transactionId = group.registrations.find(row => row.transactionId || row.razorpayPaymentId)?.transactionId ||
+                          group.registrations.find(row => row.razorpayPaymentId)?.razorpayPaymentId;
+                        const statuses = group.paymentStatus.toLowerCase();
+                        const verified = statuses === 'verified';
+                        const rejected = statuses === 'rejected';
+                        const statusLabel = statuses === 'verification_pending' ? 'Pending' : statuses === 'not_applicable' ? 'No payment' : statuses.replaceAll('_', ' ');
+                        return (
                         <tr
-                          key={r.id}
+                          key={group.key}
                           style={{
                             borderBottom: '1px solid rgba(220, 227, 229, 0.07)',
                             fontSize: '0.8rem',
@@ -2951,17 +2981,33 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
                           <td style={{ padding: '12px 12px', fontFamily: 'monospace', color: '#38BDF8', fontWeight: 600 }}>
-                            {r.id}
+                            <div>{group.displayId}</div>
+                            <div style={{ marginTop: '3px', color: '#94A3B8', fontSize: '0.68rem', fontWeight: 500 }}>
+                              {group.isTeam ? `${group.members.length} members · ${group.registrations.length} passes` : r.id}
+                            </div>
                           </td>
                           <td style={{ padding: '12px 12px' }}>
-                            <div style={{ color: '#FFFFFF', fontWeight: 600 }}>{r.leaderName || 'Individual Delegate'}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{r.leaderRoll || r.leaderEmail}</div>
+                            <div style={{ color: '#FFFFFF', fontWeight: 700 }}>{group.isTeam ? (group.teamName || 'Registered team') : (r.leaderName || 'Individual Delegate')}</div>
+                            <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '3px' }}>
+                              {group.isTeam ? `Contact: ${r.leaderName || 'Team lead'}${r.leaderEmail ? ` · ${r.leaderEmail}` : ''}${r.leaderPhone ? ` · ${r.leaderPhone}` : ''}` : (r.leaderRoll || r.leaderEmail)}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 12px', minWidth: '165px' }}>
+                            {group.isTeam ? <>
+                              <div style={{ color: '#FFFFFF', fontWeight: 700 }}>{group.members.length} delegates</div>
+                              <div style={{ color: '#94A3B8', fontSize: '0.68rem', lineHeight: 1.45, marginTop: '3px' }}>
+                                {group.members.slice(0, 3).map(member => member.rollNumber || member.name).join(', ')}{group.members.length > 3 ? '…' : ''}
+                              </div>
+                              <button type="button" onClick={() => setSelectedLedgerTeam(group)} style={{ marginTop: '6px', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: '7px', background: 'rgba(56, 189, 248, 0.1)', color: '#38BDF8', padding: '4px 9px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                View team
+                              </button>
+                            </> : <div style={{ color: '#CBD5E1', fontFamily: 'monospace', fontSize: '0.74rem' }}>{r.leaderRoll || r.buyerRoll || 'Roll unavailable'}</div>}
                           </td>
                           <td style={{ padding: '12px 12px', color: '#DCE3E5' }}>
                             {r.eventTitle}
                           </td>
                           <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 800, color: '#FFFFFF' }}>
-                            ₹{registrationRevenueAmount(r)}
+                            ₹{groupFee.toLocaleString('en-IN')}
                           </td>
                           <td style={{ padding: '12px 12px', textAlign: 'center' }}>
                             <span
@@ -2983,41 +3029,42 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
                                 padding: '3px 8px',
                                 borderRadius: '6px',
                                 background:
-                                  r.paymentStatus === 'verified'
+                                  verified
                                     ? 'rgba(52, 211, 153, 0.15)'
-                                    : r.paymentStatus === 'rejected'
+                                    : rejected
                                     ? 'rgba(244, 63, 94, 0.15)'
                                     : 'rgba(251, 191, 36, 0.15)',
                                 color:
-                                  r.paymentStatus === 'verified'
+                                  verified
                                     ? '#34D399'
-                                    : r.paymentStatus === 'rejected'
+                                    : rejected
                                     ? '#F43F5E'
                                     : '#FBBF24',
                                 border: `1px solid ${
-                                  r.paymentStatus === 'verified'
+                                  verified
                                     ? 'rgba(52, 211, 153, 0.3)'
-                                    : r.paymentStatus === 'rejected'
+                                    : rejected
                                     ? 'rgba(244, 63, 94, 0.3)'
                                     : 'rgba(251, 191, 36, 0.3)'
                                 }`
                               }}
                             >
-                              {r.paymentStatus === 'verified' ? 'VERIFIED' : r.paymentStatus === 'rejected' ? 'REJECTED' : 'PENDING'}
+                              {statusLabel.toUpperCase()}
                             </span>
                           </td>
                           <td style={{ padding: '12px 12px', fontFamily: 'monospace', fontSize: '0.74rem', color: '#94A3B8' }}>
-                            {r.transactionId || r.razorpayPaymentId || (r.paymentScreenshotUrl ? 'Proof Attached' : '—')}
+                            {transactionId || (r.paymentScreenshotUrl ? 'Proof Attached' : '—')}
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
               </div>
-              {filteredDeptRevenueRegistrations.length > 50 && (
+              {filteredDeptRevenueGroups.length > 50 && (
                 <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '0.76rem', color: '#94A3B8' }}>
-                  Showing first 50 of {filteredDeptRevenueRegistrations.length} registrations. Export CSV for full departmental records.
+                  Showing first 50 of {filteredDeptRevenueGroups.length} teams and individual entries. Export CSV for full registration records.
                 </div>
               )}
             </div>
@@ -4608,6 +4655,8 @@ export const DeptCoordinatorDashboard: React.FC<DeptCoordinatorDashboardProps> =
           </div>
         </div>
       )}
+
+      <TeamRosterModal group={selectedLedgerTeam} onClose={() => setSelectedLedgerTeam(null)} />
 
       {/* Proof Lightbox */}
       {selectedProofUrl && (
